@@ -1,0 +1,51 @@
+name: CI/CD Pipeline - Firebase Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    # Stratégie d'environnement : on déploie sur 'production' si on est sur la branche 'main', sinon 'staging'
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint & Test
+        run: |
+          npm run lint
+          # npm run test (si des tests vitest/jest sont configurés)
+
+      - name: Build Web Application
+        run: npm run build
+        env:
+          # Les variables d'environnement injectées lors du build (Next.js / Vite)
+          VITE_FIREBASE_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
+      - name: Deploy to Firebase Hosting & Functions
+        uses: w9jds/firebase-action@master
+        with:
+          # Déploie vers le projet spécifique en fonction de la branche
+          args: deploy --project ${{ github.ref == 'refs/heads/main' && 'prod-restaurant-fes' || 'staging-restaurant-fes' }}
+        env:
+          # Token stocké de manière sécurisée dans les GitHub Secrets
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

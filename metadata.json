@@ -1,0 +1,6 @@
+{
+  "name": "Mouda Palace SaaS",
+  "description": "Système de gestion centralisé pour restaurant (Admin, CRM, B2B Riads, Web).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

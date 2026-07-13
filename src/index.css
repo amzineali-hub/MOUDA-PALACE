@@ -4,4 +4,14 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --animate-scan: scan 2s ease-in-out infinite;
+  
+  @keyframes scan {
+    0%, 100% {
+      transform: translateY(-8rem);
+    }
+    50% {
+      transform: translateY(8rem);
+    }
+  }
 }

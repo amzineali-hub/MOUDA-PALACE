@@ -15,3 +15,10 @@
     }
   }
 }
+
+
+@media print {
+  body { background: white; }
+  .sidebar, nav { display: none !important; }
+  .print\:hidden { display: none !important; }
+}

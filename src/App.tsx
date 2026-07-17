@@ -5,9 +5,11 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { motion } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
+  FileSpreadsheet,
   ChefHat, 
   Users, 
   MessageCircle, 
@@ -65,7 +67,27 @@ import {
   Wallet,
   Receipt,
   RefreshCw,
-  Printer
+  Printer,
+  Wand2,
+  CreditCard,
+  UserX,
+  Send,
+  Mail,
+  BookText,
+  Scale,
+  TrendingDown,
+  ClipboardList,
+  Truck,
+  Phone,
+  MapPin,
+  Clock,
+  CalendarRange,
+  UserCheck,
+  GraduationCap,
+  FileText,
+  Star,
+  Award,
+  Timer
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
@@ -320,7 +342,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-50 sticky top-0">
+      <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-50 sticky top-0">
         <div className="flex items-center gap-3">
           <div 
              className="h-8 w-10 bg-[#DDA956]" 
@@ -343,7 +365,7 @@ export default function App() {
       </div>
 
       {/* Sidebar Navigation */}
-      <aside className={`${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
+      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
             className="h-24 w-32 mb-4 bg-[#DDA956]" 
@@ -409,7 +431,7 @@ export default function App() {
           <NavItem icon={<ConciergeBell size={18} />} label="Portail B2B Riads" active={activeTab === 'b2b'} onClick={() => handleTabChange('b2b')} />
           <NavItem icon={<MessageCircle size={18} />} label="WhatsApp & IA" active={activeTab === 'whatsapp'} onClick={() => handleTabChange('whatsapp')} />
           <NavItem icon={<UtensilsCrossed size={18} />} label="Menu Digital" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
-          <NavItem icon={<ChefHat size={18} />} label="Inventaire & Stock" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+          <NavItem icon={<ChefHat size={18} />} label="Production & Stocks Cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
           <NavItem icon={<Users size={18} />} label="Staff & RH" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
           <NavItem icon={<Wallet size={18} />} label="Caisse (TacSystems)" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
           <NavItem icon={<Receipt size={18} />} label="Facturation & Compta" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
@@ -530,24 +552,63 @@ function PerformanceAnalysis() {
 
 function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const { showToast } = useToast();
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   
+  const handleExportExcel = () => {
+    try {
+      const metricsData = [
+        ["Catégorie", "Métrique", "Valeur"],
+        ["Aujourd'hui", "Daily Active Users", "324"],
+        ["Aujourd'hui", "Average Order Value", "1,076 MAD"],
+        ["Aujourd'hui", "Réservations", "42"],
+        ["Aujourd'hui", "Chiffre d'Affaires Prévu", "45,200 MAD"],
+        ["Performances CRM & B2B", "Clients Actifs (CRM)", "1,204"],
+        ["Performances CRM & B2B", "Agences Partenaires", "15"],
+        ["Occupation & Sources", "Taux de Remplissage", "85%"],
+        ["Occupation & Sources", "Réservations Direct / Téléphone", "45%"],
+        ["Occupation & Sources", "Réservations WhatsApp IA", "30%"],
+        ["Occupation & Sources", "Réservations Portail B2B", "25%"]
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(metricsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Résumé des Métriques");
+      
+      // Auto-size columns
+      const colWidths = [{ wch: 25 }, { wch: 35 }, { wch: 15 }];
+      ws['!cols'] = colWidths;
+
+      XLSX.writeFile(wb, "Mouda_Dashboard_Summary.xlsx");
+      showToast("Export Excel réussi");
+    } catch (error) {
+      showToast("Erreur lors de l'export Excel");
+      console.error(error);
+    }
+  };
+
   return (
     <>
       {/* Background Hero */}
       <div 
-        className="absolute top-0 left-0 w-full h-[42rem] bg-cover bg-center z-0"
+        className="absolute top-0 left-0 w-full h-[42rem] bg-cover bg-center z-0 print:hidden"
         style={{ backgroundImage: "url('/mouda 2.JPG')" }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7]"></div>
       </div>
 
-      <div className="relative z-10 p-8 md:p-12 pt-16 md:pt-20">
+      <div className="relative z-10 p-8 md:p-12 pt-16 md:pt-20 print:hidden">
         <header className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-4xl font-serif text-white font-semibold mb-2 drop-shadow-md">Tableau de Bord</h2>
             <p className="text-[#FDFBF7]/90 text-lg drop-shadow-sm">Vue consolidée des activités du restaurant et des intégrations.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsSummaryModalOpen(true)}
+              className="px-4 py-2 bg-white text-gray-800 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors"
+            >
+              <Download size={16} /> Exporter PDF
+            </button>
             <span className="px-4 py-2 bg-white/90 backdrop-blur-sm text-green-800 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm border border-white/20">
               <div className="w-2 h-2 rounded-full bg-green-500"></div>
               Systèmes Opérationnels
@@ -556,20 +617,34 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </header>
 
         {/* Dashboard Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+          <DashboardCard 
+            title="Daily Active Users" 
+            value="324"
+            subtitle="Utilisateurs uniques aujourd'hui"
+            icon={<Users className="text-[#DDA956]" size={24} />}
+            delay={0.1}
+          />
+          <DashboardCard 
+            title="Average Order Value" 
+            value="1,076 MAD"
+            subtitle="Panier moyen par table"
+            icon={<CreditCard className="text-[#DDA956]" size={24} />}
+            delay={0.2}
+          />
           <DashboardCard 
             title="Réservations du Jour" 
             value="42"
             subtitle="+12 via WhatsApp IA, 4 via Riads B2B"
             icon={<CalendarCheck className="text-[#DDA956]" size={24} />}
-            delay={0.1}
+            delay={0.3}
           />
           <DashboardCard 
             title="Chiffre d'Affaires Prév." 
             value="45,200 MAD"
             subtitle="Basé sur les réservations du jour"
             icon={<Banknote className="text-[#DDA956]" size={24} />}
-            delay={0.2}
+            delay={0.4}
           />
         </div>
 
@@ -774,6 +849,124 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
 
       <ReviewAnalyzer />
       </div>
+
+      {/* Summary Modal for PDF Export */}
+      {isSummaryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 print:bg-white print:backdrop-blur-none print:inset-auto print:relative print:block">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col print:shadow-none print:max-w-full"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900 flex items-center gap-2">
+                <TrendingUp className="text-[#DDA956]" size={24} />
+                Résumé des Métriques
+              </h3>
+              <button onClick={() => setIsSummaryModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto print:block flex-1">
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Aujourd'hui</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-1">Daily Active Users</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">324</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-1">Average Order Value</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">1,076 MAD</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-1">Réservations</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">42</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-1">Chiffre d'Affaires Prévu</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">45,200 MAD</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Performances CRM & B2B</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg">
+                      <span className="text-gray-700">Clients Actifs (CRM)</span>
+                      <span className="font-medium">1,204</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg">
+                      <span className="text-gray-700">Agences Partenaires</span>
+                      <span className="font-medium">15</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Occupation & Sources</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-2">Taux de Remplissage</div>
+                      <div className="flex items-end gap-2 mb-2">
+                        <span className="text-3xl font-serif font-medium text-gray-900">85%</span>
+                        <span className="text-sm text-green-600 font-medium mb-1">+5% vs hier</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-[#DDA956] h-2 rounded-full" style={{ width: '85%' }}></div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="text-sm text-gray-500 mb-3">Sources de Réservation</div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-700">Direct / Téléphone</span>
+                          <span className="font-medium">45%</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-700">WhatsApp IA</span>
+                          <span className="font-medium">30%</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-700">Portail B2B Riads</span>
+                          <span className="font-medium">25%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl flex justify-end gap-3 print:hidden">
+              <button 
+                onClick={() => setIsSummaryModalOpen(false)}
+                className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Fermer
+              </button>
+              <button 
+                onClick={handleExportExcel}
+                className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 font-medium rounded-lg hover:bg-green-100 transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <FileSpreadsheet size={18} /> Exporter Excel
+              </button>
+              <button 
+                onClick={() => {
+                  showToast("Impression du résumé en cours...");
+                  setTimeout(() => window.print(), 500);
+                }}
+                className="px-6 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
+              >
+                <Download size={18} /> Imprimer / Exporter PDF
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }
@@ -783,12 +976,112 @@ function Reservations() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isNewResOpen, setIsNewResOpen] = useState(false);
+  const [isAddWaitlistOpen, setIsAddWaitlistOpen] = useState(false);
+  const [newWaitlistName, setNewWaitlistName] = useState('');
+  const [newWaitlistPax, setNewWaitlistPax] = useState(2);
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
-  const reservations = [
-    { id: 'RES-1029', name: 'Sophie Martin', date: 'Aujourd\'hui, 19:30', pax: 4, source: 'TripAdvisor', status: 'Confirmé', phone: '+33 6 12 34 56 78', tag: 'VIP' },
-    { id: 'RES-1030', name: 'Jean Dupont', date: 'Aujourd\'hui, 20:00', pax: 2, source: 'WhatsApp Bot', status: 'Confirmé', phone: '+212 6 00 00 00 00', tag: 'Nouveau' },
-    { id: 'RES-1031', name: 'Famille Dubois', date: 'Aujourd\'hui, 20:30', pax: 6, source: 'Site Web', status: 'En attente', phone: '+33 6 98 76 54 32', tag: 'Allergies' },
+  const [selectedActionRes, setSelectedActionRes] = useState<any>(null);
+  const [isSendConfirmOpen, setIsSendConfirmOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isNoShowOpen, setIsNoShowOpen] = useState(false);
+
+  const [reservations, setReservations] = useState(() => {
+    const saved = localStorage.getItem('mouda_reservations');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'RES-1029', name: 'Sophie Martin', date: 'Aujourd\'hui, 19:30', pax: 4, source: 'TripAdvisor', status: 'Confirmé', phone: '+33 6 12 34 56 78', tag: 'VIP', table: 'T3' },
+      { id: 'RES-1030', name: 'Jean Dupont', date: 'Aujourd\'hui, 20:00', pax: 2, source: 'WhatsApp Bot', status: 'Confirmé', phone: '+212 6 00 00 00 00', tag: 'Nouveau', table: 'T1' },
+      { id: 'RES-1031', name: 'Famille Dubois', date: 'Aujourd\'hui, 20:30', pax: 6, source: 'Site Web', status: 'En attente', phone: '+33 6 98 76 54 32', tag: 'Allergies', table: null },
+    ];
+  });
+
+  const [tables, setTables] = useState(() => {
+    const saved = localStorage.getItem('mouda_tables');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'T1', capacity: 2, status: 'occupied', x: 50, y: 80, type: 'round' },
+      { id: 'T2', capacity: 2, status: 'available', x: 50, y: 220, type: 'round' },
+      { id: 'T3', capacity: 4, status: 'reserved', x: 50, y: 360, type: 'square' },
+      { id: 'T4', capacity: 4, status: 'available', x: 220, y: 80, type: 'square' },
+      { id: 'T5', capacity: 6, status: 'available', x: 220, y: 220, type: 'rectangle' },
+      { id: 'T6', capacity: 2, status: 'available', x: 220, y: 360, type: 'round' },
+      { id: 'T7', capacity: 8, status: 'available', x: 420, y: 80, type: 'rectangle' },
+      { id: 'T8', capacity: 4, status: 'available', x: 420, y: 220, type: 'square' },
+      { id: 'T9', capacity: 4, status: 'occupied', x: 420, y: 360, type: 'square' },
+      { id: 'T10', capacity: 2, status: 'available', x: 620, y: 80, type: 'round' },
+      { id: 'T11', capacity: 6, status: 'reserved', x: 620, y: 220, type: 'rectangle' },
+      { id: 'T12', capacity: 2, status: 'available', x: 620, y: 360, type: 'round' },
+      { id: 'T13', capacity: 8, status: 'available', x: 820, y: 120, type: 'rectangle' },
+      { id: 'T14', capacity: 4, status: 'available', x: 820, y: 280, type: 'square' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mouda_reservations', JSON.stringify(reservations));
+  }, [reservations]);
+
+  useEffect(() => {
+    localStorage.setItem('mouda_tables', JSON.stringify(tables));
+  }, [tables]);
+
+  const [waitlist, setWaitlist] = useState(() => {
+    const saved = localStorage.getItem('mouda_waitlist');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing waitlist from localStorage", e);
+      }
+    }
+    return [
+      { id: 'WL-1', name: 'M. Karim', pax: 2, time: '10 min', status: 'waiting' },
+      { id: 'WL-2', name: 'Mme. Yasmine', pax: 4, time: '25 min', status: 'waiting' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mouda_waitlist', JSON.stringify(waitlist));
+  }, [waitlist]);
+
+  const autoAssignTables = () => {
+    let updatedTables = [...tables];
+    let updatedReservations = reservations.map(res => {
+      if (!res.table && res.status !== 'Annulé') {
+        // Find best table
+        const suitableTable = updatedTables.find(t => t.capacity >= res.pax && t.status === 'available');
+        if (suitableTable) {
+          suitableTable.status = 'reserved';
+          return { ...res, table: suitableTable.id };
+        }
+      }
+      return res;
+    });
+    setTables(updatedTables);
+    setReservations(updatedReservations);
+    showToast("Attribution automatique des tables effectuée avec succès.");
+  };
+
+  const monthNames = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
   ];
+  const currentMonthName = monthNames[calendarDate.getMonth()];
+  const currentYear = calendarDate.getFullYear();
+  const daysInMonth = new Date(currentYear, calendarDate.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, calendarDate.getMonth(), 1).getDay();
+  const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // 0 for Monday
+
+  const handlePrevMonth = () => setCalendarDate(new Date(currentYear, calendarDate.getMonth() - 1, 1));
+  const handleNextMonth = () => setCalendarDate(new Date(currentYear, calendarDate.getMonth() + 1, 1));
+  const handleToday = () => setCalendarDate(new Date());
+
+  const today = new Date();
+  const isCurrentMonth = today.getMonth() === calendarDate.getMonth() && today.getFullYear() === currentYear;
 
   return (
     <div className="p-8 md:p-12 relative z-10">
@@ -859,13 +1152,15 @@ function Reservations() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2">
-          {['upcoming', 'history', 'reviews'].map(tab => (
+          {['upcoming', 'floorplan', 'waitlist', 'history', 'reviews'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
             >
               {tab === 'upcoming' && 'À venir (3)'}
+              {tab === 'floorplan' && 'Plan de Salle'}
+              {tab === 'waitlist' && 'Liste d\'attente'}
               {tab === 'history' && 'Historique'}
               {tab === 'reviews' && 'Avis & CRM'}
               {activeTab === tab && (
@@ -897,6 +1192,11 @@ function Reservations() {
                       <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
                         <span className="flex items-center gap-1"><Clock size={14} /> {res.date}</span>
                         <span className="flex items-center gap-1"><Users size={14} /> {res.pax} pax</span>
+                        {res.table && (
+                          <span className="flex items-center gap-1 text-[#DDA956] font-medium bg-[#DDA956]/10 px-2 py-0.5 rounded-md">
+                            Table {res.table}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-400 flex items-center gap-1">
                         <Smartphone size={12} /> {res.phone} • Source: <span className="font-medium text-gray-600">{res.source}</span>
@@ -925,15 +1225,127 @@ function Reservations() {
                         <CheckCircle size={16} /> {res.status}
                       </span>
                     )}
-                    <button className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100">
-                      <Settings size={18} />
-                    </button>
+                    <div className="flex items-center gap-1 ml-2 border-l border-gray-200 pl-3">
+                      <button 
+                        onClick={() => {
+                          setSelectedActionRes(res);
+                          setIsSendConfirmOpen(true);
+                        }}
+                        title="Confirmation SMS / WhatsApp / Email"
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
+                      >
+                        <Send size={18} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedActionRes(res);
+                          setIsPaymentOpen(true);
+                        }}
+                        title="Paiement Acompte"
+                        className="p-2 text-gray-400 hover:text-emerald-600 transition-colors rounded-lg hover:bg-emerald-50"
+                      >
+                        <CreditCard size={18} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedActionRes(res);
+                          setIsNoShowOpen(true);
+                        }}
+                        title="Marquer No-show"
+                        className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+                      >
+                        <UserX size={18} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
+          {activeTab === 'floorplan' && (
+             <div className="p-8 bg-[#FDFBF7]">
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                 <div>
+                   <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">Plan de Salle Interactif</h3>
+                   <p className="text-sm text-gray-500">Gérez les tables et les affectations en temps réel.</p>
+                 </div>
+                 <button onClick={autoAssignTables} className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm flex items-center gap-2">
+                   <Wand2 size={16} /> Attribution Auto
+                 </button>
+               </div>
+               
+               <div className="relative w-full h-[500px] bg-white border border-gray-200 rounded-2xl overflow-auto shadow-sm">
+                 <div className="sticky top-4 left-4 inline-flex gap-4 text-xs font-medium bg-white/95 p-2.5 rounded-xl shadow-sm border border-gray-100 z-20 backdrop-blur-sm m-4">
+                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div> Disponible</div>
+                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div> Réservée</div>
+                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> Occupée</div>
+                 </div>
+
+                 <div className="relative w-[1000px] h-[500px]">
+                   {/* Rendering tables */}
+                   {tables.map(table => (
+                     <div 
+                       key={table.id}
+                       className={`absolute flex flex-col items-center justify-center font-bold text-sm shadow-sm transition-all cursor-pointer hover:ring-2 hover:ring-[#DDA956]/80
+                         ${table.type === 'round' ? 'rounded-full w-20 h-20' : table.type === 'square' ? 'rounded-xl w-20 h-20' : 'rounded-xl w-32 h-20'}
+                         ${table.status === 'available' ? 'bg-green-50 border border-green-200 text-green-700' : table.status === 'reserved' ? 'bg-amber-50 border border-amber-200 text-amber-700' : 'bg-red-50 border border-red-200 text-red-700'}
+                       `}
+                       style={{ left: table.x, top: table.y }}
+                       onClick={() => showToast(`Table ${table.id} (${table.capacity} pax) - ${table.status === 'available' ? 'Disponible' : table.status === 'reserved' ? 'Réservée' : 'Occupée'}`)}
+                     >
+                       <span className="text-lg mb-0.5">{table.id}</span>
+                       <div className="text-[10px] font-medium opacity-80">{table.capacity} pax</div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             </div>
+          )}
+          {activeTab === 'waitlist' && (
+             <div className="p-8 bg-[#FDFBF7]">
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                 <div>
+                   <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">Liste d'attente</h3>
+                   <p className="text-sm text-gray-500">Gérez les clients en attente d'une table.</p>
+                 </div>
+                 <button onClick={() => setIsAddWaitlistOpen(true)} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
+                   <Plus size={16} /> Ajouter à la liste
+                 </button>
+               </div>
+               
+               {waitlist.length === 0 ? (
+                 <div className="text-center text-gray-500 py-12 border border-dashed border-gray-200 bg-white rounded-2xl">
+                   Aucun client en attente.
+                 </div>
+               ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {waitlist.map(item => (
+                     <div key={item.id} className="flex flex-col p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                       <div className="flex justify-between items-start mb-4">
+                         <div>
+                           <span className="font-semibold text-gray-900 block text-lg">{item.name}</span>
+                           <span className="text-sm text-gray-500 flex items-center gap-1 mt-1"><Users size={14} /> {item.pax} personnes</span>
+                         </div>
+                         <span className="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md text-xs font-medium border border-amber-100 flex items-center gap-1">
+                           <Clock size={12} /> {item.time}
+                         </span>
+                       </div>
+                       <button 
+                         onClick={() => {
+                           setWaitlist(waitlist.filter(w => w.id !== item.id));
+                           showToast(`Table attribuée à ${item.name}`);
+                         }}
+                         className="w-full mt-auto py-2.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors rounded-xl text-sm font-medium flex justify-center items-center gap-2"
+                       >
+                         <CheckCircle size={16} /> Attribuer une table
+                       </button>
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </div>
+          )}
           {activeTab === 'history' && (
              <div className="p-12 text-center text-gray-500">
                Historique des réservations passées.
@@ -978,14 +1390,14 @@ function Reservations() {
               </button>
             </div>
             
-            {/* Fake Calendar View */}
+            {/* Calendar View */}
             <div className="border border-gray-100 rounded-xl overflow-hidden">
               <div className="bg-gray-50 p-4 border-b border-gray-100 flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">Juillet 2026</h4>
+                <h4 className="font-medium text-gray-900 capitalize">{currentMonthName} {currentYear}</h4>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Précédent</button>
-                  <button className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Aujourd'hui</button>
-                  <button className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Suivant</button>
+                  <button onClick={handlePrevMonth} className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Précédent</button>
+                  <button onClick={handleToday} className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Aujourd'hui</button>
+                  <button onClick={handleNextMonth} className="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">Suivant</button>
                 </div>
               </div>
               <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50">
@@ -994,21 +1406,24 @@ function Reservations() {
                 ))}
               </div>
               <div className="grid grid-cols-7 auto-rows-fr">
-                {Array.from({ length: 35 }).map((_, i) => {
-                  const day = i - 2; // Offset for month start
-                  const isValidDay = day > 0 && day <= 31;
-                  const isToday = day === 13;
+                {Array.from({ length: 42 }).map((_, i) => {
+                  const day = i - startOffset + 1;
+                  const isValidDay = day > 0 && day <= daysInMonth;
+                  const isTodayHighlight = isCurrentMonth && day === today.getDate();
                   const hasReservation = isValidDay && [13, 15, 18, 22].includes(day);
 
                   return (
                     <div key={i} className={`min-h-[100px] p-2 border-r border-b border-gray-100 ${!isValidDay ? 'bg-gray-50/50' : 'bg-white'}`}>
                       {isValidDay && (
                         <>
-                          <div className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-[#DDA956] text-white' : 'text-gray-700'}`}>
+                          <div className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isTodayHighlight ? 'bg-[#DDA956] text-white' : 'text-gray-700'}`}>
                             {day}
                           </div>
                           {hasReservation && (
-                            <div className="bg-blue-50 border border-blue-100 text-blue-700 text-xs p-1.5 rounded-md truncate cursor-pointer hover:bg-blue-100">
+                            <div 
+                              onClick={() => showToast(`${day === 13 ? '3 réservations' : '1 réservation'} pour le ${day} ${currentMonthName}`)}
+                              className="bg-blue-50 border border-blue-100 text-blue-700 text-xs p-1.5 rounded-md truncate cursor-pointer hover:bg-blue-100 transition-colors"
+                            >
                               {day === 13 ? '3 Réservations' : '1 Réservation'}
                             </div>
                           )}
@@ -1084,6 +1499,176 @@ function Reservations() {
           </div>
         </div>
       )}
+      {isAddWaitlistOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="font-serif text-xl font-medium text-gray-900">Ajouter à la liste d'attente</h3>
+              <button onClick={() => setIsAddWaitlistOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du client</label>
+                <input 
+                  type="text" 
+                  value={newWaitlistName}
+                  onChange={(e) => setNewWaitlistName(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#DDA956]/50 focus:border-[#DDA956] outline-none transition-all"
+                  placeholder="Ex: M. Martin"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de personnes</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setNewWaitlistPax(Math.max(1, newWaitlistPax - 1))} className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50">-</button>
+                  <span className="w-12 text-center font-medium">{newWaitlistPax}</span>
+                  <button onClick={() => setNewWaitlistPax(newWaitlistPax + 1)} className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50">+</button>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  if(newWaitlistName) {
+                    setWaitlist([...waitlist, {
+                      id: `WL-${Date.now().toString().slice(-4)}`,
+                      name: newWaitlistName,
+                      pax: newWaitlistPax,
+                      time: '0 min',
+                      status: 'waiting'
+                    }]);
+                    showToast(`${newWaitlistName} ajouté à la liste d'attente`);
+                    setNewWaitlistName('');
+                    setNewWaitlistPax(2);
+                    setIsAddWaitlistOpen(false);
+                  } else {
+                    showToast('Veuillez entrer un nom');
+                  }
+                }}
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSendConfirmOpen && selectedActionRes && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="font-serif text-xl font-medium text-gray-900">Envoyer une confirmation</h3>
+              <button onClick={() => setIsSendConfirmOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">Choisissez le canal pour envoyer la confirmation à <span className="font-semibold text-gray-900">{selectedActionRes.name}</span>.</p>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => { showToast(`SMS envoyé à ${selectedActionRes.phone}`); setIsSendConfirmOpen(false); }}
+                  className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors text-left"
+                >
+                  <div className="bg-blue-100 text-blue-600 p-2 rounded-lg"><MessageSquare size={20} /></div>
+                  <div>
+                    <div className="font-medium text-gray-900">SMS</div>
+                    <div className="text-sm text-gray-500">{selectedActionRes.phone}</div>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => { showToast(`WhatsApp envoyé à ${selectedActionRes.phone}`); setIsSendConfirmOpen(false); }}
+                  className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 transition-colors text-left"
+                >
+                  <div className="bg-green-100 text-green-600 p-2 rounded-lg"><MessageCircle size={20} /></div>
+                  <div>
+                    <div className="font-medium text-gray-900">WhatsApp</div>
+                    <div className="text-sm text-gray-500">{selectedActionRes.phone}</div>
+                  </div>
+                </button>
+                <button 
+                  onClick={() => { showToast(`Email envoyé avec succès`); setIsSendConfirmOpen(false); }}
+                  className="w-full flex items-center gap-3 p-4 border border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors text-left"
+                >
+                  <div className="bg-purple-100 text-purple-600 p-2 rounded-lg"><Mail size={20} /></div>
+                  <div>
+                    <div className="font-medium text-gray-900">Email</div>
+                    <div className="text-sm text-gray-500">Envoyer sur l'adresse enregistrée</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPaymentOpen && selectedActionRes && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="font-serif text-xl font-medium text-gray-900">Demande d'acompte</h3>
+              <button onClick={() => setIsPaymentOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">Générez un lien de paiement pour valider la réservation de <span className="font-semibold">{selectedActionRes.name}</span>.</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Montant de l'acompte (MAD)</label>
+                <input 
+                  type="number" 
+                  defaultValue={200 * selectedActionRes.pax}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#DDA956]/50 focus:border-[#DDA956] outline-none transition-all"
+                />
+                <p className="text-xs text-gray-500 mt-1">Suggestion basée sur {selectedActionRes.pax} pax x 200 MAD</p>
+              </div>
+              <button 
+                onClick={() => {
+                  showToast(`Lien de paiement envoyé par SMS à ${selectedActionRes.phone}`);
+                  setIsPaymentOpen(false);
+                }}
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+              >
+                <CreditCard size={18} /> Générer et envoyer le lien
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isNoShowOpen && selectedActionRes && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <UserX size={32} />
+              </div>
+              <h3 className="font-serif text-xl font-medium text-gray-900 mb-2">Marquer comme No-show ?</h3>
+              <p className="text-sm text-gray-500 mb-6">Êtes-vous sûr de vouloir marquer <span className="font-semibold text-gray-900">{selectedActionRes.name}</span> comme no-show ? Cette action affectera leur score de fiabilité.</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsNoShowOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    const updated = reservations.map(r => r.id === selectedActionRes.id ? { ...r, status: 'No-show' } : r);
+                    setReservations(updated);
+                    showToast(`${selectedActionRes.name} marqué comme no-show`);
+                    setIsNoShowOpen(false);
+                  }}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1942,12 +2527,19 @@ function Inventory() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('stocks');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [isAutoCreateModalOpen, setIsAutoCreateModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
+  
+  const [productionTasks, setProductionTasks] = useState([
+    { item: "Fonds de volaille", qty: "10 L", progress: 100, status: "Terminé", priority: "Basse" },
+    { item: "Légumes taillés (Brunoise)", qty: "5 kg", progress: 60, status: "En cours", priority: "Moyenne" },
+    { item: "Pâte à Pastilla", qty: "40 feuilles", progress: 0, status: "À faire", priority: "Haute" }
+  ]);
 
   const stockItems = [
     { id: 'INV-001', name: 'Safran de Taliouine', category: 'Épices', supplier: 'Coopérative Taliouine', quantity: 250, unit: 'g', minStock: 100 },
@@ -1967,10 +2559,17 @@ function Inventory() {
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Inventaire & Stock</h2>
-          <p className="text-gray-500">Suivi des stocks, entrées fournisseurs et sorties automatiques cuisine.</p>
+          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Production Cuisine & Stocks</h2>
+          <p className="text-gray-500">Fiches techniques, food cost, production journalière et inventaires automatiques.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => showToast('Inventaire automatique en cours...')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors shadow-sm"
+          >
+            <Wand2 size={16} />
+            Auto-Inventaire IA
+          </button>
           <button 
             onClick={() => setIsScannerModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
@@ -2022,13 +2621,16 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2">
-          {['stocks', 'transactions', 'suppliers'].map(tab => (
+          {['stocks', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
             >
-              {tab === 'stocks' && 'Stocks Actuels'}
+              {tab === 'stocks' && 'Inventaires Actuels'}
+              {tab === 'recipes' && 'Fiches Techniques & Marges'}
+              {tab === 'production' && 'Production Journalière'}
+              {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
               {activeTab === tab && (
@@ -2116,6 +2718,164 @@ function Inventory() {
             </div>
           )}
 
+          {activeTab === 'recipes' && (
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Fiches Techniques & Food Cost</h3>
+                <button 
+                  onClick={() => setIsNewRecipeModalOpen(true)}
+                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} /> Nouvelle Fiche
+                </button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[
+                  { name: "Tagine d'Agneau aux Amandes", cost: 45, price: 180, margin: 75, category: "Plat Principal" },
+                  { name: "Pastilla au Pigeon", cost: 38, price: 150, margin: 74, category: "Entrée" },
+                  { name: "Salade Marocaine", cost: 12, price: 65, margin: 81, category: "Entrée" }
+                ].map((recipe, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-gray-900">{recipe.name}</h4>
+                        <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md">{recipe.category}</span>
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Food Cost (Coût Matière)</span>
+                          <span className="font-medium text-red-600">{recipe.cost} MAD</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Prix de Vente</span>
+                          <span className="font-medium text-gray-900">{recipe.price} MAD</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Marge brute</span>
+                      <span className="text-sm font-bold text-green-600">{recipe.margin}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'production' && (
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Plan de Production Journalier</h3>
+                <button 
+                  onClick={() => {
+                    showToast("Plan de production généré avec succès d'après 45 pax aujourd'hui");
+                    setProductionTasks([
+                      ...productionTasks,
+                      { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute" },
+                      { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne" },
+                      { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse" }
+                    ]);
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                >
+                  <ClipboardList size={16} /> Générer depuis Réservations
+                </button>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
+                    <tr>
+                      <th className="px-6 py-4">Article à préparer</th>
+                      <th className="px-6 py-4">Quantité Requise</th>
+                      <th className="px-6 py-4">Priorité</th>
+                      <th className="px-6 py-4">Progression</th>
+                      <th className="px-6 py-4">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {productionTasks.map((task, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-medium text-gray-900">{task.item}</td>
+                        <td className="px-6 py-4 text-gray-500">{task.qty}</td>
+                        <td className="px-6 py-4">
+                          <select 
+                            value={task.priority}
+                            onChange={(e) => {
+                              const newTasks = [...productionTasks];
+                              newTasks[idx].priority = e.target.value;
+                              setProductionTasks(newTasks);
+                            }}
+                            className={`border rounded-lg text-sm p-1.5 focus:outline-none focus:ring-1 focus:ring-[#DDA956] ${
+                              task.priority === 'Haute' ? 'bg-red-50 text-red-700 border-red-200' : 
+                              task.priority === 'Moyenne' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
+                              'bg-green-50 text-green-700 border-green-200'
+                            }`}
+                          >
+                            <option value="Basse">Basse</option>
+                            <option value="Moyenne">Moyenne</option>
+                            <option value="Haute">Haute</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4 w-48">
+                          <div className="w-full bg-gray-100 rounded-full h-2">
+                            <div className={`h-2 rounded-full ${task.progress === 100 ? 'bg-green-500' : task.progress > 0 ? 'bg-blue-500' : 'bg-gray-300'}`} style={{ width: `${task.progress}%` }}></div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${task.status === 'Terminé' ? 'bg-green-50 text-green-700' : task.status === 'En cours' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {task.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'waste' && (
+             <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Déclarations de Pertes & Gaspillage</h3>
+                <button className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2">
+                  <TrendingDown size={16} /> Déclarer une perte
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="p-5 border border-red-100 bg-red-50/30 rounded-xl">
+                  <p className="text-sm text-red-600 font-medium mb-1">Coût total des pertes (Ce mois)</p>
+                  <p className="text-2xl font-bold text-red-700">1 450 MAD</p>
+                </div>
+                <div className="p-5 border border-gray-200 rounded-xl">
+                  <p className="text-sm text-gray-500 font-medium mb-1">Article le plus gaspillé</p>
+                  <p className="text-lg font-bold text-gray-900">Menthe Fraîche (350 MAD)</p>
+                </div>
+                <div className="p-5 border border-gray-200 rounded-xl">
+                  <p className="text-sm text-gray-500 font-medium mb-1">Ratio de perte moyen</p>
+                  <p className="text-lg font-bold text-gray-900">2.4% <span className="text-sm font-normal text-green-600 ml-1">↓ 0.5%</span></p>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+                {[
+                  { date: "Hier, 22:30", item: "Menthe Fraîche", qty: "0.5 kg", reason: "Oxydée", cost: "15 MAD", user: "Chef Hassan" },
+                  { date: "15 Juil, 14:00", item: "Tomates", qty: "2 kg", reason: "Abîmées à la livraison", cost: "30 MAD", user: "Réception" }
+                ].map((waste, idx) => (
+                  <div key={idx} className="p-4 flex flex-col sm:flex-row justify-between sm:items-center bg-white hover:bg-gray-50 gap-2">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{waste.item} <span className="text-gray-500 font-normal">({waste.qty})</span></h4>
+                      <p className="text-sm text-gray-500 mt-1">Cause : {waste.reason} • {waste.date}</p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="font-medium text-red-600">-{waste.cost}</p>
+                      <p className="text-xs text-gray-400 mt-1">{waste.user}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'transactions' && (
             <div className="divide-y divide-gray-100">
               {recentTransactions.map(tx => (
@@ -2150,8 +2910,101 @@ function Inventory() {
           )}
 
           {activeTab === 'suppliers' && (
-            <div className="p-12 text-center text-gray-500">
-              Base de données des fournisseurs, contacts et commandes en attente.
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Annuaire Fournisseurs</h3>
+                <div className="flex gap-2">
+                  <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                    <Truck size={16} /> Nouvelle Commande
+                  </button>
+                  <button className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                    <Plus size={16} /> Nouveau Fournisseur
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                {/* Pending Orders Summary / List */}
+                <div className="lg:col-span-1 border border-gray-200 rounded-xl bg-gray-50/50 p-5">
+                  <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <ShoppingCart size={18} className="text-[#DDA956]" /> Commandes en cours
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { id: "CMD-401", supplier: "Ferme Atlas", status: "En route", amount: "1 200 MAD", date: "Aujourd'hui" },
+                      { id: "CMD-402", supplier: "Coopérative Taliouine", status: "Validée", amount: "3 400 MAD", date: "Demain" }
+                    ].map((order, idx) => (
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                          <span className="font-medium text-sm text-gray-900">{order.id}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === 'En route' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'}`}>
+                            {order.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600">{order.supplier}</div>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-gray-400">Prévu: {order.date}</span>
+                          <span className="text-sm font-semibold text-gray-900">{order.amount}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Suppliers List */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
+                        <tr>
+                          <th className="px-6 py-4">Fournisseur</th>
+                          <th className="px-6 py-4">Catégorie</th>
+                          <th className="px-6 py-4">Contact</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {[
+                          { name: "Coopérative Taliouine", category: "Épices & Condiments", contact: "Fatima Zahra", phone: "+212 661 234 567", email: "contact@taliouine-safran.ma", city: "Taliouine" },
+                          { name: "Ferme Atlas", category: "Légumes & Huiles", contact: "Karim Benali", phone: "+212 662 345 678", email: "commandes@ferme-atlas.ma", city: "Marrakech" },
+                          { name: "Boucherie Médina", category: "Viandes", contact: "Hassan", phone: "+212 663 456 789", email: "hassan.boucher@gmail.com", city: "Marrakech" },
+                          { name: "Grossiste Fès", category: "Fruits Secs", contact: "Omar", phone: "+212 664 567 890", email: "grossiste.fes@menara.ma", city: "Fès" }
+                        ].map((supplier, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-gray-900">{supplier.name}</div>
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                <MapPin size={12} /> {supplier.city}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs">
+                                {supplier.category}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-gray-900">{supplier.contact}</div>
+                              <div className="flex flex-col gap-1 mt-1">
+                                <a href={`tel:${supplier.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#DDA956] transition-colors">
+                                  <Phone size={12} /> {supplier.phone}
+                                </a>
+                                <a href={`mailto:${supplier.email}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#DDA956] transition-colors">
+                                  <Mail size={12} /> {supplier.email}
+                                </a>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50">
+                                <Settings size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -2269,6 +3122,70 @@ function Inventory() {
               >
                 Valider la création automatique
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Recipe Modal */}
+      {isNewRecipeModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold">Nouvelle Fiche Technique</h3>
+              <button onClick={() => setIsNewRecipeModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
+                  <input type="text" className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Tagine de poulet" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                  <select className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]">
+                    <option>Entrée</option>
+                    <option>Plat Principal</option>
+                    <option>Dessert</option>
+                    <option>Boisson</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium text-gray-900">Ingrédients (Nécessite connexion à l'inventaire)</h4>
+                  <button className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">+ Ajouter ingrédient</button>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
+                  Sélectionnez des articles de l'inventaire pour calculer le coût matière automatiquement.
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-6 border-t border-gray-100 pt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente estimé (MAD)</label>
+                  <input type="number" className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 150" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Marge cible (%)</label>
+                  <input type="number" defaultValue={70} className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button 
+                  onClick={() => {
+                    showToast("Nouvelle fiche technique créée avec succès");
+                    setIsNewRecipeModalOpen(false);
+                  }}
+                  className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                >
+                  Enregistrer la Fiche
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2420,9 +3337,61 @@ function StaffHR() {
 
   const [staffData, setStaffData] = useState(initialStaff);
   
-  // Modal State
+  const [leavesList, setLeavesList] = useState([
+    { id: 1, name: "Sofia Amrani", type: "Congé Annuel", dates: "12 Août - 26 Août", status: "En attente" },
+    { id: 2, name: "Karima Idrissi", type: "Maladie", dates: "Aujourd'hui", status: "Approuvé" }
+  ]);
+  
+  const [evaluationsList, setEvaluationsList] = useState([
+    { id: 1, name: "Ahmed Benali", role: "Chef de Cuisine", score: "4.8/5", date: "Juin 2026", next: "Déc 2026" },
+    { id: 2, name: "Karima Idrissi", role: "Maître d'Hôtel", score: "4.9/5", date: "Jan 2026", next: "Juil 2026" },
+    { id: 3, name: "Sofia Amrani", role: "Réceptionniste", score: "4.5/5", date: "Fév 2026", next: "Août 2026" }
+  ]);
+
+  const [trainingSessions, setTrainingSessions] = useState([
+    { id: 1, title: "Hygiène et Sécurité Alimentaire (HACCP)", date: "15 Juillet 2026", participants: 8, status: "Planifié", trainer: "Expert Externe" },
+    { id: 2, title: "Standards de Service Salle", date: "02 Juin 2026", participants: 12, status: "Complété", trainer: "Karima Idrissi" },
+    { id: 3, title: "Introduction aux Vins Locaux", date: "10 Août 2026", participants: 5, status: "Planifié", trainer: "Sommelier Invité" }
+  ]);
+
+  const [rolesList, setRolesList] = useState([
+    { id: 1, role: "Administrateur", users: 2, access: "Accès total à tous les modules" },
+    { id: 2, role: "Manager", users: 3, access: "Accès à la gestion des stocks, personnel et réservations. Pas d'accès financier." },
+    { id: 3, role: "Cuisine", users: 5, access: "Accès aux commandes, recettes et plan de production." },
+    { id: 4, role: "Réception", users: 4, access: "Accès aux réservations et annuaire client." }
+  ]);
+
+  const [scheduleData, setScheduleData] = useState([
+    { id: 1, name: "Ahmed Benali", mon: "15:00 - 23:30", tue: "15:00 - 23:30", wed: "15:00 - 23:30", thu: "15:00 - 23:30", fri: "15:00 - 23:30", sat: "Repos", sun: "Repos" },
+    { id: 2, name: "Karima Idrissi", mon: "08:00 - 16:30", tue: "08:00 - 16:30", wed: "08:00 - 16:30", thu: "08:00 - 16:30", fri: "Repos", sat: "Repos", sun: "08:00 - 16:30" },
+    { id: 3, name: "Youssef Tazi", mon: "Repos", tue: "Repos", wed: "15:00 - 23:30", thu: "15:00 - 23:30", fri: "15:00 - 23:30", sat: "15:00 - 23:30", sun: "15:00 - 23:30" },
+  ]);
+
+  const [attendanceList, setAttendanceList] = useState([
+    { id: 1, name: "Ahmed Benali", in: "08:15", out: "-", status: "En poste" },
+    { id: 2, name: "Karima Idrissi", in: "08:30", out: "-", status: "En poste" },
+    { id: 3, name: "Youssef Tazi", in: "-", out: "-", status: "Absent" }
+  ]);
+
+  const [payrollList, setPayrollList] = useState([
+    { id: 1, period: "Juin 2026", name: "Ahmed Benali", net: "12 500 MAD", status: "Payé" },
+    { id: 2, period: "Juin 2026", name: "Karima Idrissi", net: "8 200 MAD", status: "Payé" },
+    { id: 3, period: "Juin 2026", name: "Sofia Amrani", net: "5 500 MAD", status: "Payé" }
+  ]);
+
+  // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
+  
+  const [isLeaveBalanceModalOpen, setIsLeaveBalanceModalOpen] = useState(false);
+  const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
+  const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<any>(null);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [editingShift, setEditingShift] = useState<{empId: number, dayKey: string, current: string} | null>(null);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
   
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -2500,25 +3469,28 @@ function StaffHR() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-gray-100 pb-4">
-        <button 
-          onClick={() => setActiveTab('directory')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'directory' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          Annuaire du Personnel
-        </button>
-        <button 
-          onClick={() => setActiveTab('planning')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'planning' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          Planning Hebdomadaire
-        </button>
-        <button 
-          onClick={() => setActiveTab('roles')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'roles' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          Droits & Accès
-        </button>
+      <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2 mb-6">
+        {[
+          { id: 'directory', label: 'Annuaire' },
+          { id: 'attendance', label: 'Pointage' },
+          { id: 'planning', label: 'Horaires & Planning' },
+          { id: 'leaves', label: 'Congés & Absences' },
+          { id: 'evaluations', label: 'Évaluations' },
+          { id: 'training', label: 'Formations' },
+          { id: 'payroll', label: 'Fiches de Paie' },
+          { id: 'roles', label: 'Droits & Accès' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab.id ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div layoutId="activeHRTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
+            )}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'directory' && (
@@ -2666,18 +3638,341 @@ function StaffHR() {
       )}
 
       {activeTab === 'planning' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-500 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-          <CalendarCheck size={48} className="text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Planning Hebdomadaire</h3>
-          <p className="max-w-md">L'interface de gestion du planning drag & drop est en cours de conception. Elle permettra d'assigner les services du midi et du soir par employé.</p>
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Planning Hebdomadaire</h3>
+            <button 
+              onClick={() => showToast("Publication du planning...")}
+              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+            >
+              <CheckCircle size={16} /> Publier Planning
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
+                <tr>
+                  <th className="px-6 py-4">Employé</th>
+                  <th className="px-6 py-4">Lun 13</th>
+                  <th className="px-6 py-4">Mar 14</th>
+                  <th className="px-6 py-4">Mer 15</th>
+                  <th className="px-6 py-4">Jeu 16</th>
+                  <th className="px-6 py-4">Ven 17</th>
+                  <th className="px-6 py-4">Sam 18</th>
+                  <th className="px-6 py-4">Dim 19</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {scheduleData.map((schedule) => (
+                  <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-gray-900">{schedule.name}</td>
+                    {[
+                      { key: 'mon', val: schedule.mon },
+                      { key: 'tue', val: schedule.tue },
+                      { key: 'wed', val: schedule.wed },
+                      { key: 'thu', val: schedule.thu },
+                      { key: 'fri', val: schedule.fri },
+                      { key: 'sat', val: schedule.sat },
+                      { key: 'sun', val: schedule.sun }
+                    ].map((shift, j) => (
+                      <td key={j} className="px-6 py-4">
+                        <button 
+                          onClick={() => {
+                            setEditingShift({ empId: schedule.id, dayKey: shift.key, current: shift.val });
+                            setIsShiftModalOpen(true);
+                          }}
+                          className={`px-2 py-1 text-xs rounded-md w-full text-center hover:opacity-80 transition-opacity ${shift.val === 'Repos' ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-700 font-medium border border-blue-100'}`}
+                        >
+                          {shift.val}
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'attendance' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Pointage du jour</h3>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsAttendanceModalOpen(true)}
+                className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-black transition-colors"
+              >
+                <Plus size={16} /> Saisir Pointage
+              </button>
+              <button 
+                onClick={() => showToast("Exportation des pointages du jour...")}
+                className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+              >
+                <Timer size={16} /> Exporter Pointages
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
+                <tr>
+                  <th className="px-6 py-4">Employé</th>
+                  <th className="px-6 py-4">Heure d'arrivée</th>
+                  <th className="px-6 py-4">Heure de départ</th>
+                  <th className="px-6 py-4">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {attendanceList.map((att) => (
+                  <tr key={att.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">{att.name}</td>
+                    <td className="px-6 py-4">{att.in}</td>
+                    <td className="px-6 py-4">{att.out}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${att.status === 'En poste' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {att.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'leaves' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <h3 className="text-lg font-medium text-gray-900 mb-6">Demandes de congés & Absences</h3>
+            <div className="space-y-4">
+              {leavesList.map((leave) => (
+                <div key={leave.id} className="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{leave.name}</h4>
+                    <p className="text-sm text-gray-500">{leave.type} • {leave.dates}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                      leave.status === 'Approuvé' ? 'bg-green-100 text-green-700' : 
+                      leave.status === 'Refusé' ? 'bg-red-100 text-red-700' : 
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {leave.status}
+                    </span>
+                    {leave.status === 'En attente' && (
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => {
+                            setLeavesList(leavesList.map(l => l.id === leave.id ? { ...l, status: 'Approuvé' } : l));
+                            showToast("Demande de congé approuvée");
+                          }}
+                          className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setLeavesList(leavesList.map(l => l.id === leave.id ? { ...l, status: 'Refusé' } : l));
+                            showToast("Demande de congé refusée");
+                          }}
+                          className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col">
+             <h3 className="text-lg font-medium text-gray-900 mb-4">Solde Congés</h3>
+             <p className="text-sm text-gray-500 mb-6 flex-1">Gérez les compteurs de jours de congé annuel pour chaque employé.</p>
+             <button 
+               onClick={() => showToast("Ouverture du gestionnaire de soldes...")}
+               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex justify-center items-center gap-2 hover:bg-gray-200 transition-colors"
+             >
+                <CalendarRange size={16} /> Gérer les soldes
+             </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'evaluations' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Évaluations & Performances</h3>
+            <button 
+              onClick={() => setIsEvalModalOpen(true)}
+              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+            >
+              <Star size={16} /> Nouvelle Évaluation
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {evaluationsList.map((evalItem) => (
+              <div key={evalItem.id} className="border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-colors bg-gray-50/50">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{evalItem.name}</h4>
+                    <p className="text-xs text-gray-500">{evalItem.role}</p>
+                  </div>
+                  <div className="bg-[#DDA956] text-[#1A1A1A] font-bold px-2 py-1 rounded-lg text-sm flex items-center gap-1">
+                    <Star size={12} fill="currentColor" /> {evalItem.score}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Dernière éval.</span>
+                    <span className="font-medium">{evalItem.date}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Prochaine éval.</span>
+                    <span className="font-medium">{evalItem.next}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'training' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Formations & Développement</h3>
+            <button 
+              onClick={() => setIsTrainingModalOpen(true)}
+              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+            >
+              <Plus size={16} /> Nouvelle Session
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {trainingSessions.map((training) => (
+              <div key={training.id} className="border border-gray-100 rounded-xl p-5 flex flex-col justify-between hover:border-gray-200 transition-colors">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-medium text-gray-900">{training.title}</h4>
+                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${training.status === 'Complété' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {training.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-4">Formateur: {training.trainer}</p>
+                </div>
+                <div className="flex justify-between items-center text-sm border-t border-gray-50 pt-3 mt-2">
+                  <div className="flex items-center gap-1 text-gray-500">
+                    <CalendarCheck size={14} /> {training.date}
+                  </div>
+                  <div className="flex items-center gap-1 text-gray-500">
+                    <Users size={14} /> {training.participants} inscrits
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'payroll' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Fiches de Paie</h3>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsPayrollModalOpen(true)}
+                className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+              >
+                <Plus size={16} /> Générer Fiche
+              </button>
+              <button 
+                onClick={() => showToast("Exportation de la masse salariale...")}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors"
+              >
+                <Download size={16} /> Exporter Masse Salariale
+              </button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
+                <tr>
+                  <th className="px-6 py-4">Période</th>
+                  <th className="px-6 py-4">Employé</th>
+                  <th className="px-6 py-4">Salaire Net</th>
+                  <th className="px-6 py-4">Statut</th>
+                  <th className="px-6 py-4 text-right">Document</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {payrollList.map((pay) => (
+                  <tr key={pay.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-gray-500">{pay.period}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{pay.name}</td>
+                    <td className="px-6 py-4">{pay.net}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-xs rounded-full font-medium bg-green-100 text-green-700">
+                        {pay.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => showToast(`Téléchargement de la fiche de paie de ${pay.name}`)}
+                        className="text-gray-400 hover:text-[#DDA956] transition-colors p-2 rounded-lg hover:bg-amber-50"
+                      >
+                        <FileText size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {activeTab === 'roles' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-500 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
-          <Shield size={48} className="text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Droits & Accès</h3>
-          <p className="max-w-md">La gestion des rôles (Admin, Manager, Réception, Cuisine) et de leurs permissions spécifiques arrivera très bientôt.</p>
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Droits & Accès</h3>
+            <button 
+              onClick={() => {
+                setEditingRole(null);
+                setIsRoleModalOpen(true);
+              }}
+              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
+            >
+              <Plus size={16} /> Nouveau Rôle
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {rolesList.map((role) => (
+              <div key={role.id} className="border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                    <Shield size={16} className="text-[#DDA956]" /> {role.role}
+                  </h4>
+                  <button 
+                    onClick={() => {
+                      setEditingRole(role);
+                      setIsRoleModalOpen(true);
+                    }}
+                    className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">{role.access}</p>
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <UserCheck size={14} /> {role.users} utilisateurs
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -2766,6 +4061,385 @@ function StaffHR() {
                     {editingStaff ? 'Sauvegarder' : 'Ajouter'}
                   </button>
                 </div>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Leave Balance Modal */}
+      {isLeaveBalanceModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Gestion des soldes de congés
+              </h3>
+              <button onClick={() => setIsLeaveBalanceModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-500 mb-6">Mettez à jour le solde de congés annuels pour les employés.</p>
+              <div className="space-y-4">
+                {staffData.map(staff => (
+                  <div key={staff.id} className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                    <span className="font-medium text-gray-900">{staff.name}</span>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        defaultValue={21}
+                        className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" 
+                      />
+                      <span className="text-sm text-gray-500">jours</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsLeaveBalanceModalOpen(false)}
+                  className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    showToast("Soldes mis à jour");
+                    setIsLeaveBalanceModalOpen(false);
+                  }}
+                  className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Eval Modal */}
+      {isEvalModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Nouvelle Évaluation
+              </h3>
+              <button onClick={() => setIsEvalModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              setEvaluationsList([...evaluationsList, {
+                id: Date.now(),
+                name: formData.get('staffName') as string,
+                role: "Poste",
+                score: `${formData.get('score')}/5`,
+                date: "Aujourd'hui",
+                next: "Dans 6 mois"
+              }]);
+              showToast("Évaluation enregistrée");
+              setIsEvalModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Score global (sur 5)</label>
+                  <input type="number" name="score" min="1" max="5" step="0.1" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires et points d'amélioration</label>
+                  <textarea rows={4} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"></textarea>
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsEvalModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Sauvegarder</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Training Modal */}
+      {isTrainingModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Nouvelle Session de Formation
+              </h3>
+              <button onClick={() => setIsTrainingModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              setTrainingSessions([...trainingSessions, {
+                id: Date.now(),
+                title: formData.get('title') as string,
+                date: formData.get('date') as string,
+                participants: parseInt(formData.get('participants') as string) || 0,
+                status: "Planifié",
+                trainer: formData.get('trainer') as string
+              }]);
+              showToast("Formation planifiée");
+              setIsTrainingModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Titre de la formation</label>
+                  <input type="text" name="title" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input type="date" name="date" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Formateur</label>
+                  <input type="text" name="trainer" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre prévu de participants</label>
+                  <input type="number" name="participants" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsTrainingModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Planifier</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Role Modal */}
+      {isRoleModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                {editingRole ? 'Modifier le Rôle' : 'Nouveau Rôle'}
+              </h3>
+              <button onClick={() => setIsRoleModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const newRole = {
+                id: editingRole?.id || Date.now(),
+                role: formData.get('role') as string,
+                users: editingRole?.users || 0,
+                access: formData.get('access') as string
+              };
+              if (editingRole) {
+                setRolesList(rolesList.map(r => r.id === editingRole.id ? newRole : r));
+                showToast("Rôle mis à jour");
+              } else {
+                setRolesList([...rolesList, newRole]);
+                showToast("Rôle créé");
+              }
+              setIsRoleModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Rôle</label>
+                  <input type="text" name="role" defaultValue={editingRole?.role} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description des Accès</label>
+                  <textarea name="access" defaultValue={editingRole?.access} rows={4} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"></textarea>
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">{editingRole ? 'Enregistrer' : 'Créer'}</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Shift Edit Modal */}
+      {isShiftModalOpen && editingShift && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Modifier l'horaire
+              </h3>
+              <button onClick={() => setIsShiftModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const newShift = formData.get('shift') as string;
+              setScheduleData(scheduleData.map(s => {
+                if (s.id === editingShift.empId) {
+                  return { ...s, [editingShift.dayKey]: newShift };
+                }
+                return s;
+              }));
+              showToast("Horaire mis à jour");
+              setIsShiftModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Horaire</label>
+                  <select name="shift" defaultValue={editingShift.current} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                    <option value="Repos">Repos</option>
+                    <option value="08:00 - 16:30">Matin (08:00 - 16:30)</option>
+                    <option value="15:00 - 23:30">Soir (15:00 - 23:30)</option>
+                    <option value="09:00 - 18:00">Journée (09:00 - 18:00)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsShiftModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Attendance Modal */}
+      {isAttendanceModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Saisir un Pointage
+              </h3>
+              <button onClick={() => setIsAttendanceModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              setAttendanceList([...attendanceList, {
+                id: Date.now(),
+                name: formData.get('staffName') as string,
+                in: formData.get('timeIn') as string || "-",
+                out: formData.get('timeOut') as string || "-",
+                status: formData.get('timeOut') ? "Terminé" : "En poste"
+              }]);
+              showToast("Pointage enregistré");
+              setIsAttendanceModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
+                    <input type="time" name="timeIn" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure de départ (Optionnel)</label>
+                    <input type="time" name="timeOut" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsAttendanceModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Payroll Modal */}
+      {isPayrollModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Générer Fiche de Paie
+              </h3>
+              <button onClick={() => setIsPayrollModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              setPayrollList([...payrollList, {
+                id: Date.now(),
+                period: formData.get('period') as string,
+                name: formData.get('staffName') as string,
+                net: `${formData.get('net')} MAD`,
+                status: "Payé"
+              }]);
+              showToast("Fiche de paie générée");
+              setIsPayrollModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Période (Ex: Juil 2026)</label>
+                  <input type="text" name="period" required defaultValue="Juil 2026" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salaire Net (MAD)</label>
+                  <input type="number" name="net" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsPayrollModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Générer</button>
               </div>
             </form>
           </motion.div>

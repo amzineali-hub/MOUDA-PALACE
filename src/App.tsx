@@ -1095,14 +1095,31 @@ function B2BPortal() {
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
   const [newPartnerName, setNewPartnerName] = useState('');
+  const [newPartnerType, setNewPartnerType] = useState('Riad');
+  const [newPartnerCommission, setNewPartnerCommission] = useState<number>(5);
+  const [newPartnerEmail, setNewPartnerEmail] = useState('');
   const [newPartnerAccessCode, setNewPartnerAccessCode] = useState('');
 
-  const partners = [
-    { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
-    { id: 'P-002', name: 'Atlas Voyages', type: 'Agence', commission: 5, revenue: '34 200 MAD', active: true, clients: 120 },
-    { id: 'P-003', name: 'LocaCar Marrakech', type: 'Location Auto', commission: 5, revenue: '4 800 MAD', active: true, clients: 15 },
-    { id: 'P-004', name: 'Hôtel La Medina', type: 'Hôtel', commission: 5, revenue: '8 900 MAD', active: false, clients: 32 }
-  ];
+  const [partners, setPartners] = useState(() => {
+    const saved = localStorage.getItem('mouda_partners');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing partners from localStorage", e);
+      }
+    }
+    return [
+      { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
+      { id: 'P-002', name: 'Atlas Voyages', type: 'Agence', commission: 5, revenue: '34 200 MAD', active: true, clients: 120 },
+      { id: 'P-003', name: 'LocaCar Marrakech', type: 'Location Auto', commission: 5, revenue: '4 800 MAD', active: true, clients: 15 },
+      { id: 'P-004', name: 'Hôtel La Medina', type: 'Hôtel', commission: 5, revenue: '8 900 MAD', active: false, clients: 32 }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mouda_partners', JSON.stringify(partners));
+  }, [partners]);
 
   const getIconForType = (type: string) => {
     switch(type) {
@@ -1137,7 +1154,7 @@ function B2BPortal() {
             <h4 className="text-sm font-medium text-gray-500">Total Partenaires</h4>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Share2 size={18} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">42</h3>
+          <h3 className="text-2xl font-bold text-gray-900">{partners.length}</h3>
           <p className="text-xs text-green-600 mt-2 font-medium">+3 ce mois</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
@@ -1395,22 +1412,37 @@ function B2BPortal() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Type de partenaire</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                    <option>Riad</option>
-                    <option>Hôtel</option>
-                    <option>Agence</option>
-                    <option>Location Auto</option>
+                  <select 
+                    value={newPartnerType} 
+                    onChange={(e) => setNewPartnerType(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="Riad">Riad</option>
+                    <option value="Hôtel">Hôtel</option>
+                    <option value="Agence">Agence</option>
+                    <option value="Location Auto">Location Auto</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Commission (%)</label>
-                  <input type="number" defaultValue={5} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input 
+                    type="number" 
+                    value={newPartnerCommission}
+                    onChange={(e) => setNewPartnerCommission(Number(e.target.value))}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
-                  <input type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="contact@riad.com" />
+                  <input 
+                    type="email" 
+                    value={newPartnerEmail}
+                    onChange={(e) => setNewPartnerEmail(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="contact@riad.com" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Code d'accès (Secret)</label>
@@ -1429,11 +1461,29 @@ function B2BPortal() {
                     showToast("Veuillez définir un code d'accès pour ce partenaire.", "error");
                     return;
                   }
+                  
+                  const newPartner = {
+                    id: `P-00${partners.length + 1}`,
+                    name: newPartnerName || 'Nouveau Partenaire',
+                    type: newPartnerType,
+                    commission: newPartnerCommission,
+                    revenue: '0 MAD',
+                    active: true,
+                    clients: 0,
+                    accessCode: newPartnerAccessCode,
+                    email: newPartnerEmail
+                  };
+                  
+                  setPartners([...partners, newPartner]);
                   showToast("Partenaire ajouté. QR Code généré et prêt à l'emploi.");
                   setIsAddPartnerModalOpen(false);
-                  setSelectedPartner({ id: 'P-005', name: newPartnerName || 'Nouveau Partenaire', type: 'Riad', commission: 5, active: true, clients: 0, accessCode: newPartnerAccessCode });
+                  setSelectedPartner(newPartner);
                   setIsQRModalOpen(true);
+                  
                   setNewPartnerName('');
+                  setNewPartnerType('Riad');
+                  setNewPartnerCommission(5);
+                  setNewPartnerEmail('');
                   setNewPartnerAccessCode('');
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"

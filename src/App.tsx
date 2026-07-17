@@ -2286,18 +2286,121 @@ function DigitalMenu() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Entrées');
   const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
+  const [editingDish, setEditingDish] = useState<any>(null);
+  const [newDishForm, setNewDishForm] = useState({ name: '', category: 'Entrées', price: '', desc: '' });
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [displayLanguage, setDisplayLanguage] = useState('fr');
 
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
   
-  const menuItems = [
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true },
+  const [menuItems, setMenuItems] = useState([
+    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' } } },
+    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' } } },
+    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' } } },
     { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', active: false, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', active: true, translated: true },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true }
-  ];
+    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' } } },
+    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' } } }
+  ]);
+
+  const handleTranslate = async () => {
+    const untranslatedItems = menuItems.filter(item => !item.translated);
+    
+    if (untranslatedItems.length === 0) {
+      showToast('Tous les plats sont déjà traduits.');
+      return;
+    }
+
+    setIsTranslating(true);
+    showToast('Traduction du menu en cours avec Vertex AI...');
+    
+    try {
+      const response = await fetch('/api/translate-menu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: untranslatedItems })
+      });
+      
+      if (!response.ok) throw new Error('Translation failed');
+      
+      const translationsResult = await response.json();
+      
+      setMenuItems(prevItems => prevItems.map(item => {
+        const transResult = translationsResult.find((t: any) => t.id === item.id);
+        if (transResult) {
+          return {
+            ...item,
+            translated: true,
+            translations: transResult.translations
+          };
+        }
+        return item;
+      }));
+      
+      showToast('Traduction terminée avec succès !');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la traduction.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingDish(null);
+    setNewDishForm({ name: '', category: activeCategory, price: '', desc: '' });
+    setIsAddDishModalOpen(true);
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingDish(item);
+    setNewDishForm({ 
+      name: item.name, 
+      category: item.category, 
+      price: item.price.replace(' MAD', ''), 
+      desc: item.desc 
+    });
+    setIsAddDishModalOpen(true);
+  };
+
+  const handleSaveDish = () => {
+    if (!newDishForm.name || !newDishForm.price) {
+      showToast("Veuillez remplir les champs obligatoires");
+      return;
+    }
+    
+    if (editingDish) {
+      setMenuItems(items => items.map(item => item.id === editingDish.id ? {
+        ...item,
+        name: newDishForm.name,
+        category: newDishForm.category,
+        price: `${newDishForm.price} MAD`,
+        desc: newDishForm.desc,
+        translated: false
+      } : item));
+      showToast("Plat modifié avec succès (Traduction requise)");
+    } else {
+      const newItem = {
+        id: Date.now(),
+        name: newDishForm.name,
+        category: newDishForm.category,
+        price: `${newDishForm.price} MAD`,
+        desc: newDishForm.desc,
+        active: true,
+        translated: false
+      };
+      setMenuItems(items => [...items, newItem]);
+      showToast("Plat ajouté avec succès (Traduction requise)");
+    }
+    setIsAddDishModalOpen(false);
+  };
+
+  const handleDeleteDish = (id: number) => {
+    if (confirm("Voulez-vous vraiment supprimer ce plat ?")) {
+      setMenuItems(items => items.filter(item => item.id !== id));
+      showToast("Plat supprimé avec succès");
+    }
+  };
 
   const filteredItems = menuItems.filter(item => item.category === activeCategory);
 
@@ -2317,7 +2420,7 @@ function DigitalMenu() {
             Imprimer QR Code
           </button>
           <button 
-            onClick={() => setIsAddDishModalOpen(true)}
+            onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
           >
             <Plus size={16} />
@@ -2338,51 +2441,74 @@ function DigitalMenu() {
           </div>
         </div>
         <button 
-          onClick={() => showToast('Traduction du menu en cours...')}
-          className="whitespace-nowrap px-5 py-2.5 bg-white text-[#1A1A1A] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
+          onClick={handleTranslate}
+          disabled={isTranslating}
+          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#1A1A1A] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${isTranslating ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-          <Sparkles size={16} className="text-[#DDA956]" />
-          Traduire les plats non traduits
+          {isTranslating ? <Loader2 size={16} className="text-[#DDA956] animate-spin" /> : <Sparkles size={16} className="text-[#DDA956]" />}
+          {isTranslating ? 'Traduction en cours...' : 'Traduire les plats non traduits'}
         </button>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Categories Tab */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar">
-          {categories.map(category => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeCategory === category ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+        {/* Categories Tab and Language Selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 p-2 gap-4">
+          <div className="flex overflow-x-auto hide-scrollbar">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative ${activeCategory === category ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+              >
+                {category}
+                {activeCategory === category && (
+                  <motion.div layoutId="activeCategory" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
+                )}
+              </button>
+            ))}
+          </div>
+          
+          <div className="px-4 flex items-center gap-2">
+            <Globe size={16} className="text-gray-400" />
+            <select 
+              value={displayLanguage}
+              onChange={(e) => setDisplayLanguage(e.target.value)}
+              className="text-sm border-none bg-transparent text-gray-700 font-medium focus:ring-0 cursor-pointer"
             >
-              {category}
-              {activeCategory === category && (
-                <motion.div layoutId="activeCategory" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-              )}
-            </button>
-          ))}
+              <option value="fr">Français (FR)</option>
+              <option value="en">English (EN)</option>
+              <option value="es">Español (ES)</option>
+              <option value="ar">العربية (AR)</option>
+            </select>
+          </div>
         </div>
 
         {/* Menu Items List */}
         <div className="divide-y divide-gray-100">
-          {filteredItems.map(item => (
+          {filteredItems.map(item => {
+            // @ts-ignore - dynamic properties
+            const currentTranslation = displayLanguage !== 'fr' && item.translations ? item.translations[displayLanguage] : null;
+            const displayName = currentTranslation?.name || item.name;
+            const displayDesc = currentTranslation?.desc || item.desc;
+            
+            return (
             <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200">
                   <UtensilsCrossed className="text-gray-400" size={24} />
                 </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h4 className="font-medium text-gray-900">{item.name}</h4>
+                <div className={displayLanguage === 'ar' ? 'text-right w-full' : ''} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
+                  <div className={`flex items-center gap-3 mb-1 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
+                    <h4 className="font-medium text-gray-900">{displayName}</h4>
                     {!item.active && (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md font-medium flex items-center gap-1">
                         <EyeOff size={12} /> Masqué
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 line-clamp-2 max-w-2xl">{item.desc}</p>
+                  <p className="text-sm text-gray-500 line-clamp-2 max-w-2xl">{displayDesc}</p>
                   
-                  <div className="flex items-center gap-4 mt-3">
+                  <div className={`flex items-center gap-4 mt-3 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
                     <span className="font-semibold text-[#1A1A1A]">{item.price}</span>
                     <div className="w-px h-4 bg-gray-200"></div>
                     {item.translated ? (
@@ -2400,21 +2526,24 @@ function DigitalMenu() {
               
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => showToast(`Visibilité de ${item.name} modifiée`)}
+                  onClick={() => {
+                    setMenuItems(items => items.map(i => i.id === item.id ? { ...i, active: !i.active } : i));
+                    showToast(`Visibilité de ${item.name} modifiée`);
+                  }}
                   className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
                   title={item.active ? "Masquer" : "Afficher"}
                 >
                   {item.active ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
                 <button 
-                  onClick={() => showToast(`Édition de ${item.name}`)}
+                  onClick={() => openEditModal(item)}
                   className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
                   title="Modifier"
                 >
                   <Edit2 size={18} />
                 </button>
                 <button 
-                  onClick={() => showToast(`Suppression de ${item.name}`)}
+                  onClick={() => handleDeleteDish(item.id)}
                   className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
                   title="Supprimer"
                 >
@@ -2422,7 +2551,8 @@ function DigitalMenu() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
           {filteredItems.length === 0 && (
             <div className="p-12 text-center text-gray-500">
               Aucun plat dans cette catégorie.
@@ -2466,12 +2596,12 @@ function DigitalMenu() {
         </div>
       )}
 
-      {/* Add Dish Modal */}
+      {/* Add/Edit Dish Modal */}
       {isAddDishModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">Nouveau Plat</h3>
+              <h3 className="text-xl font-serif font-semibold">{editingDish ? 'Modifier Plat' : 'Nouveau Plat'}</h3>
               <button onClick={() => setIsAddDishModalOpen(false)} className="text-gray-400 hover:text-gray-900">
                 <X size={20} />
               </button>
@@ -2479,23 +2609,45 @@ function DigitalMenu() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Pastilla au Poulet" />
+                <input 
+                  type="text" 
+                  value={newDishForm.name}
+                  onChange={(e) => setNewDishForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  placeholder="Ex: Pastilla au Poulet" 
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                    {categories.map(c => <option key={c}>{c}</option>)}
+                  <select 
+                    value={newDishForm.category}
+                    onChange={(e) => setNewDishForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix (MAD)</label>
-                  <input type="number" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0" />
+                  <input 
+                    type="number" 
+                    value={newDishForm.price}
+                    onChange={(e) => setNewDishForm(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="0" 
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description (FR)</label>
-                <textarea rows={3} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" placeholder="Description du plat..."></textarea>
+                <textarea 
+                  rows={3} 
+                  value={newDishForm.desc}
+                  onChange={(e) => setNewDishForm(prev => ({ ...prev, desc: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" 
+                  placeholder="Description du plat..."
+                ></textarea>
               </div>
               <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <div className="p-2 bg-[#DDA956]/20 text-[#DDA956] rounded-md">
@@ -2503,17 +2655,14 @@ function DigitalMenu() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">Traduction IA Automatique</p>
-                  <p className="text-xs text-gray-500">Le titre et la description seront traduits en EN, ES, AR après l'ajout.</p>
+                  <p className="text-xs text-gray-500">Le titre et la description seront traduits en EN, ES, AR après l'enregistrement.</p>
                 </div>
               </div>
               <button 
-                onClick={() => {
-                  showToast("Plat ajouté avec succès (Traduction en arrière-plan...)");
-                  setIsAddDishModalOpen(false);
-                }}
+                onClick={handleSaveDish}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
-                Ajouter et Traduire
+                {editingDish ? 'Enregistrer et Traduire' : 'Ajouter et Traduire'}
               </button>
             </div>
           </div>

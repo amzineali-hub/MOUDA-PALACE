@@ -31,7 +31,6 @@ async function startServer() {
 4. Une suggestion de réponse courte et polie.
 
 Avis: "${reviewText}"
-
 Réponds au format JSON:
 {
   "sentiment": "positif/neutre/négatif",
@@ -49,6 +48,49 @@ Réponds au format JSON:
       res.json(result);
     } catch (error) {
       console.error("Error analyzing review:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // API Route for Menu Translation
+  app.post("/api/translate-menu", async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({ error: "Missing items array" });
+      }
+
+      const prompt = `Traduisez les noms et descriptions de plats suivants du français vers l'anglais, l'espagnol et l'arabe.
+Renvoie un tableau JSON où chaque élément correspond à l'entrée et contient "id", "translations": { "en": { "name": "...", "desc": "..." }, "es": { "name": "...", "desc": "..." }, "ar": { "name": "...", "desc": "..." } }.
+Plats à traduire :
+${JSON.stringify(items.map((i: any) => ({ id: i.id, name: i.name, desc: i.desc })))}
+
+Format de réponse attendu:
+[
+  {
+    "id": 1,
+    "translations": {
+      "en": { "name": "...", "desc": "..." },
+      "es": { "name": "...", "desc": "..." },
+      "ar": { "name": "...", "desc": "..." }
+    }
+  }
+]
+Ne renvoie QUE le tableau JSON valide. Ne rajoute pas de texte avant ou après.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+
+      const responseText = response.text || "";
+      // Strip markdown code block if present
+      const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      const result = JSON.parse(cleanJson);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error translating menu:", error);
       res.status(500).json({ error: "Internal Server Error" });
     }
   });

@@ -250,9 +250,17 @@ export default function App() {
     try {
       await signInWithPopup(auth, googleProvider);
       showToast("Connexion réussie");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed", error);
-      showToast("Erreur de connexion", "error");
+      
+      // Amélioration du message d'erreur
+      if (error.code === 'auth/unauthorized-domain') {
+        showToast("Domaine non autorisé. Veuillez ouvrir l'application dans un nouvel onglet.", "error");
+      } else if (error.message?.includes('cross-origin')) {
+        showToast("Erreur iframe. Veuillez ouvrir l'application dans un nouvel onglet.", "error");
+      } else {
+        showToast(error.message || "Erreur de connexion", "error");
+      }
     }
   };
 
@@ -1087,6 +1095,7 @@ function B2BPortal() {
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
   const [newPartnerName, setNewPartnerName] = useState('');
+  const [newPartnerAccessCode, setNewPartnerAccessCode] = useState('');
 
   const partners = [
     { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
@@ -1398,17 +1407,34 @@ function B2BPortal() {
                   <input type="number" defaultValue={5} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
-                <input type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="contact@riad.com" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
+                  <input type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="contact@riad.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Code d'accès (Secret)</label>
+                  <input 
+                    type="text" 
+                    value={newPartnerAccessCode}
+                    onChange={(e) => setNewPartnerAccessCode(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="Ex: RIAD2026" 
+                  />
+                </div>
               </div>
               <button 
                 onClick={() => {
+                  if (!newPartnerAccessCode) {
+                    showToast("Veuillez définir un code d'accès pour ce partenaire.", "error");
+                    return;
+                  }
                   showToast("Partenaire ajouté. QR Code généré et prêt à l'emploi.");
                   setIsAddPartnerModalOpen(false);
-                  setSelectedPartner({ id: 'P-005', name: newPartnerName || 'Nouveau Partenaire', type: 'Riad', commission: 5, active: true, clients: 0 });
+                  setSelectedPartner({ id: 'P-005', name: newPartnerName || 'Nouveau Partenaire', type: 'Riad', commission: 5, active: true, clients: 0, accessCode: newPartnerAccessCode });
                   setIsQRModalOpen(true);
                   setNewPartnerName('');
+                  setNewPartnerAccessCode('');
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
@@ -3081,6 +3107,65 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
 }
 
 function PartnerPortal({ onBack }: { onBack: () => void }) {
+  const [accessCode, setAccessCode] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: "url('/mouda 2.JPG')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md relative z-10"
+        >
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl text-center">
+            <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
+              <Briefcase size={32} />
+            </div>
+            <h2 className="text-2xl font-serif text-[#1A1A1A] font-semibold mb-2">Espace Partenaire</h2>
+            <p className="text-gray-500 text-sm mb-8">Veuillez saisir votre code d'accès pour consulter vos performances et commissions.</p>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (accessCode.trim().length > 3) {
+                setIsAuthenticated(true);
+              } else {
+                setError('Code d\'accès invalide.');
+              }
+            }}>
+              <div className="mb-6 text-left">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Code d'accès secret</label>
+                <input 
+                  type="password"
+                  value={accessCode}
+                  onChange={(e) => { setAccessCode(e.target.value); setError(''); }}
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-all text-center text-lg tracking-[0.2em]"
+                  placeholder="••••••••"
+                />
+                {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+              </div>
+              <button 
+                type="submit"
+                className="w-full bg-[#1A1A1A] text-white py-3.5 rounded-xl font-medium hover:bg-[#333] transition-colors mb-4"
+              >
+                Accéder à mon espace
+              </button>
+              <button 
+                type="button"
+                onClick={onBack}
+                className="w-full text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium"
+              >
+                Retour à l'accueil
+              </button>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-4 md:p-12 relative z-10 flex flex-col items-center">
       <div className="w-full max-w-4xl pt-8">

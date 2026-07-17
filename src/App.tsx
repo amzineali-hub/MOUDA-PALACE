@@ -1151,21 +1151,18 @@ function Reservations() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2">
+        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
           {['upcoming', 'floorplan', 'waitlist', 'history', 'reviews'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
             >
               {tab === 'upcoming' && 'À venir (3)'}
               {tab === 'floorplan' && 'Plan de Salle'}
               {tab === 'waitlist' && 'Liste d\'attente'}
               {tab === 'history' && 'Historique'}
               {tab === 'reviews' && 'Avis & CRM'}
-              {activeTab === tab && (
-                <motion.div layoutId="activeResTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-              )}
             </button>
           ))}
         </div>
@@ -1770,18 +1767,15 @@ function B2BPortal() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2">
+        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
           {['partners', 'commissions'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
             >
               {tab === 'partners' && 'Liste des Partenaires'}
               {tab === 'commissions' && 'Commissions & Versements'}
-              {activeTab === tab && (
-                <motion.div layoutId="activeB2BTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-              )}
             </button>
           ))}
         </div>
@@ -2453,17 +2447,14 @@ function DigitalMenu() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Categories Tab and Language Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 p-2 gap-4">
-          <div className="flex overflow-x-auto hide-scrollbar">
+          <div className="flex overflow-x-auto hide-scrollbar gap-2">
             {categories.map(category => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative ${activeCategory === category ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeCategory === category ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
               >
                 {category}
-                {activeCategory === category && (
-                  <motion.div layoutId="activeCategory" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-                )}
               </button>
             ))}
           </div>
@@ -2769,12 +2760,12 @@ function Inventory() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2">
+        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
           {['stocks', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'recipes' && 'Fiches Techniques & Marges'}
@@ -2782,9 +2773,6 @@ function Inventory() {
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
-              {activeTab === tab && (
-                <motion.div layoutId="activeInventoryTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-              )}
             </button>
           ))}
         </div>
@@ -3618,7 +3606,7 @@ function StaffHR() {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar px-2 mb-6">
+      <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2 mb-6">
         {[
           { id: 'directory', label: 'Annuaire' },
           { id: 'attendance', label: 'Pointage' },
@@ -3632,12 +3620,9 @@ function StaffHR() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab.id ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab.id ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
           >
             {tab.label}
-            {activeTab === tab.id && (
-              <motion.div layoutId="activeHRTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]" />
-            )}
           </button>
         ))}
       </div>

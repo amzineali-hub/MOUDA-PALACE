@@ -5,6 +5,7 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { motion } from 'motion/react';
+import { calculateStockStatus } from './lib/inventoryUtils';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   ChefHat, 
@@ -59,13 +60,19 @@ import {
   Briefcase,
   Share2,
   BookOpen,
-  ArrowLeft
+  ArrowLeft,
+  Terminal,
+  Wallet,
+  Receipt,
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot } from 'firebase/firestore';
+import Accounting from './Accounting';
 
 function ReviewAnalyzer() {
   const [review, setReview] = useState("");
@@ -291,6 +298,10 @@ export default function App() {
         return <Inventory />;
       case 'staff':
         return <StaffHR />;
+      case 'finance':
+        return <TacSystemsPOS />;
+      case 'accounting':
+        return <Accounting />;
       case 'config':
         return <Configuration />;
       default:
@@ -392,6 +403,8 @@ export default function App() {
           <NavItem icon={<UtensilsCrossed size={18} />} label="Menu Digital" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
           <NavItem icon={<ChefHat size={18} />} label="Inventaire & Stock" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
           <NavItem icon={<Users size={18} />} label="Staff & RH" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
+          <NavItem icon={<Wallet size={18} />} label="Caisse (TacSystems)" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
+          <NavItem icon={<Receipt size={18} />} label="Facturation & Compta" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
         </nav>
 
         <div className="mt-auto pt-8">
@@ -553,7 +566,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </div>
 
         {/* Operations Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <DashboardCard 
             title="Point de Vente (POS)" 
             value="Actif"
@@ -600,7 +613,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <InventoryAlerts />
 
         {/* Quick Operations Actions */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <button 
             onClick={() => {
               setActiveTab('reservations');
@@ -1073,6 +1086,7 @@ function B2BPortal() {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
+  const [newPartnerName, setNewPartnerName] = useState('');
 
   const partners = [
     { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
@@ -1108,7 +1122,7 @@ function B2BPortal() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-medium text-gray-500">Total Partenaires</h4>
@@ -1239,8 +1253,8 @@ function B2BPortal() {
       {/* QR Code Partner Modal */}
       {isQRModalOpen && selectedPartner && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md text-center">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md text-center max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="flex justify-between items-center mb-4 md:mb-6">
               <h3 className="text-xl font-serif font-semibold">QR Code Partenaire</h3>
               <button onClick={() => setIsQRModalOpen(false)} className="text-gray-400 hover:text-gray-900">
                 <X size={20} />
@@ -1252,11 +1266,11 @@ function B2BPortal() {
               <p className="text-sm text-gray-500">ID de suivi : {selectedPartner.id}</p>
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 flex flex-col items-center justify-center mb-6">
-              <QrCode size={180} className="text-gray-800" />
+            <div className="bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-100 flex flex-col items-center justify-center mb-4 md:mb-6 flex-shrink-0">
+              <QrCode className="text-gray-800 w-32 h-32 md:w-44 md:h-44" />
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-left">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 text-left flex-shrink-0">
               <div className="flex items-start gap-3">
                 <MapPin className="text-blue-500 mt-0.5 flex-shrink-0" size={20} />
                 <div>
@@ -1273,17 +1287,66 @@ function B2BPortal() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => {
-                  showToast("Téléchargement du kit QR partenaire...");
-                  setIsQRModalOpen(false);
-                }}
-                className="w-full bg-[#1A1A1A] text-white py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
-              >
-                <Download size={18} />
-                Télécharger Kit
-              </button>
+            <div className="flex flex-col gap-3 flex-shrink-0 mt-auto">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>QR Code - ${selectedPartner.name}</title>
+                            <style>
+                              body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center; background: #fff; }
+                              .print-container { max-width: 800px; padding: 40px; }
+                              h1 { font-size: 3rem; margin-bottom: 0.5rem; color: #1A1A1A; }
+                              p.subtitle { font-size: 1.5rem; color: #666; margin-bottom: 3rem; }
+                              .qr-wrapper { display: inline-block; padding: 2rem; border: 4px solid #1A1A1A; border-radius: 2rem; margin-bottom: 3rem; }
+                              .qr-placeholder { width: 400px; height: 400px; background-image: url('https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=https://moudapalace.com/reserve/${selectedPartner.id}'); background-size: cover; background-position: center; }
+                              .controls { margin-top: 2rem; }
+                              button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #DDA956; color: #1A1A1A; border: none; border-radius: 8px; font-weight: bold; margin: 0 10px; }
+                              button.secondary { background: #1A1A1A; color: #fff; }
+                              @media print { .controls { display: none !important; } }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="print-container">
+                              <h1>MOUDA PALACE</h1>
+                              <p class="subtitle">Scannez pour découvrir notre Menu & GPS<br/><br/><strong>${selectedPartner.name}</strong></p>
+                              <div class="qr-wrapper">
+                                <div class="qr-placeholder"></div>
+                              </div>
+                              <div class="controls">
+                                <button onclick="window.print()">Imprimer (A5 / Poster)</button>
+                                <button class="secondary" onclick="window.close()">Fermer</button>
+                              </div>
+                            </div>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }
+                    showToast("Page d'impression HD ouverte dans un nouvel onglet");
+                    setIsQRModalOpen(false);
+                  }}
+                  className="flex-1 bg-[#1A1A1A] text-[#DDA956] py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+                >
+                  <Printer size={18} />
+                  Ouvrir HD / Imprimer
+                </button>
+                <button 
+                  onClick={() => {
+                    showToast("Téléchargement du kit QR partenaire...");
+                    setIsQRModalOpen(false);
+                  }}
+                  className="flex-1 bg-white border border-gray-200 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Download size={18} />
+                  Kit ZIP
+                </button>
+              </div>
               <button 
                 onClick={() => {
                   showToast(`Scan détecté : Client redirigé vers Menu & GPS. Commission de ${selectedPartner.commission}% en attente d'encaissement.`);
@@ -1302,7 +1365,7 @@ function B2BPortal() {
       {/* Add Partner Modal */}
       {isAddPartnerModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Nouveau Partenaire</h3>
               <button onClick={() => setIsAddPartnerModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -1312,7 +1375,13 @@ function B2BPortal() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'établissement / agence</label>
-                <input type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Riad Dar Salam" />
+                <input 
+                  type="text" 
+                  value={newPartnerName}
+                  onChange={(e) => setNewPartnerName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  placeholder="Ex: Riad Dar Salam" 
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1337,8 +1406,9 @@ function B2BPortal() {
                 onClick={() => {
                   showToast("Partenaire ajouté. QR Code généré et prêt à l'emploi.");
                   setIsAddPartnerModalOpen(false);
-                  setSelectedPartner({ id: 'P-005', name: 'Nouveau Partenaire', type: 'Riad', commission: 5, active: true, clients: 0 });
+                  setSelectedPartner({ id: 'P-005', name: newPartnerName || 'Nouveau Partenaire', type: 'Riad', commission: 5, active: true, clients: 0 });
                   setIsQRModalOpen(true);
+                  setNewPartnerName('');
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
@@ -1703,7 +1773,7 @@ function DigitalMenu() {
       {/* QR Code Modal */}
       {isQRModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Menu Digital QR</h3>
               <button onClick={() => setIsQRModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -1738,7 +1808,7 @@ function DigitalMenu() {
       {/* Add Dish Modal */}
       {isAddDishModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Nouveau Plat</h3>
               <button onClick={() => setIsAddDishModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -1804,12 +1874,12 @@ function Inventory() {
   const [txType, setTxType] = useState<'in' | 'out'>('in');
 
   const stockItems = [
-    { id: 'INV-001', name: 'Safran de Taliouine', category: 'Épices', supplier: 'Coopérative Taliouine', quantity: 250, unit: 'g', minStock: 100, status: 'ok' },
-    { id: 'INV-002', name: 'Huile d\'Olive Vierge Extra', category: 'Épicerie', supplier: 'Ferme Atlas', quantity: 15, unit: 'L', minStock: 20, status: 'alert' },
-    { id: 'INV-003', name: 'Viande d\'Agneau (Épaule)', category: 'Viandes', supplier: 'Boucherie Médina', quantity: 45, unit: 'kg', minStock: 20, status: 'ok' },
-    { id: 'INV-004', name: 'Menthe Fraîche', category: 'Herbes', supplier: 'Marché Central', quantity: 2, unit: 'kg', minStock: 5, status: 'critical' },
-    { id: 'INV-005', name: 'Amandes Émondées', category: 'Fruits Secs', supplier: 'Grossiste Fès', quantity: 12, unit: 'kg', minStock: 10, status: 'ok' }
-  ];
+    { id: 'INV-001', name: 'Safran de Taliouine', category: 'Épices', supplier: 'Coopérative Taliouine', quantity: 250, unit: 'g', minStock: 100 },
+    { id: 'INV-002', name: 'Huile d\'Olive Vierge Extra', category: 'Épicerie', supplier: 'Ferme Atlas', quantity: 15, unit: 'L', minStock: 20 },
+    { id: 'INV-003', name: 'Viande d\'Agneau (Épaule)', category: 'Viandes', supplier: 'Boucherie Médina', quantity: 45, unit: 'kg', minStock: 20 },
+    { id: 'INV-004', name: 'Menthe Fraîche', category: 'Herbes', supplier: 'Marché Central', quantity: 2, unit: 'kg', minStock: 5 },
+    { id: 'INV-005', name: 'Amandes Émondées', category: 'Fruits Secs', supplier: 'Grossiste Fès', quantity: 12, unit: 'kg', minStock: 10 }
+  ].map(item => ({ ...item, status: calculateStockStatus(item.quantity, item.minStock) }));
 
   const recentTransactions = [
     { id: 'TX-1209', type: 'out', item: 'Menthe Fraîche', amount: 0.5, unit: 'kg', reason: 'Service Thé du Soir (Cuisine)', date: 'Aujourd\'hui, 17:30', user: 'Chef Hassan' },
@@ -1843,7 +1913,7 @@ function Inventory() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-4 bg-gray-50 text-gray-600 rounded-xl">
             <Package size={24} />
@@ -2014,7 +2084,7 @@ function Inventory() {
       {/* Scanner Modal */}
       {isScannerModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Scanner Bon de Livraison</h3>
               <button onClick={() => setIsScannerModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -2062,7 +2132,7 @@ function Inventory() {
       {/* Auto Create Product from Scan Modal */}
       {isAutoCreateModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Création Automatique</h3>
               <button onClick={() => setIsAutoCreateModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -2131,7 +2201,7 @@ function Inventory() {
       {/* Add Product Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Nouveau Produit</h3>
               <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -2181,7 +2251,7 @@ function Inventory() {
       {/* Transaction Modal */}
       {isTxModalOpen && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">
                 {txType === 'in' ? 'Entrée de Stock' : 'Sortie de Stock'}
@@ -2221,7 +2291,7 @@ function Inventory() {
       {/* Settings Modal */}
       {isSettingsModalOpen && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Paramètres Produit</h3>
               <button onClick={() => setIsSettingsModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -2261,15 +2331,370 @@ function Inventory() {
 }
 
 function StaffHR() {
+  const [activeTab, setActiveTab] = useState('directory');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { showToast } = useToast();
+
+  const initialStaff = [
+    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir' },
+    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin' },
+    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-' },
+    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir' },
+  ];
+
+  const [staffData, setStaffData] = useState(initialStaff);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<any>(null);
+  
+  // Filter State
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterDept, setFilterDept] = useState('Tous');
+  const [filterStatus, setFilterStatus] = useState('Tous');
+
+  const handleSaveStaff = (e: any) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const newStaff = {
+      id: editingStaff?.id || `EMP-${Date.now().toString().slice(-4)}`,
+      name: formData.get('name') as string,
+      role: formData.get('role') as string,
+      department: formData.get('department') as string,
+      phone: formData.get('phone') as string,
+      status: formData.get('status') as string,
+      shift: formData.get('shift') as string || '-',
+    };
+
+    if (editingStaff) {
+      setStaffData(prev => prev.map(s => s.id === editingStaff.id ? newStaff : s));
+      showToast("Employé mis à jour avec succès");
+    } else {
+      setStaffData(prev => [...prev, newStaff]);
+      showToast("Employé ajouté avec succès");
+    }
+    
+    setIsModalOpen(false);
+    setEditingStaff(null);
+  };
+
+  const handleDeleteStaff = (id: string) => {
+    setStaffData(prev => prev.filter(s => s.id !== id));
+    showToast("Employé supprimé");
+    setIsModalOpen(false);
+    setEditingStaff(null);
+  };
+
+  const filteredStaff = staffData.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          s.role.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDept = filterDept === 'Tous' || s.department === filterDept;
+    const matchesStatus = filterStatus === 'Tous' || s.status === filterStatus;
+    return matchesSearch && matchesDept && matchesStatus;
+  });
+
   return (
     <div className="p-8 md:p-12 relative z-10">
-      <header className="mb-10">
-        <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Staff & RH</h2>
-        <p className="text-gray-500">Gestion du personnel, plannings et accès.</p>
+      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Staff & RH</h2>
+          <p className="text-gray-500">Gestion du personnel, plannings et accès.</p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => {
+              setEditingStaff(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Ajouter un employé
+          </button>
+        </div>
       </header>
-      <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm flex items-center justify-center min-h-[400px] text-gray-400">
-        <p>Le module RH est en cours de développement.</p>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <DashboardCard title="Total Employés" value={staffData.length.toString()} subtitle={`${staffData.filter(s => s.status === 'En congé').length} en congé`} icon={<Users size={20} />} />
+        <DashboardCard title="En service (Actuel)" value={staffData.filter(s => s.status === 'Actif').length.toString()} subtitle="Employés actifs" icon={<CheckCircle size={20} />} />
+        <DashboardCard title="Heures sup. (Mois)" value="45h" subtitle="+12% vs le mois dernier" icon={<Clock size={20} />} />
+        <DashboardCard title="Prochains congés" value="5" subtitle="Dans les 7 prochains jours" icon={<CalendarCheck size={20} />} />
       </div>
+
+      {/* Tabs */}
+      <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+        <button 
+          onClick={() => setActiveTab('directory')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'directory' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          Annuaire du Personnel
+        </button>
+        <button 
+          onClick={() => setActiveTab('planning')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'planning' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          Planning Hebdomadaire
+        </button>
+        <button 
+          onClick={() => setActiveTab('roles')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'roles' ? 'bg-[#1A1A1A] text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+        >
+          Droits & Accès
+        </button>
+      </div>
+
+      {activeTab === 'directory' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between bg-gray-50/50 gap-4">
+            <div className="relative flex-1 md:w-64 md:flex-none">
+              <input 
+                type="text" 
+                placeholder="Rechercher un employé..." 
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-lg transition-colors ${isFilterOpen ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Filter size={14} />
+                Filtres
+                {(filterDept !== 'Tous' || filterStatus !== 'Tous') && (
+                  <span className="w-2 h-2 rounded-full bg-[#DDA956] ml-1"></span>
+                )}
+              </button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-20">
+                  <div className="mb-4">
+                    <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Département</label>
+                    <select 
+                      value={filterDept}
+                      onChange={(e) => setFilterDept(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
+                    >
+                      <option value="Tous">Tous les départements</option>
+                      <option value="Cuisine">Cuisine</option>
+                      <option value="Salle">Salle</option>
+                      <option value="Accueil">Accueil</option>
+                      <option value="Management">Management</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Statut</label>
+                    <select 
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
+                    >
+                      <option value="Tous">Tous les statuts</option>
+                      <option value="Actif">Actif</option>
+                      <option value="En congé">En congé</option>
+                      <option value="Inactif">Inactif</option>
+                    </select>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-50 flex justify-end">
+                    <button 
+                      onClick={() => {
+                        setFilterDept('Tous');
+                        setFilterStatus('Tous');
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-900 font-medium"
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4">Employé</th>
+                  <th className="px-6 py-4">Département</th>
+                  <th className="px-6 py-4">Contact</th>
+                  <th className="px-6 py-4">Statut</th>
+                  <th className="px-6 py-4">Service Actuel</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredStaff.length > 0 ? (
+                  filteredStaff.map(staff => (
+                    <tr key={staff.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#DDA956]/20 text-[#DDA956] flex items-center justify-center font-bold text-xs uppercase">
+                            {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{staff.name}</div>
+                            <div className="text-xs text-gray-500">{staff.role}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
+                          {staff.department}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {staff.phone}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
+                          staff.status === 'Actif' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'Actif' ? 'bg-green-500' : 'bg-amber-500'}`}></span>
+                          {staff.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {staff.shift}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingStaff(staff);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      Aucun employé ne correspond à votre recherche ou à vos filtres.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'planning' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-500 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
+          <CalendarCheck size={48} className="text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Planning Hebdomadaire</h3>
+          <p className="max-w-md">L'interface de gestion du planning drag & drop est en cours de conception. Elle permettra d'assigner les services du midi et du soir par employé.</p>
+        </div>
+      )}
+
+      {activeTab === 'roles' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-500 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
+          <Shield size={48} className="text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Droits & Accès</h3>
+          <p className="max-w-md">La gestion des rôles (Admin, Manager, Réception, Cuisine) et de leurs permissions spécifiques arrivera très bientôt.</p>
+        </div>
+      )}
+
+      {/* Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                {editingStaff ? "Modifier l'employé" : "Ajouter un employé"}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveStaff} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
+                  <input name="name" defaultValue={editingStaff?.name} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Karim El Fassi" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
+                  <input name="role" defaultValue={editingStaff?.role} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Serveur" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
+                  <select name="department" defaultValue={editingStaff?.department || 'Salle'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                    <option value="Salle">Salle</option>
+                    <option value="Cuisine">Cuisine</option>
+                    <option value="Accueil">Accueil</option>
+                    <option value="Management">Management</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" defaultValue={editingStaff?.phone} type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="+212..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select name="status" defaultValue={editingStaff?.status || 'Actif'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                    <option value="Actif">Actif</option>
+                    <option value="En congé">En congé</option>
+                    <option value="Inactif">Inactif</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Service (Optionnel)</label>
+                  <select name="shift" defaultValue={editingStaff?.shift || '-'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                    <option value="-">- Non assigné -</option>
+                    <option value="Matin">Matin</option>
+                    <option value="Soir">Soir</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center mt-8 pt-4 border-t border-gray-100">
+                {editingStaff ? (
+                  <button 
+                    type="button" 
+                    onClick={() => handleDeleteStaff(editingStaff.id)}
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 font-medium text-sm"
+                  >
+                    <Trash2 size={16} /> Supprimer
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+                <div className="flex gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors"
+                  >
+                    {editingStaff ? 'Sauvegarder' : 'Ajouter'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2310,7 +2735,13 @@ function Configuration() {
           {activeSettingsTab === 'general' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-8">
               <div>
-                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#1A1A1A]">Informations de l'Établissement</h3>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
+                  <h3 className="text-xl font-serif font-medium text-[#1A1A1A] mb-0 border-0 pb-0">Informations de l'Établissement</h3>
+                  <a href="/DOCUMENTATION.pdf" target="_blank" download className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-white rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm">
+                    <Download size={16} />
+                    Documentation (PDF)
+                  </a>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -2557,7 +2988,7 @@ function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: str
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
+      transition={{ type: "spring", stiffness: 200, damping: 15, delay }}
       className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col"
     >
       <div className="flex justify-between items-start mb-4">
@@ -2680,7 +3111,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
               <div><strong className="text-gray-900 block mb-1">Responsable</strong> Ahmed Benali</div>
               <div><strong className="text-gray-900 block mb-1">Email</strong> contact@riad-daralmedina.com</div>
               <div><strong className="text-gray-900 block mb-1">Téléphone</strong> +212 6 00 00 00 00</div>
-              <div><strong className="text-gray-900 block mb-1">Commission actuelle</strong> 15% par réservation</div>
+              <div><strong className="text-gray-900 block mb-1">Commission actuelle</strong> 5% par réservation</div>
             </div>
           </div>
 
@@ -2714,6 +3145,347 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+function TacSystemsPOS() {
+  const { showToast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const [journalSearch, setJournalSearch] = useState('');
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isSimulationMode, setIsSimulationMode] = useState(true);
+
+  const handleSync = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      setIsSyncing(false);
+      showToast("Synchronisation TacSystems terminée");
+    }, 1500);
+  };
+
+  const handleSaveApiKeys = (e: any) => {
+    e.preventDefault();
+    setIsSimulationMode(false);
+    setIsApiModalOpen(false);
+    showToast("Clés API TacSystems enregistrées avec succès");
+  };
+
+  const cashMovements = [
+    { id: 'TX-1045', time: '14:32', type: 'Encaissement', amount: '+ 450 MAD', method: 'Espèces', user: 'Sofia Amrani' },
+    { id: 'TX-1046', time: '14:45', type: 'Encaissement', amount: '+ 1200 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
+    { id: 'TX-1047', time: '15:10', type: 'Dépense', amount: '- 150 MAD', method: 'Caisse', user: 'Admin' },
+    { id: 'TX-1048', time: '15:22', type: 'Encaissement', amount: '+ 850 MAD', method: 'TPE (Carte)', user: 'Sofia Amrani' },
+  ];
+
+  const fullJournalMovements = [
+    ...cashMovements,
+    { id: 'TX-1044', time: '13:15', type: 'Encaissement', amount: '+ 320 MAD', method: 'Espèces', user: 'Karima Idrissi' },
+    { id: 'TX-1043', time: '12:50', type: 'Encaissement', amount: '+ 500 MAD', method: 'TPE (Carte)', user: 'Sofia Amrani' },
+    { id: 'TX-1042', time: '12:30', type: 'Dépense', amount: '- 200 MAD', method: 'Caisse', user: 'Admin' },
+    { id: 'TX-1041', time: '11:45', type: 'Encaissement', amount: '+ 1500 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
+    { id: 'TX-1040', time: '11:10', type: 'Encaissement', amount: '+ 750 MAD', method: 'Espèces', user: 'Sofia Amrani' },
+    { id: 'TX-1039', time: '10:20', type: 'Encaissement', amount: '+ 900 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
+  ];
+
+  const filteredJournal = fullJournalMovements.filter(tx => 
+    tx.id.toLowerCase().includes(journalSearch.toLowerCase()) || 
+    tx.user.toLowerCase().includes(journalSearch.toLowerCase()) ||
+    tx.type.toLowerCase().includes(journalSearch.toLowerCase())
+  );
+
+  const handleExportCSV = () => {
+    if (filteredJournal.length === 0) {
+      showToast("Aucune transaction à exporter");
+      return;
+    }
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "ID Transaction,Heure,Opérateur,Type,Méthode,Montant\n";
+    filteredJournal.forEach(tx => {
+      const amount = tx.amount.replace(/,/g, '.'); 
+      csvContent += `${tx.id},${tx.time},${tx.user},${tx.type},${tx.method},${amount}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `journal_caisse_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast("Exportation réussie");
+  };
+
+  return (
+    <div className="p-8 md:p-12 relative z-10">
+      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Caisse & Finance</h2>
+          <p className="text-gray-500">Passerelle API TacSystems : Mouvements de caisse en temps réel.</p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm disabled:opacity-50"
+          >
+            {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {isSyncing ? 'Synchronisation...' : 'Synchroniser la caisse'}
+          </button>
+        </div>
+      </header>
+
+      {/* Connection Status Banner */}
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-4 text-white">
+          <div className="p-3 bg-blue-500/20 text-blue-400 rounded-xl">
+            <Terminal size={24} />
+          </div>
+          <div>
+            <h3 className="text-lg font-medium">Intégration TacSystems (Logiciel de caisse)</h3>
+            <p className="text-gray-400 text-sm mt-1 max-w-xl">
+              {isSimulationMode 
+                ? "La passerelle API est prête. En attente des clés API (Endpoint, API Key, et Secret) de la part du fournisseur TacSystems pour basculer en mode production."
+                : "Passerelle API active. Connexion en temps réel avec TacSystems."}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col items-end">
+          {isSimulationMode ? (
+            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold tracking-wider uppercase border border-yellow-500/30 mb-2">
+              Mode Simulation
+            </span>
+          ) : (
+            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold tracking-wider uppercase border border-green-500/30 mb-2">
+              En Production
+            </span>
+          )}
+          <button onClick={() => setIsApiModalOpen(true)} className="text-[#DDA956] text-sm hover:underline font-medium">
+            Configurer les clés API &rarr;
+          </button>
+        </div>
+      </div>
+
+      {/* Today's Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <DashboardCard title="Chiffre d'affaires (Jour)" value="14,500 MAD" subtitle="Dernière synchro: 15:25" icon={<Banknote size={20} />} />
+        <DashboardCard title="Total Espèces" value="3,250 MAD" subtitle="En tiroir-caisse" icon={<Wallet size={20} />} />
+        <DashboardCard title="Total TPE (Cartes)" value="11,250 MAD" subtitle="Paiements électroniques" icon={<CreditCard size={20} />} />
+        <DashboardCard title="Écart de Caisse" value="0 MAD" subtitle="Caisse balancée" icon={<CheckCircle size={20} />} />
+      </div>
+
+      {/* AI Analysis */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100/50 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+          <Sparkles size={80} className="text-blue-600" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-600 text-white rounded-lg shadow-sm">
+              <Sparkles size={18} />
+            </div>
+            <h3 className="font-serif text-lg font-medium text-gray-900">Analyse IA des Encaissements</h3>
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-full">Gemini Pro</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white/60 rounded-xl p-4 border border-blue-100/50">
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <TrendingUp size={16} className="text-blue-600" /> Performances Financières
+              </h4>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Le chiffre d'affaires actuel (14,500 MAD) est en hausse de <span className="font-medium text-green-600">+18%</span> par rapport à la moyenne des mardis précédents. La part des paiements par TPE (77%) indique une forte préférence pour les paiements électroniques aujourd'hui.
+              </p>
+            </div>
+            <div className="bg-white/60 rounded-xl p-4 border border-blue-100/50">
+              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                <Clock size={16} className="text-blue-600" /> Heures de Pointe Identifiées
+              </h4>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Le pic d'encaissement a eu lieu entre <span className="font-medium text-blue-700">13h15 et 14h45</span> (service du midi). Prévision IA : le prochain afflux majeur en caisse est attendu vers <span className="font-medium text-blue-700">20h30</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Movements */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-serif text-lg font-medium text-gray-900">Derniers Mouvements de Caisse</h3>
+          <button onClick={() => setIsJournalOpen(true)} className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">Voir le journal complet</button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4">ID Transaction</th>
+                <th className="px-6 py-4">Heure</th>
+                <th className="px-6 py-4">Opérateur</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Méthode</th>
+                <th className="px-6 py-4 text-right">Montant</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {cashMovements.map((tx, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{tx.id}</td>
+                  <td className="px-6 py-4 text-gray-600">{tx.time}</td>
+                  <td className="px-6 py-4 text-gray-900 font-medium">{tx.user}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${tx.type === 'Encaissement' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {tx.type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600">
+                    <div className="flex items-center gap-2">
+                      {tx.method.includes('TPE') ? <CreditCard size={14} className="text-gray-400" /> : <Banknote size={14} className="text-gray-400" />}
+                      {tx.method}
+                    </div>
+                  </td>
+                  <td className={`px-6 py-4 text-right font-medium ${tx.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                    {tx.amount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Journal Modal */}
+      {isJournalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <div>
+                <h3 className="text-xl font-serif font-medium text-gray-900">Journal de Caisse Complet</h3>
+                <p className="text-sm text-gray-500 mt-1">Aujourd'hui - Toutes les transactions synchronisées</p>
+              </div>
+              <button onClick={() => setIsJournalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <input 
+                  type="text" 
+                  placeholder="Rechercher par ID, Opérateur ou Type..." 
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                  value={journalSearch}
+                  onChange={(e) => setJournalSearch(e.target.value)}
+                />
+                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              </div>
+              <button onClick={handleExportCSV} className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+                <Download size={16} />
+                Exporter (CSV)
+              </button>
+            </div>
+
+            <div className="overflow-auto flex-1 p-0">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4">ID Transaction</th>
+                    <th className="px-6 py-4">Heure</th>
+                    <th className="px-6 py-4">Opérateur</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4">Méthode</th>
+                    <th className="px-6 py-4 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredJournal.length > 0 ? (
+                    filteredJournal.map((tx, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs text-gray-500">{tx.id}</td>
+                        <td className="px-6 py-4 text-gray-600">{tx.time}</td>
+                        <td className="px-6 py-4 text-gray-900 font-medium">{tx.user}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${tx.type === 'Encaissement' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">
+                          <div className="flex items-center gap-2">
+                            {tx.method.includes('TPE') ? <CreditCard size={14} className="text-gray-400" /> : <Banknote size={14} className="text-gray-400" />}
+                            {tx.method}
+                          </div>
+                        </td>
+                        <td className={`px-6 py-4 text-right font-medium ${tx.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                          {tx.amount}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                        Aucune transaction trouvée.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* API Configuration Modal */}
+      {isApiModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">Configuration API TacSystems</h3>
+              <button onClick={() => setIsApiModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveApiKeys} className="p-6">
+              <div className="space-y-4 mb-8">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Endpoint URL</label>
+                  <input required type="url" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="https://api.tacsystems.com/v1/" defaultValue="https://api.tacsystems.com/v1/" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Store ID</label>
+                  <input required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="ST-10045" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
+                  <input required type="password" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="••••••••••••••••••••••••••••••••" />
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setIsApiModalOpen(false)}
+                  className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                >
+                  <Save size={16} /> Enregistrer
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

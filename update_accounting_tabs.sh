@@ -1,0 +1,3 @@
+sed -i "s/className=\"border-b border-gray-100\"/className=\"bg-gradient-to-r from-\[#1A1A1A\] to-\[#333\] p-2\"/g" src/Accounting.tsx
+sed -i "s/className=\"flex overflow-x-auto custom-scrollbar\"/className=\"flex overflow-x-auto hide-scrollbar gap-2\"/g" src/Accounting.tsx
+sed -i "s/className=\`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative \${activeTab === tab ? 'text-\[#DDA956\]' : 'text-gray-500 hover:text-gray-900'}\`/className=\`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg \${activeTab === tab ? 'bg-\[#DDA956\]\/20 text-\[#DDA956\]' : 'text-white\/70 hover:text-white hover:bg-white\/10'}\`/g" src/Accounting.tsx

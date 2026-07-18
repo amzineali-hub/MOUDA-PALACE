@@ -189,8 +189,8 @@ export default function Accounting() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
-        <div className="border-b border-gray-100">
-          <nav className="flex overflow-x-auto custom-scrollbar">
+        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2">
+          <nav className="flex overflow-x-auto hide-scrollbar gap-2">
             {['invoices', 'expenses', 'reports'].map(tab => (
               <button
                 key={tab}
@@ -223,7 +223,7 @@ export default function Accounting() {
             />
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
+            <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
               <Filter size={18} />
               <span className="text-sm font-medium">Filtrer</span>
             </button>
@@ -259,10 +259,10 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900 text-right">{invoice.amount}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
+                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
                           <Eye size={16} />
                         </button>
-                        <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
                           <Download size={16} />
                         </button>
                       </div>
@@ -371,7 +371,7 @@ export default function Accounting() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
                             <Eye size={16} />
                           </button>
                           <button onClick={() => handleDownloadReport(report.type, report.format)} className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger">

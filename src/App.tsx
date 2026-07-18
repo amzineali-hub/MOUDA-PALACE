@@ -69,23 +69,18 @@ import {
   RefreshCw,
   Printer,
   Wand2,
-  CreditCard,
   UserX,
   Send,
-  Mail,
   BookText,
   Scale,
   TrendingDown,
   ClipboardList,
   Truck,
   Phone,
-  MapPin,
-  Clock,
   CalendarRange,
   UserCheck,
   GraduationCap,
   FileText,
-  Star,
   Award,
   Timer
 } from 'lucide-react';
@@ -195,8 +190,13 @@ function ReviewAnalyzer() {
 function InventoryAlerts() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     const q = query(collection(db, 'inventory'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const lowStockItems: any[] = [];
@@ -1151,12 +1151,12 @@ function Reservations() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['upcoming', 'floorplan', 'waitlist', 'history', 'reviews'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'upcoming' && 'À venir (3)'}
               {tab === 'floorplan' && 'Plan de Salle'}
@@ -1365,7 +1365,7 @@ function Reservations() {
                         </div>
                       </div>
                       <p className="text-gray-600 text-sm mb-3">"Excellente expérience, cadre magnifique et tajines délicieux. Service impeccable via la réservation en ligne."</p>
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                      <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
                         <MessageSquare size={14} /> Répondre publiquement
                       </button>
                     </div>
@@ -1767,12 +1767,12 @@ function B2BPortal() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['partners', 'commissions'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'partners' && 'Liste des Partenaires'}
               {tab === 'commissions' && 'Commissions & Versements'}
@@ -1832,7 +1832,7 @@ function B2BPortal() {
                             <QrCode size={16} />
                             <span className="sr-only">QR Code</span>
                           </button>
-                          <button 
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  
                             className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
                             title="Paramètres Partenaire"
                           >
@@ -1848,8 +1848,44 @@ function B2BPortal() {
           )}
 
           {activeTab === 'commissions' && (
-            <div className="p-12 text-center text-gray-500">
-              Historique des reversements de commissions en cours de développement.
+            <div className="p-0">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="font-medium text-gray-900">Historique des Versements</h3>
+                <button onClick={() => showToast('Génération du rapport...')} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                  <Download size={16} /> Exporter
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4">Partenaire</th>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4">Montant</th>
+                      <th className="px-6 py-4">Méthode</th>
+                      <th className="px-6 py-4">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {[
+                      { name: 'Riad Aladina', date: '01 Juil 2026', amount: '1,200 MAD', method: 'Virement bancaire', status: 'Payé' },
+                      { name: 'Voyage Maroc', date: '28 Juin 2026', amount: '4,500 MAD', method: 'Espèces', status: 'Payé' }
+                    ].map((tx, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-gray-900">{tx.name}</td>
+                        <td className="px-6 py-4 text-gray-600">{tx.date}</td>
+                        <td className="px-6 py-4 font-medium text-[#DDA956]">{tx.amount}</td>
+                        <td className="px-6 py-4 text-gray-600">{tx.method}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">
+                            {tx.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -1924,8 +1960,8 @@ function B2BPortal() {
                                 <div class="qr-placeholder"></div>
                               </div>
                               <div class="controls">
-                                <button onclick="window.print()">Imprimer (A5 / Poster)</button>
-                                <button class="secondary" onclick="window.close()">Fermer</button>
+                                <button onClick={() => showToast && showToast('Action en cours de développement...')}  onclick="window.print()">Imprimer (A5 / Poster)</button>
+                                <button onClick={() => showToast && showToast('Action en cours de développement...')}  class="secondary" onclick="window.close()">Fermer</button>
                               </div>
                             </div>
                           </body>
@@ -2120,7 +2156,7 @@ function WhatsAppAI() {
                   <h4 className="font-medium text-gray-900">Numéro connecté</h4>
                   <p className="text-sm text-gray-500">+212 6 00 00 00 00</p>
                 </div>
-                <button className="ml-auto px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
+                <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="ml-auto px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
                   Déconnecter
                 </button>
               </div>
@@ -2446,13 +2482,13 @@ function DigitalMenu() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Categories Tab and Language Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 p-2 gap-4">
-          <div className="flex overflow-x-auto hide-scrollbar gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2 gap-4">
+          <div className="flex overflow-x-auto hide-scrollbar p-2 gap-2">
             {categories.map(category => (
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeCategory === category ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeCategory === category ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
               >
                 {category}
               </button>
@@ -2464,7 +2500,7 @@ function DigitalMenu() {
             <select 
               value={displayLanguage}
               onChange={(e) => setDisplayLanguage(e.target.value)}
-              className="text-sm border-none bg-transparent text-gray-700 font-medium focus:ring-0 cursor-pointer"
+              className="text-sm border-none bg-transparent text-white font-medium focus:ring-0 cursor-pointer"
             >
               <option value="fr">Français (FR)</option>
               <option value="en">English (EN)</option>
@@ -2760,12 +2796,12 @@ function Inventory() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['stocks', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'recipes' && 'Fiches Techniques & Marges'}
@@ -2975,7 +3011,7 @@ function Inventory() {
              <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Déclarations de Pertes & Gaspillage</h3>
-                <button className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2">
+                <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2">
                   <TrendingDown size={16} /> Déclarer une perte
                 </button>
               </div>
@@ -3051,10 +3087,10 @@ function Inventory() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Annuaire Fournisseurs</h3>
                 <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
                     <Truck size={16} /> Nouvelle Commande
                   </button>
-                  <button className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
                     <Plus size={16} /> Nouveau Fournisseur
                   </button>
                 </div>
@@ -3131,7 +3167,7 @@ function Inventory() {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50">
+                              <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50">
                                 <Settings size={18} />
                               </button>
                             </td>
@@ -3294,7 +3330,7 @@ function Inventory() {
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-medium text-gray-900">Ingrédients (Nécessite connexion à l'inventaire)</h4>
-                  <button className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">+ Ajouter ingrédient</button>
+                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">+ Ajouter ingrédient</button>
                 </div>
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
                   Sélectionnez des articles de l'inventaire pour calculer le coût matière automatiquement.
@@ -3606,7 +3642,7 @@ function StaffHR() {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-gray-100 hide-scrollbar p-2 gap-2 mb-6">
+      <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] rounded-2xl shadow-xl flex overflow-x-auto hide-scrollbar p-2 gap-2 mb-6">
         {[
           { id: 'directory', label: 'Annuaire' },
           { id: 'attendance', label: 'Pointage' },
@@ -3620,7 +3656,7 @@ function StaffHR() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab.id ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab.id ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
           >
             {tab.label}
           </button>

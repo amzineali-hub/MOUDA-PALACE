@@ -2510,12 +2510,12 @@ function DigitalMenu() {
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
   
   const [menuItems, setMenuItems] = useState([
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' } } },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' } } },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' } } },
-    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', active: false, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' } } },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' } } }
+    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' }, de: { name: 'Käse-Briouates', desc: 'Knuspriges Gebäck gefüllt mit Ziegenkäse und frischen Kräutern.' }, zh: { name: '奶酪薄饼', desc: '脆皮糕点塞满了山羊奶酪和新鲜香草。' }, ko: { name: '치즈 브리오와트', desc: '염소 치즈와 신선한 허브로 속을 채운 바삭한 페이스트리.' }, pt: { name: 'Briouates de Queijo', desc: 'Pastéis crocantes recheados com queijo de cabra e ervas frescas.' } } },
+    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' }, de: { name: 'Zaalouk-Salat', desc: 'Gegrillter Auberginenkaviar mit Tomaten, Knoblauch und Gewürzen.' }, zh: { name: '扎卢克沙拉', desc: '烤茄子鱼子酱加番茄、大蒜和香料。' }, ko: { name: '잘룩 샐러드', desc: '토마토, 마늘, 향신료를 곁들인 구운 가지 캐비어.' }, pt: { name: 'Salada Zaalouk', desc: 'Caviar de berinjela grelhada com tomate, alho e especiarias.' } } },
+    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' }, de: { name: 'Lamm-Tajine mit Pflaumen', desc: 'Lamm geschmort mit süßen Gewürzen, karamellisierten Pflaumen und Mandeln.' }, zh: { name: '羊肉塔吉锅配梅子', desc: '加入甜香料、焦糖梅子和杏仁炖煮的羊肉。' }, ko: { name: '자두 양고기 타진', desc: '달콤한 향신료, 캐러멜 처리된 자두, 아몬드로 푹 끓인 양고기.' }, pt: { name: 'Tajine de Cordeiro com Ameixas', desc: 'Cordeiro cozido em fogo brando com especiarias doces, ameixas caramelizadas e amêndoas.' } } },
+    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', active: true, translated: false },
+    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' }, de: { name: 'Zimtorange', desc: 'Frische Orangenscheiben, gemahlener Zimt und Orangenblütensirup.' }, zh: { name: '肉桂橙', desc: '新鲜橙片、肉桂粉和橙花糖浆。' }, ko: { name: '시나몬 오렌지', desc: '신선한 오렌지 슬라이스, 계피 가루, 오렌지 블라썸 시럽.' }, pt: { name: 'Laranja com Canela', desc: 'Fatias de laranja fresca, canela em pó e xarope de flor de laranjeira.' } } },
+    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' }, de: { name: 'Königlicher Minztee', desc: 'Traditioneller grüner Tee, aufgegossen mit frischer Minze und Pinienkernen.' }, zh: { name: '皇家薄荷茶', desc: '传统绿茶，泡有新鲜薄荷和松子。' }, ko: { name: '로열 민트 티', desc: '신선한 민트와 잣을 우려낸 전통 녹차.' }, pt: { name: 'Chá de Hortelã Real', desc: 'Chá verde tradicional infundido com hortelã fresca e pinhões.' } } }
   ]);
 
   const handleTranslate = async () => {
@@ -2664,11 +2664,11 @@ function DigitalMenu() {
         </div>
         <button 
           onClick={handleTranslate}
-          disabled={isTranslating}
-          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#1A1A1A] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${isTranslating ? 'opacity-70 cursor-not-allowed' : ''}`}
+          disabled={isTranslating || menuItems.filter(i => !i.translated).length === 0}
+          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#1A1A1A] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${(isTranslating || menuItems.filter(i => !i.translated).length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-          {isTranslating ? <Loader2 size={16} className="text-[#DDA956] animate-spin" /> : <Sparkles size={16} className="text-[#DDA956]" />}
-          {isTranslating ? 'Traduction en cours...' : 'Traduire les plats non traduits'}
+          {isTranslating ? <Loader2 size={16} className="text-[#DDA956] animate-spin" /> : <Sparkles size={16} className={menuItems.filter(i => !i.translated).length === 0 ? "text-gray-400" : "text-[#DDA956]"} />}
+          {isTranslating ? 'Traduction en cours...' : menuItems.filter(i => !i.translated).length === 0 ? 'Tous les plats sont traduits' : `Traduire ${menuItems.filter(i => !i.translated).length} plat(s) non traduit(s)`}
         </button>
       </div>
 
@@ -2692,12 +2692,16 @@ function DigitalMenu() {
             <select 
               value={displayLanguage}
               onChange={(e) => setDisplayLanguage(e.target.value)}
-              className="text-sm border-none bg-transparent text-white font-medium focus:ring-0 cursor-pointer"
+              className="text-sm border-none bg-transparent text-white font-medium focus:ring-0 outline-none focus:outline-none cursor-pointer"
             >
-              <option value="fr">Français (FR)</option>
-              <option value="en">English (EN)</option>
-              <option value="es">Español (ES)</option>
-              <option value="ar">العربية (AR)</option>
+              <option value="fr" className="bg-[#1A1A1A] text-white">Français (FR)</option>
+              <option value="en" className="bg-[#1A1A1A] text-white">English (EN)</option>
+              <option value="es" className="bg-[#1A1A1A] text-white">Español (ES)</option>
+              <option value="ar" className="bg-[#1A1A1A] text-white">العربية (AR)</option>
+              <option value="de" className="bg-[#1A1A1A] text-white">Deutsch (DE)</option>
+              <option value="zh" className="bg-[#1A1A1A] text-white">中文 (ZH)</option>
+              <option value="ko" className="bg-[#1A1A1A] text-white">한국어 (KO)</option>
+              <option value="pt" className="bg-[#1A1A1A] text-white">Português (PT)</option>
             </select>
           </div>
         </div>

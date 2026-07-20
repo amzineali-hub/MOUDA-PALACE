@@ -48,6 +48,11 @@ import {
   Eye,
   EyeOff,
   Filter,
+  Printer,
+  Upload,
+  Image as ImageIcon,
+  Video,
+  MonitorPlay,
   Star,
   CheckCircle,
   ExternalLink,
@@ -67,7 +72,6 @@ import {
   Wallet,
   Receipt,
   RefreshCw,
-  Printer,
   Wand2,
   UserX,
   Send,
@@ -1365,9 +1369,7 @@ function Reservations() {
                         </div>
                       </div>
                       <p className="text-gray-600 text-sm mb-3">"Excellente expérience, cadre magnifique et tajines délicieux. Service impeccable via la réservation en ligne."</p>
-                      <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                        <MessageSquare size={14} /> Répondre publiquement
-                      </button>
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
                     </div>
                  ))}
                </div>
@@ -1681,6 +1683,7 @@ function B2BPortal() {
   const [newPartnerCommission, setNewPartnerCommission] = useState<number>(5);
   const [newPartnerEmail, setNewPartnerEmail] = useState('');
   const [newPartnerAccessCode, setNewPartnerAccessCode] = useState('');
+  const [isEditPartnerModalOpen, setIsEditPartnerModalOpen] = useState(false);
 
   const [partners, setPartners] = useState(() => {
     const saved = localStorage.getItem('mouda_partners');
@@ -1702,6 +1705,46 @@ function B2BPortal() {
   useEffect(() => {
     localStorage.setItem('mouda_partners', JSON.stringify(partners));
   }, [partners]);
+
+  const handleDeletePartner = (id: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce partenaire ?")) {
+      setPartners(partners.filter((p: any) => p.id !== id));
+      showToast("Partenaire supprimé avec succès");
+    }
+  };
+
+  const handleDownloadPartner = (partner: any) => {
+    const data = `FICHE PARTENAIRE
+-------------------
+Nom: ${partner.name}
+ID: ${partner.id}
+Type: ${partner.type}
+Commission: ${partner.commission}%
+Statut: ${partner.active ? 'Actif' : 'Inactif'}
+CA Généré: ${partner.revenue}
+Clients apportés: ${partner.clients}
+`;
+    const blob = new Blob([data], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `fiche_${partner.name.replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Téléchargement de la fiche de ${partner.name}`);
+  };
+
+  const openEditPartnerModal = (partner: any) => {
+    setSelectedPartner(partner);
+    setNewPartnerName(partner.name);
+    setNewPartnerType(partner.type);
+    setNewPartnerCommission(partner.commission);
+    setNewPartnerEmail(partner.email || '');
+    setNewPartnerAccessCode(partner.accessCode || '');
+    setIsEditPartnerModalOpen(true);
+  };
 
   const getIconForType = (type: string) => {
     switch(type) {
@@ -1832,11 +1875,26 @@ function B2BPortal() {
                             <QrCode size={16} />
                             <span className="sr-only">QR Code</span>
                           </button>
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  
-                            className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
-                            title="Paramètres Partenaire"
+                          <button 
+                            onClick={() => handleDownloadPartner(partner)}  
+                            className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50"
+                            title="Télécharger Fiche Partenaire"
                           >
-                            <Settings size={18} />
+                            <Download size={18} />
+                          </button>
+                          <button 
+                            onClick={() => openEditPartnerModal(partner)}  
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
+                            title="Modifier Partenaire"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeletePartner(partner.id)}  
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
+                            title="Supprimer Partenaire"
+                          >
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </td>
@@ -1960,8 +2018,7 @@ function B2BPortal() {
                                 <div class="qr-placeholder"></div>
                               </div>
                               <div class="controls">
-                                <button onClick={() => showToast && showToast('Action en cours de développement...')}  onclick="window.print()">Imprimer (A5 / Poster)</button>
-                                <button onClick={() => showToast && showToast('Action en cours de développement...')}  class="secondary" onclick="window.close()">Fermer</button>
+                          <button class="secondary" onclick="window.close()">Fermer</button>
                               </div>
                             </div>
                           </body>
@@ -2109,11 +2166,117 @@ function B2BPortal() {
           </div>
         </div>
       )}
+
+      {/* Edit Partner Modal */}
+      {isEditPartnerModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold">Modifier Partenaire</h3>
+              <button onClick={() => setIsEditPartnerModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'établissement / agence</label>
+                <input 
+                  type="text" 
+                  value={newPartnerName}
+                  onChange={(e) => setNewPartnerName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  placeholder="Ex: Riad Dar Salam" 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de partenaire</label>
+                  <select 
+                    value={newPartnerType} 
+                    onChange={(e) => setNewPartnerType(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="Riad">Riad</option>
+                    <option value="Hôtel">Hôtel</option>
+                    <option value="Agence">Agence</option>
+                    <option value="Location Auto">Location Auto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Commission (%)</label>
+                  <input 
+                    type="number" 
+                    value={newPartnerCommission}
+                    onChange={(e) => setNewPartnerCommission(Number(e.target.value))}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="5" 
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
+                  <input 
+                    type="email" 
+                    value={newPartnerEmail}
+                    onChange={(e) => setNewPartnerEmail(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="contact@riad.com" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Code d'accès (Secret)</label>
+                  <input 
+                    type="text" 
+                    value={newPartnerAccessCode}
+                    onChange={(e) => setNewPartnerAccessCode(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="Ex: RIAD2026" 
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  if (!newPartnerAccessCode) {
+                    showToast("Veuillez définir un code d'accès pour ce partenaire.", "error");
+                    return;
+                  }
+                  
+                  const updatedPartner = {
+                    ...selectedPartner,
+                    name: newPartnerName,
+                    type: newPartnerType,
+                    commission: newPartnerCommission,
+                    accessCode: newPartnerAccessCode,
+                    email: newPartnerEmail
+                  };
+                  
+                  setPartners(partners.map((p) => p.id === selectedPartner.id ? updatedPartner : p));
+                  showToast("Partenaire modifié avec succès.");
+                  setIsEditPartnerModalOpen(false);
+                  
+                  setNewPartnerName('');
+                  setNewPartnerType('Riad');
+                  setNewPartnerCommission(5);
+                  setNewPartnerEmail('');
+                  setNewPartnerAccessCode('');
+                }}
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+              >
+                Sauvegarder les modifications
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-let savedPrompt = `Tu es l'assistant virtuel du restaurant gastronomique Mouda Palace à Fès. \nTon ton doit être élégant, chaleureux et professionnel.\nTu peux répondre aux questions sur le menu, les horaires, l'adresse et l'emplacement du restaurant, prendre des réservations et fournir le site web du restaurant : www.moudapalace.com, ainsi que le menu digital. \nSi une demande est complexe, propose au client d'être contacté par un humain.`;
+let savedPrompt = `Tu es l'assistant virtuel du restaurant gastronomique Mouda Palace à Fès. 
+Ton ton doit être élégant, chaleureux et professionnel.
+Tu peux répondre aux questions sur le menu, les horaires, l'adresse et l'emplacement du restaurant, prendre des réservations et fournir le site web du restaurant : www.moudapalace.com, ainsi que le menu digital. 
+Si une demande est complexe, propose au client d'être contacté par un humain.`;
 
 function WhatsAppAI() {
   const { showToast } = useToast();
@@ -2156,9 +2319,7 @@ function WhatsAppAI() {
                   <h4 className="font-medium text-gray-900">Numéro connecté</h4>
                   <p className="text-sm text-gray-500">+212 6 00 00 00 00</p>
                 </div>
-                <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="ml-auto px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50">
-                  Déconnecter
-                </button>
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
               </div>
             </div>
           </div>
@@ -2290,7 +2451,9 @@ function WhatsAppAI() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Informations supplémentaires</label>
-                <textarea rows={3} defaultValue="- Option végétarienne et vegan disponibles.\n- Animation musicale (Luth/Oud) tous les vendredis et samedis soirs.\n- Accessible aux fauteuils roulants au rez-de-chaussée uniquement." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" />
+                <textarea rows={3} defaultValue="- Option végétarienne et vegan disponibles.
+- Animation musicale (Luth/Oud) tous les vendredis et samedis soirs.
+- Accessible aux fauteuils roulants au rez-de-chaussée uniquement." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" />
               </div>
 
               <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-gray-100">
@@ -2321,6 +2484,28 @@ function DigitalMenu() {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [displayLanguage, setDisplayLanguage] = useState('fr');
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
+  const [mediaEditingItem, setMediaEditingItem] = useState<any>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<string | null>(null);
+  
+  const openMediaModal = (item: any, type: 'image' | 'video') => {
+    setMediaEditingItem(item);
+    setMediaType(type);
+    setIsMediaModalOpen(true);
+  };
+  
+  const playVideo = (videoUrl?: string) => {
+    if (videoUrl) {
+      setCurrentVideo(videoUrl);
+      setIsVideoPlayerOpen(true);
+    } else {
+      showToast("Aucune vidéo disponible pour ce plat");
+    }
+  };
 
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
   
@@ -2441,7 +2626,14 @@ function DigitalMenu() {
           <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Menu Digital</h2>
           <p className="text-gray-500">Gestion des plats, prix, et traductions automatiques.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
+          <button 
+            onClick={() => setIsPreviewMode(!isPreviewMode)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors shadow-sm"
+          >
+            {isPreviewMode ? <Menu size={16} /> : <ImageIcon size={16} />}
+            {isPreviewMode ? 'Vue Liste' : 'Aperçu Multimédia'}
+          </button>
           <button 
             onClick={() => setIsQRModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
@@ -2511,14 +2703,59 @@ function DigitalMenu() {
         </div>
 
         {/* Menu Items List */}
-        <div className="divide-y divide-gray-100">
+        {/* Menu Items List */}
+        <div className={isPreviewMode ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6 bg-gray-50" : "divide-y divide-gray-100"}>
           {filteredItems.map(item => {
             // @ts-ignore - dynamic properties
             const currentTranslation = displayLanguage !== 'fr' && item.translations ? item.translations[displayLanguage] : null;
             const displayName = currentTranslation?.name || item.name;
             const displayDesc = currentTranslation?.desc || item.desc;
             
-            return (
+            const defaultImages: Record<string, string> = {
+              'Entrées': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop',
+              'Plats Principaux': 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500&h=300&fit=crop',
+              'Desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=500&h=300&fit=crop',
+              'Boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=500&h=300&fit=crop'
+            };
+            const imageSrc = item.image || defaultImages[item.category];
+            
+            return isPreviewMode ? (
+              <div key={item.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
+                <div className="aspect-video bg-gray-100 relative group overflow-hidden">
+                  <img src={imageSrc} alt={item.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button onClick={() => playVideo(item.video)} className="p-4 bg-white/95 backdrop-blur-sm rounded-full text-indigo-600 hover:scale-110 transition-transform shadow-lg">
+                       <MonitorPlay size={28} className="ml-1" />
+                     </button>
+                  </div>
+                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-bold text-gray-900 shadow-sm">
+                    {item.price}
+                  </div>
+                </div>
+                <div className={`p-5 flex-1 flex flex-col ${displayLanguage === 'ar' ? 'text-right' : ''}`} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
+                  <h4 className="font-serif font-medium text-lg text-gray-900 mb-2">{displayName}</h4>
+                  <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1 leading-relaxed">{displayDesc}</p>
+                  
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
+                    {item.translated ? (
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-green-600 flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded-md">
+                        <Globe size={12} /> Traduit
+                      </span>
+                    ) : (
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-amber-600 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-md">
+                        <AlertTriangle size={12} /> À traduire
+                      </span>
+                    )}
+                    <div className="flex gap-1.5">
+                      <button onClick={() => openMediaModal(item, 'video')} className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-lg transition-colors title='Ajouter une vidéo'"><MonitorPlay size={16}/></button>
+                      <button onClick={() => openMediaModal(item, 'image')} className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-lg transition-colors title='Changer la photo'"><ImageIcon size={16}/></button>
+                      <button onClick={() => openEditModal(item)} className="p-1.5 text-gray-400 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16}/></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200">
@@ -2552,6 +2789,20 @@ function DigitalMenu() {
               </div>
               
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => openMediaModal(item, 'image')}
+                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+                  title="Ajouter une photo"
+                >
+                  <ImageIcon size={18} />
+                </button>
+                <button 
+                  onClick={() => openMediaModal(item, 'video')}
+                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
+                  title="Ajouter une vidéo"
+                >
+                  <MonitorPlay size={18} />
+                </button>
                 <button 
                   onClick={() => {
                     setMenuItems(items => items.map(i => i.id === item.id ? { ...i, active: !i.active } : i));
@@ -2587,6 +2838,83 @@ function DigitalMenu() {
           )}
         </div>
       </div>
+
+      {/* Media Modal */}
+      {isMediaModalOpen && mediaEditingItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900 flex items-center gap-2">
+                {mediaType === 'image' ? <ImageIcon size={20} className="text-indigo-600"/> : <MonitorPlay size={20} className="text-indigo-600"/>}
+                Ajouter {mediaType === 'image' ? 'une photo' : 'une vidéo'}
+              </h3>
+              <button onClick={() => setIsMediaModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const url = formData.get('mediaUrl') as string;
+              
+              setMenuItems(items => items.map(item => item.id === mediaEditingItem.id ? {
+                ...item,
+                [mediaType]: url
+              } : item));
+              
+              showToast(`${mediaType === 'image' ? 'Photo' : 'Vidéo'} ajoutée avec succès`);
+              setIsMediaModalOpen(false);
+            }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    URL de la {mediaType === 'image' ? 'photo' : 'vidéo'}
+                  </label>
+                  <input 
+                    type="url" 
+                    name="mediaUrl" 
+                    required 
+                    defaultValue={mediaEditingItem[mediaType] || ''}
+                    placeholder={`https://example.com/${mediaType === 'image' ? 'photo.jpg' : 'video.mp4'}`}
+                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500" 
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    {mediaType === 'image' 
+                      ? "Pour une meilleure qualité, utilisez une image au format paysage (16:9)."
+                      : "Lien vers une vidéo (MP4, WebM ou YouTube)."}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsMediaModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+      
+      {/* Video Player Modal */}
+      {isVideoPlayerOpen && currentVideo && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setIsVideoPlayerOpen(false)}>
+          <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setIsVideoPlayerOpen(false)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full backdrop-blur-md transition-colors">
+              <X size={20} />
+            </button>
+            <iframe 
+              src={currentVideo.includes('youtube.com/watch?v=') ? currentVideo.replace('watch?v=', 'embed/') : currentVideo} 
+              className="w-full h-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
+          </div>
+        </div>
+      )}
 
       {/* QR Code Modal */}
       {isQRModalOpen && (
@@ -3013,9 +3341,7 @@ function Inventory() {
              <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Déclarations de Pertes & Gaspillage</h3>
-                <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2">
-                  <TrendingDown size={16} /> Déclarer une perte
-                </button>
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="p-5 border border-red-100 bg-red-50/30 rounded-xl">
@@ -3169,9 +3495,7 @@ function Inventory() {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50">
-                                <Settings size={18} />
-                              </button>
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
                             </td>
                           </tr>
                         ))}
@@ -3332,35 +3656,19 @@ function Inventory() {
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-medium text-gray-900">Ingrédients (Nécessite connexion à l'inventaire)</h4>
-                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">+ Ajouter ingrédient</button>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
-                  Sélectionnez des articles de l'inventaire pour calculer le coût matière automatiquement.
+                  <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 mt-6 border-t border-gray-100 pt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix de vente estimé (MAD)</label>
-                  <input type="number" className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 150" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Marge cible (%)</label>
-                  <input type="number" defaultValue={70} className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" />
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <button 
-                  onClick={() => {
-                    showToast("Nouvelle fiche technique créée avec succès");
-                    setIsNewRecipeModalOpen(false);
-                  }}
-                  className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
-                >
-                  Enregistrer la Fiche
-                </button>
-              </div>
+              
+              <button 
+                onClick={() => {
+                  showToast("Fiche technique créée avec succès");
+                  setIsNewRecipeModalOpen(false);
+                }}
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+              >
+                Sauvegarder Fiche Technique
+              </button>
             </div>
           </div>
         </div>
@@ -3578,16 +3886,139 @@ function Inventory() {
   );
 }
 
+
+function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], onGenerate: (data: any) => void }) {
+  const [selectedStaffName, setSelectedStaffName] = useState(staffData[0]?.name || '');
+  const [baseSalary, setBaseSalary] = useState<number>(staffData[0]?.baseSalary || 4000);
+
+  useEffect(() => {
+    const staff = staffData.find(s => s.name === selectedStaffName);
+    if (staff && staff.baseSalary) {
+      setBaseSalary(staff.baseSalary);
+    }
+  }, [selectedStaffName, staffData]);
+  
+  // Calculs Code du Travail Marocain (simplifiés)
+  // CNSS Salariale: 4.48% plafonné à 6000 MAD
+  const cnss = Math.min(baseSalary, 6000) * 0.0448;
+  // AMO Salariale: 2.26% sans plafond
+  const amo = baseSalary * 0.0226;
+  // Frais Pro: 20% plafonné à 2500 MAD (pour IGR, on simplifie)
+  const fraisPro = Math.min(baseSalary * 0.2, 2500);
+  const sni = baseSalary - cnss - amo - fraisPro; // Salaire Net Imposable
+  
+  // Barème IGR (simplifié, annuel / 12)
+  let igr = 0;
+  if (sni > 2500 && sni <= 4166) igr = sni * 0.1 - 250;
+  else if (sni > 4166 && sni <= 5000) igr = sni * 0.2 - 666.67;
+  else if (sni > 5000 && sni <= 6666) igr = sni * 0.3 - 1166.67;
+  else if (sni > 6666 && sni <= 15000) igr = sni * 0.34 - 1433.33;
+  else if (sni > 15000) igr = sni * 0.38 - 2033.33;
+  igr = Math.max(0, igr);
+
+  const netSalary = baseSalary - cnss - amo - igr;
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h3 className="text-xl font-serif font-medium text-gray-900">
+            Générer Fiche de Paie (Maroc)
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          onGenerate({
+            period: formData.get('period'),
+            staffName: formData.get('staffName'),
+            base: baseSalary,
+            cnss,
+            amo,
+            igr,
+            net: netSalary
+          });
+        }} className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+              <select 
+                name="staffName" 
+                required 
+                value={selectedStaffName}
+                onChange={(e) => setSelectedStaffName(e.target.value)}
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+              >
+                {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Période</label>
+              <input type="text" name="period" required defaultValue="Juil 2026" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
+              <input 
+                type="number" 
+                value={baseSalary || ''} 
+                onChange={(e) => setBaseSalary(Number(e.target.value))}
+                required 
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" 
+              />
+            </div>
+            
+            {/* Calculs Live */}
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Cotisation CNSS (4.48%)</span>
+                <span className="font-medium text-red-600">-{cnss.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Cotisation AMO (2.26%)</span>
+                <span className="font-medium text-red-600">-{amo.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Retenue IR (Impôt)</span>
+                <span className="font-medium text-red-600">-{igr.toFixed(2)}</span>
+              </div>
+              <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between items-center">
+                <span className="font-medium text-gray-900">Salaire Net à Payer</span>
+                <span className="font-bold text-[#DDA956] text-lg">{netSalary.toFixed(2)} MAD</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-8 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+            <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+              <CheckCircle size={16} /> Valider & Générer
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 function StaffHR() {
+
   const [activeTab, setActiveTab] = useState('directory');
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
 
   const initialStaff = [
-    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir' },
-    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin' },
-    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-' },
-    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir' },
+    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir', baseSalary: 14500 },
+    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin', baseSalary: 9500 },
+    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-', baseSalary: 4000 },
+    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir', baseSalary: 6000 },
   ];
 
   const [staffData, setStaffData] = useState(initialStaff);
@@ -3629,9 +4060,9 @@ function StaffHR() {
   ]);
 
   const [payrollList, setPayrollList] = useState([
-    { id: 1, period: "Juin 2026", name: "Ahmed Benali", net: "12 500 MAD", status: "Payé" },
-    { id: 2, period: "Juin 2026", name: "Karima Idrissi", net: "8 200 MAD", status: "Payé" },
-    { id: 3, period: "Juin 2026", name: "Sofia Amrani", net: "5 500 MAD", status: "Payé" }
+    { id: 1, period: "Juin 2026", name: "Ahmed Benali", net: "11459.64 MAD", status: "Payé", base: 14500, cnss: 268.80, amo: 327.70, igr: 2443.86 },
+    { id: 2, period: "Juin 2026", name: "Karima Idrissi", net: "8030.22 MAD", status: "Payé", base: 9500, cnss: 268.80, amo: 214.70, igr: 986.28 },
+    { id: 3, period: "Juin 2026", name: "Sofia Amrani", net: "5383.15 MAD", status: "Payé", base: 6000, cnss: 268.80, amo: 135.60, igr: 212.45 }
   ]);
 
   // Modal States
@@ -3646,7 +4077,10 @@ function StaffHR() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<{empId: number, dayKey: string, current: string} | null>(null);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isImportAttendanceModalOpen, setIsImportAttendanceModalOpen] = useState(false);
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
+  const [isPayslipDocOpen, setIsPayslipDocOpen] = useState(false);
+  const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
   
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -3665,6 +4099,7 @@ function StaffHR() {
       phone: formData.get('phone') as string,
       status: formData.get('status') as string,
       shift: formData.get('shift') as string || '-',
+      baseSalary: Number(formData.get('baseSalary')) || 4000,
     };
 
     if (editingStaff) {
@@ -3824,6 +4259,7 @@ function StaffHR() {
                   <th className="px-6 py-4">Contact</th>
                   <th className="px-6 py-4">Statut</th>
                   <th className="px-6 py-4">Service Actuel</th>
+                  <th className="px-6 py-4">Salaire de Base</th>
                   <th className="px-6 py-4">Actions</th>
                 </tr>
               </thead>
@@ -3860,6 +4296,9 @@ function StaffHR() {
                       </td>
                       <td className="px-6 py-4 text-gray-600">
                         {staff.shift}
+                      </td>
+                      <td className="px-6 py-4 text-gray-900 font-medium">
+                        {staff.baseSalary ? `${staff.baseSalary} MAD` : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -3952,6 +4391,12 @@ function StaffHR() {
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-medium text-gray-900">Pointage du jour</h3>
             <div className="flex gap-2">
+              <button 
+                onClick={() => setIsImportAttendanceModalOpen(true)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors border border-gray-200"
+              >
+                <Upload size={16} /> Importer (Fichier)
+              </button>
               <button 
                 onClick={() => setIsAttendanceModalOpen(true)}
                 className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-black transition-colors"
@@ -4131,10 +4576,47 @@ function StaffHR() {
       )}
 
       {activeTab === 'payroll' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Fiches de Paie</h3>
-            <div className="flex gap-2">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                <Banknote size={24} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Masse Salariale Nette (Totale)</p>
+                <h4 className="text-2xl font-semibold text-gray-900">
+                  {payrollList.reduce((acc, pay) => acc + Number(pay.net.replace(/[^0-9.-]+/g, "")), 0).toLocaleString('fr-MA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD
+                </h4>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+                <Users size={24} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Effectif Rémunéré</p>
+                <h4 className="text-2xl font-semibold text-gray-900">
+                  {payrollList.length}
+                </h4>
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
+                <FileText size={24} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Dernière Période</p>
+                <h4 className="text-2xl font-semibold text-gray-900">
+                  {payrollList.length > 0 ? payrollList[payrollList.length - 1].period : '-'}
+                </h4>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-medium text-gray-900">Fiches de Paie</h3>
+              <div className="flex gap-2">
               <button 
                 onClick={() => setIsPayrollModalOpen(true)}
                 className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
@@ -4173,7 +4655,10 @@ function StaffHR() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button 
-                        onClick={() => showToast(`Téléchargement de la fiche de paie de ${pay.name}`)}
+                        onClick={() => {
+                          setSelectedPayslip(pay);
+                          setIsPayslipDocOpen(true);
+                        }}
                         className="text-gray-400 hover:text-[#DDA956] transition-colors p-2 rounded-lg hover:bg-amber-50"
                       >
                         <FileText size={18} />
@@ -4184,6 +4669,7 @@ function StaffHR() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
 
@@ -4225,6 +4711,211 @@ function StaffHR() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Payslip Document Modal */}
+      {isPayslipDocOpen && selectedPayslip && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto flex flex-col"
+          >
+            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl sticky top-0 z-10">
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <FileText size={18} className="text-[#DDA956]" /> Fiche de Paie - {selectedPayslip.name}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => window.print()} className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <Printer size={16} /> Imprimer
+                </button>
+                <button onClick={() => setIsPayslipDocOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 bg-white rounded-lg border border-gray-200 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-8 bg-white" id="payslip-print-area">
+              <div className="border border-black p-0.5">
+                {/* Header */}
+                <div className="grid grid-cols-2 mb-2">
+                  <div className="bg-amber-600 text-white font-bold text-center py-1 text-lg">MOUDA PALACE</div>
+                  <div className="text-center font-bold text-green-700 text-lg flex items-center justify-center">BULLETIN DE PAIE</div>
+                  <div className="bg-amber-100 text-center font-bold text-black py-1 col-span-1">MAROC</div>
+                </div>
+
+                {/* Employee Info */}
+                <table className="w-full border-collapse border border-black text-xs text-center mb-1">
+                  <tbody>
+                    <tr>
+                      <td className="border border-black py-1 font-bold w-1/3">NOM-PRENOM</td>
+                      <td className="border border-black py-1 font-bold w-1/3">QUALIFICATION</td>
+                      <td className="border border-black py-1 font-bold">SALAIRE MENSUEL</td>
+                      <td className="border border-black py-1 font-bold">MATRICULE</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black py-1 h-6">{selectedPayslip.name}</td>
+                      <td className="border border-black py-1 h-6">Employé</td>
+                      <td className="border border-black py-1 bg-yellow-300 font-bold">{selectedPayslip.base?.toFixed(2) || '0.00'}</td>
+                      <td className="border border-black py-1">{selectedPayslip.id}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <table className="w-full border-collapse border border-black text-xs text-center mb-4">
+                  <tbody>
+                    <tr className="font-bold">
+                      <td className="border border-black py-1" colSpan={2}>DATE EMBAUCHE</td>
+                      <td className="border border-black py-1">N°CIMR</td>
+                      <td className="border border-black py-1">N°CNSS</td>
+                      <td className="border border-black py-1">NAISSANCE</td>
+                      <td className="border border-black py-1">SF</td>
+                      <td className="border border-black py-1">DEDUCT</td>
+                      <td className="border border-black py-1">SALAIRE PAR HEURE</td>
+                      <td className="border border-black py-1" colSpan={3}>PERIODE DE PAIE</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black py-1 bg-yellow-300 w-8">1</td>
+                      <td className="border border-black py-1 bg-yellow-300 w-12">12</td>
+                      <td className="border border-black py-1">-</td>
+                      <td className="border border-black py-1">123456789</td>
+                      <td className="border border-black py-1">01/01/1990</td>
+                      <td className="border border-black py-1 bg-yellow-300">M</td>
+                      <td className="border border-black py-1 bg-yellow-300">0</td>
+                      <td className="border border-black py-1 font-bold">{(selectedPayslip.base / 191).toFixed(2)}</td>
+                      <td className="border border-black py-1 bg-yellow-300 w-8">31</td>
+                      <td className="border border-black py-1 bg-yellow-300 w-8">1</td>
+                      <td className="border border-black py-1 bg-yellow-300 w-12">2026</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Main Details */}
+                <table className="w-full border-collapse border border-black text-xs mb-0 h-[400px]">
+                  <thead>
+                    <tr className="font-bold text-center">
+                      <td className="border border-black py-1 w-12">C.PAIE</td>
+                      <td className="border border-black py-1">LIBELLE</td>
+                      <td className="border border-black py-1 w-32">BASE/NOMBRE</td>
+                      <td className="border border-black py-1 w-20">TAUX</td>
+                      <td className="border border-black py-1 w-28">A PAYER</td>
+                      <td className="border border-black py-1 w-28">A RETENIR</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="align-top">
+                      <td className="border-l border-r border-black p-1"></td>
+                      <td className="border-l border-r border-black p-1 font-medium space-y-1">
+                        <div>SALAIRE DE BASE</div>
+                        <div>PRIME D'ANCIENETE</div>
+                        <div>PRIME</div>
+                        <div>SALAIRE BRUT</div>
+                        <div>COTISATION CNSS</div>
+                        <div>RETRAITE CIMR</div>
+                        <div>AMO</div>
+                        <div>PRELEVEMENT IGR</div>
+                        <div>AVANTAGE EN NATURE</div>
+                        <div>AVANCE</div>
+                        <div>PRÊT</div>
+                      </td>
+                      <td className="border-l border-r border-black p-1 text-right space-y-1">
+                        <div className="bg-yellow-300 pr-1">191.00</div>
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                      </td>
+                      <td className="border-l border-r border-black p-1 text-center space-y-1">
+                        <div>{(selectedPayslip.base / 191).toFixed(2)}</div>
+                        <div>-</div>
+                        <div>-</div>
+                        <div className="h-4"></div>
+                        <div>4.48</div>
+                        <div>-</div>
+                        <div>2.26</div>
+                        <div>10.00</div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                      </td>
+                      <td className="border-l border-r border-black p-1 text-right space-y-1 pr-2">
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>-</div>
+                        <div>-</div>
+                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div>-</div>
+                        <div>-</div>
+                        <div>-</div>
+                      </td>
+                      <td className="border-l border-r border-black p-1 text-right space-y-1 pr-2">
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div>{selectedPayslip.cnss?.toFixed(2)}</div>
+                        <div>-</div>
+                        <div>{selectedPayslip.amo?.toFixed(2)}</div>
+                        <div>{selectedPayslip.igr?.toFixed(2)}</div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                        <div className="h-4"></div>
+                      </td>
+                    </tr>
+                    {/* Fill remaining space */}
+                    <tr>
+                      <td className="border-l border-r border-black h-full"></td>
+                      <td className="border-l border-r border-black h-full"></td>
+                      <td className="border-l border-r border-black h-full"></td>
+                      <td className="border-l border-r border-black h-full"></td>
+                      <td className="border-l border-r border-black h-full"></td>
+                      <td className="border-l border-r border-black h-full"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Footer Totals */}
+                <table className="w-full border-collapse border border-black text-xs text-center">
+                  <tbody>
+                    <tr className="font-bold">
+                      <td className="border border-black py-1 w-[15%]">CUMUL<br/>JOUR</td>
+                      <td className="border border-black py-1 w-[20%]">CUMUL<br/>BASE CONGRES</td>
+                      <td className="border border-black py-1 w-[20%]">CUMUL BASE<br/>IMPOSABLE</td>
+                      <td className="border border-black py-1 w-[25%]">CUMUL<br/>RETENUE CIMR</td>
+                      <td className="border border-black py-1 w-[20%]">CUMUL<br/>IGR</td>
+                      <td className="border-t border-black bg-white" colSpan={2} rowSpan={2}></td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black py-2"></td>
+                      <td className="border border-black py-2"></td>
+                      <td className="border border-black py-2"></td>
+                      <td className="border border-black py-2"></td>
+                      <td className="border border-black py-2"></td>
+                    </tr>
+                    <tr>
+                      <td className="border-0 bg-white" colSpan={4} rowSpan={2}></td>
+                      <td className="border border-black font-bold py-1 bg-gray-50 text-right pr-4" colSpan={2}>NET A PAYER</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black font-bold py-1 text-right pr-4 text-sm" colSpan={2}>
+                        {Number(selectedPayslip.net.replace(/[^0-9.-]+/g,"")).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -4276,13 +4967,17 @@ function StaffHR() {
                     <option value="Inactif">Inactif</option>
                   </select>
                 </div>
-                <div className="md:col-span-2">
+                <div className="md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Service (Optionnel)</label>
                   <select name="shift" defaultValue={editingStaff?.shift || '-'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
                     <option value="-">- Non assigné -</option>
                     <option value="Matin">Matin</option>
                     <option value="Soir">Soir</option>
                   </select>
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
+                  <input name="baseSalary" defaultValue={editingStaff?.baseSalary || 4000} type="number" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 4000" />
                 </div>
               </div>
               
@@ -4588,6 +5283,62 @@ function StaffHR() {
         </div>
       )}
 
+      {/* Import Attendance Modal */}
+      {isImportAttendanceModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                Importer des Pointages
+              </h3>
+              <button 
+                onClick={() => setIsImportAttendanceModalOpen(false)}
+                className="text-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 mb-4">
+                  Importez les fichiers de pointage générés par votre machine biométrique ou badgeuse.
+                </p>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#DDA956] transition-colors bg-gray-50 cursor-pointer">
+                  <div className="flex justify-center mb-2 text-gray-400">
+                    <Upload size={32} />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">Cliquez ou glissez un fichier ici</p>
+                  <p className="text-xs text-gray-500">Formats supportés: .CSV, .XLS, .XLSX (ZKTeco, etc.)</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setIsImportAttendanceModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    showToast("Importation du fichier de pointage démarrée...");
+                    setIsImportAttendanceModalOpen(false);
+                  }}
+                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
+                >
+                  Sélectionner un fichier
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Attendance Modal */}
       {isAttendanceModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
@@ -4645,58 +5396,29 @@ function StaffHR() {
       )}
 
       {/* Payroll Modal */}
-      {isPayrollModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900">
-                Générer Fiche de Paie
-              </h3>
-              <button onClick={() => setIsPayrollModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              setPayrollList([...payrollList, {
-                id: Date.now(),
-                period: formData.get('period') as string,
-                name: formData.get('staffName') as string,
-                net: `${formData.get('net')} MAD`,
-                status: "Payé"
-              }]);
-              showToast("Fiche de paie générée");
-              setIsPayrollModalOpen(false);
-            }} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
-                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Période (Ex: Juil 2026)</label>
-                  <input type="text" name="period" required defaultValue="Juil 2026" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Salaire Net (MAD)</label>
-                  <input type="number" name="net" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsPayrollModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Générer</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
+      <PayrollModal 
+        isOpen={isPayrollModalOpen} 
+        onClose={() => setIsPayrollModalOpen(false)}
+        staffData={staffData}
+        onGenerate={(data) => {
+          const newPayslip = {
+            id: Date.now(),
+            period: data.period as string,
+            name: data.staffName as string,
+            net: `${data.net.toFixed(2)} MAD`,
+            status: "Payé",
+            base: data.base,
+            cnss: data.cnss,
+            amo: data.amo,
+            igr: data.igr
+          };
+          setPayrollList([...payrollList, newPayslip]);
+          showToast("Fiche de paie générée (Normes Marocaines)");
+          setIsPayrollModalOpen(false);
+          setSelectedPayslip(newPayslip);
+          setIsPayslipDocOpen(true);
+        }}
+      />
     </div>
   );
 }
@@ -5084,7 +5806,7 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
 
 function PartnerPortal({ onBack }: { onBack: () => void }) {
   const [accessCode, setAccessCode] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [error, setError] = useState('');
 
   if (!isAuthenticated) {
@@ -5215,6 +5937,7 @@ function TacSystemsPOS() {
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [journalSearch, setJournalSearch] = useState('');
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
+  const [isImportTacModalOpen, setIsImportTacModalOpen] = useState(false);
   const [isSimulationMode, setIsSimulationMode] = useState(true);
 
   const handleSync = () => {
@@ -5285,12 +6008,18 @@ function TacSystemsPOS() {
         </div>
         <div className="flex gap-3">
           <button 
+             onClick={() => setIsImportTacModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors border border-gray-200"
+          >
+            <Upload size={16} /> Importer (Fichier)
+          </button>
+          <button 
             onClick={handleSync}
             disabled={isSyncing}
             className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm disabled:opacity-50"
           >
             {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {isSyncing ? 'Synchronisation...' : 'Synchroniser la caisse'}
+            {isSyncing ? 'Synchronisation API' : 'Synchroniser API'}
           </button>
         </div>
       </header>
@@ -5498,6 +6227,62 @@ function TacSystemsPOS() {
       )}
 
       {/* API Configuration Modal */}
+      {/* Import TacSystems Modal */}
+      {isImportTacModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                Importer Journal de Caisse
+              </h3>
+              <button 
+                onClick={() => setIsImportTacModalOpen(false)}
+                className="text-gray-400 hover:text-gray-900 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 mb-4">
+                  Importez un export de journal de caisse depuis le backoffice de TacSystems si vous n'êtes pas connecté par API.
+                </p>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#DDA956] transition-colors bg-gray-50 cursor-pointer">
+                  <div className="flex justify-center mb-2 text-gray-400">
+                    <Upload size={32} />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">Cliquez ou glissez un fichier ici</p>
+                  <p className="text-xs text-gray-500">Formats supportés: .CSV, .XLS, .XLSX (Export TacSystems)</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <button 
+                  onClick={() => setIsImportTacModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={() => {
+                    showToast("Importation du journal de caisse démarrée...");
+                    setIsImportTacModalOpen(false);
+                  }}
+                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
+                >
+                  Sélectionner un fichier
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {isApiModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 

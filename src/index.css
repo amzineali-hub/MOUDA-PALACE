@@ -22,3 +22,18 @@
   .sidebar, nav { display: none !important; }
   .print\:hidden { display: none !important; }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #payslip-print-area, #payslip-print-area * {
+    visibility: visible;
+  }
+  #payslip-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

@@ -2708,6 +2708,8 @@ function Inventory() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
   const [isAutoCreateModalOpen, setIsAutoCreateModalOpen] = useState(false);
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
   
@@ -3087,10 +3089,10 @@ function Inventory() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Annuaire Fournisseurs</h3>
                 <div className="flex gap-2">
-                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+                  <button onClick={() => setIsNewOrderModalOpen(true)}  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
                     <Truck size={16} /> Nouvelle Commande
                   </button>
-                  <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <button onClick={() => setIsNewSupplierModalOpen(true)}  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
                     <Plus size={16} /> Nouveau Fournisseur
                   </button>
                 </div>
@@ -3487,6 +3489,86 @@ function Inventory() {
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
                 Sauvegarder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nouvelle Commande */}
+      {isNewOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsNewOrderModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <option>Coopérative Taliouine</option>
+                  <option>Ferme Atlas</option>
+                  <option>Boucherie Centrale</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
+                <input type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
+                <textarea rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
+              </div>
+              <button 
+                onClick={() => {
+                  showToast("Commande envoyée avec succès");
+                  setIsNewOrderModalOpen(false);
+                }}
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Valider la Commande
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nouveau Fournisseur */}
+      {isNewSupplierModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsNewSupplierModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouveau Fournisseur</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
+                <input type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <input type="text" placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
+                <input type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <button 
+                onClick={() => {
+                  showToast("Fournisseur ajouté avec succès");
+                  setIsNewSupplierModalOpen(false);
+                }}
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Ajouter le Fournisseur
               </button>
             </div>
           </div>

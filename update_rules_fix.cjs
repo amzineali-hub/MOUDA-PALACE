@@ -1,4 +1,8 @@
-rules_version = '2';
+const fs = require('fs');
+let content = fs.readFileSync('firestore.rules', 'utf8');
+
+// We will just rewrite the firestore.rules properly
+content = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -122,3 +126,5 @@ service cloud.firestore {
     }
   }
 }
+`;
+fs.writeFileSync('firestore.rules', content);

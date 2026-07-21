@@ -50,11 +50,24 @@ export default function BlogWriterAI() {
       const data = await response.json();
       setGeneratedArticle(data.article);
       
+      const availableImages = [
+        "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
+        "/Capture-decran-2024-10-06-150159.png",
+        "/Capture-decran-2025-07-17-144912.png",
+        "/d0.jpg",
+        "/DSC_0290-scaled.jpg",
+        "/fes-spring.jpg",
+        "/IMG_4253-2048x1365.jpg"
+      ];
+      
+      const randomImage = availableImages[Math.floor(Math.random() * availableImages.length)];
+
       // Auto-save to Firestore
       await addDoc(collection(db, 'blog_posts'), {
         topic,
         keywords,
         content: data.article,
+        imageUrl: randomImage,
         createdAt: serverTimestamp()
       });
 
@@ -207,39 +220,46 @@ export default function BlogWriterAI() {
             </div>
           ) : (
             savedArticles.map((article) => (
-              <div key={article.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-serif font-medium text-gray-900 line-clamp-2">
-                    {article.topic}
-                  </h3>
-                  <button 
-                    onClick={() => handleDelete(article.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                {article.keywords && (
-                  <div className="mb-4 text-xs font-medium text-[#DDA956] bg-[#DDA956]/10 px-2 py-1 rounded-md inline-block w-fit line-clamp-1">
-                    {article.keywords}
+              <div key={article.id} className="bg-white border border-gray-200 rounded-xl hover:shadow-md transition-shadow flex flex-col overflow-hidden">
+                {article.imageUrl && (
+                  <div className="w-full h-48 bg-gray-100 relative">
+                    <img src={article.imageUrl} alt={article.topic} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                 )}
-                <div className="text-sm text-gray-500 mb-6 flex-1 line-clamp-3">
-                  {article.content?.substring(0, 150)}...
-                </div>
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                  <span className="text-xs text-gray-400">
-                    {article.createdAt?.toDate ? new Date(article.createdAt.toDate()).toLocaleDateString() : 'Récemment'}
-                  </span>
-                  <button 
-                    onClick={() => {
-                      setGeneratedArticle(article.content);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="flex items-center gap-1 text-sm font-medium text-[#1A1A1A] hover:text-[#DDA956] transition-colors"
-                  >
-                    Lire <ArrowRight size={16} />
-                  </button>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="font-serif font-medium text-gray-900 line-clamp-2">
+                      {article.topic}
+                    </h3>
+                    <button 
+                      onClick={() => handleDelete(article.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  {article.keywords && (
+                    <div className="mb-4 text-xs font-medium text-[#DDA956] bg-[#DDA956]/10 px-2 py-1 rounded-md inline-block w-fit line-clamp-1">
+                      {article.keywords}
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-500 mb-6 flex-1 line-clamp-3">
+                    {article.content?.substring(0, 150)}...
+                  </div>
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
+                    <span className="text-xs text-gray-400">
+                      {article.createdAt?.toDate ? new Date(article.createdAt.toDate()).toLocaleDateString() : 'Récemment'}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setGeneratedArticle(article.content);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-1 text-sm font-medium text-[#1A1A1A] hover:text-[#DDA956] transition-colors"
+                    >
+                      Lire <ArrowRight size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))

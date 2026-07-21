@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save } from 'lucide-react';
 import { useToast } from './context/ToastContext';
@@ -9,14 +10,26 @@ import { db } from './firebase';
 export default function BlogWriterAI() {
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedArticle, setGeneratedArticle] = useState('');
   const [copied, setCopied] = useState(false);
   const [savedArticles, setSavedArticles] = useState<any[]>([]);
   
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editTopic, setEditTopic] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+
+  const availableImages = [
+    "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
+    "/Capture-decran-2024-10-06-150159.png",
+    "/Capture-decran-2025-07-17-144912.png",
+    "/d0.jpg",
+    "/DSC_0290-scaled.jpg",
+    "/fes-spring.jpg",
+    "/IMG_4253-2048x1365.jpg"
+  ];
   
   const { showToast } = useToast();
 
@@ -55,24 +68,17 @@ export default function BlogWriterAI() {
       const data = await response.json();
       setGeneratedArticle(data.article);
       
-      const availableImages = [
-        "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
-        "/Capture-decran-2024-10-06-150159.png",
-        "/Capture-decran-2025-07-17-144912.png",
-        "/d0.jpg",
-        "/DSC_0290-scaled.jpg",
-        "/fes-spring.jpg",
-        "/IMG_4253-2048x1365.jpg"
-      ];
-      
-      const randomImage = availableImages[Math.floor(Math.random() * availableImages.length)];
+      let finalImageUrl = imageUrl;
+      if (!finalImageUrl) {
+        finalImageUrl = availableImages[Math.floor(Math.random() * availableImages.length)];
+      }
 
       // Auto-save to Firestore
       await addDoc(collection(db, 'blog_posts'), {
         topic,
         keywords,
         content: data.article,
-        imageUrl: randomImage,
+        imageUrl: finalImageUrl,
         createdAt: serverTimestamp()
       });
 
@@ -106,6 +112,7 @@ export default function BlogWriterAI() {
 
   const handleEditClick = (article: any) => {
     setEditingArticleId(article.id);
+    setEditTopic(article.topic || '');
     setEditContent(article.content);
     setEditImageUrl(article.imageUrl || '');
   };
@@ -114,6 +121,7 @@ export default function BlogWriterAI() {
     if (!editingArticleId) return;
     try {
       await updateDoc(doc(db, 'blog_posts', editingArticleId), {
+        topic: editTopic,
         content: editContent,
         imageUrl: editImageUrl
       });
@@ -172,6 +180,41 @@ export default function BlogWriterAI() {
                 placeholder="Ex: Parler du tajine aux pruneaux, mentionner la terrasse panoramique..."
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all resize-none h-24"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Image de couverture (Optionnel)
+              </label>
+              <div className="space-y-3">
+                <select
+                  value={availableImages.includes(imageUrl) ? imageUrl : (imageUrl !== '' ? 'custom' : '')}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setImageUrl('https://');
+                    } else {
+                      setImageUrl(e.target.value);
+                    }
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                >
+                  <option value="">Image aléatoire</option>
+                  {availableImages.map(img => (
+                    <option key={img} value={img}>{img.split('/').pop()}</option>
+                  ))}
+                  <option value="custom">Autre (URL personnalisée)</option>
+                </select>
+                
+                {!availableImages.includes(imageUrl) && imageUrl !== '' ? (
+                  <input
+                    type="text"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="URL de l'image (ex: https://...)"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                  />
+                ) : null}
+              </div>
             </div>
 
             <button
@@ -310,8 +353,8 @@ export default function BlogWriterAI() {
       </div>
       
       {/* Modal d'édition */}
-      {editingArticleId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      {editingArticleId && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -330,26 +373,49 @@ export default function BlogWriterAI() {
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titre de l'article
+                </label>
+                <input
+                  type="text"
+                  value={editTopic}
+                  onChange={(e) => setEditTopic(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Image de couverture
                 </label>
-                <select
-                  value={editImageUrl}
-                  onChange={(e) => setEditImageUrl(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
-                >
-                  <option value="">Sélectionner une image...</option>
-                  {[
-                    "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
-                    "/Capture-decran-2024-10-06-150159.png",
-                    "/Capture-decran-2025-07-17-144912.png",
-                    "/d0.jpg",
-                    "/DSC_0290-scaled.jpg",
-                    "/fes-spring.jpg",
-                    "/IMG_4253-2048x1365.jpg"
-                  ].map(img => (
-                    <option key={img} value={img}>{img.split('/').pop()}</option>
-                  ))}
-                </select>
+                <div className="space-y-3">
+                  <select
+                    value={availableImages.includes(editImageUrl) ? editImageUrl : (editImageUrl !== '' ? 'custom' : '')}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        setEditImageUrl('https://');
+                      } else {
+                        setEditImageUrl(e.target.value);
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                  >
+                    <option value="">Image aléatoire</option>
+                    {availableImages.map(img => (
+                      <option key={img} value={img}>{img.split('/').pop()}</option>
+                    ))}
+                    <option value="custom">Autre (URL personnalisée)</option>
+                  </select>
+                  
+                  {!availableImages.includes(editImageUrl) && editImageUrl !== '' ? (
+                    <input
+                      type="text"
+                      value={editImageUrl}
+                      onChange={(e) => setEditImageUrl(e.target.value)}
+                      placeholder="URL de l'image (ex: https://...)"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    />
+                  ) : null}
+                </div>
                 {editImageUrl && (
                   <div className="mt-4 h-48 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
                     <img src={editImageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -385,7 +451,7 @@ export default function BlogWriterAI() {
               </button>
             </div>
           </motion.div>
-        </div>
+        </div>, document.body
       )}
     </motion.div>
   );

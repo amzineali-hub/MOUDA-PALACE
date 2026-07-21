@@ -4121,10 +4121,10 @@ function StaffHR() {
   const { showToast } = useToast();
 
   const initialStaff = [
-    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir', baseSalary: 14500 },
-    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin', baseSalary: 9500 },
-    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-', baseSalary: 4000 },
-    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir', baseSalary: 6000 },
+    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', email: 'ahmed.b@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 14500, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2022-03-15', language: 'Français, Arabe' },
+    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', email: 'karima.i@moudapalace.com', status: 'Actif', shift: 'Matin', baseSalary: 9500, photo: '', cin: 'AB98765', cnss: '987654321', hireDate: '2023-01-10', language: 'Français, Anglais, Arabe' },
+    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', email: 'youssef.t@moudapalace.com', status: 'En congé', shift: '-', baseSalary: 4000, photo: '', cin: 'C456789', cnss: '456123789', hireDate: '2024-06-01', language: 'Français, Arabe' },
+    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', email: 'sofia.a@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 6000, photo: '', cin: 'D654321', cnss: '789123456', hireDate: '2024-02-20', language: 'Français, Anglais, Espagnol' },
   ];
 
   const [staffData, setStaffData] = useState(initialStaff);
@@ -4203,9 +4203,15 @@ function StaffHR() {
       role: formData.get('role') as string,
       department: formData.get('department') as string,
       phone: formData.get('phone') as string,
+      email: formData.get('email') as string,
       status: formData.get('status') as string,
       shift: formData.get('shift') as string || '-',
       baseSalary: Number(formData.get('baseSalary')) || 4000,
+      photo: formData.get('photo') as string,
+      cin: formData.get('cin') as string,
+      cnss: formData.get('cnss') as string,
+      hireDate: formData.get('hireDate') as string,
+      language: formData.get('language') as string,
     };
 
     if (editingStaff) {
@@ -4363,6 +4369,8 @@ function StaffHR() {
                   <th className="px-6 py-4">Employé</th>
                   <th className="px-6 py-4">Département</th>
                   <th className="px-6 py-4">Contact</th>
+                  <th className="px-6 py-4">Identifiants</th>
+                  <th className="px-6 py-4">Détails</th>
                   <th className="px-6 py-4">Statut</th>
                   <th className="px-6 py-4">Service Actuel</th>
                   <th className="px-6 py-4">Salaire de Base</th>
@@ -4375,9 +4383,13 @@ function StaffHR() {
                     <tr key={staff.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#DDA956]/20 text-[#DDA956] flex items-center justify-center font-bold text-xs uppercase">
-                            {staff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </div>
+                          {staff.photo ? (
+                            <img src={staff.photo} alt={staff.name} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[#DDA956]/20 text-[#DDA956] flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
+                              {staff.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                            </div>
+                          )}
                           <div>
                             <div className="font-medium text-gray-900">{staff.name}</div>
                             <div className="text-xs text-gray-500">{staff.role}</div>
@@ -4390,7 +4402,18 @@ function StaffHR() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-600">
-                        {staff.phone}
+                        <div className="text-sm">{staff.phone}</div>
+                        {staff.email && <div className="text-xs text-gray-400 mt-0.5">{staff.email}</div>}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">
+                        {staff.cin && <div className="mb-0.5">CIN: <span className="font-medium text-gray-900">{staff.cin}</span></div>}
+                        {staff.cnss && <div>CNSS: <span className="font-medium text-gray-900">{staff.cnss}</span></div>}
+                        {!staff.cin && !staff.cnss && '-'}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 text-xs">
+                        {staff.hireDate && <div className="mb-0.5">Embauche: <span className="font-medium text-gray-900">{staff.hireDate}</span></div>}
+                        {staff.language && <div className="truncate max-w-[150px]" title={staff.language}>Langues: <span className="font-medium text-gray-900">{staff.language}</span></div>}
+                        {!staff.hireDate && !staff.language && '-'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
@@ -5042,11 +5065,23 @@ function StaffHR() {
               </button>
             </div>
             
-            <form onSubmit={handleSaveStaff} className="p-6">
+              <form onSubmit={handleSaveStaff} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo (URL optionnelle)</label>
+                  <input name="photo" defaultValue={editingStaff?.photo} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="https://..." />
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
                   <input name="name" defaultValue={editingStaff?.name} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Karim El Fassi" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CIN</label>
+                  <input name="cin" defaultValue={editingStaff?.cin} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: A123456" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CNSS</label>
+                  <input name="cnss" defaultValue={editingStaff?.cnss} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 123456789" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
@@ -5060,6 +5095,18 @@ function StaffHR() {
                     <option value="Accueil">Accueil</option>
                     <option value="Management">Management</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>
+                  <input name="hireDate" defaultValue={editingStaff?.hireDate} type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Langues (séparées par virgule)</label>
+                  <input name="language" defaultValue={editingStaff?.language} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Français, Arabe" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input name="email" defaultValue={editingStaff?.email} type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="email@exemple.com" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
@@ -5081,7 +5128,7 @@ function StaffHR() {
                     <option value="Soir">Soir</option>
                   </select>
                 </div>
-                <div className="md:col-span-1">
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
                   <input name="baseSalary" defaultValue={editingStaff?.baseSalary || 4000} type="number" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 4000" />
                 </div>

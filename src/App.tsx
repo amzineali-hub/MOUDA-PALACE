@@ -599,7 +599,12 @@ function PerformanceAnalysis() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       {/* Chart 1: Taux de Remplissage (AreaChart) */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.5 }}
+        className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2"
+      >
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-serif font-semibold text-gray-900">Taux de Remplissage</h3>
@@ -629,10 +634,15 @@ function PerformanceAnalysis() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
 
       {/* Chart 2: Répartition des Sources (BarChart) */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.6 }}
+        className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"
+      >
         <div className="mb-6">
           <h3 className="text-lg font-serif font-semibold text-gray-900">Sources de Réservation</h3>
           <p className="text-sm text-gray-500">Répartition par canal</p>
@@ -651,7 +661,7 @@ function PerformanceAnalysis() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -802,7 +812,12 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <InventoryAlerts />
 
         {/* Quick Operations Actions */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.8 }}
+          className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
           <button 
             onClick={() => {
               setActiveTab('reservations');
@@ -850,11 +865,16 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <span className="text-xs text-gray-400">Message aux clients VIP</span>
             </div>
           </button>
-        </div>
+        </motion.div>
 
         {/* Central Marketing Command */}
         <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
-          <div className="lg:col-span-2 bg-white/95 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-xl">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.9 }}
+            className="lg:col-span-2 bg-white/95 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-xl"
+          >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-serif font-medium text-[#1A1A1A]">Performance Marketing & ROI</h3>
               <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none">
@@ -890,9 +910,14 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="flex flex-col gap-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 1.0 }}
+            className="flex flex-col gap-6"
+          >
             <button 
               onClick={() => showToast('Lancement Nouvelle Campagne Meta...')}
               className="w-full bg-[#1A1A1A] hover:bg-[#222] text-white p-6 rounded-2xl shadow-xl border border-[#333] flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-1"
@@ -927,7 +952,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
       {/* Architecture Focus Section */}

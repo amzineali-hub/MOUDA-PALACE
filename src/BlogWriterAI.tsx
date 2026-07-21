@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight } from 'lucide-react';
+import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export default function BlogWriterAI() {
@@ -13,6 +13,11 @@ export default function BlogWriterAI() {
   const [generatedArticle, setGeneratedArticle] = useState('');
   const [copied, setCopied] = useState(false);
   const [savedArticles, setSavedArticles] = useState<any[]>([]);
+  
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [editImageUrl, setEditImageUrl] = useState('');
+  
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -96,6 +101,33 @@ export default function BlogWriterAI() {
         console.error(e);
         showToast("Erreur lors de la suppression.");
       }
+    }
+  };
+
+  const handleEditClick = (article: any) => {
+    setEditingArticleId(article.id);
+    setEditContent(article.content);
+    setEditImageUrl(article.imageUrl || '');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingArticleId) return;
+    try {
+      await updateDoc(doc(db, 'blog_posts', editingArticleId), {
+        content: editContent,
+        imageUrl: editImageUrl
+      });
+      showToast("Article mis à jour avec succès.");
+      setEditingArticleId(null);
+      
+      // If we are currently previewing this article, update the preview as well
+      if (generatedArticle.substring(0, 100) === editContent.substring(0, 100) || generatedArticle) {
+        // Just a simple check, or we can just always update it if the user was reading it
+        setGeneratedArticle(editContent);
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de la mise à jour.");
     }
   };
 
@@ -231,12 +263,22 @@ export default function BlogWriterAI() {
                     <h3 className="font-serif font-medium text-gray-900 line-clamp-2">
                       {article.topic}
                     </h3>
-                    <button 
-                      onClick={() => handleDelete(article.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleEditClick(article)}
+                        className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
+                        title="Éditer"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(article.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   {article.keywords && (
                     <div className="mb-4 text-xs font-medium text-[#DDA956] bg-[#DDA956]/10 px-2 py-1 rounded-md inline-block w-fit line-clamp-1">
@@ -266,6 +308,85 @@ export default function BlogWriterAI() {
           )}
         </div>
       </div>
+      
+      {/* Modal d'édition */}
+      {editingArticleId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-serif text-[#1A1A1A]">Éditer l'article</h2>
+              <button 
+                onClick={() => setEditingArticleId(null)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Image de couverture
+                </label>
+                <select
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                >
+                  <option value="">Sélectionner une image...</option>
+                  {[
+                    "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
+                    "/Capture-decran-2024-10-06-150159.png",
+                    "/Capture-decran-2025-07-17-144912.png",
+                    "/d0.jpg",
+                    "/DSC_0290-scaled.jpg",
+                    "/fes-spring.jpg",
+                    "/IMG_4253-2048x1365.jpg"
+                  ].map(img => (
+                    <option key={img} value={img}>{img.split('/').pop()}</option>
+                  ))}
+                </select>
+                {editImageUrl && (
+                  <div className="mt-4 h-48 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                    <img src={editImageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contenu de l'article (Markdown)
+                </label>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all resize-none h-96 font-mono text-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={() => setEditingArticleId(null)}
+                className="px-6 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-6 py-2.5 rounded-xl font-medium text-white bg-[#1A1A1A] hover:bg-[#2a2a2a] shadow-lg shadow-[#1A1A1A]/20 flex items-center gap-2 transition-all"
+              >
+                <Save size={18} />
+                Enregistrer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

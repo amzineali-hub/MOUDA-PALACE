@@ -87,15 +87,16 @@ import {
   FileText,
   Award,
   PenTool,
-  Timer
+  Timer,
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
 import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
+import Documentation from "./Documentation";
 
 function ReviewAnalyzer() {
   const [review, setReview] = useState("");
@@ -433,6 +434,8 @@ export default function App() {
         return <TacSystemsPOS />;
       case 'accounting':
         return <Accounting />;
+      case 'docs':
+        return <Documentation />;
       case 'config':
         return <Configuration />;
       default:
@@ -540,6 +543,7 @@ export default function App() {
         </nav>
 
         <div className="mt-auto pt-8">
+          <NavItem icon={<BookOpen size={18} />} label="Centre de Doc" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
           <NavItem icon={<Settings size={18} />} label="Configuration" active={activeTab === 'config'} onClick={() => handleTabChange('config')} />
           <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-[#333]">
             {user ? (
@@ -5599,10 +5603,48 @@ function StaffHR() {
 
 function Configuration() {
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
+  const [isSaving, setIsSaving] = useState(false);
+  const [websiteConfig, setWebsiteConfig] = useState({
+    url: 'https://moudapalace.com',
+    username: '',
+    password: '',
+    webhookUrl: ''
+  });
   const { showToast } = useToast();
 
-  const handleSave = () => {
-    showToast("Paramètres sauvegardés avec succès");
+  useEffect(() => {
+    const loadWebsiteConfig = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'website');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setWebsiteConfig(prev => ({ ...prev, ...docSnap.data() }));
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement de la configuration du site web:", error);
+      }
+    };
+    loadWebsiteConfig();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (activeSettingsTab === 'website') {
+        const docRef = doc(db, 'settings', 'website');
+        await setDoc(docRef, websiteConfig, { merge: true });
+        
+        // Also update webhook for backward compatibility with BlogWriter
+        const webhookRef = doc(db, 'settings', 'webhook');
+        await setDoc(webhookRef, { url: websiteConfig.webhookUrl }, { merge: true });
+      }
+      showToast("Paramètres sauvegardés avec succès");
+    } catch (error) {
+      console.error("Erreur de sauvegarde:", error);
+      showToast("Erreur lors de la sauvegarde", "error");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -5612,9 +5654,9 @@ function Configuration() {
           <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Configuration</h2>
           <p className="text-gray-500">Paramètres généraux de l'établissement.</p>
         </div>
-        <button onClick={handleSave} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors">
+        <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors disabled:opacity-50">
           <Save size={18} />
-          Sauvegarder
+          {isSaving ? "Sauvegarde..." : "Sauvegarder"}
         </button>
       </header>
 
@@ -5623,6 +5665,7 @@ function Configuration() {
         <div className="w-full lg:w-64 flex flex-col gap-2">
           <SettingsTab active={activeSettingsTab === 'general'} onClick={() => setActiveSettingsTab('general')} icon={<Building size={18} />} label="Général" />
           <SettingsTab active={activeSettingsTab === 'integrations'} onClick={() => setActiveSettingsTab('integrations')} icon={<Globe size={18} />} label="Intégrations & IA" />
+          <SettingsTab active={activeSettingsTab === 'website'} onClick={() => setActiveSettingsTab('website')} icon={<Globe size={18} />} label="Site Web (moudapalace.com)" />
           <SettingsTab active={activeSettingsTab === 'billing'} onClick={() => setActiveSettingsTab('billing')} icon={<CreditCard size={18} />} label="Facturation & Stripe" />
           <SettingsTab active={activeSettingsTab === 'notifications'} onClick={() => setActiveSettingsTab('notifications')} icon={<Bell size={18} />} label="Notifications" />
           <SettingsTab active={activeSettingsTab === 'security'} onClick={() => setActiveSettingsTab('security')} icon={<Shield size={18} />} label="Sécurité & Accès" />
@@ -5728,6 +5771,65 @@ function Configuration() {
                     <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full border border-yellow-200">Configuration requise</span>
                   </div>
                   <input type="text" placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors bg-white" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeSettingsTab === 'website' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-6">
+              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#1A1A1A]">Configuration du site web</h3>
+              <p className="text-sm text-gray-500 mb-6">Paramétrez les accès à votre site WordPress (moudapalace.com) et les webhooks d'automatisation (Make.com, Zapier).</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">URL du site</label>
+                  <input 
+                    type="url" 
+                    value={websiteConfig.url} 
+                    onChange={e => setWebsiteConfig({...websiteConfig, url: e.target.value})} 
+                    placeholder="https://moudapalace.com" 
+                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant administrateur</label>
+                    <input 
+                      type="text" 
+                      value={websiteConfig.username} 
+                      onChange={e => setWebsiteConfig({...websiteConfig, username: e.target.value})} 
+                      placeholder="admin" 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe d'application</label>
+                    <input 
+                      type="password" 
+                      value={websiteConfig.password} 
+                      onChange={e => setWebsiteConfig({...websiteConfig, password: e.target.value})} 
+                      placeholder="xxxx xxxx xxxx xxxx" 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Générez ce mot de passe dans votre profil WordPress.</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-6 mt-6">
+                  <h4 className="text-lg font-medium text-gray-900 mb-4">Automatisation (Webhook)</h4>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">URL du Webhook de publication (Make.com)</label>
+                    <input 
+                      type="url" 
+                      value={websiteConfig.webhookUrl} 
+                      onChange={e => setWebsiteConfig({...websiteConfig, webhookUrl: e.target.value})} 
+                      placeholder="https://hook.eu1.make.com/..." 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Cette URL est utilisée par le module de rédaction IA pour publier directement sur votre site.</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

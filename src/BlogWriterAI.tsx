@@ -22,7 +22,8 @@ export default function BlogWriterAI() {
   const [editImageUrl, setEditImageUrl] = useState('');
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState('https://hook.eu1.make.com/vho6csmodvbnb6te53clnm4yra5cngt3');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [websiteConfig, setWebsiteConfig] = useState<any>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
 
   const availableImages = [
@@ -47,18 +48,28 @@ export default function BlogWriterAI() {
       setSavedArticles(articles);
     });
 
-    const loadWebhook = async () => {
+    const loadConfig = async () => {
       try {
-        const docRef = doc(db, "settings", "webhook");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().url) {
-          setWebhookUrl(docSnap.data().url);
+        const wpDocRef = doc(db, "settings", "website");
+        const wpDocSnap = await getDoc(wpDocRef);
+        if (wpDocSnap.exists()) {
+          setWebsiteConfig(wpDocSnap.data());
+          if (wpDocSnap.data().webhookUrl) {
+            setWebhookUrl(wpDocSnap.data().webhookUrl);
+          }
+        } else {
+          // Fallback to old webhook config if website config doesn't exist yet
+          const docRef = doc(db, "settings", "webhook");
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && docSnap.data().url) {
+            setWebhookUrl(docSnap.data().url);
+          }
         }
       } catch (e) {
-        console.error("Failed to load webhook URL", e);
+        console.error("Failed to load configs", e);
       }
     };
-    loadWebhook();
+    loadConfig();
 
 
     return () => unsubscribe();
@@ -163,44 +174,90 @@ export default function BlogWriterAI() {
   };
 
   const handlePublish = async (article: any) => {
-    if (!webhookUrl) {
-      showToast("Veuillez configurer l'URL du webhook Make/Zapier d'abord", "error");
+    if (!websiteConfig?.url && !webhookUrl) {
+      showToast("Veuillez configurer WordPress ou le Webhook dans les paramètres", "error");
       return;
     }
     setIsPublishing(article.id);
     try {
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: article.id,
-          topic: article.topic,
-          keywords: article.keywords,
-          content: article.content,
-          imageUrl: article.imageUrl
-        })
-      });
+      let publishedSuccessfully = false;
+      let method = '';
       
-      // Even if response is opaque (no-cors), we might not get ok=true, but we assume it worked.
-      // Make/Zapier usually accept no-cors, but to read response we need cors.
-      // For now, we'll just check ok or let it throw if network fails.
-      // Note: If using mode: 'no-cors', response.type is 'opaque' and ok is false.
-      // But let's try standard cors first.
-      
-      if (response.ok || response.type === 'opaque') {
-        showToast("Article publié avec succès via Webhook !");
+      // Try WordPress REST API first if credentials exist
+      if (websiteConfig?.url && websiteConfig?.username && websiteConfig?.password) {
+        method = 'WordPress';
+        const cleanUrl = websiteConfig.url.replace(/\/$/, '');
+        
+        // Use html-to-markdown or just send markdown (WordPress generally needs HTML, but we'll send it as is for now or use a simple converter if needed, though markdown works if they have a plugin. Actually, let's just send the content)
+        // Wait, WordPress REST API expects HTML in the 'content' field. But our 'content' is markdown.
+        // We'll send it anyway, WordPress block editor sometimes parses markdown or we can convert it. 
+        // For standard publishing, let's just send what we have.
+        
+        
+        // Simple Markdown to HTML formatting for WordPress
+        let htmlContent = article.content
+          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+          .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+          .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
+          .replace(/\n\n/gim, '<br><br>')
+          .replace(/\n/gim, '<br>');
+
+        const wpResponse = await fetch(`${cleanUrl}/wp-json/wp/v2/posts`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password}`)
+          },
+          body: JSON.stringify({
+            title: article.topic,
+            content: htmlContent, 
+            status: 'publish'
+          })
+        });
+        
+        if (wpResponse.ok) {
+          publishedSuccessfully = true;
+        } else {
+          const err = await wpResponse.json();
+          throw new Error(err.message || "Erreur WordPress API");
+        }
+      } 
+      // Fallback to webhook
+      else if (webhookUrl) {
+        method = 'Webhook';
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: article.id,
+            topic: article.topic,
+            keywords: article.keywords,
+            content: article.content,
+            imageUrl: article.imageUrl
+          })
+        });
+        if (response.ok || response.type === 'opaque') {
+          publishedSuccessfully = true;
+        } else {
+          throw new Error("Webhook returned " + response.status);
+        }
+      }
+
+      if (publishedSuccessfully) {
+        showToast(`Article publié avec succès via ${method} !`);
         await updateDoc(doc(db, 'blog_posts', article.id), { published: true, publishedAt: serverTimestamp() });
         if (activeArticle && activeArticle.id === article.id) {
           setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);
         }
-      } else {
-        throw new Error("Webhook returned " + response.status);
       }
-    } catch (error) {
-      console.error("Webhook error:", error);
-      showToast("Erreur lors de la publication via Webhook", "error");
+    } catch (error: any) {
+      console.error("Publish error:", error);
+      showToast(`Erreur de publication: ${error.message || error}`, "error");
     } finally {
       setIsPublishing(null);
     }

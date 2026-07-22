@@ -12,7 +12,7 @@ export default function BlogWriterAI() {
   const [keywords, setKeywords] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedArticle, setGeneratedArticle] = useState('');
+  const [activeArticle, setActiveArticle] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [savedArticles, setSavedArticles] = useState<any[]>([]);
   
@@ -71,7 +71,7 @@ export default function BlogWriterAI() {
     }
 
     setIsGenerating(true);
-    setGeneratedArticle('');
+    setActiveArticle(null);
     showToast("Génération de l'article en cours avec Vertex AI...");
 
     try {
@@ -84,7 +84,6 @@ export default function BlogWriterAI() {
       if (!response.ok) throw new Error('Generation failed');
 
       const data = await response.json();
-      setGeneratedArticle(data.article);
       
       let finalImageUrl = imageUrl;
       if (!finalImageUrl) {
@@ -98,6 +97,14 @@ export default function BlogWriterAI() {
         content: data.article,
         imageUrl: finalImageUrl,
         createdAt: serverTimestamp()
+      });
+
+      setActiveArticle({
+        id: docRef.id,
+        topic,
+        keywords,
+        content: data.article,
+        imageUrl: finalImageUrl
       });
 
       showToast('Article généré et sauvegardé avec succès !');
@@ -120,6 +127,8 @@ export default function BlogWriterAI() {
           }).then(response => {
             if (response.ok || response.type === 'opaque') {
               showToast("Article automatiquement publié via Webhook !");
+              updateDoc(doc(db, 'blog_posts', docRef.id), { published: true, publishedAt: serverTimestamp() });
+              setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);
             }
           }).catch(err => console.error("Auto-publish webhook failed:", err));
         } catch (e) {
@@ -182,6 +191,10 @@ export default function BlogWriterAI() {
       
       if (response.ok || response.type === 'opaque') {
         showToast("Article publié avec succès via Webhook !");
+        await updateDoc(doc(db, 'blog_posts', article.id), { published: true, publishedAt: serverTimestamp() });
+        if (activeArticle && activeArticle.id === article.id) {
+          setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);
+        }
       } else {
         throw new Error("Webhook returned " + response.status);
       }
@@ -224,9 +237,9 @@ export default function BlogWriterAI() {
       setEditingArticleId(null);
       
       // If we are currently previewing this article, update the preview as well
-      if (generatedArticle.substring(0, 100) === editContent.substring(0, 100) || generatedArticle) {
+      if (activeArticle && activeArticle.id === editingArticleId) {
         // Just a simple check, or we can just always update it if the user was reading it
-        setGeneratedArticle(editContent);
+        setActiveArticle({ ...activeArticle, content: editContent, topic: editTopic, imageUrl: editImageUrl });
       }
     } catch (e) {
       console.error(e);
@@ -351,21 +364,41 @@ export default function BlogWriterAI() {
                   <FileText size={18} className="text-[#DDA956]" />
                   Aperçu de la rédaction
                 </div>
-                {generatedArticle && (
-                  <button
-                    onClick={() => copyToClipboard(generatedArticle)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                  >
-                    {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
-                    {copied ? 'Copié !' : 'Copier'}
-                  </button>
+                {activeArticle && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyToClipboard(activeArticle.content)}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                    >
+                      {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+                      {copied ? 'Copié !' : 'Copier'}
+                    </button>
+                    {activeArticle.published ? (
+                      <button
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-green-500 text-white transition-colors"
+                        disabled
+                      >
+                        <Check size={16} />
+                        Publié
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handlePublish(activeArticle)}
+                        disabled={isPublishing === activeArticle.id}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-[#1A1A1A] hover:bg-[#2a2a2a] text-white transition-colors"
+                      >
+                        {isPublishing === activeArticle.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        Publier sur le blog
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               
               <div className="p-8 flex-1 overflow-y-auto prose prose-amber max-w-none">
-                {generatedArticle ? (
+                {activeArticle ? (
                   <div className="markdown-body">
-                    <ReactMarkdown>{generatedArticle}</ReactMarkdown>
+                    <ReactMarkdown>{activeArticle.content}</ReactMarkdown>
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -411,14 +444,20 @@ export default function BlogWriterAI() {
                       {article.topic}
                     </h3>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => handlePublish(article)}
-                        disabled={isPublishing === article.id}
-                        className="text-gray-400 hover:text-green-500 disabled:opacity-50 transition-colors p-1"
-                        title="Publier via Webhook"
-                      >
-                        {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                      </button>
+                      {article.published ? (
+                        <div className="text-green-500 p-1" title="Publié">
+                          <Check size={16} />
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handlePublish(article)}
+                          disabled={isPublishing === article.id}
+                          className="text-gray-400 hover:text-green-500 disabled:opacity-50 transition-colors p-1"
+                          title="Publier via Webhook"
+                        >
+                          {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleEditClick(article)}
                         className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
@@ -449,7 +488,7 @@ export default function BlogWriterAI() {
                     </span>
                     <button 
                       onClick={() => {
-                        setGeneratedArticle(article.content);
+                        setActiveArticle(article);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className="flex items-center gap-1 text-sm font-medium text-[#1A1A1A] hover:text-[#DDA956] transition-colors"

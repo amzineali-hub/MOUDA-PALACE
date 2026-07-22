@@ -201,10 +201,6 @@ function InventoryAlerts() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
     const q = query(collection(db, 'inventory'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const lowStockItems: any[] = [];
@@ -351,7 +347,7 @@ function InventoryAlerts() {
 }
 
 export default function App() {
-  const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('selection');
+  const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

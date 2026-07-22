@@ -2844,7 +2844,7 @@ function DigitalMenu() {
               'Desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=500&h=300&fit=crop',
               'Boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=500&h=300&fit=crop'
             };
-            const imageSrc = item.image || defaultImages[item.category];
+            const imageSrc = (item as any).image || defaultImages[item.category];
             
             return isPreviewMode ? (
               <div key={item.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
@@ -2852,7 +2852,7 @@ function DigitalMenu() {
                   <img src={imageSrc} alt={item.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                   
                   <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <button onClick={() => playVideo(item.video)} className="p-4 bg-white/95 backdrop-blur-sm rounded-full text-indigo-600 hover:scale-110 transition-transform shadow-lg">
+                     <button onClick={() => playVideo((item as any).video)} className="p-4 bg-white/95 backdrop-blur-sm rounded-full text-indigo-600 hover:scale-110 transition-transform shadow-lg">
                        <MonitorPlay size={28} className="ml-1" />
                      </button>
                   </div>

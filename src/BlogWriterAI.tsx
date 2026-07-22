@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save } from 'lucide-react';
+import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export default function BlogWriterAI() {
@@ -20,6 +20,10 @@ export default function BlogWriterAI() {
   const [editTopic, setEditTopic] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('https://hook.eu1.make.com/vho6csmodvbnb6te53clnm4yra5cngt3');
+  const [isPublishing, setIsPublishing] = useState<string | null>(null);
 
   const availableImages = [
     "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
@@ -42,6 +46,20 @@ export default function BlogWriterAI() {
       }));
       setSavedArticles(articles);
     });
+
+    const loadWebhook = async () => {
+      try {
+        const docRef = doc(db, "settings", "webhook");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().url) {
+          setWebhookUrl(docSnap.data().url);
+        }
+      } catch (e) {
+        console.error("Failed to load webhook URL", e);
+      }
+    };
+    loadWebhook();
+
 
     return () => unsubscribe();
   }, []);
@@ -74,7 +92,7 @@ export default function BlogWriterAI() {
       }
 
       // Auto-save to Firestore
-      await addDoc(collection(db, 'blog_posts'), {
+      const docRef = await addDoc(collection(db, 'blog_posts'), {
         topic,
         keywords,
         content: data.article,
@@ -83,6 +101,32 @@ export default function BlogWriterAI() {
       });
 
       showToast('Article généré et sauvegardé avec succès !');
+
+      // Auto-publish via Webhook if configured
+      if (webhookUrl) {
+        try {
+          fetch(webhookUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: docRef.id,
+              topic,
+              keywords,
+              content: data.article,
+              imageUrl: finalImageUrl
+            })
+          }).then(response => {
+            if (response.ok || response.type === 'opaque') {
+              showToast("Article automatiquement publié via Webhook !");
+            }
+          }).catch(err => console.error("Auto-publish webhook failed:", err));
+        } catch (e) {
+          console.error("Auto-publish dispatch failed", e);
+        }
+      }
+      
     } catch (error) {
       console.error(error);
       showToast("Erreur lors de la génération de l'article.");
@@ -96,6 +140,57 @@ export default function BlogWriterAI() {
     setCopied(true);
     showToast('Article copié dans le presse-papiers');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSaveWebhook = async () => {
+    try {
+      await setDoc(doc(db, "settings", "webhook"), { url: webhookUrl });
+      showToast("URL Webhook sauvegardée");
+      setIsSettingsOpen(false);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de la sauvegarde du webhook");
+    }
+  };
+
+  const handlePublish = async (article: any) => {
+    if (!webhookUrl) {
+      showToast("Veuillez configurer l'URL du webhook Make/Zapier d'abord", "error");
+      return;
+    }
+    setIsPublishing(article.id);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: article.id,
+          topic: article.topic,
+          keywords: article.keywords,
+          content: article.content,
+          imageUrl: article.imageUrl
+        })
+      });
+      
+      // Even if response is opaque (no-cors), we might not get ok=true, but we assume it worked.
+      // Make/Zapier usually accept no-cors, but to read response we need cors.
+      // For now, we'll just check ok or let it throw if network fails.
+      // Note: If using mode: 'no-cors', response.type is 'opaque' and ok is false.
+      // But let's try standard cors first.
+      
+      if (response.ok || response.type === 'opaque') {
+        showToast("Article publié avec succès via Webhook !");
+      } else {
+        throw new Error("Webhook returned " + response.status);
+      }
+    } catch (error) {
+      console.error("Webhook error:", error);
+      showToast("Erreur lors de la publication via Webhook", "error");
+    } finally {
+      setIsPublishing(null);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -146,14 +241,23 @@ export default function BlogWriterAI() {
       className="space-y-8"
     >
       <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-[#DDA956]/10 text-[#DDA956] rounded-xl">
-            <PenTool size={24} />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#DDA956]/10 text-[#DDA956] rounded-xl">
+              <PenTool size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-serif text-[#1A1A1A]">Rédaction Blog Automatique</h2>
+              <p className="text-gray-500 mt-1">Générez des articles de blog immersifs et poétiques pour Mouda Palace</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-serif text-[#1A1A1A]">Rédaction Blog Automatique</h2>
-            <p className="text-gray-500 mt-1">Générez des articles de blog immersifs et poétiques pour Mouda Palace</p>
-          </div>
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 text-gray-400 hover:text-[#DDA956] hover:bg-[#DDA956]/10 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Settings size={20} />
+            <span className="text-sm font-medium hidden md:inline">Webhook</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -308,6 +412,14 @@ export default function BlogWriterAI() {
                     </h3>
                     <div className="flex gap-2">
                       <button 
+                        onClick={() => handlePublish(article)}
+                        disabled={isPublishing === article.id}
+                        className="text-gray-400 hover:text-green-500 disabled:opacity-50 transition-colors p-1"
+                        title="Publier via Webhook"
+                      >
+                        {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      </button>
+                      <button 
                         onClick={() => handleEditClick(article)}
                         className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
                         title="Éditer"
@@ -448,6 +560,49 @@ export default function BlogWriterAI() {
               >
                 <Save size={18} />
                 Enregistrer
+              </button>
+            </div>
+          </motion.div>
+        </div>, document.body
+      )}
+
+      {/* Modal Webhook */}
+      {isSettingsOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#DDA956]" /> Webhook Config</h2>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-500">
+                Configurez l'URL du webhook Make ou Zapier pour automatiser la publication des articles sur votre blog.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">URL du Webhook</label>
+                <input
+                  type="text"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://hook.eu1.make.com/..."
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setIsSettingsOpen(false)} className="px-6 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-gray-200 transition-colors">
+                Annuler
+              </button>
+              <button onClick={handleSaveWebhook} className="px-6 py-2.5 rounded-xl font-medium text-white bg-[#1A1A1A] hover:bg-[#2a2a2a] shadow-lg shadow-[#1A1A1A]/20 flex items-center gap-2 transition-all">
+                <Save size={18} /> Enregistrer
               </button>
             </div>
           </motion.div>

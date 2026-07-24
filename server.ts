@@ -115,6 +115,8 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          "Accept": "application/json",
           ...(headers || {})
         },
         body: JSON.stringify(payload)
@@ -124,7 +126,13 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
         const data = await response.json().catch(() => ({}));
         res.json({ success: true, data });
       } else {
-        const err = await response.json().catch(() => null);
+        const text = await response.text().catch(() => null);
+        let err = text;
+        try {
+          if (text) err = JSON.parse(text);
+        } catch(e) {}
+        
+        console.error("Publish failed:", response.status, err);
         res.status(response.status).json({ 
           error: "Publish failed", 
           details: err || response.statusText 

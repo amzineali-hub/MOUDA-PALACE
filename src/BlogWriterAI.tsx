@@ -229,7 +229,18 @@ export default function BlogWriterAI() {
           publishedSuccessfully = true;
         } else {
           const err = await wpResponse.json();
-          throw new Error(err.details?.message || "Erreur WordPress API via proxy");
+          let msg = "Erreur de publication";
+          if (err.details) {
+            if (typeof err.details === 'string') msg = err.details;
+            else if (err.details.message) msg = err.details.message;
+            else msg = JSON.stringify(err.details);
+          }
+          
+          if (msg.includes("not allowed to create posts") || wpResponse.status === 401) {
+             throw new Error("Authentification refusée (401) : 1. Vérifiez que l'identifiant (Nom d'utilisateur) et le 'Mot de passe d'application' sont corrects. 2. IMPORTANT : Certains hébergeurs bloquent l'authentification API. Vous devrez peut-être ajouter une règle dans votre fichier .htaccess (SetEnvIf Authorization \"(.*)\" HTTP_AUTHORIZATION=$1).");
+          }
+          
+          throw new Error(msg);
         }
       } 
       // Fallback to webhook

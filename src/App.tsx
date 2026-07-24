@@ -89,6 +89,7 @@ import {
   PenTool,
   Timer,
   Info,
+  ChevronDown,
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
@@ -98,6 +99,9 @@ import { collection, query, onSnapshot, doc, getDoc, setDoc } from 'firebase/fir
 import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
 import Documentation from "./Documentation";
+import AchatsFournisseurs from "./AchatsFournisseurs";
+import Recettes from "./Recettes";
+import GestionTables from "./GestionTables";
 
 function ReviewAnalyzer() {
   const [review, setReview] = useState("");
@@ -348,10 +352,49 @@ function InventoryAlerts() {
   );
 }
 
+const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
+  <div className="mb-2">
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
+        isExpanded 
+          ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20' 
+          : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        {icon}
+        <span className="tracking-wide">{title}</span>
+      </div>
+      <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+    </button>
+    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[400px] mt-2 opacity-100' : 'max-h-0 opacity-0'}`}>
+      <div className="flex flex-col space-y-1 pl-4 border-l-2 border-[#DDA956]/20 ml-6 py-1">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
+const SubNavItem = ({ icon, label, active, onClick }: any) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium w-full text-left ${
+      active 
+        ? 'bg-[#333] text-white shadow-sm' 
+        : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-[#E8E6E1]'
+    }`}
+  >
+    <span className={`${active ? 'text-[#DDA956]' : 'text-gray-500'}`}>{icon}</span>
+    {label}
+  </button>
+);
+
 export default function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
@@ -439,6 +482,12 @@ export default function App() {
         return <Documentation />;
       case 'config':
         return <Configuration />;
+      case 'achats':
+        return <AchatsFournisseurs />;
+      case 'recettes':
+        return <Recettes />;
+      case 'tables':
+        return <GestionTables />;
       default:
         return <Overview setActiveTab={setActiveTab} />;
     }
@@ -530,23 +579,88 @@ export default function App() {
           )}
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <NavItem icon={<TrendingUp size={18} />} label="Vue d'ensemble" active={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
-          <NavItem icon={<CalendarCheck size={18} />} label="Réservations (CRM)" active={activeTab === 'reservations'} onClick={() => handleTabChange('reservations')} />
-          <NavItem icon={<ConciergeBell size={18} />} label="Portail B2B Riads" active={activeTab === 'b2b'} onClick={() => handleTabChange('b2b')} />
-          <NavItem icon={<MessageCircle size={18} />} label="WhatsApp & IA" active={activeTab === 'whatsapp'} onClick={() => handleTabChange('whatsapp')} />
-          <NavItem icon={<PenTool size={18} />} label="Rédaction Blog Automatique" active={activeTab === 'blog'} onClick={() => handleTabChange('blog')} />
-          <NavItem icon={<UtensilsCrossed size={18} />} label="Menu Digital" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
-          <NavItem icon={<ChefHat size={18} />} label="Production & Stocks Cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
-          <NavItem icon={<Users size={18} />} label="Staff & RH" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
-          <NavItem icon={<Wallet size={18} />} label="Caisse (TacSystems)" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
-          <NavItem icon={<Receipt size={18} />} label="Facturation & Compta" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
-        </nav>
+        <div className="flex-1 overflow-y-auto pr-2 pb-8 scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-transparent">
+          <div className="mb-4 text-[#DDA956] font-serif text-lg tracking-wider font-semibold border-b border-[#333] pb-2">
+            Tableau de Bord
+          </div>
+          
+          <button
+            onClick={() => handleTabChange('overview')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
+              activeTab === 'overview'
+                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+            }`}
+          >
+            <TrendingUp size={18} />
+            <span>Vue d'ensemble</span>
+          </button>
 
-        <div className="mt-auto pt-8">
-          <NavItem icon={<BookOpen size={18} />} label="Centre de Doc" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
-          <NavItem icon={<Settings size={18} />} label="Configuration" active={activeTab === 'config'} onClick={() => handleTabChange('config')} />
-          <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-[#333]">
+          <NavCategory 
+            title="Production" 
+            icon={<ChefHat size={18} />} 
+            isExpanded={expandedCategory === 'production'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
+          >
+            <SubNavItem icon={<ChefHat size={16} />} label="Production cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+            <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
+            <SubNavItem icon={<UtensilsCrossed size={16} />} label="Recettes et stocks" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
+          </NavCategory>
+
+          <NavCategory 
+            title="Clientèle" 
+            icon={<Users size={18} />} 
+            isExpanded={expandedCategory === 'clientele'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'clientele' ? null : 'clientele')}
+          >
+            <SubNavItem icon={<CalendarCheck size={16} />} label="Réservations" active={activeTab === 'reservations'} onClick={() => handleTabChange('reservations')} />
+            <SubNavItem icon={<UtensilsCrossed size={16} />} label="Menus digitaux" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
+            <SubNavItem icon={<ConciergeBell size={16} />} label="Tables" active={activeTab === 'tables'} onClick={() => handleTabChange('tables')} />
+            <SubNavItem icon={<Globe size={16} />} label="Partenaires B2B" active={activeTab === 'b2b'} onClick={() => handleTabChange('b2b')} />
+          </NavCategory>
+
+          <NavCategory 
+            title="Gestion comptabilité" 
+            icon={<Briefcase size={18} />} 
+            isExpanded={expandedCategory === 'gestion'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'gestion' ? null : 'gestion')}
+          >
+            <SubNavItem icon={<Receipt size={16} />} label="Comptabilité" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
+            <SubNavItem icon={<Wallet size={16} />} label="Finances / Caisse" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
+            <SubNavItem icon={<Users size={16} />} label="RH personnel" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
+          </NavCategory>
+
+          <NavCategory 
+            title="Configurations" 
+            icon={<Settings size={18} />} 
+            isExpanded={expandedCategory === 'config_cat'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'config_cat' ? null : 'config_cat')}
+          >
+            <SubNavItem icon={<MessageCircle size={16} />} label="WhatsApp & IA" active={activeTab === 'whatsapp'} onClick={() => handleTabChange('whatsapp')} />
+            <SubNavItem icon={<Settings size={16} />} label="API & Paramètres" active={activeTab === 'config'} onClick={() => handleTabChange('config')} />
+          </NavCategory>
+
+          <NavCategory 
+            title="Rédaction et SEO" 
+            icon={<PenTool size={18} />} 
+            isExpanded={expandedCategory === 'seo'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'seo' ? null : 'seo')}
+          >
+            <SubNavItem icon={<PenTool size={16} />} label="Articles du blog" active={activeTab === 'blog'} onClick={() => handleTabChange('blog')} />
+          </NavCategory>
+
+          <NavCategory 
+            title="Documentation" 
+            icon={<BookOpen size={18} />} 
+            isExpanded={expandedCategory === 'docs_cat'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'docs_cat' ? null : 'docs_cat')}
+          >
+            <SubNavItem icon={<BookOpen size={16} />} label="Centre de Doc" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
+          </NavCategory>
+        </div>
+
+        <div className="mt-auto pt-4 border-t border-[#333]">
+          <div className="flex items-center justify-between gap-3">
             {user ? (
               <>
                 <div className="flex items-center gap-3">
@@ -5793,6 +5907,10 @@ function Configuration() {
                   <li>Saisissez un nom (ex: "SaaS Mouda Palace") et cliquez sur <strong>Ajouter un nouveau mot de passe</strong>.</li>
                   <li>Copiez le mot de passe généré et collez-le ci-dessous. <em>(Ne l'utilisez pas pour vous connecter à WordPress manuellement)</em>.</li>
                 </ol>
+                <div className="mt-3 text-xs text-blue-700 bg-blue-100/50 p-2 rounded">
+                  <strong>⚠️ Erreur 401 lors de la publication ?</strong> Si vos identifiants sont corrects, votre hébergeur bloque probablement les requêtes API. Ajoutez cette ligne au début de votre fichier <code>.htaccess</code> à la racine de votre site : <br/>
+                  <code className="select-all bg-white px-2 py-1 mt-2 inline-block rounded border border-blue-200">SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1</code>
+                </div>
               </div>
 
               <div className="space-y-6">

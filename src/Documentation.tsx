@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, BookOpen, ChevronRight, FileText, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Search, BookOpen, ChevronRight, FileText, MessageCircle, ArrowLeft, CalendarCheck, ChefHat, Users, Receipt, Megaphone } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 const categories = [
   { id: 'all', label: 'Tous', icon: <BookOpen size={16} /> },
   { id: 'start', label: 'Démarrage', icon: <FileText size={16} /> },
-  { id: 'reservations', label: 'Réservations & CRM', icon: <ChevronRight size={16} /> },
-  { id: 'marketing', label: 'Marketing & IA', icon: <ChevronRight size={16} /> },
-  { id: 'kitchen', label: 'Cuisine', icon: <ChevronRight size={16} /> },
-  { id: 'staff', label: 'Ressources Humaines', icon: <ChevronRight size={16} /> },
-  { id: 'accounting', label: 'Finance', icon: <ChevronRight size={16} /> },
+  { id: 'reservations', label: 'Réservations & CRM', icon: <CalendarCheck size={16} /> },
+  { id: 'marketing', label: 'Marketing & IA', icon: <Megaphone size={16} /> },
+  { id: 'kitchen', label: 'Cuisine', icon: <ChefHat size={16} /> },
+  { id: 'staff', label: 'Ressources Humaines', icon: <Users size={16} /> },
+  { id: 'accounting', label: 'Finance', icon: <Receipt size={16} /> },
 ];
 
 const guides = [
@@ -224,9 +224,14 @@ export default function Documentation() {
 
   const filteredGuides = guides.filter(guide => {
     const matchesCategory = activeCategory === 'all' || guide.category === activeCategory;
-    const matchesSearch = guide.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          guide.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (guide.content && guide.content.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
+    const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
+      guide.title.toLowerCase().includes(term) || 
+      guide.description.toLowerCase().includes(term) ||
+      (guide.content && guide.content.toLowerCase().includes(term))
+    );
+    
     return matchesCategory && matchesSearch;
   });
 

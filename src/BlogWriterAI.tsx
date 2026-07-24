@@ -199,22 +199,29 @@ export default function BlogWriterAI() {
           .replace(/^### (.*$)/gim, '<h3>$1</h3>')
           .replace(/^## (.*$)/gim, '<h2>$1</h2>')
           .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
           .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
           .replace(/\*(.*?)\*/gim, '<em>$1</em>')
           .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
           .replace(/\n\n/gim, '<br><br>')
           .replace(/\n/gim, '<br>');
 
-        const wpResponse = await fetch(`${cleanUrl}/wp-json/wp/v2/posts`, {
+        const wpResponse = await fetch(`/api/publish-content`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`)
           },
           body: JSON.stringify({
-            title: article.topic,
-            content: htmlContent, 
-            status: 'publish'
+            type: "wordpress",
+            url: `${cleanUrl}/wp-json/wp/v2/posts`,
+            headers: {
+              "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`)
+            },
+            payload: {
+              title: article.topic,
+              content: htmlContent, 
+              status: 'publish'
+            }
           })
         });
         
@@ -222,29 +229,33 @@ export default function BlogWriterAI() {
           publishedSuccessfully = true;
         } else {
           const err = await wpResponse.json();
-          throw new Error(err.message || "Erreur WordPress API");
+          throw new Error(err.details?.message || "Erreur WordPress API via proxy");
         }
       } 
       // Fallback to webhook
       else if (webhookUrl) {
         method = 'Webhook';
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(`/api/publish-content`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            id: article.id,
-            topic: article.topic,
-            keywords: article.keywords,
-            content: article.content,
-            imageUrl: article.imageUrl
+            type: "webhook",
+            url: webhookUrl,
+            payload: {
+              id: article.id,
+              topic: article.topic,
+              keywords: article.keywords,
+              content: article.content,
+              imageUrl: article.imageUrl
+            }
           })
         });
-        if (response.ok || response.type === 'opaque') {
+        if (response.ok) {
           publishedSuccessfully = true;
         } else {
-          throw new Error("Webhook returned " + response.status);
+          throw new Error("Webhook returned error via proxy");
         }
       }
 

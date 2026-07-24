@@ -102,6 +102,40 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
     }
   });
 
+  // API Route for Webhook & WordPress publishing
+  app.post("/api/publish-content", async (req, res) => {
+    try {
+      const { type, url, payload, headers } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "Missing URL" });
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(headers || {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        res.json({ success: true, data });
+      } else {
+        const err = await response.json().catch(() => null);
+        res.status(response.status).json({ 
+          error: "Publish failed", 
+          details: err || response.statusText 
+        });
+      }
+    } catch (error) {
+      console.error("Error publishing content:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
   // API Route for Menu Translation
   app.post("/api/translate-menu", async (req, res) => {
     try {

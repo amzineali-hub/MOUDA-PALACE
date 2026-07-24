@@ -209,7 +209,7 @@ export default function BlogWriterAI() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password}`)
+            "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`)
           },
           body: JSON.stringify({
             title: article.topic,

@@ -1,25 +1,45 @@
-import React, { useState } from 'react';
-import { Search, FileText, ChevronRight, BookOpen, Settings, PlayCircle, Users, Coffee, CalendarCheck, MessageCircle, FileDigit } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, BookOpen, ChevronRight, FileText, MessageCircle, ArrowLeft } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const categories = [
-  { id: 'all', label: 'Tout', icon: <FileText size={16} /> },
-  { id: 'start', label: 'Démarrage', icon: <PlayCircle size={16} /> },
-  { id: 'reservations', label: 'Réservations & CRM', icon: <CalendarCheck size={16} /> },
-  { id: 'staff', label: 'Personnes & Administration', icon: <Users size={16} /> },
-  { id: 'kitchen', label: 'Cuisine & Stocks', icon: <Coffee size={16} /> },
-  { id: 'marketing', label: 'Marketing & IA', icon: <MessageCircle size={16} /> },
-  { id: 'accounting', label: 'Facturation & Compta', icon: <FileDigit size={16} /> },
+  { id: 'all', label: 'Tous', icon: <BookOpen size={16} /> },
+  { id: 'start', label: 'Démarrage', icon: <FileText size={16} /> },
+  { id: 'reservations', label: 'Réservations & CRM', icon: <ChevronRight size={16} /> },
+  { id: 'marketing', label: 'Marketing & IA', icon: <ChevronRight size={16} /> },
+  { id: 'kitchen', label: 'Cuisine', icon: <ChevronRight size={16} /> },
+  { id: 'staff', label: 'Ressources Humaines', icon: <ChevronRight size={16} /> },
+  { id: 'accounting', label: 'Finance', icon: <ChevronRight size={16} /> },
 ];
 
 const guides = [
   {
     id: 1,
-    title: 'Premiers Pas',
-    description: 'Guide de démarrage : connexion, tableau de bord, navigation générale et paramétrage de votre profil.',
+    title: 'Premiers pas avec Mouda Palace SaaS',
+    description: 'Découvrez l\'interface principale, le tableau de bord, navigation générale et paramétrage de votre profil.',
     level: 'Débutant',
     steps: 5,
     category: 'start',
-    link: '#'
+    content: `
+# Premiers pas avec Mouda Palace SaaS
+
+Bienvenue dans votre nouvel outil de gestion hôtelière. Ce guide vous aidera à démarrer rapidement.
+
+## 1. Le Tableau de bord
+Votre point d'entrée centralisé. Ici, vous retrouverez :
+- Vos indicateurs clés (Taux d'occupation, Revenus)
+- Les arrivées et départs du jour
+- Les notifications importantes
+
+## 2. Navigation
+Utilisez la barre latérale gauche pour naviguer entre les différents modules :
+- **Réservations** : Pour la gestion de vos chambres et clients.
+- **Menu Digital** : Gérez la carte du restaurant.
+- **WhatsApp & IA** : Votre assistant IA pour la communication client.
+
+## 3. Paramètres
+N'oubliez pas de configurer votre profil et vos préférences dans l'onglet **Configuration** en bas de la barre latérale.
+    `
   },
   {
     id: 2,
@@ -28,7 +48,19 @@ const guides = [
     level: 'Débutant',
     steps: 4,
     category: 'reservations',
-    link: '#'
+    content: `
+# Gestion des Réservations
+
+## Ajouter une réservation
+1. Allez dans le module **Réservations (CRM)**.
+2. Cliquez sur le bouton **Nouvelle Réservation**.
+3. Remplissez les informations du client (Nom, Email, Téléphone).
+4. Sélectionnez les dates de séjour et le type de chambre.
+5. Cliquez sur **Enregistrer**.
+
+## Visualisation
+Vous pouvez voir vos réservations sous forme de liste ou sur le calendrier. Le code couleur vous indique le statut (Confirmé, En attente, Annulé).
+    `
   },
   {
     id: 3,
@@ -37,7 +69,17 @@ const guides = [
     level: 'Intermédiaire',
     steps: 6,
     category: 'reservations',
-    link: '#'
+    content: `
+# Portail B2B Riads
+
+Le portail B2B vous permet de gérer vos partenaires (Riads, Conciergeries) et leurs commissions.
+
+## Ajouter un partenaire
+Dans le module B2B, ajoutez un nouveau partenaire et définissez son taux de commission (ex: 10%).
+
+## Suivi des commissions
+Chaque fois qu'une réservation est apportée par un partenaire, liez-la à son compte. Le système calculera automatiquement les commissions dues à la fin du mois.
+    `
   },
   {
     id: 4,
@@ -46,7 +88,17 @@ const guides = [
     level: 'Avancé',
     steps: 7,
     category: 'marketing',
-    link: '#'
+    content: `
+# Automatisation WhatsApp & IA
+
+Ce module permet de communiquer efficacement avec vos clients via WhatsApp en utilisant notre IA.
+
+## Configuration
+Assurez-vous que votre numéro WhatsApp Business est bien lié dans les **Paramètres**.
+
+## Réponses IA
+L'IA peut répondre automatiquement aux questions fréquentes (Horaires, Adresse, Menu). Vous pouvez personnaliser le comportement de l'IA dans la section Configuration du module WhatsApp.
+    `
   },
   {
     id: 5,
@@ -55,7 +107,19 @@ const guides = [
     level: 'Intermédiaire',
     steps: 4,
     category: 'marketing',
-    link: '#'
+    content: `
+# Création d'Articles de Blog (IA)
+
+Générez facilement du contenu optimisé SEO pour votre site web.
+
+## Générer un article
+1. Allez dans **Rédaction Blog Automatique**.
+2. Entrez un sujet et d'éventuels mots-clés.
+3. Cliquez sur "Générer l'article".
+
+## Publier
+Une fois l'article généré et revu, vous pouvez le publier directement sur votre site WordPress ou via Webhook en cliquant sur **Publier**.
+    `
   },
   {
     id: 6,
@@ -64,7 +128,17 @@ const guides = [
     level: 'Avancé',
     steps: 8,
     category: 'kitchen',
-    link: '#'
+    content: `
+# Gestion des Stocks & Recettes
+
+Maintenez vos stocks à jour et suivez vos coûts de production.
+
+## Fiches techniques
+Créez des fiches pour chaque plat avec les ingrédients nécessaires pour calculer automatiquement le coût de revient.
+
+## Alertes
+Définissez un seuil minimum pour chaque ingrédient afin d'être notifié quand il faut recommander.
+    `
   },
   {
     id: 7,
@@ -73,7 +147,19 @@ const guides = [
     level: 'Débutant',
     steps: 3,
     category: 'marketing',
-    link: '#'
+    content: `
+# Menu Digital QR Code
+
+Votre menu accessible instantanément par vos clients.
+
+## Modifier la carte
+1. Allez dans **Menu Digital**.
+2. Ajoutez, modifiez ou supprimez des plats.
+3. En cas de rupture de stock, vous pouvez désactiver un plat en un clic.
+
+## Générer le QR Code
+Téléchargez le QR Code depuis l'interface pour l'imprimer et le placer sur vos tables.
+    `
   },
   {
     id: 8,
@@ -82,7 +168,17 @@ const guides = [
     level: 'Intermédiaire',
     steps: 5,
     category: 'staff',
-    link: '#'
+    content: `
+# Gestion du Personnel (RH)
+
+Gérez efficacement votre équipe.
+
+## Plannings
+Créez les plannings hebdomadaires et assignez les rôles (Matin, Soir, Coupure).
+
+## Absences et Congés
+Suivez les demandes de congés et enregistrez les absences pour la paie.
+    `
   },
   {
     id: 9,
@@ -91,7 +187,14 @@ const guides = [
     level: 'Intermédiaire',
     steps: 4,
     category: 'accounting',
-    link: '#'
+    content: `
+# Caisse & Clôture
+
+Gérez vos encaissements quotidiens.
+
+## Clôture journalière
+En fin de journée, procédez à la clôture de caisse pour vérifier les espèces, paiements TPE et transferts.
+    `
   },
   {
     id: 10,
@@ -100,18 +203,30 @@ const guides = [
     level: 'Avancé',
     steps: 6,
     category: 'accounting',
-    link: '#'
+    content: `
+# Facturation & Comptabilité
+
+Centralisez vos factures.
+
+## Créer une facture
+Générez facilement une facture depuis une réservation ou pour un client de passage.
+
+## Exports
+Exportez vos données de facturation au format CSV ou PDF pour votre comptable en fin de mois.
+    `
   }
 ];
 
 export default function Documentation() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeGuide, setActiveGuide] = useState<any>(null);
 
   const filteredGuides = guides.filter(guide => {
     const matchesCategory = activeCategory === 'all' || guide.category === activeCategory;
     const matchesSearch = guide.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          guide.description.toLowerCase().includes(searchQuery.toLowerCase());
+                          guide.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (guide.content && guide.content.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -124,11 +239,46 @@ export default function Documentation() {
     }
   };
 
+  if (activeGuide) {
+    return (
+      <div className="p-4 md:p-8 max-w-4xl mx-auto w-full space-y-6">
+        <button 
+          onClick={() => setActiveGuide(null)}
+          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition-colors mb-6"
+        >
+          <ArrowLeft size={18} /> Retour au centre
+        </button>
+
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="p-8 border-b border-gray-100 bg-gray-50/50">
+             <div className="flex items-center gap-3 mb-4">
+              <span className={`px-2.5 py-1 rounded-md text-xs font-bold tracking-wide ${getLevelColor(activeGuide.level)}`}>
+                {activeGuide.level}
+              </span>
+              <span className="bg-gray-200 text-gray-700 px-2.5 py-1 rounded-md text-xs font-semibold">
+                {activeGuide.steps} steps
+              </span>
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 mb-2">{activeGuide.title}</h1>
+            <p className="text-gray-500">{activeGuide.description}</p>
+          </div>
+          
+          <div className="p-8 prose prose-indigo max-w-none markdown-body">
+            {activeGuide.content ? (
+              <ReactMarkdown>{activeGuide.content}</ReactMarkdown>
+            ) : (
+              <p className="text-gray-400 italic">Contenu en cours de rédaction...</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
       {/* Header Section */}
       <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 rounded-2xl p-8 md:p-12 text-white shadow-lg relative overflow-hidden">
-        {/* Abstract background elements */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-white opacity-10 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-white opacity-10 blur-3xl"></div>
         
@@ -150,16 +300,26 @@ export default function Documentation() {
           </p>
           
           <div className="relative max-w-3xl">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Rechercher dans la documentation..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-11 pr-4 py-4 rounded-xl border-0 ring-4 ring-indigo-500/30 text-gray-900 placeholder-gray-400 focus:ring-4 focus:ring-amber-400/50 sm:text-lg shadow-inner bg-white transition-all"
-            />
+            <form onSubmit={(e) => e.preventDefault()} className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Rechercher dans la documentation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-11 pr-32 py-4 rounded-xl border-0 ring-4 ring-indigo-500/30 text-gray-900 placeholder-gray-400 focus:ring-4 focus:ring-amber-400/50 sm:text-lg shadow-inner bg-white transition-all"
+              />
+              <div className="absolute inset-y-0 right-2 flex items-center">
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  Chercher
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -204,7 +364,10 @@ export default function Documentation() {
             </p>
             
             <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-              <button className="text-indigo-600 font-semibold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+              <button 
+                onClick={() => setActiveGuide(guide)}
+                className="text-indigo-600 font-semibold text-sm flex items-center gap-1 group-hover:gap-2 transition-all"
+              >
                 Voir le guide <ChevronRight size={16} />
               </button>
             </div>

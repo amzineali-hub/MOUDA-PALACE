@@ -88,6 +88,7 @@ import {
   Award,
   PenTool,
   Timer,
+  Info,
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
@@ -5781,6 +5782,19 @@ function Configuration() {
               <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#1A1A1A]">Configuration du site web</h3>
               <p className="text-sm text-gray-500 mb-6">Paramétrez les accès à votre site WordPress (moudapalace.com) et les webhooks d'automatisation (Make.com, Zapier).</p>
               
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+                <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                  <Info size={18} /> Comment configurer l'accès WordPress ?
+                </h4>
+                <ol className="list-decimal list-inside text-sm text-blue-800 space-y-1.5 ml-1">
+                  <li>Connectez-vous à l'administration de votre site WordPress (avec votre mot de passe <strong>habituel</strong>).</li>
+                  <li>Allez dans le menu <strong>Utilisateurs &gt; Profil</strong> (en haut à droite).</li>
+                  <li>Descendez jusqu'à la section <strong>Mots de passe d'application</strong>.</li>
+                  <li>Saisissez un nom (ex: "SaaS Mouda Palace") et cliquez sur <strong>Ajouter un nouveau mot de passe</strong>.</li>
+                  <li>Copiez le mot de passe généré et collez-le ci-dessous. <em>(Ne l'utilisez pas pour vous connecter à WordPress manuellement)</em>.</li>
+                </ol>
+              </div>
+
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">URL du site</label>

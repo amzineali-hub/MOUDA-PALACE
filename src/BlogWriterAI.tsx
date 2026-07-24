@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send } from 'lucide-react';
+import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import SeoAnalytics from './components/SeoAnalytics';
 
 export default function BlogWriterAI() {
+  const [activeTab, setActiveTab] = useState<'generator' | 'analytics'>('generator');
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -339,8 +341,8 @@ export default function BlogWriterAI() {
               <PenTool size={24} />
             </div>
             <div>
-              <h2 className="text-2xl font-serif text-[#1A1A1A]">Rédaction Blog Automatique</h2>
-              <p className="text-gray-500 mt-1">Générez des articles de blog immersifs et poétiques pour Mouda Palace</p>
+              <h2 className="text-2xl font-serif text-[#1A1A1A]">Rédaction et SEO</h2>
+              <p className="text-gray-500 mt-1">Générez des articles de blog optimisés et poétiques pour Mouda Palace</p>
             </div>
           </div>
           <button 
@@ -350,6 +352,54 @@ export default function BlogWriterAI() {
             <Settings size={20} />
             <span className="text-sm font-medium hidden md:inline">Webhook</span>
           </button>
+        </div>
+
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4"
+          >
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FileText size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Articles Publiés</p>
+              <h3 className="text-2xl font-bold text-gray-900">{savedArticles.length}</h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4"
+          >
+            <div className="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
+              <MousePointerClick size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Taux de Clics (CTR) Moyen</p>
+              <h3 className="text-2xl font-bold text-gray-900">4.2%</h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4"
+          >
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Award size={24} />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Mots-clés dans le Top 10</p>
+              <h3 className="text-2xl font-bold text-gray-900">12</h3>
+            </div>
+          </motion.div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -581,7 +631,7 @@ export default function BlogWriterAI() {
           )}
         </div>
       </div>
-      
+
       {/* Modal d'édition */}
       {editingArticleId && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

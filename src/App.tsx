@@ -90,6 +90,7 @@ import {
   Timer,
   Info,
   ChevronDown,
+  BarChart2,
 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
@@ -98,6 +99,7 @@ import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc } from 'firebase/firestore';
 import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
+import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
 import Documentation from "./Documentation";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import Recettes from "./Recettes";
@@ -468,6 +470,8 @@ export default function App() {
         return <WhatsAppAI />;
       case 'blog':
         return <BlogWriterAI />;
+      case 'seo_analytics':
+        return <SeoAnalyticsContainer />;
       case 'menu':
         return <DigitalMenu />;
       case 'inventory':
@@ -647,6 +651,7 @@ export default function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'seo' ? null : 'seo')}
           >
             <SubNavItem icon={<PenTool size={16} />} label="Articles du blog" active={activeTab === 'blog'} onClick={() => handleTabChange('blog')} />
+            <SubNavItem icon={<BarChart2 size={16} />} label="Analytics SEO" active={activeTab === 'seo_analytics'} onClick={() => handleTabChange('seo_analytics')} />
           </NavCategory>
 
           <NavCategory 

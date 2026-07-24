@@ -402,16 +402,30 @@ export default function App() {
   const { showToast } = useToast();
 
   const searchItems = [
-    { type: 'Réservation', text: 'Table 4 - Dîner (20:00) - M. Dupont' },
-    { type: 'Réservation', text: 'Table 12 - Dîner (19:30) - Mme. Martin' },
-    { type: 'Inventaire', text: 'Safran de Taliouine - 50g' },
-    { type: 'Inventaire', text: 'Huile d\'Argan Culinaire - 5L' },
-    { type: 'Inventaire', text: 'Viande d\'Agneau - 20kg' },
-    { type: 'Réservation', text: 'Événement Privé (21:00) - 15 personnes' }
+    { type: 'Navigation', text: 'Vue d\'ensemble', tab: 'overview', keywords: ['dashboard', 'accueil', 'home', 'statistiques'] },
+    { type: 'Production', text: 'Production cuisine', tab: 'inventory', keywords: ['inventaire', 'produits', 'ingrédients', 'marchandise', 'stock'] },
+    { type: 'Production', text: 'Achats fournisseurs', tab: 'achats', keywords: ['commandes', 'dépenses', 'fournitures', 'achats'] },
+    { type: 'Production', text: 'Recettes et stocks', tab: 'recettes', keywords: ['cuisine', 'préparation', 'ingrédients', 'tajine', 'couscous', 'recette', 'fiche technique'] },
+    { type: 'Clientèle', text: 'Réservations', tab: 'reservations', keywords: ['clients', 'table', 'dîner', 'déjeuner', 'réserver'] },
+    { type: 'Clientèle', text: 'Menus digitaux', tab: 'menu', keywords: ['carte', 'plats', 'boissons', 'desserts', 'tajine', 'couscous', 'pastilla', 'menu'] },
+    { type: 'Clientèle', text: 'Tables', tab: 'tables', keywords: ['plan', 'salle', 'service', 'placement'] },
+    { type: 'Clientèle', text: 'Partenaires B2B', tab: 'b2b', keywords: ['agences', 'tourisme', 'riad', 'hôtel', 'crm', 'partenaires'] },
+    { type: 'Gestion', text: 'Comptabilité', tab: 'accounting', keywords: ['finances', 'bilan', 'revenus', 'dépenses', 'chiffre d\'affaires', 'compta'] },
+    { type: 'Gestion', text: 'Finances / Caisse', tab: 'finance', keywords: ['pos', 'encaissement', 'factures', 'paiement', 'commandes', 'caisse'] },
+    { type: 'RH', text: 'RH personnel', tab: 'staff', keywords: ['employés', 'personnel', 'salaires', 'présence', 'équipe', 'rh', 'planning'] },
+    { type: 'Configuration', text: 'WhatsApp & IA', tab: 'whatsapp', keywords: ['chatbot', 'messages', 'auto-répondeur', 'ia'] },
+    { type: 'Configuration', text: 'API & Paramètres', tab: 'config', keywords: ['réglages', 'système', 'options', 'paramètres'] },
+    { type: 'Marketing', text: 'Articles du blog', tab: 'blog', keywords: ['seo', 'contenu', 'générateur', 'ia', 'blog', 'article'] },
+    { type: 'Marketing', text: 'Analytics SEO', tab: 'seo_analytics', keywords: ['référencement', 'trafic', 'stats seo', 'analytics'] },
+    { type: 'Documentation', text: 'Centre de Doc', tab: 'docs', keywords: ['guide', 'aide', 'procédures', 'manuel', 'recrutement'] }
   ];
 
   const filteredSearch = searchQuery.length > 0 
-    ? searchItems.filter(item => item.text.toLowerCase().includes(searchQuery.toLowerCase()) || item.type.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? searchItems.filter(item => 
+        item.text.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.keywords.some(kw => kw.includes(searchQuery.toLowerCase()))
+      )
     : [];
 
   const handleLogin = async () => {
@@ -501,9 +515,9 @@ export default function App() {
     <div className="min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative">
       {/* Mobile Header */}
       <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-50 sticky top-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div 
-             className="h-8 w-10 bg-[#DDA956]" 
+             className="h-10 w-12 bg-[#DDA956]" 
              style={{
               maskImage: 'url(/mouda.png)',
               maskSize: 'contain',
@@ -515,10 +529,10 @@ export default function App() {
               WebkitMaskPosition: 'center'
             }}
           />
-          <span className="font-serif font-normal tracking-[0.1em] uppercase text-sm text-white">Mouda Palace</span>
+          <span className="font-serif font-normal tracking-[0.1em] uppercase text-base text-white">Mouda Palace</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-[#E8E6E1] p-1">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
 
@@ -570,7 +584,7 @@ export default function App() {
               {filteredSearch.length > 0 ? (
                 <ul className="max-h-60 overflow-y-auto">
                   {filteredSearch.map((item, idx) => (
-                    <li key={idx} className="px-4 py-3 hover:bg-[#333] cursor-pointer transition-colors border-b border-[#333] last:border-0" onClick={() => { setSearchQuery(''); showToast(`Ouverture de: ${item.text}`); }}>
+                    <li key={idx} className="px-4 py-3 hover:bg-[#333] cursor-pointer transition-colors border-b border-[#333] last:border-0" onClick={() => { setSearchQuery(''); handleTabChange(item.tab); setIsMobileMenuOpen(false); }}>
                       <div className="text-xs text-[#DDA956] font-medium mb-1 uppercase tracking-wider">{item.type}</div>
                       <div className="text-sm text-[#E8E6E1]">{item.text}</div>
                     </li>

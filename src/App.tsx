@@ -104,6 +104,7 @@ import Documentation from "./Documentation";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import Recettes from "./Recettes";
 import GestionTables from "./GestionTables";
+import ChatBot from './components/ChatBot';
 
 function ReviewAnalyzer() {
   const [review, setReview] = useState("");
@@ -537,7 +538,7 @@ export default function App() {
       </div>
 
       {/* Sidebar Navigation */}
-      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
+      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
             className="h-24 w-32 mb-4 bg-[#DDA956]" 
@@ -706,9 +707,11 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative bg-[#FDFBF7] min-h-screen">
+      <main className="flex-1 min-w-0 relative bg-[#FDFBF7] min-h-screen">
         {renderContent()}
       </main>
+
+      <ChatBot />
     </div>
   );
 }
@@ -3312,13 +3315,31 @@ function Inventory() {
     { item: "Pâte à Pastilla", qty: "40 feuilles", progress: 0, status: "À faire", priority: "Haute" }
   ]);
 
-  const stockItems = [
-    { id: 'INV-001', name: 'Safran de Taliouine', category: 'Épices', supplier: 'Coopérative Taliouine', quantity: 250, unit: 'g', minStock: 100 },
-    { id: 'INV-002', name: 'Huile d\'Olive Vierge Extra', category: 'Épicerie', supplier: 'Ferme Atlas', quantity: 15, unit: 'L', minStock: 20 },
-    { id: 'INV-003', name: 'Viande d\'Agneau (Épaule)', category: 'Viandes', supplier: 'Boucherie Médina', quantity: 45, unit: 'kg', minStock: 20 },
-    { id: 'INV-004', name: 'Menthe Fraîche', category: 'Herbes', supplier: 'Marché Central', quantity: 2, unit: 'kg', minStock: 5 },
-    { id: 'INV-005', name: 'Amandes Émondées', category: 'Fruits Secs', supplier: 'Grossiste Fès', quantity: 12, unit: 'kg', minStock: 10 }
-  ].map(item => ({ ...item, status: calculateStockStatus(item.quantity, item.minStock) }));
+  const [categories, setCategories] = useState(() => {
+    const saved = localStorage.getItem('inventoryCategories');
+    return saved ? JSON.parse(saved) : ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes'];
+  });
+  
+  const [stockItemsData, setStockItemsData] = useState(() => {
+    const saved = localStorage.getItem('inventoryItems');
+    return saved ? JSON.parse(saved) : [
+      { id: 'INV-001', name: 'Safran de Taliouine', category: 'Épices', supplier: 'Coopérative Taliouine', quantity: 250, unit: 'g', minStock: 100, requiredQty: 150 },
+      { id: 'INV-002', name: 'Huile d\'Olive Vierge Extra', category: 'Épicerie', supplier: 'Ferme Atlas', quantity: 15, unit: 'L', minStock: 20, requiredQty: 25 },
+      { id: 'INV-003', name: 'Viande d\'Agneau (Épaule)', category: 'Viandes', supplier: 'Boucherie Médina', quantity: 45, unit: 'kg', minStock: 20, requiredQty: 30 },
+      { id: 'INV-004', name: 'Menthe Fraîche', category: 'Herbes', supplier: 'Marché Central', quantity: 2, unit: 'kg', minStock: 5, requiredQty: 5 },
+      { id: 'INV-005', name: 'Amandes Émondées', category: 'Fruits Secs', supplier: 'Grossiste Fès', quantity: 12, unit: 'kg', minStock: 10, requiredQty: 15 }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('inventoryCategories', JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem('inventoryItems', JSON.stringify(stockItemsData));
+  }, [stockItemsData]);
+
+  const stockItems = stockItemsData.map(item => ({ ...item, status: calculateStockStatus(item.quantity, item.minStock) }));
 
   const recentTransactions = [
     { id: 'TX-1209', type: 'out', item: 'Menthe Fraîche', amount: 0.5, unit: 'kg', reason: 'Service Thé du Soir (Cuisine)', date: 'Aujourd\'hui, 17:30', user: 'Chef Hassan' },
@@ -3392,13 +3413,14 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
+          {['stocks', 'requirements', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
+              {tab === 'requirements' && 'Besoins & Seuils'}
               {tab === 'recipes' && 'Fiches Techniques & Marges'}
               {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
@@ -3478,6 +3500,62 @@ function Inventory() {
                             <Settings size={18} />
                           </button>
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeTab === 'requirements' && (
+            <div className="overflow-x-auto p-4 md:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Définition des Besoins et Seuils d'Alerte</h3>
+                <button 
+                  onClick={() => showToast("Paramètres enregistrés avec succès")}
+                  className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium hover:bg-[#333] transition-colors"
+                >
+                  Enregistrer les modifications
+                </button>
+              </div>
+              <table className="w-full text-left text-sm whitespace-nowrap border border-gray-100 rounded-xl overflow-hidden">
+                <thead className="bg-gray-50 text-gray-500 font-medium">
+                  <tr>
+                    <th className="px-6 py-4 border-b border-gray-100">Produit</th>
+                    <th className="px-6 py-4 border-b border-gray-100">Unité</th>
+                    <th className="px-6 py-4 border-b border-gray-100">Quantité Requise (Besoin)</th>
+                    <th className="px-6 py-4 border-b border-gray-100">Stock Minimal (Alerte)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {stockItemsData.map((item, idx) => (
+                    <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
+                      <td className="px-6 py-4 text-gray-500">{item.unit}</td>
+                      <td className="px-6 py-4">
+                        <input 
+                          type="number"
+                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956] text-gray-900 font-medium"
+                          value={item.requiredQty || 0}
+                          onChange={(e) => {
+                            const newItems = [...stockItemsData];
+                            newItems[idx] = { ...newItems[idx], requiredQty: Number(e.target.value) };
+                            setStockItemsData(newItems);
+                          }}
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <input 
+                          type="number"
+                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956] text-gray-900 font-medium"
+                          value={item.minStock || 0}
+                          onChange={(e) => {
+                            const newItems = [...stockItemsData];
+                            newItems[idx] = { ...newItems[idx], minStock: Number(e.target.value) };
+                            setStockItemsData(newItems);
+                          }}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -3949,42 +4027,67 @@ function Inventory() {
                 <X size={20} />
               </button>
             </div>
-            <div className="space-y-4">
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get('name') as string;
+              const category = formData.get('category') as string;
+              const unit = formData.get('unit') as string;
+              
+              if (!categories.includes(category)) {
+                setCategories([...categories, category]);
+              }
+              
+              const newProduct = {
+                id: `INV-00${stockItems.length + 1}`,
+                name,
+                category,
+                supplier: 'Non renseigné',
+                quantity: 0,
+                unit,
+                minStock: 10
+              };
+              setStockItemsData([...stockItemsData, newProduct]);
+              showToast("Produit ajouté avec succès");
+              setIsAddModalOpen(false);
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-                <input type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Miel pur" />
+                <input name="name" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Miel pur" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                    <option>Épices</option>
-                    <option>Épicerie</option>
-                    <option>Viandes</option>
-                    <option>Fruits Secs</option>
-                    <option>Herbes</option>
-                  </select>
+                  <input 
+                    name="category"
+                    required
+                    list="categories-list"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="Sélectionner ou saisir..."
+                  />
+                  <datalist id="categories-list">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                    <option>kg</option>
-                    <option>g</option>
-                    <option>L</option>
-                    <option>unité</option>
+                  <select name="unit" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="unité">unité</option>
                   </select>
                 </div>
               </div>
               <button 
-                onClick={() => {
-                  showToast("Produit ajouté avec succès");
-                  setIsAddModalOpen(false);
-                }}
+                type="submit"
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
                 Ajouter à l'inventaire
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -4079,10 +4182,35 @@ function Inventory() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
-            <div className="space-y-4">
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const supplier = formData.get('supplier') as string;
+              const deliveryDate = formData.get('deliveryDate') as string;
+              const articles = formData.get('articles') as string;
+              
+              let fileContent = `BON DE COMMANDE\n\n`;
+              fileContent += `Émetteur : Restaurant Mouda Palace\n`;
+              fileContent += `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n`;
+              fileContent += `Fournisseur : ${supplier}\n`;
+              fileContent += `Date de livraison prévue : ${deliveryDate}\n\n`;
+              fileContent += `Articles commandés :\n${articles}\n\n`;
+              fileContent += `Merci de bien vouloir confirmer la réception de cette commande.\n`;
+              
+              const encodedUri = encodeURI("data:text/plain;charset=utf-8," + fileContent);
+              const link = document.createElement("a");
+              link.setAttribute("href", encodedUri);
+              link.setAttribute("download", `Bon_de_commande_${supplier.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.txt`);
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              
+              showToast("Commande validée et bon de commande généré");
+              setIsNewOrderModalOpen(false);
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
                   <option>Coopérative Taliouine</option>
                   <option>Ferme Atlas</option>
                   <option>Boucherie Centrale</option>
@@ -4090,22 +4218,19 @@ function Inventory() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
-                <input type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
-                <textarea rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
+                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
               </div>
               <button 
-                onClick={() => {
-                  showToast("Commande envoyée avec succès");
-                  setIsNewOrderModalOpen(false);
-                }}
+                type="submit"
                 className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Valider la Commande
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

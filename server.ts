@@ -52,6 +52,48 @@ Réponds au format JSON:
     }
   });
 
+  // API Route for Chatbot
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { message, history } = req.body;
+      
+      const systemInstruction = `Tu es l'assistant virtuel du restaurant gastronomique Mouda Palace à Fès.
+Ton ton doit être élégant, chaleureux et professionnel.
+Tu peux répondre aux questions sur le menu, les horaires, l'adresse et l'emplacement du restaurant, prendre des réservations et fournir le site web du restaurant : www.moudapalace.com, ainsi que le menu digital.
+Si une demande est complexe, propose au client d'être contacté par un humain.`;
+
+      // Simplified for now: just pass history and message
+      const formattedHistory = (history || []).map((h: any) => 
+        `${h.role === 'user' ? 'Client' : 'Assistant'}: ${h.content}`
+      ).join('\n');
+
+      const prompt = `${systemInstruction}\n\nHistorique de la conversation:\n${formattedHistory}\n\nClient: ${message}\nAssistant (Réponds au format JSON avec les clés "text" et "requiresValidation" (booléen). Mets requiresValidation à true SI ET SEULEMENT SI la demande client concerne une annulation de dernière minute, un litige, ou nécessite explicitement une validation/intervention humaine critique) :`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+
+      let responseText = response.text || "";
+      responseText = responseText.replace(/```json\n?|\n?```/g, '').trim();
+      
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(responseText);
+      } catch (e) {
+        parsedResponse = { text: responseText, requiresValidation: false };
+      }
+
+      res.json({ 
+        text: parsedResponse.text || "Je suis désolé, je n'ai pas pu générer de réponse.",
+        requiresValidation: parsedResponse.requiresValidation || false
+      });
+    } catch (error) {
+      console.error("Error in chat:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
   // API Route for Blog Generation
   app.post("/api/generate-blog", async (req, res) => {
     try {

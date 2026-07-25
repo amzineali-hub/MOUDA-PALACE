@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { 
   FileText, 
   Plus, 
@@ -108,6 +108,15 @@ export default function Accounting() {
     { name: 'Oct', revenus: 105000, depenses: 40000 },
     { name: 'Nov', revenus: 124500, depenses: 42800 },
   ];
+
+  const expensesByCategoryData = [
+    { name: 'Marchandise', value: 45000 },
+    { name: 'Salaires', value: 35000 },
+    { name: 'Loyer & Charges', value: 15000 },
+    { name: 'Marketing', value: 5000 },
+    { name: 'Divers', value: 2500 },
+  ];
+  const COLORS = ['#DDA956', '#1A1A1A', '#4b5563', '#9ca3af', '#e5e7eb'];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -307,7 +316,7 @@ export default function Accounting() {
           <div className="p-6">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-gray-900 font-medium mb-6">Évolution des Revenus & Dépenses</h3>
+                <h3 className="text-gray-900 font-medium mb-6">Évolution mensuelle du chiffre d'affaires</h3>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyRevenueData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -319,32 +328,52 @@ export default function Accounting() {
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       />
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                      <Bar dataKey="revenus" name="Revenus" fill="#DDA956" radius={[4, 4, 0, 0]} barSize={20} />
+                      <Bar dataKey="revenus" name="Revenus (CA)" fill="#DDA956" radius={[4, 4, 0, 0]} barSize={20} />
                       <Bar dataKey="depenses" name="Dépenses" fill="#1A1A1A" radius={[4, 4, 0, 0]} barSize={20} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
               
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-center text-center">
-                <div className="mx-auto w-16 h-16 bg-[#DDA956]/10 rounded-full flex items-center justify-center mb-4 text-[#DDA956]">
-                  <FileText size={32} />
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-gray-900 font-medium mb-6">Répartition des dépenses par catégorie</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={expensesByCategoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {expensesByCategoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                <h3 className="text-xl font-medium text-gray-900 mb-2">Générer un Rapport</h3>
-                <p className="text-gray-500 mb-6 text-sm max-w-sm mx-auto">
-                  Sélectionnez le type de rapport (Bilan, Compte de résultat, TVA) et la période pour générer le document.
-                </p>
-                <button 
-                  onClick={() => setIsReportModalOpen(true)}
-                  className="bg-[#1A1A1A] text-white px-6 py-2.5 rounded-xl font-medium hover:bg-[#333] transition-colors mx-auto inline-flex items-center gap-2"
-                >
-                  <Plus size={18} />
-                  Nouveau Rapport
-                </button>
               </div>
             </div>
 
-            <h3 className="text-gray-900 font-medium mb-4 px-2">Rapports Récents</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-4 px-2">
+              <h3 className="text-gray-900 font-medium mb-4 sm:mb-0">Rapports Récents</h3>
+              <button 
+                onClick={() => setIsReportModalOpen(true)}
+                className="bg-[#1A1A1A] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#333] transition-colors inline-flex items-center gap-2 text-sm"
+              >
+                <Plus size={16} />
+                Nouveau Rapport
+              </button>
+            </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-gray-50/50 text-gray-500 font-medium border-y border-gray-100">

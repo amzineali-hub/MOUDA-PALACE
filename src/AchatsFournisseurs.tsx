@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, ShoppingCart, Truck, FileText, CheckCircle, Clock, AlertTriangle, ChevronRight, Store } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, FileText, CheckCircle, Clock, AlertTriangle, ChevronRight, Store, X } from 'lucide-react';
+import { useToast } from './context/ToastContext';
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs'>('commandes');
+  const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
+  const { showToast } = useToast();
   
   const commandes = [
     { id: 'CMD-2024-089', fournisseur: 'Coopérative Taliouine', date: '24 Juil 2024', montant: '12 400 MAD', status: 'En attente', items: 3 },
@@ -36,11 +40,11 @@ export default function AchatsFournisseurs() {
         </div>
         
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm">
+          <button onClick={() => setIsNewSupplierModalOpen(true)} className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm">
             <Store size={18} />
             <span>Nouveau fournisseur</span>
           </button>
-          <button className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => setIsNewOrderModalOpen(true)} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
             <span>Créer une commande</span>
           </button>
@@ -187,6 +191,108 @@ export default function AchatsFournisseurs() {
           )}
         </div>
       </div>
+
+      {/* Modal Nouvelle Commande */}
+      {isNewOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsNewOrderModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const supplier = formData.get('supplier') as string;
+              const deliveryDate = formData.get('deliveryDate') as string;
+              const articles = formData.get('articles') as string;
+              
+              let fileContent = `BON DE COMMANDE\n\n`;
+              fileContent += `Émetteur : Restaurant Mouda Palace\n`;
+              fileContent += `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n`;
+              fileContent += `Fournisseur : ${supplier}\n`;
+              fileContent += `Date de livraison prévue : ${deliveryDate}\n\n`;
+              fileContent += `Articles commandés :\n${articles}\n\n`;
+              fileContent += `Merci de bien vouloir confirmer la réception de cette commande.\n`;
+              
+              const encodedUri = encodeURI("data:text/plain;charset=utf-8," + fileContent);
+              const link = document.createElement("a");
+              link.setAttribute("href", encodedUri);
+              link.setAttribute("download", `Bon_de_commande_${supplier.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.txt`);
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              
+              showToast("Commande validée et bon de commande généré");
+              setIsNewOrderModalOpen(false);
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <option>Coopérative Taliouine</option>
+                  <option>Ferme Atlas</option>
+                  <option>Boucherie Centrale</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
+                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
+                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
+              </div>
+              <button 
+                type="submit"
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Valider la Commande
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nouveau Fournisseur */}
+      {isNewSupplierModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsNewSupplierModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouveau Fournisseur</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
+                <input type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <input type="text" placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
+                <input type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <button 
+                onClick={() => {
+                  showToast("Fournisseur ajouté avec succès");
+                  setIsNewSupplierModalOpen(false);
+                }}
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Ajouter le Fournisseur
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

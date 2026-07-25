@@ -29,6 +29,15 @@ export default function Recettes() {
 
   const categories = ['Toutes', 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRecettes = recettes.filter(recette => {
+    const matchesCategory = activeCategory === 'toutes' || recette.categorie?.toLowerCase() === activeCategory;
+    const matchesSearch = recette.nom?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          recette.categorie?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6 h-full flex flex-col">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -67,6 +76,8 @@ export default function Recettes() {
             <input 
               type="text" 
               placeholder="Rechercher une recette ou un ingrédient..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#DDA956] focus:border-transparent bg-white"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
@@ -90,7 +101,7 @@ export default function Recettes() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {recettes.map((recette) => (
+              {filteredRecettes.map((recette) => (
                 <tr key={recette.id} className="hover:bg-gray-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

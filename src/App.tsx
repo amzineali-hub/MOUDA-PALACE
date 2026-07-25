@@ -4468,11 +4468,16 @@ function StaffHR() {
     { id: 3, name: "Youssef Tazi", in: "-", out: "-", status: "Absent" }
   ]);
 
-  const [payrollList, setPayrollList] = useState([
-    { id: 1, period: "Juin 2026", name: "Ahmed Benali", net: "11459.64 MAD", status: "Payé", base: 14500, cnss: 268.80, amo: 327.70, igr: 2443.86 },
-    { id: 2, period: "Juin 2026", name: "Karima Idrissi", net: "8030.22 MAD", status: "Payé", base: 9500, cnss: 268.80, amo: 214.70, igr: 986.28 },
-    { id: 3, period: "Juin 2026", name: "Sofia Amrani", net: "5383.15 MAD", status: "Payé", base: 6000, cnss: 268.80, amo: 135.60, igr: 212.45 }
-  ]);
+  const [payrollList, setPayrollList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'payroll'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setPayrollList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error("Error fetching payroll", error);
+    });
+    return () => unsub();
+  }, []);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -5856,9 +5861,8 @@ function StaffHR() {
         isOpen={isPayrollModalOpen} 
         onClose={() => setIsPayrollModalOpen(false)}
         staffData={staffData}
-        onGenerate={(data) => {
+        onGenerate={async (data) => {
           const newPayslip = {
-            id: Date.now(),
             period: data.period as string,
             name: data.staffName as string,
             net: `${data.net.toFixed(2)} MAD`,
@@ -5866,13 +5870,20 @@ function StaffHR() {
             base: data.base,
             cnss: data.cnss,
             amo: data.amo,
-            igr: data.igr
+            igr: data.igr,
+            createdAt: serverTimestamp()
           };
-          setPayrollList([...payrollList, newPayslip]);
-          showToast("Fiche de paie générée (Normes Marocaines)");
-          setIsPayrollModalOpen(false);
-          setSelectedPayslip(newPayslip);
-          setIsPayslipDocOpen(true);
+          
+          try {
+            const docRef = await addDoc(collection(db, 'payroll'), newPayslip);
+            showToast("Fiche de paie générée (Normes Marocaines)");
+            setIsPayrollModalOpen(false);
+            setSelectedPayslip({ id: docRef.id, ...newPayslip });
+            setIsPayslipDocOpen(true);
+          } catch (err) {
+            console.error("Error adding payslip", err);
+            showToast("Erreur lors de la génération");
+          }
         }}
       />
     </div>

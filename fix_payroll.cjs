@@ -1,55 +1,69 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/App.tsx', 'utf8');
+let content = fs.readFileSync('src/App.tsx', 'utf-8');
 
-// Update initialStaff
-const staffTarget = `  const initialStaff = [
-    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir' },
-    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin' },
-    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-' },
-    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir' },
-  ];`;
+const oldState = `  const [payrollList, setPayrollList] = useState([
+    { id: 1, period: "Juin 2026", name: "Ahmed Benali", net: "11459.64 MAD", status: "Payé", base: 14500, cnss: 268.80, amo: 327.70, igr: 2443.86 },
+    { id: 2, period: "Juin 2026", name: "Karima Idrissi", net: "8030.22 MAD", status: "Payé", base: 9500, cnss: 268.80, amo: 214.70, igr: 986.28 },
+    { id: 3, period: "Juin 2026", name: "Sofia Amrani", net: "5383.15 MAD", status: "Payé", base: 6000, cnss: 268.80, amo: 135.60, igr: 212.45 }
+  ]);`;
 
-const staffReplace = `  const initialStaff = [
-    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', status: 'Actif', shift: 'Soir', baseSalary: 14500 },
-    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', status: 'Actif', shift: 'Matin', baseSalary: 9500 },
-    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', status: 'En congé', shift: '-', baseSalary: 4000 },
-    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', status: 'Actif', shift: 'Soir', baseSalary: 6000 },
-  ];`;
-
-content = content.replace(staffTarget, staffReplace);
-
-// Update PayrollModal
-const modalTarget = `function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], onGenerate: (data: any) => void }) {
-  const [baseSalary, setBaseSalary] = useState<number>(4000);`;
-
-const modalReplace = `function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], onGenerate: (data: any) => void }) {
-  const [selectedStaffName, setSelectedStaffName] = useState(staffData[0]?.name || '');
-  const [baseSalary, setBaseSalary] = useState<number>(staffData[0]?.baseSalary || 4000);
+const newState = `  const [payrollList, setPayrollList] = useState<any[]>([]);
 
   useEffect(() => {
-    const staff = staffData.find(s => s.name === selectedStaffName);
-    if (staff && staff.baseSalary) {
-      setBaseSalary(staff.baseSalary);
-    }
-  }, [selectedStaffName, staffData]);`;
+    const unsub = onSnapshot(query(collection(db, 'payroll'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setPayrollList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error("Error fetching payroll", error);
+    });
+    return () => unsub();
+  }, []);`;
 
-content = content.replace(modalTarget, modalReplace);
+content = content.replace(oldState, newState);
 
-// Update select element inside PayrollModal
-const selectTarget = `              <select name="staffName" required className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
-                {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>`;
+const oldOnGenerate = `        onGenerate={(data) => {
+          const newPayslip = {
+            id: Date.now(),
+            period: data.period as string,
+            name: data.staffName as string,
+            net: \`\${data.net.toFixed(2)} MAD\`,
+            status: "Payé",
+            base: data.base,
+            cnss: data.cnss,
+            amo: data.amo,
+            igr: data.igr
+          };
+          setPayrollList([...payrollList, newPayslip]);
+          showToast("Fiche de paie générée (Normes Marocaines)");
+          setIsPayrollModalOpen(false);
+          setSelectedPayslip(newPayslip);
+          setIsPayslipDocOpen(true);
+        }}`;
 
-const selectReplace = `              <select 
-                name="staffName" 
-                required 
-                value={selectedStaffName}
-                onChange={(e) => setSelectedStaffName(e.target.value)}
-                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
-              >
-                {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>`;
+const newOnGenerate = `        onGenerate={async (data) => {
+          const newPayslip = {
+            period: data.period as string,
+            name: data.staffName as string,
+            net: \`\${data.net.toFixed(2)} MAD\`,
+            status: "Payé",
+            base: data.base,
+            cnss: data.cnss,
+            amo: data.amo,
+            igr: data.igr,
+            createdAt: serverTimestamp()
+          };
+          
+          try {
+            const docRef = await addDoc(collection(db, 'payroll'), newPayslip);
+            showToast("Fiche de paie générée (Normes Marocaines)");
+            setIsPayrollModalOpen(false);
+            setSelectedPayslip({ id: docRef.id, ...newPayslip });
+            setIsPayslipDocOpen(true);
+          } catch (err) {
+            console.error("Error adding payslip", err);
+            showToast("Erreur lors de la génération");
+          }
+        }}`;
 
-content = content.replace(selectTarget, selectReplace);
+content = content.replace(oldOnGenerate, newOnGenerate);
 
 fs.writeFileSync('src/App.tsx', content);

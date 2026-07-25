@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, ShoppingCart, Truck, FileText, CheckCircle, Clock, AlertTriangle, ChevronRight, Store, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { db } from './firebase';
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs'>('commandes');
@@ -9,18 +11,34 @@ export default function AchatsFournisseurs() {
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const { showToast } = useToast();
   
-  const commandes = [
-    { id: 'CMD-2024-089', fournisseur: 'Coopérative Taliouine', date: '24 Juil 2024', montant: '12 400 MAD', status: 'En attente', items: 3 },
-    { id: 'CMD-2024-088', fournisseur: 'Marché Central Fès', date: '22 Juil 2024', montant: '4 850 MAD', status: 'Livrée', items: 12 },
-    { id: 'CMD-2024-087', fournisseur: 'Boucherie Al Baraka', date: '20 Juil 2024', montant: '8 900 MAD', status: 'Livrée', items: 5 },
-    { id: 'CMD-2024-086', fournisseur: 'Primeur Atlas', date: '19 Juil 2024', montant: '3 200 MAD', status: 'Annulée', items: 8 },
-  ];
+  const [commandes, setCommandes] = useState<any[]>([]);
+  const [fournisseurs, setFournisseurs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const unsubCommandes = onSnapshot(query(collection(db, 'commandes'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setCommandes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error("Error fetching commandes", error);
+      showToast("Erreur lors de la récupération des commandes");
+    });
 
-  const fournisseurs = [
-    { id: 'F001', nom: 'Coopérative Taliouine', categorie: 'Épices & Safran', contact: 'M. Hassan', tel: '+212 6 00 00 00 01', email: 'contact@taliouine-safran.ma', rating: 4.8 },
-    { id: 'F002', nom: 'Marché Central Fès', categorie: 'Fruits & Légumes', contact: 'M. Karim', tel: '+212 6 00 00 00 02', email: 'commandes@marche-fes.ma', rating: 4.5 },
-    { id: 'F003', nom: 'Boucherie Al Baraka', categorie: 'Viandes', contact: 'M. Youssef', tel: '+212 6 00 00 00 03', email: 'youssef@albaraka.ma', rating: 4.9 },
-  ];
+    const unsubFournisseurs = onSnapshot(query(collection(db, 'fournisseurs'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setFournisseurs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching fournisseurs", error);
+      showToast("Erreur lors de la récupération des fournisseurs");
+      setLoading(false);
+    });
+
+    return () => {
+      unsubCommandes();
+      unsubFournisseurs();
+    };
+  }, []);
+
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -58,7 +76,7 @@ export default function AchatsFournisseurs() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Commandes en cours</p>
-            <p className="text-2xl font-bold text-[#1A1A1A]">12</p>
+            <p className="text-2xl font-bold text-[#1A1A1A]">{commandes.filter(c => c.status !== "Livrée" && c.status !== "Annulée").length}</p>
           </div>
         </motion.div>
         
@@ -68,7 +86,7 @@ export default function AchatsFournisseurs() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">En attente de livraison</p>
-            <p className="text-2xl font-bold text-[#1A1A1A]">4</p>
+            <p className="text-2xl font-bold text-[#1A1A1A]">{commandes.filter(c => c.status === "En attente").length}</p>
           </div>
         </motion.div>
         
@@ -78,7 +96,7 @@ export default function AchatsFournisseurs() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Total fournisseurs actifs</p>
-            <p className="text-2xl font-bold text-[#1A1A1A]">28</p>
+            <p className="text-2xl font-bold text-[#1A1A1A]">{fournisseurs.length}</p>
           </div>
         </motion.div>
       </div>
@@ -126,10 +144,10 @@ export default function AchatsFournisseurs() {
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {commandes.map((cmd) => (
-                  <tr key={cmd.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={cmd.orderNumber || cmd.id.slice(0,8).toUpperCase()} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-[#1A1A1A] flex items-center gap-2">
                       <FileText size={16} className="text-gray-400" />
-                      {cmd.id}
+                      {cmd.orderNumber || cmd.id.slice(0,8).toUpperCase()}
                     </td>
                     <td className="px-6 py-4 text-gray-600">{cmd.date}</td>
                     <td className="px-6 py-4 text-[#1A1A1A] font-medium">{cmd.fournisseur}</td>
@@ -203,38 +221,62 @@ export default function AchatsFournisseurs() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
-            <form className="space-y-4" onSubmit={(e) => {
+            <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              const supplier = formData.get('supplier') as string;
+              const supplierId = formData.get('supplier') as string;
               const deliveryDate = formData.get('deliveryDate') as string;
               const articles = formData.get('articles') as string;
               
-              let fileContent = `BON DE COMMANDE\n\n`;
-              fileContent += `Émetteur : Restaurant Mouda Palace\n`;
-              fileContent += `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n`;
-              fileContent += `Fournisseur : ${supplier}\n`;
-              fileContent += `Date de livraison prévue : ${deliveryDate}\n\n`;
-              fileContent += `Articles commandés :\n${articles}\n\n`;
-              fileContent += `Merci de bien vouloir confirmer la réception de cette commande.\n`;
-              
-              const encodedUri = encodeURI("data:text/plain;charset=utf-8," + fileContent);
-              const link = document.createElement("a");
-              link.setAttribute("href", encodedUri);
-              link.setAttribute("download", `Bon_de_commande_${supplier.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.txt`);
-              document.body.appendChild(link);
-              link.click();
-              link.remove();
-              
+              const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
+              const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
+
+              const newCmd = {
+                  id: 'CMD-' + Date.now(),
+                  fournisseur: supplierName,
+                  fournisseurId: supplierId,
+                  date: new Date().toLocaleDateString('fr-FR'),
+                  deliveryDate,
+                  montant: '0 MAD',
+                  status: 'En attente',
+                  items: articles.split(',').length,
+                  articles,
+                  createdAt: serverTimestamp()
+              };
+
+              setCommandes([newCmd, ...commandes]);
               showToast("Commande validée et bon de commande généré");
               setIsNewOrderModalOpen(false);
+
+              try {
+                await addDoc(collection(db, 'commandes'), newCmd);
+
+                let fileContent = `BON DE COMMANDE\n\n`;
+                fileContent += `Émetteur : Restaurant Mouda Palace\n`;
+                fileContent += `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n`;
+                fileContent += `Fournisseur : ${supplierName}\n`;
+                fileContent += `Date de livraison prévue : ${deliveryDate}\n\n`;
+                fileContent += `Articles commandés :\n${articles}\n\n`;
+                fileContent += `Merci de bien vouloir confirmer la réception de cette commande.\n`;
+                
+                const encodedUri = encodeURI("data:text/plain;charset=utf-8," + fileContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `Bon_de_commande_${supplierName.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.txt`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+              } catch (err) {
+                console.error("Error adding order", err);
+              }
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                  <option>Coopérative Taliouine</option>
-                  <option>Ferme Atlas</option>
-                  <option>Boucherie Centrale</option>
+                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                  <option value="">Sélectionnez un fournisseur</option>
+                  {fournisseurs.map(f => (
+                    <option key={f.id} value={f.id}>{f.nom}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -267,29 +309,62 @@ export default function AchatsFournisseurs() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouveau Fournisseur</h3>
-            <div className="space-y-4">
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const nom = formData.get('nom') as string;
+              const categorie = formData.get('categorie') as string;
+              const contact = formData.get('contact') as string;
+              
+              const newFournisseur = {
+                  id: 'F' + Date.now(),
+                  nom,
+                  categorie,
+                  contact,
+                  rating: 5.0,
+                  createdAt: serverTimestamp()
+              };
+              
+              setFournisseurs([newFournisseur, ...fournisseurs]);
+              showToast("Fournisseur ajouté avec succès");
+              setIsNewSupplierModalOpen(false);
+              
+              try {
+                await addDoc(collection(db, 'fournisseurs'), newFournisseur);
+              } catch (err) {
+                console.error("Error adding fournisseur", err);
+              }
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="nom" required type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <input type="text" placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white max-h-48 overflow-y-auto">
+                  <option value="">Sélectionnez une catégorie</option>
+                  <option value="Fruits & Légumes">Fruits & Légumes</option>
+                  <option value="Viandes & Volailles">Viandes & Volailles</option>
+                  <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
+                  <option value="Épices & Safran">Épices & Safran</option>
+                  <option value="Épicerie & Sec">Épicerie & Sec</option>
+                  <option value="Produits Laitiers">Produits Laitiers</option>
+                  <option value="Boissons">Boissons</option>
+                  <option value="Emballages & Consommables">Emballages & Consommables</option>
+                  <option value="Autre">Autre</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
-                <input type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="contact" required type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
               <button 
-                onClick={() => {
-                  showToast("Fournisseur ajouté avec succès");
-                  setIsNewSupplierModalOpen(false);
-                }}
+                type="submit"
                 className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Ajouter le Fournisseur
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}

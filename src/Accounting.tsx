@@ -18,6 +18,9 @@ import {
   Printer
 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebase';
+import { useEffect } from 'react';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -80,25 +83,53 @@ export default function Accounting() {
     showToast("Exportation réussie");
   };
 
-  const invoices = [
+  const [invoices, setInvoices] = useState<any[]>([
     { id: 'FAC-2026-001', client: 'Riad Al Andalous', ice: '001538629000041', date: '12 Nov 2026', amount: '1 250 MAD', status: 'Payée' },
     { id: 'FAC-2026-002', client: 'Atlas Voyages', ice: '002148574000034', date: '14 Nov 2026', amount: '4 500 MAD', status: 'En attente' },
     { id: 'FAC-2026-003', client: 'LocaCar Marrakech', ice: '001937482000021', date: '15 Nov 2026', amount: '850 MAD', status: 'Payée' },
     { id: 'FAC-2026-004', client: 'Hôtel La Medina', ice: '002594837000067', date: '18 Nov 2026', amount: '3 200 MAD', status: 'Retard' }
-  ];
+  ]);
+  
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'invoices'), orderBy('createdAt', 'desc')), (snapshot) => {
+      if (!snapshot.empty) {
+        setInvoices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    }, (error) => {
+      console.error("Error fetching invoices", error);
+    });
+    return () => unsub();
+  }, []);
 
-  const expenses = [
+  const [expenses, setExpenses] = useState<any[]>([
     { id: 'EXP-001', category: 'Marchandise', supplier: 'Marché Central', date: '19 Nov 2026', amount: '2 300 MAD', method: 'Espèces' },
     { id: 'EXP-002', category: 'Électricité', supplier: 'ONEE', date: '18 Nov 2026', amount: '1 850 MAD', method: 'Virement' },
     { id: 'EXP-003', category: 'Marketing', supplier: 'Facebook Ads', date: '15 Nov 2026', amount: '500 MAD', method: 'Carte Bancaire' },
-  ];
+  ]);
 
-  const financialReports = [
+  const [financialReports, setFinancialReports] = useState<any[]>([
     { id: 'RPT-2026-11', type: 'Bilan Comptable', date: '30 Nov 2026', status: 'Généré', format: 'PDF' },
     { id: 'RPT-2026-T3', type: 'Déclaration TVA (Maroc)', date: '15 Oct 2026', status: 'Soumis', format: 'PDF / XML' },
     { id: 'RPT-2026-10', type: 'CPC (Compte de Produits et Charges)', date: '31 Oct 2026', status: 'Généré', format: 'Excel' },
     { id: 'RPT-2026-09', type: 'Bilan Comptable', date: '30 Sep 2026', status: 'Généré', format: 'PDF' },
-  ];
+  ]);
+
+  useEffect(() => {
+    const unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')), (snapshot) => {
+      if (!snapshot.empty) {
+        setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    });
+    const unsubReports = onSnapshot(query(collection(db, 'financialReports'), orderBy('createdAt', 'desc')), (snapshot) => {
+      if (!snapshot.empty) {
+        setFinancialReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    });
+    return () => {
+      unsubExpenses();
+      unsubReports();
+    };
+  }, []);
 
   const monthlyRevenueData = [
     { name: 'Juin', revenus: 85000, depenses: 32000 },
@@ -427,33 +458,52 @@ export default function Accounting() {
                 <X size={20} />
               </button>
             </div>
-            <div className="space-y-4">
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const newInvoice = {
+                client: formData.get('client'),
+                ice: formData.get('ice'),
+                amount: Number(formData.get('amount')) + ' MAD',
+                date: formData.get('date'),
+                status: 'En attente',
+                createdAt: serverTimestamp()
+              };
+              
+              // Optimistic update
+              setInvoices([{ id: 'FAC-NOUVEAU', ...newInvoice }, ...invoices]);
+              setIsNewModalOpen(false);
+              showToast("Facture créée avec succès");
+              
+              try {
+                await addDoc(collection(db, 'invoices'), newInvoice);
+              } catch (err) {
+                console.error("Error creating invoice", err);
+              }
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
-                <input type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Nom du client" />
+                <input name="client" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Nom du client" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
-                <input type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 001538629000041" maxLength={15} />
+                <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 001538629000041" maxLength={15} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
-                <input type="number" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0.00" />
+                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0.00" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
-                <input type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
               <button 
-                onClick={() => {
-                  showToast("Facture créée avec succès");
-                  setIsNewModalOpen(false);
-                }}
+                type="submit"
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
                 Créer la facture
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -498,9 +548,24 @@ export default function Accounting() {
                 </select>
               </div>
               <button 
-                onClick={() => {
+                onClick={async () => {
                   handleDownloadReport(reportType, reportFormat);
+                  const newReport = {
+                    id: 'RPT-' + Date.now().toString().slice(-4),
+                    type: reportType,
+                    date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    status: 'Généré',
+                    format: reportFormat,
+                    createdAt: serverTimestamp()
+                  };
+                  setFinancialReports([newReport, ...financialReports]);
                   setIsReportModalOpen(false);
+                  
+                  try {
+                    await addDoc(collection(db, 'financialReports'), newReport);
+                  } catch (err) {
+                    console.error("Error creating report", err);
+                  }
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >

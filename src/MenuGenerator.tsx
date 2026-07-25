@@ -196,7 +196,7 @@ if (isPrintView) {
                 <div className="text-center mb-12 md:mb-16">
                   {/* Optionnel : on garde le titre s'il n'est pas dans l'image de fond */}
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-[#5c2d16] mb-4 uppercase tracking-[0.15em] drop-shadow-sm">
-                    MAISON MAROCAINE
+                    MOUDA PALACE
                   </h1>
                 </div>
 

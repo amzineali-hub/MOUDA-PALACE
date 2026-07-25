@@ -3393,7 +3393,7 @@ function Inventory() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Total Références</p>
-            <h4 className="text-2xl font-bold text-gray-900 mt-1">142</h4>
+            <h4 className="text-2xl font-bold text-gray-900 mt-1">{stockItemsData.length}</h4>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
@@ -3402,7 +3402,9 @@ function Inventory() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Alertes Stock Bas</p>
-            <h4 className="text-2xl font-bold text-red-600 mt-1">12</h4>
+            <h4 className="text-2xl font-bold text-red-600 mt-1">
+              {stockItemsData.filter(i => i.quantity <= i.minStock).length}
+            </h4>
           </div>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
@@ -3410,8 +3412,8 @@ function Inventory() {
             <ShoppingCart size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Commandes Fournisseur en cours</p>
-            <h4 className="text-2xl font-bold text-gray-900 mt-1">3</h4>
+            <p className="text-sm text-gray-500 font-medium">Fournisseurs Actifs</p>
+            <h4 className="text-2xl font-bold text-gray-900 mt-1">7</h4>
           </div>
         </div>
       </div>
@@ -4041,7 +4043,11 @@ function Inventory() {
               const unit = formData.get('unit') as string;
               
               if (!categories.includes(category)) {
-                setCategories([...categories, category]);
+                try {
+                  await addDoc(collection(db, 'inventoryCategories'), { name: category });
+                } catch (err) {
+                  console.error("Error adding category", err);
+                }
               }
               
               const newProduct = {

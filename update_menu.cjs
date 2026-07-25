@@ -1,24 +1,85 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/App.tsx', 'utf8');
+let content = fs.readFileSync('src/MenuGenerator.tsx', 'utf-8');
 
-const targetState = `  const [menuItems, setMenuItems] = useState([
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' } } },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' } } },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' } } },
-    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\\'oranger.', active: false, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\\'orange fraîche, cannelle moulue et sirop de fleur d\\'oranger.', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' } } },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' } } }
-  ]);`;
+const oldImports = `import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles } from 'lucide-react';`;
+const newImports = `import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';`;
+content = content.replace(oldImports, newImports);
 
-const replacementState = `  const [menuItems, setMenuItems] = useState([
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: false },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\\'aubergines grillées à la tomate, ail et épices.', active: true, translated: false },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: false },
-    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\\'oranger.', active: false, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\\'orange fraîche, cannelle moulue et sirop de fleur d\\'oranger.', active: true, translated: false },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: false }
-  ]);`;
+const newFunction = `  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };`;
 
-content = content.replace(targetState, replacementState);
+content = content.replace("  const handleDelete = async (id: string) => {", newFunction + "\n\n  const handleDelete = async (id: string) => {");
 
-fs.writeFileSync('src/App.tsx', content);
+const oldVisualSection = `              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Visuel (Image)</label>
+                <select
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white mb-2"
+                >
+                  <option value="">Sélectionner une image du serveur</option>
+                  {availableImages.map(img => (
+                    <option key={img} value={img}>{img.split('/').pop()}</option>
+                  ))}
+                </select>
+                <input 
+                  type="text" 
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="Ou entrez une URL d'image directe (https://...)" 
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none focus:border-[#DDA956]" 
+                />
+              </div>`;
+
+const newVisualSection = `              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Visuel (Image)</label>
+                <div className="space-y-2">
+                  <select
+                    value={availableImages.includes(imageUrl) ? imageUrl : ""}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
+                  >
+                    <option value="">Sélectionner une image par défaut</option>
+                    {availableImages.map(img => (
+                      <option key={img} value={img}>{img.split('/').pop()}</option>
+                    ))}
+                  </select>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <div className="flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl p-2.5 text-sm text-gray-500 hover:bg-gray-50 hover:border-[#DDA956] transition-colors">
+                        <Upload size={16} />
+                        <span>Télécharger une image</span>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-400 font-medium">OU</span>
+                    <input 
+                      type="text" 
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="URL directe de l'image" 
+                      className="flex-1 border border-gray-200 rounded-xl p-2.5 text-sm focus:outline-none focus:border-[#DDA956]" 
+                    />
+                  </div>
+                  {imageUrl && imageUrl.startsWith('data:image') && (
+                    <div className="text-xs text-green-600 font-medium mt-1">Image chargée avec succès.</div>
+                  )}
+                </div>
+              </div>`;
+
+content = content.replace(oldVisualSection, newVisualSection);
+fs.writeFileSync('src/MenuGenerator.tsx', content);

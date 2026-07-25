@@ -1,3 +1,4 @@
+import MenuGenerator from "./MenuGenerator";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -488,7 +489,7 @@ export default function App() {
       case 'seo_analytics':
         return <SeoAnalyticsContainer />;
       case 'menu':
-        return <DigitalMenu />;
+        return <MenuGenerator />;
       case 'inventory':
         return <Inventory />;
       case 'staff':
@@ -613,6 +614,21 @@ export default function App() {
           >
             <TrendingUp size={18} />
             <span>Vue d'ensemble</span>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('menu')}
+            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold mb-6 border-2 shadow-sm ${
+              activeTab === 'menu'
+                ? 'bg-[#DDA956] text-[#1A1A1A] border-[#DDA956] shadow-[#DDA956]/30'
+                : 'text-[#DDA956] border-[#DDA956]/50 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+               <Printer size={18} />
+               <span>Génération du Menu</span>
+            </div>
+            <Sparkles size={16} className="text-[#DDA956] opacity-70" />
           </button>
 
           <NavCategory 

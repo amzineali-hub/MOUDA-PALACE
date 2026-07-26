@@ -92,7 +92,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-} from 'lucide-react';
+AlertCircle } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -106,6 +106,7 @@ import AchatsFournisseurs from "./AchatsFournisseurs";
 import Recettes from "./Recettes";
 import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
+import EcranCuisine from "./EcranCuisine";
 import ChatBot from './components/ChatBot';
 
 function ReviewAnalyzer() {
@@ -491,6 +492,8 @@ export default function App() {
         return <SeoAnalyticsContainer />;
       case 'menu':
         return <MenuGenerator />;
+      case 'kds':
+        return <EcranCuisine />;
       case 'inventory':
         return <Inventory />;
       case 'staff':
@@ -651,6 +654,7 @@ export default function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
           >
             <SubNavItem icon={<ChefHat size={16} />} label="Production cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+            <SubNavItem icon={<AlertCircle size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Recettes et stocks" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
           </NavCategory>

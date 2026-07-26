@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Check, Coffee, GlassWater } from 'lucide-react';
 import { useToast } from './context/ToastContext';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebase';
 
 // Dummy menu data
 const MENU_CATEGORIES = [
@@ -77,9 +79,40 @@ export default function POSTactile() {
     setSelectedTable(null);
   };
 
-  const handleSendKitchen = () => {
+  const handleSendKitchen = async () => {
     if (cart.length === 0) return showToast("Le panier est vide");
-    showToast("Bon envoyé en cuisine avec succès !");
+    
+    try {
+      for (const item of cart) {
+        if (item.category !== 'boissons') {
+          const orderId = 'CMD-' + Math.floor(Math.random() * 10000);
+          await addDoc(collection(db, 'productionTasks'), {
+            orderId: orderId,
+            item: item.name,
+            qty: item.qty,
+            priority: 'Moyenne',
+            progress: 0,
+            status: 'À faire',
+            createdAt: serverTimestamp()
+          });
+          
+          await addDoc(collection(db, 'inventoryTransactions'), {
+            item: item.name,
+            type: 'out',
+            amount: item.qty,
+            unit: 'portion(s)',
+            reason: 'Production commande client',
+            date: new Date().toLocaleString('fr-FR'),
+            user: 'Caisse POS',
+            createdAt: serverTimestamp()
+          });
+        }
+      }
+      showToast("Bon envoyé en cuisine et stock déduit automatiquement !");
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'envoi en cuisine", "error");
+    }
   };
 
   return (

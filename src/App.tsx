@@ -105,6 +105,7 @@ import Documentation from "./Documentation";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import Recettes from "./Recettes";
 import GestionTables from "./GestionTables";
+import POSTactile from "./POSTactile";
 import ChatBot from './components/ChatBot';
 
 function ReviewAnalyzer() {
@@ -413,7 +414,7 @@ export default function App() {
     { type: 'Clientèle', text: 'Tables', tab: 'tables', keywords: ['plan', 'salle', 'service', 'placement'] },
     { type: 'Clientèle', text: 'Partenaires B2B', tab: 'b2b', keywords: ['agences', 'tourisme', 'riad', 'hôtel', 'crm', 'partenaires'] },
     { type: 'Gestion', text: 'Comptabilité', tab: 'accounting', keywords: ['finances', 'bilan', 'revenus', 'dépenses', 'chiffre d\'affaires', 'compta'] },
-    { type: 'Gestion', text: 'Finances / Caisse', tab: 'finance', keywords: ['pos', 'encaissement', 'factures', 'paiement', 'commandes', 'caisse'] },
+    { type: 'Gestion', text: 'Caisse / POS Tactile', tab: 'finance', keywords: ['pos', 'encaissement', 'factures', 'paiement', 'commandes', 'caisse'] },
     { type: 'RH', text: 'RH personnel', tab: 'staff', keywords: ['employés', 'personnel', 'salaires', 'présence', 'équipe', 'rh', 'planning'] },
     { type: 'Configuration', text: 'WhatsApp & IA', tab: 'whatsapp', keywords: ['chatbot', 'messages', 'auto-répondeur', 'ia'] },
     { type: 'Configuration', text: 'API & Paramètres', tab: 'config', keywords: ['réglages', 'système', 'options', 'paramètres'] },
@@ -495,7 +496,7 @@ export default function App() {
       case 'staff':
         return <StaffHR />;
       case 'finance':
-        return <TacSystemsPOS />;
+        return <POSTactile />;
       case 'accounting':
         return <Accounting />;
       case 'docs':
@@ -507,7 +508,7 @@ export default function App() {
       case 'recettes':
         return <Recettes />;
       case 'tables':
-        return <GestionTables />;
+        return <GestionTables setActiveTab={setActiveTab} />;
       default:
         return <Overview setActiveTab={setActiveTab} />;
     }
@@ -617,6 +618,18 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => handleTabChange('finance')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
+              activeTab === 'finance'
+                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+            }`}
+          >
+            <Wallet size={18} />
+            <span>Caisse / POS Tactile</span>
+          </button>
+
+          <button
             onClick={() => handleTabChange('menu')}
             className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold mb-6 border-2 shadow-sm ${
               activeTab === 'menu'
@@ -661,8 +674,7 @@ export default function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'gestion' ? null : 'gestion')}
           >
             <SubNavItem icon={<Receipt size={16} />} label="Comptabilité" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
-            <SubNavItem icon={<Wallet size={16} />} label="Finances / Caisse" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
-            <SubNavItem icon={<Users size={16} />} label="RH personnel" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
+                        <SubNavItem icon={<Users size={16} />} label="RH personnel" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
           </NavCategory>
 
           <NavCategory 
@@ -1241,7 +1253,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <button 
                 onClick={() => {
                   showToast("Impression du résumé en cours...");
-                  setTimeout(() => window.print(), 500);
+                  setTimeout(() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }, 500);
                 }}
                 className="px-6 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
               >
@@ -1257,8 +1269,21 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
 
 function Reservations() {
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState('upcoming');
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (sessionStorage.getItem('open-floorplan')) {
+      sessionStorage.removeItem('open-floorplan');
+      return 'floorplan';
+    }
+    return 'upcoming';
+  });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(() => {
+    if (sessionStorage.getItem('open-calendar')) {
+      sessionStorage.removeItem('open-calendar');
+      return true;
+    }
+    return false;
+  });
   const [isNewResOpen, setIsNewResOpen] = useState(false);
   const [isAddWaitlistOpen, setIsAddWaitlistOpen] = useState(false);
   const [newWaitlistName, setNewWaitlistName] = useState('');
@@ -1282,7 +1307,7 @@ function Reservations() {
     ];
   });
 
-  const [tables, setTables] = useState(() => {
+  const [tables, setTables] = useState<any[]>(() => {
     const saved = localStorage.getItem('mouda_tables');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
@@ -1332,12 +1357,34 @@ function Reservations() {
     localStorage.setItem('mouda_waitlist', JSON.stringify(waitlist));
   }, [waitlist]);
 
-  const autoAssignTables = () => {
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
+      const fbTables = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          fbId: doc.id,
+          id: data.id,
+          capacity: data.capacity || 2,
+          status: data.status === 'libre' ? 'available' : (data.status === 'reservee' ? 'reserved' : 'occupied'),
+          type: data.shape === 'rond' ? 'round' : (data.shape === 'rectangle' ? 'rectangle' : 'square'),
+          x: data.x || Math.floor(Math.random() * 800),
+          y: data.y || Math.floor(Math.random() * 400),
+          ...data
+        };
+      });
+      if (fbTables.length > 0) {
+        setTables(fbTables);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+
+  const autoAssignTables = async () => {
     let updatedTables = [...tables];
     let updatedReservations = reservations.map(res => {
       if (!res.table && res.status !== 'Annulé') {
-        // Find best table
-        const suitableTable = updatedTables.find(t => t.capacity >= res.pax && t.status === 'available');
+        const suitableTable = updatedTables.find(t => t.capacity >= res.pax && (t.status === 'available' || t.status === 'libre'));
         if (suitableTable) {
           suitableTable.status = 'reserved';
           return { ...res, table: suitableTable.id };
@@ -1347,7 +1394,19 @@ function Reservations() {
     });
     setTables(updatedTables);
     setReservations(updatedReservations);
-    showToast("Attribution automatique des tables effectuée avec succès.");
+    
+    // Update Firestore
+    try {
+      for (const table of updatedTables) {
+        if (table.fbId && table.status === 'reserved') {
+           await updateDoc(doc(db, 'tables', table.fbId), { status: 'reservee' });
+        }
+      }
+      showToast("Attribution automatique des tables effectuée avec succès.");
+    } catch(e) {
+      console.error(e);
+      showToast("Attribution locale effectuée, mais erreur lors de la synchronisation au serveur.");
+    }
   };
 
   const monthNames = [
@@ -5180,7 +5239,7 @@ function StaffHR() {
                 <FileText size={18} className="text-[#DDA956]" /> Fiche de Paie - {selectedPayslip.name}
               </h3>
               <div className="flex items-center gap-2">
-                <button onClick={() => window.print()} className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                <button onClick={() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }} className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
                   <Printer size={16} /> Imprimer
                 </button>
                 <button onClick={() => setIsPayslipDocOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 bg-white rounded-lg border border-gray-200 transition-colors">

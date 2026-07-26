@@ -1,21 +1,52 @@
 const fs = require('fs');
 
-const files = ['src/App.tsx', 'src/Accounting.tsx'];
+// 1. Fix GestionTables.tsx
+let gtContent = fs.readFileSync('src/GestionTables.tsx', 'utf8');
+gtContent = gtContent.replace(
+  'window.dispatchEvent(new CustomEvent("open-calendar"));',
+  'sessionStorage.setItem("open-calendar", "true");'
+);
+gtContent = gtContent.replace(
+  'window.dispatchEvent(new CustomEvent("open-floorplan"));',
+  'sessionStorage.setItem("open-floorplan", "true");'
+);
+fs.writeFileSync('src/GestionTables.tsx', gtContent);
 
-files.forEach(file => {
-  let content = fs.readFileSync(file, 'utf8');
-  let newContent = content.replace(/<button([^>]*?)>/g, (match, p1) => {
-    // If it's a submit button or already has onClick, skip
-    if (p1.includes('type="submit"') || p1.includes('onClick')) {
-      return match;
+// 2. Fix App.tsx
+let appContent = fs.readFileSync('src/App.tsx', 'utf8');
+const effectCode = `  useEffect(() => {
+    const handleOpenFloorplan = () => setActiveTab('floorplan');
+    const handleOpenCalendar = () => setIsCalendarOpen(true);
+    window.addEventListener('open-floorplan', handleOpenFloorplan);
+    window.addEventListener('open-calendar', handleOpenCalendar);
+    return () => {
+      window.removeEventListener('open-floorplan', handleOpenFloorplan);
+      window.removeEventListener('open-calendar', handleOpenCalendar);
+    };
+  }, []);
+`;
+appContent = appContent.replace(effectCode, "");
+
+appContent = appContent.replace(
+  "const [activeTab, setActiveTab] = useState('upcoming');",
+  `const [activeTab, setActiveTab] = useState(() => {
+    if (sessionStorage.getItem('open-floorplan')) {
+      sessionStorage.removeItem('open-floorplan');
+      return 'floorplan';
     }
-    // Check if it's the specific layoutId motion.div button etc? No, those are button components.
-    // Ensure we don't mess up if it's broken over lines? The regex might not catch multiline <button >
-    // Let's do a basic replace for the common single-line button tag.
-    return `<button onClick={() => showToast && showToast('Action en cours de développement...')} ${p1}>`;
-  });
-  
-  fs.writeFileSync(file, newContent);
-});
+    return 'upcoming';
+  });`
+);
+appContent = appContent.replace(
+  "const [isCalendarOpen, setIsCalendarOpen] = useState(false);",
+  `const [isCalendarOpen, setIsCalendarOpen] = useState(() => {
+    if (sessionStorage.getItem('open-calendar')) {
+      sessionStorage.removeItem('open-calendar');
+      return true;
+    }
+    return false;
+  });`
+);
 
-console.log("Updated buttons.");
+fs.writeFileSync('src/App.tsx', appContent);
+console.log("Done");

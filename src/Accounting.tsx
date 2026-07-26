@@ -167,7 +167,7 @@ export default function Accounting() {
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => window.print()}
+            onClick={() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }}
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             title="Exporter en PDF (Impression)"
           >

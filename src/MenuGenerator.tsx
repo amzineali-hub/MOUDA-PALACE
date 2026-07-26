@@ -133,6 +133,19 @@ export default function MenuGenerator() {
     }
   };
 
+
+  const handlePrint = () => {
+    try {
+      if (window !== window.top) {
+         showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite) pour imprimer votre menu.", "error");
+      } else {
+         window.print();
+      }
+    } catch (e) {
+         showToast("Impossible d'imprimer. Ouvrez l'app dans un nouvel onglet.", "error");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm("Voulez-vous supprimer ce plat du menu ?")) {
       try {
@@ -161,7 +174,7 @@ if (isPrintView) {
                 <option value="moderne">Modèle Moderne (Minimaliste)</option>
                 <option value="traditionnel">Modèle Traditionnel (Marocain)</option>
               </select>
-              <button onClick={() => window.print()} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#c4954b] transition-colors">
+              <button onClick={handlePrint} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#c4954b] transition-colors">
                 <Printer size={18} /> Imprimer
               </button>
             </div>

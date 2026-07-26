@@ -200,7 +200,7 @@ if (isPrintView) {
                   </h1>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 md:gap-16 relative z-10">
+                <div className="relative z-10">
                   <div className="space-y-10 md:space-y-12">
                     {categories.map((cat) => {
                       const itemsInCat = menuItems.filter(i => i.category === cat);
@@ -220,16 +220,26 @@ if (isPrintView) {
                             </div>
                           </div>
 
-                          <div className="space-y-3 md:space-y-4 px-2 md:px-4">
+                          <div className="space-y-6 md:space-y-8 px-2 md:px-4">
                             {itemsInCat.map(item => (
-                              <div key={item.id} className="flex flex-col">
-                                <div className="flex justify-between items-end gap-2 md:gap-4">
-                                  <h3 className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] tracking-wide whitespace-nowrap">{item.name}</h3>
-                                  <div className="flex-1 border-b-[2px] border-dotted border-[#3d1e0f]/50 relative bottom-[6px] md:bottom-[8px]"></div>
-                                  <span className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] whitespace-nowrap">{item.price}</span>
+                              <div key={item.id} className="flex gap-4 md:gap-6 items-center break-inside-avoid">
+                                <div className="flex-1 flex flex-col">
+                                  <div className="flex justify-between items-end gap-2 md:gap-4">
+                                    <h3 className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] tracking-wide whitespace-nowrap">{item.name}</h3>
+                                    <div className="flex-1 border-b-[2px] border-dotted border-[#3d1e0f]/50 relative bottom-[6px] md:bottom-[8px]"></div>
+                                    <span className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] whitespace-nowrap">{item.price}</span>
+                                  </div>
+                                  {item.desc && (
+                                    <p className="text-sm md:text-base text-[#3d1e0f]/70 italic mt-0.5">{item.desc}</p>
+                                  )}
                                 </div>
-                                {item.desc && (
-                                  <p className="text-sm md:text-base text-[#3d1e0f]/70 italic mt-0.5">{item.desc}</p>
+                                {item.imageUrl && (
+                                  <div className="w-24 h-24 md:w-28 md:h-28 shrink-0 relative group">
+                                    <div className="absolute inset-[-4px] bg-gradient-to-br from-[#d4af37] to-[#aa8322] rounded-full shadow-md"></div>
+                                    <div className="relative rounded-full overflow-hidden border-[3px] border-[#FAF3E0] w-full h-full z-10 shadow-inner">
+                                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                             ))}
@@ -239,17 +249,7 @@ if (isPrintView) {
                     })}
                   </div>
 
-                  <div className="hidden lg:flex flex-col gap-8 md:gap-12 mt-4 items-center">
-                     {menuItems.filter(i => i.imageUrl).slice(0, 4).map((item, index) => (
-                        <div key={index} className="relative group">
-                          {/* Tagine effect */}
-                          <div className="absolute inset-[-6px] bg-gradient-to-br from-[#d4af37] to-[#aa8322] rounded-full shadow-lg"></div>
-                          <div className="relative rounded-full overflow-hidden border-[4px] border-[#FAF3E0] w-[260px] h-[260px] mx-auto z-10 shadow-inner">
-                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 hover:scale-110" />
-                          </div>
-                        </div>
-                     ))}
-                  </div>
+
                 </div>
                 
                 <div className="mt-16 md:mt-24 pt-6 md:pt-8 text-[#3d1e0f] text-sm md:text-base font-serif italic pb-8 md:pb-12 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">

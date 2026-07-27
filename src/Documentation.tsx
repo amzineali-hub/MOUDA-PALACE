@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, BookOpen, ChevronRight, FileText, MessageCircle, ArrowLeft, CalendarCheck, ChefHat, Users, Receipt, Megaphone } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { ModuleMockup } from './ModuleMockups';
 
 const categories = [
   { id: 'all', label: 'Tous', icon: <BookOpen size={16} /> },
@@ -214,13 +215,85 @@ Générez facilement une facture depuis une réservation ou pour un client de pa
 ## Exports
 Exportez vos données de facturation au format CSV ou PDF pour votre comptable en fin de mois.
     `
+  },
+  {
+    id: 11,
+    title: 'Procédé de base : Alimenter la base de données de A à Z',
+    description: 'Plan et procédé logique étape par étape pour configurer et alimenter l\'application depuis le début.',
+    level: 'Débutant',
+    steps: 8,
+    category: 'start',
+    content: `# Procédé de base : Alimenter la base de données de A à Z
+
+Voici le plan logique étape par étape pour configurer et alimenter correctement votre application avec vos données réelles. Nous vous recommandons de suivre cet ordre précis.
+
+## 1. Achats Fournisseurs
+Commencez par enregistrer vos **Achats Fournisseurs**.
+- Allez dans le module **Achats & Fournisseurs**.
+- Ajoutez vos fournisseurs réguliers.
+- Saisissez vos factures d'achat. Cela va permettre d'alimenter vos stocks théoriques et de suivre vos dépenses.
+
+## 2. Inventaire des Produits
+Vérifiez ensuite votre **Inventaire**.
+- Allez dans le module **Inventaire**.
+- Les produits achetés via les fournisseurs doivent apparaître ici.
+- Ajustez les quantités et définissez des seuils d'alerte pour ne jamais être en rupture de stock.
+
+## 3. Production Cuisine
+Gérez la transformation des matières premières.
+- Dans le module **Écran Cuisine (KDS)**, vous pouvez suivre les tâches de production.
+- Cela permet de gérer la préparation des ingrédients et plats en cours.
+
+## 4. Recettes et Menus
+Créez votre offre client.
+- Allez dans **Menu Digital** ou **Recettes**.
+- Ajoutez vos catégories (Entrées, Plats, Desserts, Boissons).
+- Créez vos plats en définissant leur nom, description, prix de vente et image.
+
+## 5. Tables et Réservations
+Préparez votre salle.
+- Allez dans **Gestion des Tables**.
+- Créez votre plan de salle virtuel en ajoutant chaque table et sa capacité.
+- Dans le module **Réservations (CRM)**, affectez les réservations clients à ces tables.
+
+## 6. Gestion d'Équipe & RH
+Gérez votre personnel et vos ressources humaines de A à Z.
+- Allez dans le module **Équipe & RH**.
+- **Gestion des Employés :** Ajoutez vos employés (Serveurs, Cuisiniers, Managers) avec leurs informations personnelles, contrats et documents.
+- **Rôles et Accès :** Attribuez-leur des rôles pour contrôler précisément leurs accès aux différents modules (ex: accès restreint au POS pour un Serveur, accès total pour un Manager).
+- **Plannings et Présences :** Gérez les plannings hebdomadaires, suivez les pointages et les heures travaillées.
+- **Paie et Avances :** Gérez les bulletins de paie, les acomptes, les primes et le calcul des salaires nets.
+- **Congés et Absences :** Suivez les demandes de congés, les jours de repos et les absences justifiées/injustifiées.
+
+## 7. Encaissements (POS Tactile)
+Passez à la vente.
+- Vos serveurs peuvent utiliser le **POS Tactile**.
+- Ils sélectionnent une table, ajoutent les plats créés à l'étape 4, et envoient les bons en cuisine.
+- Ils procèdent enfin à l'encaissement (Espèces, Carte Bancaire).
+
+## 8. Comptabilité et Finances
+Gérez la comptabilité complète de votre établissement.
+- Allez dans le module **Comptabilité & Finances**.
+- **Chiffre d'Affaires et Trésorerie :** Les ventes du POS et les dépenses fournisseurs y remontent automatiquement pour une vue claire de votre trésorerie et de vos marges.
+- **Déclaration de TVA :** Suivez la TVA collectée (sur vos ventes) et la TVA déductible (sur vos achats) pour générer facilement vos déclarations de TVA périodiques.
+- **Journal Comptable :** Toutes les opérations (ventes, achats, salaires, charges fixes) sont centralisées dans un journal des écritures comptables.
+- **Bilan et Compte de Résultat :** Éditez votre bilan, votre compte de résultat et vos états financiers.
+- **Gestion des Charges :** Saisissez vos charges fixes (Loyer, Électricité, Assurances) et variables pour un calcul précis de votre rentabilité.
+`
   }
 ];
 
-export default function Documentation() {
+export default function Documentation({ initialGuideId }: { initialGuideId?: number }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeGuide, setActiveGuide] = useState<any>(null);
+  const [activeGuide, setActiveGuide] = useState<any>(initialGuideId ? guides.find(g => g.id === initialGuideId) || null : null);
+
+  useEffect(() => {
+    if (initialGuideId) {
+      const guide = guides.find(g => g.id === initialGuideId);
+      if (guide) setActiveGuide(guide);
+    }
+  }, [initialGuideId]);
 
   const filteredGuides = guides.filter(guide => {
     const matchesCategory = activeCategory === 'all' || guide.category === activeCategory;
@@ -268,9 +341,52 @@ export default function Documentation() {
             <p className="text-gray-500">{activeGuide.description}</p>
           </div>
           
-          <div className="p-8 prose prose-indigo max-w-none markdown-body">
+          <div className="p-8">
             {activeGuide.content ? (
-              <ReactMarkdown>{activeGuide.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  h1: ({node, ...props}) => <h1 className="text-4xl font-black text-indigo-700 mb-6 pb-2 border-b-2 border-indigo-100" {...props} />,
+                  h2: ({node, children, ...props}) => {
+                    const text = String(children);
+                    let colorClass = "text-purple-600";
+                    let mockupType = "";
+                    
+                    if (text.includes("1.")) { colorClass = "text-blue-600"; mockupType = "achats"; }
+                    else if (text.includes("2.")) { colorClass = "text-emerald-600"; mockupType = "inventaire"; }
+                    else if (text.includes("3.")) { colorClass = "text-amber-600"; mockupType = "cuisine"; }
+                    else if (text.includes("4.")) { colorClass = "text-rose-600"; mockupType = "recettes"; }
+                    else if (text.includes("5.")) { colorClass = "text-cyan-600"; mockupType = "tables"; }
+                    else if (text.includes("6.")) { colorClass = "text-fuchsia-600"; mockupType = "rh"; }
+                    else if (text.includes("7.")) { colorClass = "text-orange-600"; mockupType = "pos"; }
+                    else if (text.includes("8.")) { colorClass = "text-teal-600"; mockupType = "compta"; }
+                    
+                    return (
+                      <h2 className={`text-2xl font-bold mt-10 mb-4 ${colorClass} flex items-center gap-2 relative group w-fit cursor-help`} {...props}>
+                        {children}
+                        {mockupType && (
+                          <div className="absolute left-0 bottom-full mb-3 hidden group-hover:block z-50 transition-all duration-200" style={{pointerEvents: 'none'}}>
+                            <div className="bg-white p-2 rounded-xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] border border-gray-100 w-72 h-48 transform -rotate-1 flex flex-col">
+                              <div className="flex-1 w-full h-full rounded-lg shadow-sm overflow-hidden">
+                                <ModuleMockup type={mockupType} />
+                              </div>
+                              <p className="text-[10px] text-gray-500 mt-2 font-medium text-center uppercase tracking-wider">Aperçu direct du module réel</p>
+                            </div>
+                            <div className="absolute left-6 -bottom-2 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45"></div>
+                          </div>
+                        )}
+                      </h2>
+                    );
+                  },
+                  h3: ({node, ...props}) => <h3 className="text-xl font-bold text-gray-800 mt-6 mb-3" {...props} />,
+                  p: ({node, ...props}) => <p className="text-gray-700 leading-relaxed mb-4 text-lg" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 space-y-2 text-gray-700 text-lg marker:text-indigo-400" {...props} />,
+                  li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-gray-900 bg-indigo-50 px-1 rounded" {...props} />,
+                  a: ({node, ...props}) => <a className="text-indigo-600 hover:text-indigo-800 underline decoration-indigo-300 underline-offset-2" {...props} />
+                }}
+              >
+                {activeGuide.content}
+              </ReactMarkdown>
             ) : (
               <p className="text-gray-400 italic">Contenu en cours de rédaction...</p>
             )}
@@ -325,6 +441,19 @@ export default function Documentation() {
                 </button>
               </div>
             </form>
+          </div>
+          
+          <div className="mt-8 flex flex-wrap gap-4">
+            <button 
+              onClick={() => {
+                const guide = guides.find(g => g.id === 11);
+                if (guide) setActiveGuide(guide);
+              }}
+              className="bg-amber-400 text-amber-950 px-6 py-3 rounded-xl font-bold hover:bg-amber-500 transition-colors shadow-lg flex items-center gap-2"
+            >
+              <BookOpen size={20} />
+              Procédé de base : par quoi commencer ?
+            </button>
           </div>
         </div>
       </div>

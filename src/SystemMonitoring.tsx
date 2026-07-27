@@ -38,7 +38,7 @@ export default function SystemMonitoring() {
 
   return (
     <div className="bg-[#0A0A0A] backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/10 mb-8 overflow-hidden relative">
-      <div className="flex items-center justify-between mb-8 relative z-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 relative z-10">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-white/5 text-blue-400 rounded-xl border border-white/10 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
             <Activity size={24} />
@@ -57,7 +57,7 @@ export default function SystemMonitoring() {
         </div>
       </div>
 
-      <div className="relative w-full max-w-[500px] mx-auto h-[360px] flex items-center justify-center">
+      <div className="w-full flex justify-center overflow-hidden"><div className="relative w-[500px] h-[360px] flex-shrink-0 [transform:scale(0.65)] sm:[transform:scale(0.8)] md:[transform:scale(1)] origin-center -my-16 sm:-my-8 md:my-0">
         {/* SVG Synapses */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 360">
           {/* Defs for gradients and animations */}
@@ -160,6 +160,7 @@ export default function SystemMonitoring() {
             </motion.div>
           );
         })}
+      </div>
       </div>
       
       <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-400 relative z-10">

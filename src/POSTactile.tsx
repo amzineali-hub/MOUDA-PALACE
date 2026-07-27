@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const CATEGORIES = [
@@ -73,8 +73,27 @@ export default function POSTactile() {
       return;
     }
     
-    showToast("Commande envoyée en cuisine !");
-    setCart([]);
+    try {
+      const orderId = 'CMD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      
+      for (const item of cart) {
+        await addDoc(collection(db, 'productionTasks'), {
+          orderId,
+          item: item.name,
+          qty: item.qty,
+          status: 'À faire',
+          progress: 0,
+          createdAt: new Date(),
+          source: 'POS',
+          priority: 'Haute'
+        });
+      }
+      showToast("Commande envoyée en cuisine !");
+      setCart([]);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'envoi en cuisine", "error");
+    }
   };
 
   const handleCheckout = (method: string) => {
@@ -98,18 +117,18 @@ export default function POSTactile() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden bg-[#F4F4F5]">
-      <div className="flex-1 flex overflow-hidden">
+    <div className="flex flex-col h-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:overflow-hidden bg-[#F4F4F5]">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
         {/* Left Side - Menu Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0">
           {/* Header & Categories */}
           <div className="p-6 bg-[#F4F4F5] z-10 flex flex-col gap-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
                 <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
               </div>
-              <div className="relative w-72">
+              <div className="relative w-full md:w-72">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
@@ -144,7 +163,7 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 <AnimatePresence mode="popLayout">
                   {filteredItems.map(item => {
                     const colorClass = getCategoryColor(item.category);
@@ -192,7 +211,7 @@ export default function POSTactile() {
         </div>
 
         {/* Right Side - Ticket / Cart Area */}
-        <div className="w-[400px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 m-4 rounded-3xl overflow-hidden border border-gray-100">
+        <div className="w-full lg:w-[400px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
           {/* Ticket Header */}
           <div className="p-6 bg-white flex justify-between items-center border-b border-gray-100">
             <div className="flex items-center gap-3">

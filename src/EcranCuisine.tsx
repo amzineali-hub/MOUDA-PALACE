@@ -93,7 +93,7 @@ export default function EcranCuisine() {
   );
 
   return (
-    <div className="p-6 bg-gray-50 h-full overflow-hidden flex flex-col">
+    <div className="p-4 md:p-6 bg-gray-50 h-full lg:overflow-hidden overflow-y-auto flex flex-col">
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-serif font-bold text-[#1A1A1A]">Écran Cuisine (KDS)</h2>
@@ -107,7 +107,7 @@ export default function EcranCuisine() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 lg:overflow-hidden">
         {/* À FAIRE */}
         <div className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">

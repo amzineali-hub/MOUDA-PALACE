@@ -897,7 +897,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7]"></div>
       </div>
 
-      <div className="relative z-10 p-8 md:p-12 pt-16 md:pt-20 print:hidden">
+      <div className="relative z-10 p-4 md:p-12 pt-20 md:pt-20 print:hidden">
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-4xl font-serif text-white font-semibold mb-2 drop-shadow-md">Tableau de Bord</h2>

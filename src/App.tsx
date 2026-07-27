@@ -524,7 +524,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative">
       {/* Mobile Header */}
-      <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-50 sticky top-0">
+      <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-40 sticky top-0">
         <div className="flex items-center gap-4">
           <div 
              className="h-10 w-12 bg-[#DDA956]" 

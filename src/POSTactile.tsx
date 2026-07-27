@@ -16,11 +16,19 @@ export default function POSTactile() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Plats Principaux');
   const [cart, setCart] = useState<any[]>([]);
+
+  const handleClearCart = () => {
+    if (cart.length > 0) {
+      setCart([]);
+      showToast("Ticket annulé", "info");
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   
@@ -81,10 +89,10 @@ export default function POSTactile() {
       return prev.map(item => {
         if (item.id === id) {
           const newQty = item.qty + delta;
-          return newQty > 0 ? { ...item, qty: newQty } : item;
+          return { ...item, qty: newQty };
         }
         return item;
-      }).filter(item => item.qty > 0 || (item.id === id && delta > 0));
+      }).filter(item => item.qty > 0);
     });
   };
 
@@ -188,7 +196,7 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
                 <AnimatePresence mode="popLayout">
                   {/* Bouton d'ajout */}
                   <motion.button
@@ -197,7 +205,7 @@ export default function POSTactile() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center h-40 rounded-3xl p-5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#DDA956] hover:border-[#DDA956] hover:bg-[#DDA956]/5 transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#DDA956] hover:border-[#DDA956] hover:bg-[#DDA956]/5 transition-all"
                   >
                     <Plus size={32} className="mb-2" />
                     <span className="font-bold text-sm">Ajouter un article</span>
@@ -218,7 +226,7 @@ export default function POSTactile() {
                         whileTap={{ scale: 0.95, y: 0, boxShadow: "none" }}
                         key={item.id}
                         onClick={() => addToCart(item)}
-                        className={`relative overflow-hidden flex flex-col h-40 rounded-3xl p-5 text-left bg-gradient-to-br ${colorClass} shadow-[0_15px_30px_-10px_rgba(0,0,0,0.3),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-4px_0_rgba(0,0,0,0.1)] transition-all`}
+                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-3px_0_rgba(0,0,0,0.1)] transition-all`}
                       >
                         {/* 3D Inner Glow / Highlights */}
                         <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-3xl" />
@@ -229,10 +237,10 @@ export default function POSTactile() {
                           </div>
                         )}
                         
-                        <span className={`font-bold text-xl leading-tight z-10 flex-1 ${priceColor} drop-shadow-sm`}>{item.name}</span>
-                        <div className="mt-auto">
-                          <span className={`font-black text-2xl z-10 ${priceColor} drop-shadow-md`}>{item.numPrice}</span>
-                          <span className={`font-bold text-sm ml-1 ${textColor}`}>MAD</span>
+                        <span className={`font-bold text-sm sm:text-lg leading-tight z-10 flex-1 ${priceColor} drop-shadow-sm break-words line-clamp-3`}>{item.name}</span>
+                        <div className="mt-auto flex flex-wrap items-baseline">
+                          <span className={`font-black text-lg sm:text-2xl z-10 ${priceColor} drop-shadow-md`}>{item.numPrice}</span>
+                          <span className={`font-bold text-[10px] sm:text-xs ml-1 ${textColor}`}>MAD</span>
                         </div>
                       </motion.button>
                     );
@@ -258,12 +266,23 @@ export default function POSTactile() {
               </div>
               <h2 className="font-bold text-[#1A1A1A] text-xl">Ticket</h2>
             </div>
-            <button 
-              className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
-            >
-              <User size={16} />
-              {selectedTable ? selectedTable : "Table"}
-            </button>
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button 
+                  onClick={handleClearCart}
+                  className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors" title="Annuler le ticket"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+              <button 
+                onClick={() => setIsTableModalOpen(true)}
+                className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
+              >
+                <User size={16} />
+                {selectedTable ? selectedTable : "Table"}
+              </button>
+            </div>
           </div>
 
           {/* Cart Items */}
@@ -407,6 +426,57 @@ export default function POSTactile() {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+
+      {/* Table Selection Modal */}
+      {isTableModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-[#1A1A1A]">Sélectionner une table</h2>
+              <button 
+                onClick={() => setIsTableModalOpen(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 mb-6">
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((tableNum) => (
+                  <button
+                    key={tableNum}
+                    onClick={() => {
+                      setSelectedTable(`Table ${tableNum}`);
+                      setIsTableModalOpen(false);
+                    }}
+                    className={`aspect-square rounded-2xl flex items-center justify-center text-xl font-bold transition-all ${selectedTable === `Table ${tableNum}` ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md scale-105' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-[#DDA956]/50'}`}
+                  >
+                    {tableNum}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="border-t border-gray-100 pt-6">
+                <button
+                  onClick={() => {
+                    setSelectedTable('À emporter');
+                    setIsTableModalOpen(false);
+                  }}
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${selectedTable === 'À emporter' ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'}`}
+                >
+                  À emporter (Takeaway)
+                </button>
+              </div>
+            </div>
           </motion.div>
         </div>
       )}

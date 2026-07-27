@@ -26,6 +26,7 @@ export default function POSTactile() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
@@ -67,6 +68,13 @@ export default function POSTactile() {
       setLoading(false);
     });
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
+      setTables(snapshot.docs.map(doc => ({ fbId: doc.id, ...doc.data() })));
+    });
+    return () => unsubTables();
   }, []);
 
   const filteredItems = menuItems.filter(item => {
@@ -450,17 +458,20 @@ export default function POSTactile() {
             </div>
             
             <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 mb-6">
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((tableNum) => (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
+                {tables.map((table) => (
                   <button
-                    key={tableNum}
+                    key={table.id || table.fbId}
                     onClick={() => {
-                      setSelectedTable(`Table ${tableNum}`);
+                      setSelectedTable(table.id);
                       setIsTableModalOpen(false);
                     }}
-                    className={`aspect-square rounded-2xl flex items-center justify-center text-xl font-bold transition-all ${selectedTable === `Table ${tableNum}` ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md scale-105' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-[#DDA956]/50'}`}
+                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.id ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#DDA956]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
                   >
-                    {tableNum}
+                    <span className="text-xl mb-1">{table.id}</span>
+                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
+                      {table.status === 'libre' ? 'Libre' : table.status === 'occupee' ? 'Occupée' : table.status === 'reservee' ? 'Réservée' : table.status}
+                    </span>
                   </button>
                 ))}
               </div>

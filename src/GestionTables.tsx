@@ -133,7 +133,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     <div className="p-8 max-w-7xl mx-auto space-y-6 h-full flex flex-col">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Gestion de Salle & Tables</h1>
+          <h1 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-1">Gestion de Salle & Tables</h1>
           <p className="text-gray-500">Visualisez et gérez l'occupation de vos zones de restauration en temps réel.</p>
         </div>
         
@@ -197,21 +197,21 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
               key={table.id}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`border-2 rounded-xl p-4 flex flex-col h-40 relative transition-all hover:shadow-md ${getStatusColor(table.status)}`}
+              className={`border-2 rounded-xl p-3 flex flex-col min-h-24 relative transition-all hover:shadow-md ${getStatusColor(table.status)}`}
             >
-              <div className="flex justify-between items-start mb-2">
+              <div className="flex justify-between items-start mb-1">
                 <div className="flex items-center gap-2">
                   {table.shape === 'rond' && <Circle size={18} className="text-current opacity-70" />}
                   {table.shape === 'rectangle' && <RectangleHorizontal size={18} className="text-current opacity-70" />}
                   {(!table.shape || table.shape === 'carre') && <Square size={18} className="text-current opacity-70" />}
-                  <span className="text-xl font-bold">{table.id}</span>
+                  <span className="text-lg font-bold">{table.id}</span>
                 </div>
                 <button className="text-current opacity-50 hover:opacity-100 transition-opacity">
                   <MoreHorizontal size={20} />
                 </button>
               </div>
               
-              <div className="text-xs font-medium uppercase tracking-wider opacity-70 mb-auto">
+              <div className="text-[10px] sm:text-xs font-medium uppercase tracking-wider opacity-70">
                 {getStatusLabel(table.status)}
               </div>
 
@@ -222,7 +222,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                 </div>
               )}
 
-              <div className="flex justify-between items-end mt-2 pt-2 border-t border-current border-opacity-20">
+              <div className="flex justify-between items-end mt-auto pt-2 border-t border-current border-opacity-20">
                 <div className="flex items-center gap-1 text-sm font-semibold">
                   <User size={14} />
                   {table.currentPax > 0 ? `${table.currentPax}/${table.capacity}` : table.capacity}
@@ -283,14 +283,14 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Forme de la table</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Forme de la table</label>
                   <div className="grid grid-cols-3 gap-3">
                     <button 
                       type="button"
                       onClick={() => setNewTable({...newTable, shape: 'carre'})}
                       className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'carre' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
-                      <Square size={24} className="mb-2" />
+                      <Square size={24} className="mb-1" />
                       <span className="text-xs font-medium">Carré</span>
                     </button>
                     <button 
@@ -298,7 +298,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                       onClick={() => setNewTable({...newTable, shape: 'rond'})}
                       className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rond' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
-                      <Circle size={24} className="mb-2" />
+                      <Circle size={24} className="mb-1" />
                       <span className="text-xs font-medium">Rond</span>
                     </button>
                     <button 
@@ -306,7 +306,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                       onClick={() => setNewTable({...newTable, shape: 'rectangle'})}
                       className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rectangle' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
-                      <RectangleHorizontal size={24} className="mb-2" />
+                      <RectangleHorizontal size={24} className="mb-1" />
                       <span className="text-xs font-medium">Rectangle</span>
                     </button>
                   </div>

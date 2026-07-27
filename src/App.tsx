@@ -102,6 +102,7 @@ import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
 import Documentation from "./Documentation";
+import GuideEcrans from "./GuideEcrans";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import Recettes from "./Recettes";
 import GestionTables from "./GestionTables";
@@ -508,6 +509,8 @@ export default function App() {
         return <DeviceManagement />;
       case 'docs':
         return <Documentation />;
+      case 'docs_screens':
+        return <GuideEcrans />;
       case 'config':
         return <Configuration />;
       case 'achats':
@@ -724,6 +727,7 @@ export default function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'docs_cat' ? null : 'docs_cat')}
           >
             <SubNavItem icon={<BookOpen size={16} />} label="Guide Logiciel" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
+            <SubNavItem icon={<Monitor size={16} />} label="Guide Écrans" active={activeTab === 'docs_screens'} onClick={() => handleTabChange('docs_screens')} />
           </NavCategory>
         </div>
 

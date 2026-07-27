@@ -478,12 +478,29 @@ export default function App() {
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setIsMobileMenuOpen(false);
+    
+    // Request full screen for device modes
+    if (['kds', 'finance', 'tables', 'device_simulator'].includes(tab)) {
+      try {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(err => {
+            console.warn("Fullscreen request failed:", err);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
+
+  const isFullScreenMode = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
+
+  const isFullScreenView = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <Overview setActiveTab={setActiveTab} />;
+        return <Overview setActiveTab={handleTabChange} />;
       case 'reservations':
         return <Reservations />;
       case 'b2b':
@@ -507,9 +524,9 @@ export default function App() {
       case 'accounting':
         return <Accounting />;
       case 'device_simulator':
-        return <DeviceSimulator setActiveTab={setActiveTab} />;
+        return <DeviceSimulator setActiveTab={handleTabChange} />;
       case 'docs_devices':
-        return <DeviceManagement setActiveTab={setActiveTab} />;
+        return <DeviceManagement setActiveTab={handleTabChange} />;
       case 'docs':
         return <Documentation />;
       case 'docs_screens':
@@ -521,15 +538,16 @@ export default function App() {
       case 'recettes':
         return <Recettes />;
       case 'tables':
-        return <GestionTables setActiveTab={setActiveTab} />;
+        return <GestionTables setActiveTab={handleTabChange} />;
       default:
         return <Overview setActiveTab={setActiveTab} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative">
+    <div className={`min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative ${isFullScreenView ? "overflow-hidden" : ""}`}>
       {/* Mobile Header */}
+      {!isFullScreenView && (
       <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-40 sticky top-0">
         <div className="flex items-center gap-4">
           <div 
@@ -551,8 +569,10 @@ export default function App() {
           {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
+      )}
 
       {/* Sidebar Navigation */}
+      {!isFullScreenView && (
       <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
@@ -761,12 +781,32 @@ export default function App() {
         </div>
       </aside>
 
+      )}
       {/* Main Content */}
-      <main className="flex-1 min-w-0 relative bg-[#FDFBF7] min-h-screen">
+      <main className={`flex-1 min-w-0 relative bg-[#FDFBF7] ${isFullScreenView ? "h-screen overflow-hidden" : "min-h-screen"}`}>
         {renderContent()}
       </main>
 
-      <ChatBot />
+      {!isFullScreenView && <ChatBot />}
+      {isFullScreenView && activeTab !== 'device_simulator' && (
+        <button 
+          onClick={() => {
+            setActiveTab('docs_devices');
+            try {
+              if (document.fullscreenElement) {
+                document.exitFullscreen();
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+          className="fixed bottom-4 right-4 bg-[#1A1A1A] text-white p-3 rounded-full shadow-lg hover:bg-black transition-colors z-50 print:hidden flex items-center gap-2 pr-4"
+          title="Quitter le mode plein écran"
+        >
+          <X size={20} />
+          <span className="font-bold text-sm">Quitter l'écran</span>
+        </button>
+      )}
     </div>
   );
 }

@@ -40,6 +40,14 @@ export default function DeviceSimulator({ setActiveTab }: { setActiveTab: (tab: 
 
       showToast(`Connecté en tant que: \${deviceData.nom_appareil || deviceData.name}`, 'success');
 
+      try {
+        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (e) {
+        console.error('Fullscreen error', e);
+      }
+
       // Navigate based on type
       if (deviceData.type === 'KDS') {
         setActiveTab('kds');
@@ -90,7 +98,7 @@ export default function DeviceSimulator({ setActiveTab }: { setActiveTab: (tab: 
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\\D/g, ''))}
                 placeholder="000000"
-                className="w-full max-w-[280px] text-center text-5xl tracking-[0.5em] font-mono font-bold text-[#1A1A1A] bg-gray-50 border-2 border-gray-200 rounded-2xl py-4 focus:outline-none focus:border-[#DDA956] focus:bg-white transition-all placeholder:text-gray-300"
+                className="w-full max-w-[280px] text-center text-4xl md:text-5xl tracking-[0.2em] md:tracking-[0.5em] font-mono font-bold text-[#1A1A1A] bg-gray-50 border-2 border-gray-200 rounded-2xl py-4 focus:outline-none focus:border-[#DDA956] focus:bg-white transition-all placeholder:text-gray-300"
               />
             </div>
           </div>
@@ -115,7 +123,16 @@ export default function DeviceSimulator({ setActiveTab }: { setActiveTab: (tab: 
           
           <button
             type="button"
-            onClick={() => setActiveTab('docs_devices')}
+            onClick={() => {
+              setActiveTab('docs_devices');
+              try {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen();
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }}
             className="w-full py-3 bg-transparent text-gray-500 rounded-xl font-medium flex items-center justify-center hover:bg-gray-50 hover:text-gray-900 transition-colors"
           >
             Retour à l'administration

@@ -20,7 +20,7 @@ export default function POSTactile() {
   const handleClearCart = () => {
     if (cart.length > 0) {
       setCart([]);
-      showToast("Ticket annulé", "info");
+      showToast("Ticket annulé");
     }
   };
   const [searchQuery, setSearchQuery] = useState('');
@@ -158,7 +158,7 @@ export default function POSTactile() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-64px)] lg:h-[calc(100vh-64px)] lg:overflow-hidden bg-[#F4F4F5]">
+    <div className="flex flex-col h-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F4F5]">
       <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
         {/* Left Side - Menu Area */}
         <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0">

@@ -529,11 +529,11 @@ export default function App() {
           <div 
              className="h-10 w-12 bg-[#DDA956]" 
              style={{
-              maskImage: 'url(/mouda.png)',
+              maskImage: 'url(/mouda-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda.png)',
+              WebkitMaskImage: 'url(/mouda-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -552,11 +552,11 @@ export default function App() {
           <div 
             className="h-24 w-32 mb-4 bg-[#DDA956]" 
             style={{
-              maskImage: 'url(/mouda.png)',
+              maskImage: 'url(/mouda-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda.png)',
+              WebkitMaskImage: 'url(/mouda-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -6438,11 +6438,11 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
       >
         <div className="text-center mb-12">
           <div className="mx-auto h-20 w-24 bg-[#DDA956] mb-6" style={{
-            maskImage: 'url(/mouda.png)',
+            maskImage: 'url(/mouda-1.png)',
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
-            WebkitMaskImage: 'url(/mouda.png)',
+            WebkitMaskImage: 'url(/mouda-1.png)',
             WebkitMaskSize: 'contain',
             WebkitMaskRepeat: 'no-repeat',
             WebkitMaskPosition: 'center'

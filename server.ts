@@ -6,7 +6,16 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiClient = null;
+function getAI() {
+  if (!aiClient) {
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY not found!");
+    }
+    aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+  }
+  return aiClient;
+}
 
 async function startServer() {
   const app = express();
@@ -22,7 +31,7 @@ async function startServer() {
         return res.status(400).json({ error: "Missing reviewText" });
       }
 
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `Tu es un assistant IA pour un restaurant gastronomique marocain "Mouda Palace". Analyse cet avis client et extrais:
 1. Le sentiment général (positif, neutre, négatif)
@@ -69,7 +78,7 @@ Si une demande est complexe, propose au client d'être contacté par un humain.`
 
       const prompt = `${systemInstruction}\n\nHistorique de la conversation:\n${formattedHistory}\n\nClient: ${message}\nAssistant (Réponds au format JSON avec les clés "text" et "requiresValidation" (booléen). Mets requiresValidation à true SI ET SEULEMENT SI la demande client concerne une annulation de dernière minute, un litige, ou nécessite explicitement une validation/intervention humaine critique) :`;
 
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
       });
@@ -131,7 +140,7 @@ Mots-clés / Instructions spécifiques : ${keywords || 'aucun'}
 
 Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
 
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
       });
@@ -216,7 +225,7 @@ Format de réponse attendu:
 ]
 Ne renvoie QUE le tableau JSON valide. Ne rajoute pas de texte avant ou après.`;
 
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt
       });

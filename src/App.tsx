@@ -92,7 +92,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle } from 'lucide-react';
+AlertCircle, Monitor } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -107,6 +107,8 @@ import Recettes from "./Recettes";
 import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
 import EcranCuisine from "./EcranCuisine";
+import DeviceManagement from "./DeviceManagement";
+import SystemMonitoring from "./SystemMonitoring";
 import ChatBot from './components/ChatBot';
 
 function ReviewAnalyzer() {
@@ -213,13 +215,13 @@ function InventoryAlerts() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, 'inventory'));
+    const q = query(collection(db, 'inventoryItems'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const lowStockItems: any[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.quantity !== undefined && data.criticalThreshold !== undefined) {
-          if (isCriticalStock(data.quantity, data.criticalThreshold)) {
+        if (data.quantity !== undefined && data.minStock !== undefined) {
+          if (data.quantity <= data.minStock) {
             lowStockItems.push({ id: doc.id, ...data });
           }
         }
@@ -502,6 +504,8 @@ export default function App() {
         return <POSTactile />;
       case 'accounting':
         return <Accounting />;
+      case 'docs_devices':
+        return <DeviceManagement />;
       case 'docs':
         return <Documentation />;
       case 'config':
@@ -633,6 +637,18 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => handleTabChange('docs_devices')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
+              activeTab === 'docs_devices'
+                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+            }`}
+          >
+            <Monitor size={18} />
+            <span>Gestion Écrans Tactile & Cuisine</span>
+          </button>
+
+          <button
             onClick={() => handleTabChange('menu')}
             className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold mb-6 border-2 shadow-sm ${
               activeTab === 'menu'
@@ -707,7 +723,7 @@ export default function App() {
             isExpanded={expandedCategory === 'docs_cat'} 
             onClick={() => setExpandedCategory(expandedCategory === 'docs_cat' ? null : 'docs_cat')}
           >
-            <SubNavItem icon={<BookOpen size={16} />} label="Centre de Doc" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
+            <SubNavItem icon={<BookOpen size={16} />} label="Guide Logiciel" active={activeTab === 'docs'} onClick={() => handleTabChange('docs')} />
           </NavCategory>
         </div>
 
@@ -882,7 +898,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
       </div>
 
       <div className="relative z-10 p-8 md:p-12 pt-16 md:pt-20 print:hidden">
-        <header className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h2 className="text-4xl font-serif text-white font-semibold mb-2 drop-shadow-md">Tableau de Bord</h2>
             <p className="text-[#FDFBF7]/90 text-lg drop-shadow-sm">Vue consolidée des activités du restaurant et des intégrations.</p>
@@ -900,6 +916,8 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             </span>
           </div>
         </header>
+
+        <SystemMonitoring />
 
         {/* Dashboard Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">

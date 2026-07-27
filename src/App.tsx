@@ -109,6 +109,7 @@ import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
 import EcranCuisine from "./EcranCuisine";
 import DeviceManagement from "./DeviceManagement";
+import DeviceSimulator from "./DeviceSimulator";
 import SystemMonitoring from "./SystemMonitoring";
 import ChatBot from './components/ChatBot';
 
@@ -505,8 +506,10 @@ export default function App() {
         return <POSTactile />;
       case 'accounting':
         return <Accounting />;
+      case 'device_simulator':
+        return <DeviceSimulator setActiveTab={setActiveTab} />;
       case 'docs_devices':
-        return <DeviceManagement />;
+        return <DeviceManagement setActiveTab={setActiveTab} />;
       case 'docs':
         return <Documentation />;
       case 'docs_screens':

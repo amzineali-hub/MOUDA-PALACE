@@ -217,11 +217,11 @@ if (isPrintView) {
                         {itemsInCat.map(item => (
                           <div key={item.id} className="flex gap-5 break-inside-avoid">
                             {item.imageUrl && (
-                              <div className="w-24 h-24 shrink-0 rounded-full overflow-hidden border-2 border-[#DDA956]/30 shadow-sm print:border-gray-200">
+                              <div className="w-48 h-48 shrink-0 rounded-full overflow-hidden border-2 border-[#DDA956]/30 shadow-sm print:border-gray-200">
                                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                               </div>
                             )}
-                            <div className="flex-1 pt-1">
+                            <div className="flex-1 pt-1 text-left">
                               <div className="flex justify-between items-baseline mb-2 gap-4">
                                 <h3 className="text-lg md:text-xl font-serif font-bold text-gray-900">{item.name}</h3>
                                 <div className="flex-1 border-b-2 border-dotted border-gray-300 relative -top-1"></div>
@@ -276,7 +276,7 @@ if (isPrintView) {
                           <div className="space-y-6 md:space-y-8 px-2 md:px-4">
                             {itemsInCat.map(item => (
                               <div key={item.id} className="flex gap-4 md:gap-6 items-center break-inside-avoid">
-                                <div className="flex-1 flex flex-col">
+                                <div className="flex-1 flex flex-col text-left">
                                   <div className="flex justify-between items-end gap-1 md:gap-4 w-full">
                                     <h3 className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] tracking-wide">{item.name}</h3>
                                     <div className="flex-1 border-b-[2px] border-dotted border-[#3d1e0f]/50 relative bottom-[6px] md:bottom-[8px]"></div>
@@ -287,7 +287,7 @@ if (isPrintView) {
                                   )}
                                 </div>
                                 {item.imageUrl && (
-                                  <div className="w-24 h-24 md:w-28 md:h-28 shrink-0 relative group">
+                                  <div className="w-48 h-48 md:w-56 md:h-56 shrink-0 relative group">
                                     <div className="absolute inset-[-4px] bg-gradient-to-br from-[#d4af37] to-[#aa8322] rounded-full shadow-md"></div>
                                     <div className="relative rounded-full overflow-hidden border-[3px] border-[#FAF3E0] w-full h-full z-10 shadow-inner">
                                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />

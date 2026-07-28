@@ -69,6 +69,11 @@ export default function Accounting() {
       expenses.forEach(exp => {
         csvContent += `${exp.id},${exp.category},${exp.supplier},${exp.date},${exp.method},${exp.amount.replace(/ /g, '')}\n`;
       });
+    } else if (activeTab === 'receipts') {
+      csvContent += "ID,Date,Methode,Montant\n";
+      receipts.forEach(rec => {
+        csvContent += `${rec.id},${rec.date},${rec.method},${rec.amount}\n`;
+      });
     } else {
       showToast("Rien à exporter pour cette section");
       return;
@@ -113,6 +118,19 @@ export default function Accounting() {
     { id: 'RPT-2026-10', type: 'CPC (Compte de Produits et Charges)', date: '31 Oct 2026', status: 'Généré', format: 'Excel' },
     { id: 'RPT-2026-09', type: 'Bilan Comptable', date: '30 Sep 2026', status: 'Généré', format: 'PDF' },
   ]);
+
+  const [receipts, setReceipts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsubReceipts = onSnapshot(query(collection(db, 'cash_receipts'), orderBy('createdAt', 'desc')), (snapshot) => {
+      if (!snapshot.empty) {
+        setReceipts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    }, (error) => {
+      console.error("Error fetching receipts", error);
+    });
+    return () => unsubReceipts();
+  }, []);
 
   useEffect(() => {
     const unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -231,13 +249,14 @@ export default function Accounting() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
         <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2">
           <nav className="flex overflow-x-auto hide-scrollbar gap-2">
-            {['invoices', 'expenses', 'reports'].map(tab => (
+            {['invoices', 'receipts', 'expenses', 'reports'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 {tab === 'invoices' && 'Factures Clients'}
+                {tab === 'receipts' && 'Recettes Caisses'}
                 {tab === 'expenses' && 'Dépenses & Achats'}
                 {tab === 'reports' && 'Rapports Financiers'}
                 {activeTab === tab && (
@@ -256,7 +275,7 @@ export default function Accounting() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text"
-              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : "Rechercher une dépense..."}
+              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] bg-white"
@@ -309,6 +328,48 @@ export default function Accounting() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'receipts' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4">ID Encaiss.</th>
+                  <th className="px-6 py-4">Date & Heure</th>
+                  <th className="px-6 py-4">Méthode</th>
+                  <th className="px-6 py-4 text-right">Montant</th>
+                  <th className="px-6 py-4 text-center">Détails</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {receipts.map((receipt, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-gray-900">{receipt.displayId || 'TKT-' + receipt.id.substring(0, 6).toUpperCase()}</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {receipt.createdAt?.toDate ? receipt.createdAt.toDate().toLocaleString('fr-FR') : receipt.date}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{receipt.method}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{receipt.amount.toFixed(2)} MAD</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => showToast(`${receipt.items?.length || 0} articles dans ce ticket`)} className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
+                          <Eye size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {receipts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      Aucune recette caisse trouvée. Les encaissements du POS apparaîtront ici.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

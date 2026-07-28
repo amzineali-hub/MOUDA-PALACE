@@ -188,12 +188,19 @@ export default function Recettes() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 bg-white">
-                  <option value="Plats">Plats</option>
-                  <option value="Entrées">Entrées</option>
-                  <option value="Desserts">Desserts</option>
-                  <option value="Boissons">Boissons</option>
-                </select>
+                <input 
+                  name="categorie" 
+                  required 
+                  list="recipe-categories-list"
+                  className="w-full border border-gray-200 rounded-lg p-2.5 bg-white" 
+                  placeholder="Sélectionner ou saisir..." 
+                />
+                <datalist id="recipe-categories-list">
+                  <option value="Plats" />
+                  <option value="Entrées" />
+                  <option value="Desserts" />
+                  <option value="Boissons" />
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

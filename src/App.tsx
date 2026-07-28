@@ -806,7 +806,7 @@ export default function App() {
               console.error(e);
             }
           }}
-          className="fixed bottom-4 right-4 bg-[#1A1A1A] text-white p-3 rounded-full shadow-lg hover:bg-black transition-colors z-50 print:hidden flex items-center gap-2 pr-4"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#1A1A1A] text-white p-3 rounded-full shadow-lg hover:bg-black transition-colors z-50 print:hidden flex items-center gap-2 px-6"
           title="Quitter le mode plein écran"
         >
           <X size={20} />
@@ -1783,7 +1783,7 @@ function Reservations() {
                         </div>
                       </div>
                       <p className="text-gray-600 text-sm mb-3">"Excellente expérience, cadre magnifique et tajines délicieux. Service impeccable via la réservation en ligne."</p>
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
+                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
                     </div>
                  ))}
                </div>
@@ -2768,7 +2768,7 @@ function WhatsAppAI() {
                   <h4 className="font-medium text-gray-900">Numéro connecté</h4>
                   <p className="text-sm text-gray-500">+212 6 00 00 00 00</p>
                 </div>
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
+                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
               </div>
             </div>
           </div>
@@ -3493,6 +3493,10 @@ function Inventory() {
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
+  const [newRecipeForm, setNewRecipeForm] = useState({ name: '', category: 'Entrée' });
+  const [newRecipeIngredients, setNewRecipeIngredients] = useState<any[]>([]);
+  const [selectedIngredient, setSelectedIngredient] = useState('');
+  const [ingredientQty, setIngredientQty] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   
@@ -3911,7 +3915,7 @@ function Inventory() {
              <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Déclarations de Pertes & Gaspillage</h3>
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
+                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="p-5 border border-red-100 bg-red-50/30 rounded-xl">
@@ -4065,7 +4069,7 @@ function Inventory() {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
+                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
                             </td>
                           </tr>
                         ))}
@@ -4210,29 +4214,116 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                  <input type="text" className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Tagine de poulet" />
+                  <input 
+                    type="text" 
+                    value={newRecipeForm.name}
+                    onChange={(e) => setNewRecipeForm({...newRecipeForm, name: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="Ex: Tagine de poulet" 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]">
-                    <option>Entrée</option>
-                    <option>Plat Principal</option>
-                    <option>Dessert</option>
-                    <option>Boisson</option>
-                  </select>
+                  <input 
+                    value={newRecipeForm.category}
+                    onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
+                    list="fiche-categories-list"
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]"
+                    placeholder="Sélectionner ou saisir..."
+                  />
+                  <datalist id="fiche-categories-list">
+                    <option value="Entrée" />
+                    <option value="Plat Principal" />
+                    <option value="Dessert" />
+                    <option value="Boisson" />
+                  </datalist>
                 </div>
               </div>
               
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium text-gray-900">Ingrédients (Nécessite connexion à l'inventaire)</h4>
-                  <button onClick={() => showToast && showToast('Action en cours de développement...')} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Action</button>
+                  <h4 className="font-medium text-gray-900">Ingrédients depuis l'inventaire</h4>
                 </div>
+                <div className="flex gap-2 mb-4">
+                  <select 
+                    value={selectedIngredient}
+                    onChange={(e) => setSelectedIngredient(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner un produit...</option>
+                    {stockItemsData.map(item => (
+                      <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                    ))}
+                  </select>
+                  <input 
+                    type="number" 
+                    value={ingredientQty}
+                    onChange={(e) => setIngredientQty(e.target.value)}
+                    className="w-24 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" 
+                    placeholder="Qté" 
+                  />
+                  <button 
+                    onClick={() => {
+                      if (!selectedIngredient || !ingredientQty) {
+                        showToast("Veuillez sélectionner un ingrédient et une quantité", "error");
+                        return;
+                      }
+                      const item = stockItemsData.find(i => i.id === selectedIngredient);
+                      if (item) {
+                        setNewRecipeIngredients([...newRecipeIngredients, {
+                          id: item.id,
+                          name: item.name,
+                          unit: item.unit,
+                          quantity: Number(ingredientQty),
+                          costPerUnit: item.price || 0
+                        }]);
+                        setSelectedIngredient('');
+                        setIngredientQty('');
+                      }
+                    }}
+                    className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b]"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                
+                {newRecipeIngredients.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    {newRecipeIngredients.map((ing, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100">
+                        <span className="text-sm font-medium">{ing.name}</span>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-gray-500">{ing.quantity} {ing.unit}</span>
+                          <button 
+                            onClick={() => {
+                              const newArr = [...newRecipeIngredients];
+                              newArr.splice(idx, 1);
+                              setNewRecipeIngredients(newArr);
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
               <button 
                 onClick={() => {
+                  if (!newRecipeForm.name) {
+                    showToast("Veuillez entrer le nom du plat", "error");
+                    return;
+                  }
+                  if (newRecipeIngredients.length === 0) {
+                    showToast("Veuillez ajouter au moins un ingrédient", "error");
+                    return;
+                  }
                   showToast("Fiche technique créée avec succès");
+                  setNewRecipeForm({ name: '', category: 'Entrée' });
+                  setNewRecipeIngredients([]);
                   setIsNewRecipeModalOpen(false);
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
@@ -4264,6 +4355,7 @@ function Inventory() {
               if (!categories.includes(category)) {
                 try {
                   await addDoc(collection(db, 'inventoryCategories'), { name: category });
+                  setCategories([...categories, category]);
                 } catch (err) {
                   console.error("Error adding category", err);
                 }
@@ -4357,9 +4449,45 @@ function Inventory() {
                 <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder={txType === 'in' ? "Ex: Achat du jour" : "Ex: Service Cuisine"} />
               </div>
               <button 
-                onClick={() => {
-                  showToast(`Transaction enregistrée pour ${selectedProduct.name}`);
-                  setIsTxModalOpen(false);
+                onClick={async () => {
+                  const qtyInput = document.getElementById('tx-qty') as HTMLInputElement;
+                  const reasonInput = document.getElementById('tx-reason') as HTMLInputElement;
+                  const qty = Number(qtyInput?.value || 0);
+                  if (qty <= 0) {
+                    showToast("Veuillez entrer une quantité valide", "error");
+                    return;
+                  }
+                  
+                  try {
+                    const newQuantity = txType === 'in' ? selectedProduct.quantity + qty : selectedProduct.quantity - qty;
+                    
+                    if (newQuantity < 0) {
+                      showToast("Stock insuffisant pour cette sortie", "error");
+                      return;
+                    }
+
+                    await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), {
+                      quantity: newQuantity,
+                      updatedAt: serverTimestamp()
+                    });
+
+                    await addDoc(collection(db, 'inventoryTransactions'), {
+                      itemId: selectedProduct.id,
+                      itemName: selectedProduct.name,
+                      type: txType,
+                      quantity: qty,
+                      reason: reasonInput?.value || '',
+                      createdAt: serverTimestamp()
+                    });
+
+                    showToast(`Transaction enregistrée avec succès`);
+                    setIsTxModalOpen(false);
+                    if (qtyInput) qtyInput.value = '';
+                    if (reasonInput) reasonInput.value = '';
+                  } catch (err) {
+                    console.error("Erreur lors de la transaction", err);
+                    showToast("Erreur lors de la mise à jour du stock", "error");
+                  }
                 }}
                 className={`w-full py-3 rounded-xl font-medium mt-4 text-white transition-colors ${txType === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
               >

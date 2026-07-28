@@ -59,7 +59,7 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 print:bg-white print:backdrop-blur-none print:items-start print:p-0 print:absolute">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -890,13 +890,13 @@ export default function RH() {
 
       {/* Payslip Document Modal */}
       {isPayslipDocOpen && selectedPayslip && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 print:bg-white print:backdrop-blur-none print:items-start print:p-0 print:absolute">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto flex flex-col"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto flex flex-col print:shadow-none print:max-w-full print:max-h-full print:overflow-visible print:rounded-none"
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl sticky top-0 z-10">
+            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl sticky top-0 z-10 print:hidden">
               <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                 <FileText size={18} className="text-[#DDA956]" /> Fiche de Paie - {selectedPayslip.name}
               </h3>
@@ -1228,7 +1228,7 @@ export default function RH() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6">
+            <div className={`p-6 ${isPayslipDocOpen ? "print:hidden" : ""}`}>
               <p className="text-sm text-gray-500 mb-6">Mettez à jour le solde de congés annuels pour les employés.</p>
               <div className="space-y-4">
                 {staffData.map(staff => (

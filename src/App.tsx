@@ -549,7 +549,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative ${isFullScreenView ? "overflow-hidden" : ""}`}>
+    <div className={`min-h-screen bg-[#FDFBF7] text-gray-900 font-sans flex flex-col md:flex-row relative print:block print:min-h-0 print:h-auto ${isFullScreenView ? "overflow-hidden print:overflow-visible" : ""}`}>
       <NotificationSystem />
       {/* Mobile Header */}
       {!isFullScreenView && (
@@ -789,7 +789,7 @@ export default function App() {
 
       )}
       {/* Main Content */}
-      <main className={`flex-1 min-w-0 relative bg-[#FDFBF7] ${isFullScreenView ? "h-screen overflow-hidden" : "min-h-screen"}`}>
+      <main className={`flex-1 min-w-0 relative bg-[#FDFBF7] print:block print:h-auto print:min-h-0 print:overflow-visible ${isFullScreenView ? "h-screen overflow-hidden print:h-auto print:overflow-visible" : "min-h-screen print:min-h-0"}`}>
         {renderContent()}
       </main>
 
@@ -5400,6 +5400,9 @@ function TacSystemsPOS() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [journalSearch, setJournalSearch] = useState('');
+  const [journalOperatorFilter, setJournalOperatorFilter] = useState('');
+  const [journalCurrentPage, setJournalCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const [isImportTacModalOpen, setIsImportTacModalOpen] = useState(false);
   const [isSimulationMode, setIsSimulationMode] = useState(true);
@@ -5436,11 +5439,17 @@ function TacSystemsPOS() {
     { id: 'TX-1039', time: '10:20', type: 'Encaissement', amount: '+ 900 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
   ];
 
-  const filteredJournal = fullJournalMovements.filter(tx => 
-    tx.id.toLowerCase().includes(journalSearch.toLowerCase()) || 
-    tx.user.toLowerCase().includes(journalSearch.toLowerCase()) ||
-    tx.type.toLowerCase().includes(journalSearch.toLowerCase())
-  );
+  const filteredJournal = fullJournalMovements.filter(tx => {
+    const matchesSearch = tx.id.toLowerCase().includes(journalSearch.toLowerCase()) || 
+                          tx.user.toLowerCase().includes(journalSearch.toLowerCase()) ||
+                          tx.type.toLowerCase().includes(journalSearch.toLowerCase());
+    const matchesOperator = journalOperatorFilter === '' || tx.user === journalOperatorFilter;
+    return matchesSearch && matchesOperator;
+  });
+
+  const uniqueOperators = Array.from(new Set(fullJournalMovements.map(tx => tx.user)));
+  const totalJournalPages = Math.ceil(filteredJournal.length / ITEMS_PER_PAGE);
+  const paginatedJournal = filteredJournal.slice((journalCurrentPage - 1) * ITEMS_PER_PAGE, journalCurrentPage * ITEMS_PER_PAGE);
 
   const handleExportCSV = () => {
     if (filteredJournal.length === 0) {
@@ -5631,9 +5640,21 @@ function TacSystemsPOS() {
                   placeholder="Rechercher par ID, Opérateur ou Type..." 
                   className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
                   value={journalSearch}
-                  onChange={(e) => setJournalSearch(e.target.value)}
+                  onChange={(e) => { setJournalSearch(e.target.value); setJournalCurrentPage(1); }}
                 />
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              </div>
+              <div className="w-full md:w-64">
+                <select 
+                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] bg-white text-gray-700"
+                  value={journalOperatorFilter}
+                  onChange={(e) => { setJournalOperatorFilter(e.target.value); setJournalCurrentPage(1); }}
+                >
+                  <option value="">Tous les opérateurs</option>
+                  {uniqueOperators.map(op => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
               </div>
               <button onClick={handleExportCSV} className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
                 <Download size={16} />
@@ -5654,8 +5675,8 @@ function TacSystemsPOS() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredJournal.length > 0 ? (
-                    filteredJournal.map((tx, idx) => (
+                  {paginatedJournal.length > 0 ? (
+                    paginatedJournal.map((tx, idx) => (
                       <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs text-gray-500">{tx.id}</td>
                         <td className="px-6 py-4 text-gray-600">{tx.time}</td>
@@ -5686,6 +5707,31 @@ function TacSystemsPOS() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Pagination UI */}
+            {totalJournalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-gray-50/50">
+                <span className="text-sm text-gray-500">
+                  Affichage de {((journalCurrentPage - 1) * ITEMS_PER_PAGE) + 1} à {Math.min(journalCurrentPage * ITEMS_PER_PAGE, filteredJournal.length)} sur {filteredJournal.length} transactions
+                </span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setJournalCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={journalCurrentPage === 1}
+                    className="px-3 py-1 text-sm bg-white border border-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Précédent
+                  </button>
+                  <button 
+                    onClick={() => setJournalCurrentPage(prev => Math.min(prev + 1, totalJournalPages))}
+                    disabled={journalCurrentPage === totalJournalPages}
+                    className="px-3 py-1 text-sm bg-white border border-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
       )}

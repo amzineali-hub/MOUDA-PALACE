@@ -44,6 +44,9 @@ export default function NotificationSystem() {
           if (data.tag === 'VIP' || (data.notes && data.notes.toLowerCase().includes('vip'))) {
             showToast(`Nouvelle réservation VIP : ${data.name} pour ${data.pax} pax`, 'success');
           }
+          if (data.isB2B || data.source === 'partenaire' || data.type === 'B2B' || data.tag === 'B2B') {
+            showToast(`Nouvelle réservation B2B (Partenaire) : ${data.name || 'Client B2B'}`, 'info');
+          }
         }
       });
     });

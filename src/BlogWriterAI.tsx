@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award } from 'lucide-react';
+import { Upload, PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
@@ -35,7 +35,10 @@ export default function BlogWriterAI() {
     "/d0.jpg",
     "/DSC_0290-scaled.jpg",
     "/fes-spring.jpg",
-    "/IMG_4253-2048x1365.jpg"
+    "/IMG_4253-2048x1365.jpg",
+    "/mouda-1.png",
+    "/mouda 2.JPG",
+    "/mouda.png"
   ];
   
   const { showToast } = useToast();
@@ -74,8 +77,50 @@ export default function BlogWriterAI() {
     loadConfig();
 
 
-    return () => unsubscribe();
+  
+  return () => unsubscribe();
   }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setter(dataUrl);
+      };
+      img.src = event.target?.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -433,25 +478,32 @@ export default function BlogWriterAI() {
                 Image de couverture (Optionnel)
               </label>
               <div className="space-y-3">
-                <select
-                  value={availableImages.includes(imageUrl) ? imageUrl : (imageUrl !== '' ? 'custom' : '')}
-                  onChange={(e) => {
-                    if (e.target.value === 'custom') {
-                      setImageUrl('https://');
-                    } else {
-                      setImageUrl(e.target.value);
-                    }
-                  }}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
-                >
-                  <option value="">Image aléatoire</option>
-                  {availableImages.map(img => (
-                    <option key={img} value={img}>{img.split('/').pop()}</option>
-                  ))}
-                  <option value="custom">Autre (URL personnalisée)</option>
-                </select>
+                  <select
+                    value={availableImages.includes(imageUrl) ? imageUrl : (imageUrl !== '' && !imageUrl.startsWith('data:') ? 'custom' : (imageUrl.startsWith('data:') ? 'upload' : ''))}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        setImageUrl('https://');
+                      } else if (e.target.value !== 'upload') {
+                        setImageUrl(e.target.value);
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                  >
+                    <option value="">Image aléatoire</option>
+                    {availableImages.map(img => (
+                      <option key={img} value={img}>{img.split('/').pop()}</option>
+                    ))}
+                    <option value="custom">Autre (URL personnalisée)</option>
+                    {imageUrl.startsWith('data:') && <option value="upload">Image téléchargée</option>}
+                  </select>
+                  
+                  <label className="cursor-pointer w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium shadow-sm">
+                      <Upload size={20} />
+                      Télécharger une image
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setImageUrl)} />
+                  </label>
                 
-                {!availableImages.includes(imageUrl) && imageUrl !== '' ? (
+                {!availableImages.includes(imageUrl) && imageUrl !== '' && !imageUrl.startsWith('data:') ? (
                   <input
                     type="text"
                     value={imageUrl}
@@ -669,11 +721,11 @@ export default function BlogWriterAI() {
                 </label>
                 <div className="space-y-3">
                   <select
-                    value={availableImages.includes(editImageUrl) ? editImageUrl : (editImageUrl !== '' ? 'custom' : '')}
+                    value={availableImages.includes(editImageUrl) ? editImageUrl : (editImageUrl !== '' && !editImageUrl.startsWith('data:') ? 'custom' : (editImageUrl.startsWith('data:') ? 'upload' : ''))}
                     onChange={(e) => {
                       if (e.target.value === 'custom') {
                         setEditImageUrl('https://');
-                      } else {
+                      } else if (e.target.value !== 'upload') {
                         setEditImageUrl(e.target.value);
                       }
                     }}
@@ -684,9 +736,16 @@ export default function BlogWriterAI() {
                       <option key={img} value={img}>{img.split('/').pop()}</option>
                     ))}
                     <option value="custom">Autre (URL personnalisée)</option>
+                    {editImageUrl.startsWith('data:') && <option value="upload">Image téléchargée</option>}
                   </select>
                   
-                  {!availableImages.includes(editImageUrl) && editImageUrl !== '' ? (
+                  <label className="cursor-pointer w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors font-medium shadow-sm">
+                      <Upload size={20} />
+                      Télécharger une image
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, setEditImageUrl)} />
+                  </label>
+                  
+                  {!availableImages.includes(editImageUrl) && editImageUrl !== '' && !editImageUrl.startsWith('data:') ? (
                     <input
                       type="text"
                       value={editImageUrl}

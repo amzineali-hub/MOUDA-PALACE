@@ -168,7 +168,7 @@ export default function MenuGenerator() {
 
 if (isPrintView) {
     return (
-      <div className="bg-white min-h-screen p-2 sm:p-4 md:p-8 print:p-0 overflow-hidden">
+      <div className="bg-white min-h-screen p-2 sm:p-4 md:p-8 print:p-0 overflow-hidden print:overflow-visible">
         <div className="max-w-5xl mx-auto print:max-w-full">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 print:hidden">
             <button onClick={() => setIsPrintView(false)} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
@@ -239,7 +239,7 @@ if (isPrintView) {
             </div>
           ) : (
             <div 
-              className="relative p-2 sm:p-4 md:p-12 min-h-[1100px] shadow-2xl rounded-sm print:shadow-none print:p-8 print:m-0 overflow-hidden bg-[#FAF3E0]"
+              className="relative p-2 sm:p-4 md:p-12 min-h-[1100px] shadow-2xl rounded-sm print:shadow-none print:p-8 print:m-0 overflow-hidden print:overflow-visible bg-[#FAF3E0]"
               style={{ backgroundImage: "url('/menu_traditionnel.jpeg')", backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
             >
               <div className="relative z-10 pt-10 sm:pt-16 md:pt-32 px-2 sm:px-4 md:px-12">

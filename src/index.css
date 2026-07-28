@@ -23,17 +23,12 @@
   .print\:hidden { display: none !important; }
 }
 
+
+
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  #payslip-print-area, #payslip-print-area * {
-    visibility: visible;
-  }
-  #payslip-print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 }

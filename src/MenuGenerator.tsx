@@ -197,7 +197,7 @@ if (isPrintView) {
                     <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
                   </div>
                 </div>
-                <h1 className="text-5xl md:text-6xl font-serif font-bold text-gray-900 mb-4 uppercase tracking-[0.2em]">Mouda Palace</h1>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-gray-900 mb-4 uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
                 <p className="text-2xl text-gray-500 font-serif italic tracking-wider">La Carte</p>
               </div>
 
@@ -208,16 +208,16 @@ if (isPrintView) {
 
                   return (
                     <div key={cat} className="break-inside-avoid">
-                      <h2 className="text-3xl font-serif text-[#DDA956] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-6">
+                      <h2 className="text-2xl sm:text-3xl font-serif text-[#DDA956] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-4 sm:gap-6">
                         <span className="h-[1px] w-12 bg-[#DDA956]"></span> 
                         {cat} 
                         <span className="h-[1px] w-12 bg-[#DDA956]"></span>
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                         {itemsInCat.map(item => (
-                          <div key={item.id} className="flex gap-5 break-inside-avoid">
+                          <div key={item.id} className="flex gap-3 sm:gap-5 break-inside-avoid items-center sm:items-start">
                             {item.imageUrl && (
-                              <div className="w-48 h-48 shrink-0 rounded-full overflow-hidden border-2 border-[#DDA956]/30 shadow-sm print:border-gray-200">
+                              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40 shrink-0 rounded-full overflow-hidden border-2 border-[#DDA956]/30 shadow-sm print:border-gray-200">
                                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                               </div>
                             )}
@@ -275,7 +275,7 @@ if (isPrintView) {
 
                           <div className="space-y-6 md:space-y-8 px-2 md:px-4">
                             {itemsInCat.map(item => (
-                              <div key={item.id} className="flex gap-4 md:gap-6 items-center break-inside-avoid">
+                              <div key={item.id} className="flex flex-col-reverse sm:flex-row gap-4 md:gap-6 items-center sm:items-center break-inside-avoid">
                                 <div className="flex-1 flex flex-col text-left">
                                   <div className="flex justify-between items-end gap-1 md:gap-4 w-full">
                                     <h3 className="text-lg md:text-xl font-serif font-bold text-[#3d1e0f] tracking-wide">{item.name}</h3>
@@ -287,7 +287,7 @@ if (isPrintView) {
                                   )}
                                 </div>
                                 {item.imageUrl && (
-                                  <div className="w-48 h-48 md:w-56 md:h-56 shrink-0 relative group">
+                                  <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-48 md:h-48 shrink-0 relative group">
                                     <div className="absolute inset-[-4px] bg-gradient-to-br from-[#d4af37] to-[#aa8322] rounded-full shadow-md"></div>
                                     <div className="relative rounded-full overflow-hidden border-[3px] border-[#FAF3E0] w-full h-full z-10 shadow-inner">
                                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />

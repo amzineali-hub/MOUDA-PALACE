@@ -3499,6 +3499,15 @@ function Inventory() {
   const [ingredientQty, setIngredientQty] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+
+  const handleSort = (key: string) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
   
   const [productionTasks, setProductionTasks] = useState<any[]>([]);
 
@@ -3537,6 +3546,10 @@ function Inventory() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'Tous' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
 
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
@@ -3618,7 +3631,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'requirements', 'recipes', 'production', 'waste', 'transactions', 'suppliers'].map(tab => (
+          {['stocks', 'requirements', 'recipes', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -3631,6 +3644,7 @@ function Inventory() {
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
+              {tab === 'price_history' && 'Historique des Prix'}
             </button>
           ))}
         </div>
@@ -3668,10 +3682,18 @@ function Inventory() {
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-4">Produit</th>
-                    <th className="px-6 py-4">Catégorie</th>
-                    <th className="px-6 py-4">Fournisseur</th>
-                    <th className="px-6 py-4">Quantité</th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('name')}>
+                      <div className="flex items-center gap-1">Produit {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('category')}>
+                      <div className="flex items-center gap-1">Catégorie {sortConfig.key === 'category' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('supplier')}>
+                      <div className="flex items-center gap-1">Fournisseur {sortConfig.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
+                      <div className="flex items-center gap-1">Quantité {sortConfig.key === 'quantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -4080,6 +4102,86 @@ function Inventory() {
               </div>
             </div>
           )}
+          
+          {activeTab === 'price_history' && (
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Historique des prix d'achat</h3>
+                <p className="text-sm text-gray-500">Suivez l'évolution des coûts par fournisseur au fil du temps pour optimiser vos achats.</p>
+              </div>
+              
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-6">
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={recentTransactions.filter(tx => tx.type === 'in' && tx.unitPrice).map(tx => ({
+                        date: tx.date,
+                        prix: tx.unitPrice,
+                        fournisseur: tx.supplier || 'Inconnu',
+                        produit: tx.item || tx.itemName || 'Produit'
+                      })).reverse()}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dx={-10} tickFormatter={(val) => `${val} MAD`} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value, name, props) => [`${value} MAD`, `${props.payload.produit} (${props.payload.fournisseur})`]}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="prix" 
+                        stroke="#DDA956" 
+                        strokeWidth={2}
+                        fill="#DDA956" 
+                        fillOpacity={0.1}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4">Produit</th>
+                      <th className="px-6 py-4">Fournisseur</th>
+                      <th className="px-6 py-4 text-right">Quantité</th>
+                      <th className="px-6 py-4 text-right">Prix Unitaire</th>
+                      <th className="px-6 py-4 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {recentTransactions.filter(tx => tx.type === 'in').length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                          Aucun achat enregistré.
+                        </td>
+                      </tr>
+                    ) : (
+                      recentTransactions.filter(tx => tx.type === 'in').map((tx, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 text-gray-500">{tx.date}</td>
+                          <td className="px-6 py-4 font-medium text-gray-900">{tx.item || tx.itemName}</td>
+                          <td className="px-6 py-4 text-gray-900">{tx.supplier || <span className="text-gray-400 italic">Non spécifié</span>}</td>
+                          <td className="px-6 py-4 text-right">{tx.amount || tx.quantity} {tx.unit}</td>
+                          <td className="px-6 py-4 text-right font-medium">
+                            {tx.unitPrice ? `${tx.unitPrice.toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                          </td>
+                          <td className="px-6 py-4 text-right font-medium text-[#DDA956]">
+                            {tx.unitPrice ? `${(tx.unitPrice * (tx.amount || tx.quantity)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -4448,10 +4550,25 @@ function Inventory() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Raison / Commentaire</label>
                 <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder={txType === 'in' ? "Ex: Achat du jour" : "Ex: Service Cuisine"} />
               </div>
+              {txType === 'in' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                    <input id="tx-supplier" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Marché Central" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
+                    <input id="tx-price" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0.00" />
+                  </div>
+                </div>
+              )}
               <button 
                 onClick={async () => {
                   const qtyInput = document.getElementById('tx-qty') as HTMLInputElement;
                   const reasonInput = document.getElementById('tx-reason') as HTMLInputElement;
+                  const supplierInput = document.getElementById('tx-supplier') as HTMLInputElement;
+                  const priceInput = document.getElementById('tx-price') as HTMLInputElement;
+                  
                   const qty = Number(qtyInput?.value || 0);
                   if (qty <= 0) {
                     showToast("Veuillez entrer une quantité valide", "error");
@@ -4471,14 +4588,26 @@ function Inventory() {
                       updatedAt: serverTimestamp()
                     });
 
-                    await addDoc(collection(db, 'inventoryTransactions'), {
+                    const txData: any = {
                       itemId: selectedProduct.id,
                       itemName: selectedProduct.name,
                       type: txType,
                       quantity: qty,
                       reason: reasonInput?.value || '',
+                      date: new Date().toLocaleDateString('fr-FR'),
+                      user: 'Admin',
+                      amount: qty, // legacy support
+                      unit: selectedProduct.unit, // legacy support
+                      item: selectedProduct.name, // legacy support
                       createdAt: serverTimestamp()
-                    });
+                    };
+                    
+                    if (txType === 'in') {
+                      txData.supplier = supplierInput?.value || '';
+                      txData.unitPrice = Number(priceInput?.value || 0);
+                    }
+                    
+                    await addDoc(collection(db, 'inventoryTransactions'), txData);
 
                     showToast(`Transaction enregistrée avec succès`);
                     setIsTxModalOpen(false);

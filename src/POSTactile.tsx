@@ -251,10 +251,10 @@ export default function POSTactile() {
                 <button
                   key={cat.id}
                   onClick={() => { setActiveCategory(cat.id); setSearchQuery(''); }}
-                  className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-bold whitespace-nowrap transition-all duration-300 transform ${
+                                    className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-bold whitespace-nowrap transition-all duration-300 ${
                     activeCategory === cat.id && !searchQuery
-                      ? 'bg-[#1A1A1A] text-white shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5),inset_0_2px_0_rgba(255,255,255,0.2)] -translate-y-1' 
-                      : 'bg-white text-gray-500 hover:text-gray-900 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03),inset_0_-2px_0_rgba(0,0,0,0.05)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-none'
+                      ? 'bg-[#1A1A1A] text-[#DDA956] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[4px]' 
+                      : 'bg-white text-gray-500 hover:text-gray-900 shadow-[0_6px_0_#d1d5db,0_10px_15px_rgba(0,0,0,0.1)] border border-gray-100 -translate-y-[2px] active:translate-y-[4px] active:shadow-[0_0px_0_#d1d5db]'
                   }`}
                 >
                   {cat.icon}
@@ -276,9 +276,9 @@ export default function POSTactile() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 #d1d5db, 0 8px 10px rgba(0,0,0,0.1)" }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#DDA956] hover:border-[#DDA956] hover:bg-[#DDA956]/5 transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#DDA956] hover:border-[#DDA956] hover:bg-[#DDA956]/5 bg-white shadow-[0_8px_0_#d1d5db,0_12px_20px_rgba(0,0,0,0.1)] transition-all"
                   >
                     <Plus size={32} className="mb-2" />
                     <span className="font-bold text-sm">Ajouter un article</span>
@@ -296,24 +296,33 @@ export default function POSTactile() {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.8, y: -20 }}
                         whileHover={{ scale: 1.05, y: -5 }}
-                        whileTap={{ scale: 0.95, y: 0, boxShadow: "none" }}
+                        whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 rgba(0,0,0,0.25), 0 8px 10px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2)" }}
                         key={item.id}
                         onClick={() => addToCart(item)}
-                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_16px_-6px_rgba(0,0,0,0.3),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-3px_0_rgba(0,0,0,0.1)] transition-all`}
+                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_0_rgba(0,0,0,0.25),0_12px_20px_rgba(0,0,0,0.3),inset_0_3px_0_rgba(255,255,255,0.4),inset_0_-3px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
                       >
-                        {/* 3D Inner Glow / Highlights */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-3xl" />
-                        
-                        {item.imageUrl && (
-                          <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full overflow-hidden opacity-30 mix-blend-overlay">
-                            <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
-                          </div>
+                        {/* Full Image Background if available */}
+                        {item.imageUrl ? (
+                          <>
+                            <div className="absolute inset-0">
+                              <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 rounded-3xl" />
+                          </>
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-3xl" />
                         )}
                         
-                        <span className={`font-bold text-sm sm:text-lg leading-tight z-10 flex-1 ${priceColor} drop-shadow-sm break-words line-clamp-3`}>{item.name}</span>
-                        <div className="mt-auto flex flex-wrap items-baseline">
-                          <span className={`font-black text-lg sm:text-2xl z-10 ${priceColor} drop-shadow-md`}>{item.numPrice}</span>
-                          <span className={`font-bold text-[10px] sm:text-xs ml-1 ${textColor}`}>MAD</span>
+                        <div className="relative z-10 flex flex-col h-full justify-between">
+                          <span className={`font-bold text-sm sm:text-lg leading-tight flex-1 drop-shadow-sm break-words line-clamp-3 ${item.imageUrl ? 'text-white' : priceColor}`}>
+                            {item.name}
+                          </span>
+                          <div className="mt-auto flex flex-wrap items-baseline">
+                            <span className={`font-black text-lg sm:text-2xl drop-shadow-md ${item.imageUrl ? 'text-white' : priceColor}`}>
+                              {item.numPrice}
+                            </span>
+                            <span className={`font-bold text-[10px] sm:text-xs ml-1 ${item.imageUrl ? 'text-white/80' : textColor}`}>MAD</span>
+                          </div>
                         </div>
                       </motion.button>
                     );

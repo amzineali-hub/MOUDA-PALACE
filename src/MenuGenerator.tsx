@@ -386,12 +386,18 @@ if (isPrintView) {
                   className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
                 >
                   <div className="h-48 relative bg-gray-100">
-                    <img 
-                      src={item.imageUrl} 
-                      alt={item.name} 
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.name} 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400">Aucune image</span>
+                      </div>
+                    )}
                     <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-[#DDA956] font-serif font-bold px-3 py-1 rounded-full text-sm">
                       {item.price}
                     </span>

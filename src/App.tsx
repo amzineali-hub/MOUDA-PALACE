@@ -3353,7 +3353,7 @@ function DigitalMenu() {
       )}
       
       {/* Video Player Modal */}
-      {isVideoPlayerOpen && currentVideo && (
+      {isVideoPlayerOpen && currentVideo ? (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setIsVideoPlayerOpen(false)}>
           <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <button onClick={() => setIsVideoPlayerOpen(false)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full backdrop-blur-md transition-colors">
@@ -3367,7 +3367,7 @@ function DigitalMenu() {
             ></iframe>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* QR Code Modal */}
       {isQRModalOpen && (

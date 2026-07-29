@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const CATEGORIES = [
@@ -29,11 +29,14 @@ export default function POSTactile() {
   const [tables, setTables] = useState<any[]>([]);
   const [recettes, setRecettes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemImage, setNewItemImage] = useState<string>('');
+  const [isManualName, setIsManualName] = useState(false);
+  const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   
   
   const handleNameChange = (val: string) => {
@@ -113,12 +116,26 @@ export default function POSTactile() {
       
       showToast('Article ajouté avec succès');
       setIsAddModalOpen(false);
+      setIsManualName(false);
+      setIsPhotoGalleryOpen(false);
       setNewItemName('');
       setNewItemPrice('');
       setNewItemImage('');
     } catch (error) {
       console.error(error);
       showToast('Erreur lors de l\'ajout', 'error');
+    }
+  };
+
+  
+  const handleDeleteItem = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'menu_items', id));
+      showToast('Article supprimé avec succès');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la suppression', 'error');
     }
   };
 
@@ -304,15 +321,24 @@ export default function POSTactile() {
                 <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
                 <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
               </div>
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Rechercher un plat..." 
-                  className="w-full pl-12 pr-4 py-3 bg-white border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#DDA956] text-gray-700 font-medium transition-all"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+              <div className="flex gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:w-72">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Rechercher un plat..." 
+                    className="w-full pl-12 pr-4 py-3 bg-white border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#DDA956] text-gray-700 font-medium transition-all"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={`p-3 rounded-2xl transition-colors ${isEditMode ? 'bg-red-100 text-red-600' : 'bg-white text-gray-500 hover:bg-gray-50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'}`}
+                  title={isEditMode ? "Désactiver le mode édition" : "Activer le mode édition (suppression)"}
+                >
+                  <Trash2 size={20} />
+                </button>
               </div>
             </div>
 
@@ -360,7 +386,7 @@ export default function POSTactile() {
                     const priceColor = colorClass.includes('text-white') ? 'text-white' : 'text-[#1A1A1A]';
                     
                     return (
-                      <motion.button
+                      <motion.div
                         layout
                         initial={{ opacity: 0, scale: 0.8, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -368,7 +394,7 @@ export default function POSTactile() {
                         whileHover={{ scale: 1.05, y: -5 }}
                         whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 rgba(0,0,0,0.25), 0 8px 10px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2)" }}
                         key={item.id}
-                        onClick={() => addToCart(item)}
+                        onClick={() => !isEditMode && addToCart(item)}
                         className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_0_rgba(0,0,0,0.25),0_12px_20px_rgba(0,0,0,0.3),inset_0_3px_0_rgba(255,255,255,0.4),inset_0_-3px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
                       >
                         {/* Full Image Background if available */}
@@ -383,6 +409,14 @@ export default function POSTactile() {
                           <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-3xl" />
                         )}
                         
+                        {isEditMode && (
+                          <div 
+                            onClick={(e) => handleDeleteItem(e, item.id)}
+                            className="absolute top-2 right-2 z-20 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </div>
+                        )}
                         <div className="relative z-10 flex flex-col h-full justify-between">
                           <span className={`font-bold text-sm sm:text-lg leading-tight flex-1 drop-shadow-sm break-words line-clamp-3 ${item.imageUrl ? 'text-white' : priceColor}`}>
                             {item.name}
@@ -394,7 +428,7 @@ export default function POSTactile() {
                             <span className={`font-bold text-[10px] sm:text-xs ml-1 ${item.imageUrl ? 'text-white/80' : textColor}`}>MAD</span>
                           </div>
                         </div>
-                      </motion.button>
+                      </motion.div>
                     );
                   })}
                 </AnimatePresence>
@@ -547,20 +581,47 @@ export default function POSTactile() {
             <form onSubmit={handleAddItem} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'article</label>
-                <input 
-                  type="text" 
-                  value={newItemName}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="Ex: Coca-Cola" 
-                  required 
-                  list="recettes-list"
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
-                />
-                <datalist id="recettes-list">
-                  {recettes.map((r, idx) => (
-                    <option key={idx} value={r.nom} />
-                  ))}
-                </datalist>
+                {!isManualName ? (
+                  <div className="relative">
+                    <select
+                      value={newItemName}
+                      onChange={(e) => {
+                        if (e.target.value === 'manual') {
+                          setIsManualName(true);
+                          setNewItemName('');
+                        } else {
+                          handleNameChange(e.target.value);
+                        }
+                      }}
+                      required
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white appearance-none"
+                    >
+                      <option value="" disabled>Sélectionner un plat...</option>
+                      {recettes.map((r, idx) => (
+                        <option key={idx} value={r.nom}>{r.nom}</option>
+                      ))}
+                      <option value="manual">+ Autre (Saisie manuelle)</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newItemName}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                      placeholder="Nom de l'article" 
+                      required 
+                      autoFocus
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
+                    />
+                    <button type="button" onClick={() => { setIsManualName(false); setNewItemName(''); }} className="p-3 text-gray-500 hover:bg-gray-100 rounded-xl border border-gray-200">
+                      <X size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div>
@@ -575,16 +636,48 @@ export default function POSTactile() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Photo (Appareil photo)</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment"
-                  onChange={handleImageUpload}
-                  className="w-full border border-gray-200 rounded-xl p-2 focus:outline-none focus:border-[#DDA956] bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
-                />
-                {newItemImage && (
+                            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photo de l'article</label>
+                <div className="flex gap-2 mb-2">
+                  <div className="flex-1">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageUpload}
+                      className="w-full border border-gray-200 rounded-xl p-2 focus:outline-none focus:border-[#DDA956] bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                    />
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setIsPhotoGalleryOpen(!isPhotoGalleryOpen)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors whitespace-nowrap"
+                  >
+                    Photos du menu
+                  </button>
+                </div>
+                
+                {isPhotoGalleryOpen && (
+                  <div className="grid grid-cols-4 gap-2 mb-4 p-3 bg-gray-50 rounded-xl border border-gray-100 h-40 overflow-y-auto">
+                    {Array.from(new Set(menuItems.filter(i => i.imageUrl).map(i => i.imageUrl))).map((url: any, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setNewItemImage(url);
+                          setIsPhotoGalleryOpen(false);
+                        }}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 ${newItemImage === url ? 'border-[#DDA956]' : 'border-transparent hover:border-gray-300'}`}
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                    {menuItems.filter(i => i.imageUrl).length === 0 && (
+                      <div className="col-span-4 text-center text-sm text-gray-500 py-4">Aucune photo disponible dans le menu</div>
+                    )}
+                  </div>
+                )}
+
+                {newItemImage && !isPhotoGalleryOpen && (
                   <div className="mt-2 relative w-32 h-32 rounded-xl overflow-hidden border border-gray-200">
                     <img src={newItemImage} alt="Preview" className="w-full h-full object-cover" />
                     <button type="button" onClick={() => setNewItemImage('')} className="absolute top-1 right-1 bg-white/80 hover:bg-white rounded-full p-1 shadow text-gray-700">

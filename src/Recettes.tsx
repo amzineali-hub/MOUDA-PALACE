@@ -3,11 +3,13 @@ import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, delete
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { motion } from 'framer-motion';
-import { Search, Plus, ChefHat, Tag, Scale, AlertCircle, ChevronRight, Edit3 } from 'lucide-react';
+import { Search, Plus, ChefHat, Tag, Scale, AlertCircle, ChevronRight, Edit3, X } from 'lucide-react';
 
 export default function Recettes() {
   const [activeCategory, setActiveCategory] = useState('toutes');
   const [isNewRecetteModalOpen, setIsNewRecetteModalOpen] = useState(false);
+  const [isEditRecetteModalOpen, setIsEditRecetteModalOpen] = useState(false);
+  const [selectedRecette, setSelectedRecette] = useState<any>(null);
   const { showToast } = useToast();
   
   const [recettes, setRecettes] = useState<any[]>([
@@ -21,7 +23,7 @@ export default function Recettes() {
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'recettes'), orderBy('createdAt', 'desc')), (snapshot) => {
       if (!snapshot.empty) {
-        setRecettes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setRecettes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       }
     });
     return () => unsub();
@@ -133,10 +135,10 @@ export default function Recettes() {
                       {recette.difficulte}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-[#1A1A1A]">{recette.cout}</td>
+                  <td className="px-6 py-4 text-right font-medium text-[#1A1A1A]">{typeof recette.cout === 'number' ? recette.cout + ' MAD' : recette.cout}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Modifier">
+                      <button onClick={() => { setSelectedRecette(recette); setIsEditRecetteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Modifier">
                         <Edit3 size={16} />
                       </button>
                       <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors" title="Fiche technique détaillée">
@@ -232,6 +234,90 @@ export default function Recettes() {
           </div>
         </div>
       )}
-</div>
+
+      {isEditRecetteModalOpen && selectedRecette && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsEditRecetteModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Modifier Recette</h3>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              try {
+                const updatedData = {
+                  nom: formData.get('nom'),
+                  categorie: formData.get('categorie'),
+                  cout: Number(formData.get('cout')),
+                  prix: Number(formData.get('prix')),
+                  marge: Math.round(((Number(formData.get('prix')) - Number(formData.get('cout'))) / Number(formData.get('prix'))) * 100) || 0,
+                  tempsPrep: formData.get('tempsPrep'),
+                  chef: formData.get('chef')
+                };
+
+                if (selectedRecette.id && !selectedRecette.id.startsWith('R00')) {
+                  await updateDoc(doc(db, 'recettes', selectedRecette.id), updatedData);
+                } else {
+                  // Fallback for mock items
+                  setRecettes(prev => prev.map(r => r.id === selectedRecette.id ? { ...r, ...updatedData } : r));
+                }
+                showToast("Recette modifiée avec succès");
+                setIsEditRecetteModalOpen(false);
+              } catch (err) {
+                console.error("Error updating recette", err);
+                showToast("Erreur lors de la modification");
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la recette</label>
+                <input name="nom" defaultValue={selectedRecette.nom} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <input 
+                  name="categorie" 
+                  defaultValue={selectedRecette.categorie}
+                  required 
+                  list="recipe-categories-list"
+                  className="w-full border border-gray-200 rounded-lg p-2.5 bg-white" 
+                  placeholder="Sélectionner ou saisir..." 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Coût (MAD)</label>
+                  <input name="cout" defaultValue={typeof selectedRecette.cout === 'string' ? selectedRecette.cout.replace(/[^0-9.]/g, '') : selectedRecette.cout} required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix (MAD)</label>
+                  <input name="prix" defaultValue={typeof selectedRecette.prix === 'string' ? selectedRecette.prix.replace(/[^0-9.]/g, '') : selectedRecette.prix} required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Temps de prép.</label>
+                  <input name="tempsPrep" defaultValue={selectedRecette.tempsPrep} required type="text" placeholder="Ex: 45 min" className="w-full border border-gray-200 rounded-lg p-2.5" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chef</label>
+                  <input name="chef" defaultValue={selectedRecette.chef} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5" />
+                </div>
+              </div>
+              <button 
+                type="submit"
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+              >
+                Sauvegarder
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

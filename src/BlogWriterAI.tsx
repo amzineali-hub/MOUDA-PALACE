@@ -47,8 +47,8 @@ export default function BlogWriterAI() {
     const q = query(collection(db, 'blog_posts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const articles = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }));
       setSavedArticles(articles);
     });
@@ -116,7 +116,7 @@ export default function BlogWriterAI() {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         setter(dataUrl);
       };
-      img.src = event.target?.result;
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };

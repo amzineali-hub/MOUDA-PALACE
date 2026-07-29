@@ -202,7 +202,7 @@ export default function RH() {
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'payroll'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setPayrollList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setPayrollList(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     }, (error) => {
       console.error("Error fetching payroll", error);
     });
@@ -295,613 +295,155 @@ export default function RH() {
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => {
-              setEditingStaff(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:bg-black transition-colors"
           >
-            <Plus size={16} />
+            <Plus size={20} />
             Ajouter un employé
           </button>
         </div>
       </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <DashboardCard title="Total Employés" value={staffData.length.toString()} subtitle={`${staffData.filter(s => s.status === 'En congé').length} en congé`} icon={<Users size={20} />} />
-        <DashboardCard title="En service (Actuel)" value={staffData.filter(s => s.status === 'Actif').length.toString()} subtitle="Employés actifs" icon={<CheckCircle size={20} />} />
-        <DashboardCard title="Heures sup. (Mois)" value="45h" subtitle="+12% vs le mois dernier" icon={<Clock size={20} />} />
-        <DashboardCard title="Prochains congés" value="5" subtitle="Dans les 7 prochains jours" icon={<CalendarCheck size={20} />} />
-      </div>
-
       {/* Tabs */}
-      <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] rounded-2xl shadow-xl flex overflow-x-auto hide-scrollbar p-2 gap-2 mb-6">
+      <div className="flex gap-4 mb-8 border-b border-gray-200 overflow-x-auto hide-scrollbar">
         {[
-          { id: 'directory', label: 'Annuaire' },
-          { id: 'attendance', label: 'Pointage' },
-          { id: 'planning', label: 'Horaires & Planning' },
-          { id: 'leaves', label: 'Congés & Absences' },
-          { id: 'evaluations', label: 'Évaluations' },
-          { id: 'training', label: 'Formations' },
-          { id: 'payroll', label: 'Fiches de Paie' },
-          { id: 'roles', label: 'Droits & Accès' },
+          { id: 'directory', label: 'Annuaire & Staff', icon: Users },
+          { id: 'schedule', label: 'Plannings', icon: CalendarRange },
+          { id: 'payroll', label: 'Paie & Fiches', icon: Banknote },
         ].map(tab => (
-          <button
+          <button 
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab.id ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            onClick={() => setActiveTab(tab.id)} 
+            className={`pb-4 px-2 font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'border-[#DDA956] text-[#DDA956]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
           >
+            <tab.icon size={18} />
             {tab.label}
           </button>
         ))}
       </div>
 
       {activeTab === 'directory' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between bg-gray-50/50 gap-4">
-            <div className="relative flex-1 md:w-64 md:flex-none">
-              <input 
-                type="text" 
-                placeholder="Rechercher un employé..." 
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-            </div>
-            
-            <div className="relative">
-              <button 
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-lg transition-colors ${isFilterOpen ? 'bg-gray-100 border-gray-300 text-gray-900' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-              >
-                <Filter size={14} />
-                Filtres
-                {(filterDept !== 'Tous' || filterStatus !== 'Tous') && (
-                  <span className="w-2 h-2 rounded-full bg-[#DDA956] ml-1"></span>
-                )}
-              </button>
-
-              {isFilterOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 p-4 z-20">
-                  <div className="mb-4">
-                    <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Département</label>
-                    <select 
-                      value={filterDept}
-                      onChange={(e) => setFilterDept(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
-                    >
-                      <option value="Tous">Tous les départements</option>
-                      <option value="Cuisine">Cuisine</option>
-                      <option value="Salle">Salle</option>
-                      <option value="Accueil">Accueil</option>
-                      <option value="Management">Management</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">Statut</label>
-                    <select 
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
-                    >
-                      <option value="Tous">Tous les statuts</option>
-                      <option value="Actif">Actif</option>
-                      <option value="En congé">En congé</option>
-                      <option value="Inactif">Inactif</option>
-                    </select>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-50 flex justify-end">
-                    <button 
-                      onClick={() => {
-                        setFilterDept('Tous');
-                        setFilterStatus('Tous');
-                      }}
-                      className="text-xs text-gray-500 hover:text-gray-900 font-medium"
-                    >
-                      Réinitialiser
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-4">Employé</th>
-                  <th className="px-6 py-4">Département</th>
-                  <th className="px-6 py-4">Contact</th>
-                  <th className="px-6 py-4">Identifiants</th>
-                  <th className="px-6 py-4">Détails</th>
-                  <th className="px-6 py-4">Statut</th>
-                  <th className="px-6 py-4">Service Actuel</th>
-                  <th className="px-6 py-4">Salaire de Base</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredStaff.length > 0 ? (
-                  filteredStaff.map(staff => (
-                    <tr key={staff.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {staff.photo ? (
-                            <img src={staff.photo} alt={staff.name} className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-[#DDA956]/20 text-[#DDA956] flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                              {staff.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-medium text-gray-900">{staff.name}</div>
-                            <div className="text-xs text-gray-500">{staff.role}</div>
+        <div className="space-y-6">
+           <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input type="text" placeholder="Rechercher un employé..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#DDA956]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+              <select className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#DDA956]" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+                <option value="Tous">Tous les départements</option>
+                <option value="Cuisine">Cuisine</option>
+                <option value="Salle">Salle</option>
+                <option value="Direction">Direction</option>
+              </select>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredStaff.map(staff => (
+                 <div key={staff.id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm flex flex-col hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-4">
+                       <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-400 overflow-hidden">
+                             {staff.photo ? <img src={staff.photo} alt={staff.name} className="w-full h-full object-cover" /> : staff.name.charAt(0)}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
-                          {staff.department}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        <div className="text-sm">{staff.phone}</div>
-                        {staff.email && <div className="text-xs text-gray-400 mt-0.5">{staff.email}</div>}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 text-xs">
-                        {staff.cin && <div className="mb-0.5">CIN: <span className="font-medium text-gray-900">{staff.cin}</span></div>}
-                        {staff.cnss && <div>CNSS: <span className="font-medium text-gray-900">{staff.cnss}</span></div>}
-                        {!staff.cin && !staff.cnss && '-'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 text-xs">
-                        {staff.hireDate && <div className="mb-0.5">Embauche: <span className="font-medium text-gray-900">{staff.hireDate}</span></div>}
-                        {staff.language && <div className="truncate max-w-[150px]" title={staff.language}>Langues: <span className="font-medium text-gray-900">{staff.language}</span></div>}
-                        {!staff.hireDate && !staff.language && '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
-                          staff.status === 'Actif' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${staff.status === 'Actif' ? 'bg-green-500' : 'bg-amber-500'}`}></span>
-                          {staff.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {staff.shift}
-                      </td>
-                      <td className="px-6 py-4 text-gray-900 font-medium">
-                        {staff.baseSalary ? `${staff.baseSalary} MAD` : '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => {
-                              setEditingStaff(staff);
-                              setIsModalOpen(true);
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      Aucun employé ne correspond à votre recherche ou à vos filtres.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'planning' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Planning Hebdomadaire</h3>
-            <button 
-              onClick={() => showToast("Publication du planning...")}
-              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-            >
-              <CheckCircle size={16} /> Publier Planning
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
-                <tr>
-                  <th className="px-6 py-4">Employé</th>
-                  <th className="px-6 py-4">Lun 13</th>
-                  <th className="px-6 py-4">Mar 14</th>
-                  <th className="px-6 py-4">Mer 15</th>
-                  <th className="px-6 py-4">Jeu 16</th>
-                  <th className="px-6 py-4">Ven 17</th>
-                  <th className="px-6 py-4">Sam 18</th>
-                  <th className="px-6 py-4">Dim 19</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {scheduleData.map((schedule) => (
-                  <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{schedule.name}</td>
-                    {[
-                      { key: 'mon', val: schedule.mon },
-                      { key: 'tue', val: schedule.tue },
-                      { key: 'wed', val: schedule.wed },
-                      { key: 'thu', val: schedule.thu },
-                      { key: 'fri', val: schedule.fri },
-                      { key: 'sat', val: schedule.sat },
-                      { key: 'sun', val: schedule.sun }
-                    ].map((shift, j) => (
-                      <td key={j} className="px-6 py-4">
-                        <button 
-                          onClick={() => {
-                            setEditingShift({ empId: schedule.id, dayKey: shift.key, current: shift.val });
-                            setIsShiftModalOpen(true);
-                          }}
-                          className={`px-2 py-1 text-xs rounded-md w-full text-center hover:opacity-80 transition-opacity ${shift.val === 'Repos' ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-700 font-medium border border-blue-100'}`}
-                        >
-                          {shift.val}
-                        </button>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'attendance' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Pointage du jour</h3>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setIsImportAttendanceModalOpen(true)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors border border-gray-200"
-              >
-                <Upload size={16} /> Importer (Fichier)
-              </button>
-              <button 
-                onClick={() => setIsAttendanceModalOpen(true)}
-                className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-black transition-colors"
-              >
-                <Plus size={16} /> Saisir Pointage
-              </button>
-              <button 
-                onClick={() => showToast("Exportation des pointages du jour...")}
-                className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-              >
-                <Timer size={16} /> Exporter Pointages
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
-                <tr>
-                  <th className="px-6 py-4">Employé</th>
-                  <th className="px-6 py-4">Heure d'arrivée</th>
-                  <th className="px-6 py-4">Heure de départ</th>
-                  <th className="px-6 py-4">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {attendanceList.map((att) => (
-                  <tr key={att.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{att.name}</td>
-                    <td className="px-6 py-4">{att.in}</td>
-                    <td className="px-6 py-4">{att.out}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full font-medium ${att.status === 'En poste' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {att.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'leaves' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Demandes de congés & Absences</h3>
-            <div className="space-y-4">
-              {leavesList.map((leave) => (
-                <div key={leave.id} className="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{leave.name}</h4>
-                    <p className="text-sm text-gray-500">{leave.type} • {leave.dates}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                      leave.status === 'Approuvé' ? 'bg-green-100 text-green-700' : 
-                      leave.status === 'Refusé' ? 'bg-red-100 text-red-700' : 
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {leave.status}
-                    </span>
-                    {leave.status === 'En attente' && (
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => {
-                            setLeavesList(leavesList.map(l => l.id === leave.id ? { ...l, status: 'Approuvé' } : l));
-                            showToast("Demande de congé approuvée");
-                          }}
-                          className="text-green-600 hover:bg-green-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <CheckCircle size={16} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setLeavesList(leavesList.map(l => l.id === leave.id ? { ...l, status: 'Refusé' } : l));
-                            showToast("Demande de congé refusée");
-                          }}
-                          className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                          <div>
+                             <h3 className="font-bold text-gray-900">{staff.name}</h3>
+                             <p className="text-sm text-gray-500">{staff.role}</p>
+                          </div>
+                       </div>
+                    </div>
+                    <div className="space-y-2 mb-4 text-sm text-gray-600">
+                       <p><span className="font-medium text-gray-900">Département:</span> {staff.department}</p>
+                       <p><span className="font-medium text-gray-900">Email:</span> {staff.email}</p>
+                       <p><span className="font-medium text-gray-900">Tél:</span> {staff.phone}</p>
+                    </div>
+                    <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
+                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${staff.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{staff.status}</span>
+                       <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
+                          <Edit2 size={16} />
+                       </button>
+                    </div>
+                 </div>
               ))}
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col">
-             <h3 className="text-lg font-medium text-gray-900 mb-4">Solde Congés</h3>
-             <p className="text-sm text-gray-500 mb-6 flex-1">Gérez les compteurs de jours de congé annuel pour chaque employé.</p>
-             <button 
-               onClick={() => showToast("Ouverture du gestionnaire de soldes...")}
-               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex justify-center items-center gap-2 hover:bg-gray-200 transition-colors"
-             >
-                <CalendarRange size={16} /> Gérer les soldes
-             </button>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'evaluations' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Évaluations & Performances</h3>
-            <button 
-              onClick={() => setIsEvalModalOpen(true)}
-              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-            >
-              <Star size={16} /> Nouvelle Évaluation
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {evaluationsList.map((evalItem) => (
-              <div key={evalItem.id} className="border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-colors bg-gray-50/50">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{evalItem.name}</h4>
-                    <p className="text-xs text-gray-500">{evalItem.role}</p>
-                  </div>
-                  <div className="bg-[#DDA956] text-[#1A1A1A] font-bold px-2 py-1 rounded-lg text-sm flex items-center gap-1">
-                    <Star size={12} fill="currentColor" /> {evalItem.score}
-                  </div>
-                </div>
-                <div className="text-xs text-gray-600 space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Dernière éval.</span>
-                    <span className="font-medium">{evalItem.date}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Prochaine éval.</span>
-                    <span className="font-medium">{evalItem.next}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'training' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Formations & Développement</h3>
-            <button 
-              onClick={() => setIsTrainingModalOpen(true)}
-              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-            >
-              <Plus size={16} /> Nouvelle Session
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {trainingSessions.map((training) => (
-              <div key={training.id} className="border border-gray-100 rounded-xl p-5 flex flex-col justify-between hover:border-gray-200 transition-colors">
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-medium text-gray-900">{training.title}</h4>
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${training.status === 'Complété' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {training.status}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-4">Formateur: {training.trainer}</p>
-                </div>
-                <div className="flex justify-between items-center text-sm border-t border-gray-50 pt-3 mt-2">
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <CalendarCheck size={14} /> {training.date}
-                  </div>
-                  <div className="flex items-center gap-1 text-gray-500">
-                    <Users size={14} /> {training.participants} inscrits
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+           </div>
         </div>
       )}
 
       {activeTab === 'payroll' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                <Banknote size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Masse Salariale Nette (Totale)</p>
-                <h4 className="text-2xl font-semibold text-gray-900">
-                  {payrollList.reduce((acc, pay) => acc + Number(pay.net.replace(/[^0-9.-]+/g, "")), 0).toLocaleString('fr-MA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MAD
-                </h4>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
-                <Users size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Effectif Rémunéré</p>
-                <h4 className="text-2xl font-semibold text-gray-900">
-                  {payrollList.length}
-                </h4>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
-                <FileText size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Dernière Période</p>
-                <h4 className="text-2xl font-semibold text-gray-900">
-                  {payrollList.length > 0 ? payrollList[payrollList.length - 1].period : '-'}
-                </h4>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-medium text-gray-900">Fiches de Paie</h3>
-              <div className="flex gap-2">
-              <button 
-                onClick={() => setIsPayrollModalOpen(true)}
-                className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-              >
-                <Plus size={16} /> Générer Fiche
+           <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-900">Historique des Paies</h3>
+              <button onClick={() => setIsPayrollModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
+                 <Calculator size={18} /> Générer une fiche
               </button>
-              <button 
-                onClick={() => showToast("Exportation de la masse salariale...")}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-gray-200 transition-colors"
-              >
-                <Download size={16} /> Exporter Masse Salariale
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
-                <tr>
-                  <th className="px-6 py-4">Période</th>
-                  <th className="px-6 py-4">Employé</th>
-                  <th className="px-6 py-4">Salaire Net</th>
-                  <th className="px-6 py-4">Statut</th>
-                  <th className="px-6 py-4 text-right">Document</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payrollList.map((pay) => (
-                  <tr key={pay.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-gray-500">{pay.period}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">{pay.name}</td>
-                    <td className="px-6 py-4">{pay.net}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs rounded-full font-medium bg-green-100 text-green-700">
-                        {pay.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setSelectedPayslip(pay);
-                          setIsPayslipDocOpen(true);
-                        }}
-                        className="text-gray-400 hover:text-[#DDA956] transition-colors p-2 rounded-lg hover:bg-amber-50"
-                      >
-                        <FileText size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+           </div>
+           
+           <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+             <div className="overflow-x-auto">
+               <table className="w-full text-left border-collapse">
+                 <thead>
+                   <tr className="bg-gray-50 border-b border-gray-100">
+                     <th className="p-4 font-medium text-gray-600">Employé</th>
+                     <th className="p-4 font-medium text-gray-600">Période</th>
+                     <th className="p-4 font-medium text-gray-600">Base</th>
+                     <th className="p-4 font-medium text-gray-600">Net</th>
+                     <th className="p-4 font-medium text-gray-600">Statut</th>
+                     <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                   {payrollList.map((item, idx) => (
+                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                       <td className="p-4 font-medium text-gray-900">{item.name}</td>
+                       <td className="p-4 text-gray-600">{item.period}</td>
+                       <td className="p-4 text-gray-600">{item.base} MAD</td>
+                       <td className="p-4 font-bold text-green-600">{item.net}</td>
+                       <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
+                       <td className="p-4 text-right">
+                         <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
+                           <FileText size={16} />
+                         </button>
+                       </td>
+                     </tr>
+                   ))}
+                   {payrollList.length === 0 && (
+                     <tr>
+                       <td colSpan={6} className="p-8 text-center text-gray-500">Aucune fiche de paie générée.</td>
+                     </tr>
+                   )}
+                 </tbody>
+               </table>
+             </div>
+           </div>
         </div>
       )}
-
-      {activeTab === 'roles' && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Droits & Accès</h3>
-            <button 
-              onClick={() => {
-                setEditingRole(null);
-                setIsRoleModalOpen(true);
-              }}
-              className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-[#c4954b] transition-colors"
-            >
-              <Plus size={16} /> Nouveau Rôle
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {rolesList.map((role) => (
-              <div key={role.id} className="border border-gray-100 rounded-xl p-5 hover:border-gray-200 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                    <Shield size={16} className="text-[#DDA956]" /> {role.role}
-                  </h4>
-                  <button 
-                    onClick={() => {
-                      setEditingRole(role);
-                      setIsRoleModalOpen(true);
-                    }}
-                    className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500 mb-4">{role.access}</p>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <UserCheck size={14} /> {role.users} utilisateurs
-                </div>
-              </div>
-            ))}
-          </div>
+      
+      {activeTab === 'schedule' && (
+        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm text-center">
+           <Timer size={48} className="mx-auto text-gray-300 mb-4" />
+           <h3 className="text-xl font-bold text-gray-900 mb-2">Module Planning</h3>
+           <p className="text-gray-500 mb-6">Le gestionnaire de planning est en cours de maintenance.</p>
         </div>
       )}
 
       {/* Payslip Document Modal */}
       {isPayslipDocOpen && selectedPayslip && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 print:bg-white print:backdrop-blur-none print:items-start print:p-0 print:absolute">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto flex flex-col print:shadow-none print:max-w-full print:max-h-full print:overflow-visible print:rounded-none"
+            className="bg-gray-100 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50 rounded-t-xl sticky top-0 z-10 print:hidden">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                <FileText size={18} className="text-[#DDA956]" /> Fiche de Paie - {selectedPayslip.name}
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Bulletin de Paie - {selectedPayslip.name}
               </h3>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }} className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    setTimeout(() => window.print(), 100);
+                  }} 
+                  className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                >
                   <Printer size={16} /> Imprimer
                 </button>
                 <button onClick={() => setIsPayslipDocOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 bg-white rounded-lg border border-gray-200 transition-colors">

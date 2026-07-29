@@ -55,8 +55,8 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
     const q = query(collection(db, 'devices'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }));
       setDevices(items);
       setLoading(false);

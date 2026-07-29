@@ -10,8 +10,8 @@ export default function SeoAnalyticsContainer() {
     const q = query(collection(db, 'blog_posts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }));
       setArticles(docs);
     });

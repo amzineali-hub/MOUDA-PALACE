@@ -31,7 +31,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
   
   useEffect(() => {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
-      setTables(snapshot.docs.map(doc => ({ fbId: doc.id, ...doc.data() })));
+      setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
       setLoading(false);
     }, (error) => {
       console.error("Error fetching tables", error);

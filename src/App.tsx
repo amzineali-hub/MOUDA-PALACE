@@ -1,4 +1,5 @@
 import MenuGenerator from "./MenuGenerator";
+import BarcodeScanner from "./components/BarcodeScanner";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -226,7 +227,7 @@ function InventoryAlerts() {
         const data = doc.data();
         if (data.quantity !== undefined && data.minStock !== undefined) {
           if (data.quantity <= data.minStock) {
-            lowStockItems.push({ id: doc.id, ...data });
+            lowStockItems.push({ ...data, id: doc.id });
           }
         }
       });
@@ -1328,7 +1329,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <button 
                 onClick={() => {
                   showToast("Impression du résumé en cours...");
-                  setTimeout(() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }, 500);
+                  setTimeout(() => { try { window.print(); } catch(e) { showToast("Erreur d'impression", "error"); } }, 500);
                 }}
                 className="px-6 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
               >
@@ -3488,6 +3489,9 @@ function Inventory() {
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState('');
+  const [scanMode, setScanMode] = useState<'single'|'multiple'>('single');
+  const [multiScanItems, setMultiScanItems] = useState<any[]>([]);
   const [isAutoCreateModalOpen, setIsAutoCreateModalOpen] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
@@ -3513,7 +3517,7 @@ function Inventory() {
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setProductionTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setProductionTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     }, (error) => {
       console.error("Error fetching productionTasks", error);
     });
@@ -3533,7 +3537,7 @@ function Inventory() {
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryItems'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setStockItemsData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setStockItemsData(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     }, (error) => {
       console.error("Error fetching inventoryItems", error);
     });
@@ -3556,7 +3560,7 @@ function Inventory() {
   
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryTransactions'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setRecentTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setRecentTransactions(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     }, (error) => {
       console.error("Error fetching inventoryTransactions", error);
     });
@@ -4191,43 +4195,159 @@ function Inventory() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Scanner Bon de Livraison</h3>
-              <button onClick={() => setIsScannerModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+              <button onClick={() => { setIsScannerModalOpen(false); setMultiScanItems([]); }} className="text-gray-400 hover:text-gray-900">
                 <X size={20} />
               </button>
             </div>
+            
+            <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+              <button 
+                onClick={() => setScanMode('single')}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${scanMode === 'single' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Scan Unique
+              </button>
+              <button 
+                onClick={() => setScanMode('multiple')}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${scanMode === 'multiple' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Scan Multiple
+              </button>
+            </div>
+
             <div className="space-y-4">
-              <div className="w-full aspect-square bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 overflow-hidden relative">
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                <QrCode size={48} className="mb-4 opacity-50" />
-                <p className="text-sm font-medium">Placez le QR Code ou le code barre ici</p>
-                <p className="text-xs mt-1">La caméra va scanner automatiquement</p>
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#DDA956] shadow-[0_0_8px_#DDA956] animate-scan"></div>
+              <div className="w-full bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 overflow-hidden relative min-h-[300px]">
+                <BarcodeScanner 
+                  onResult={(decodedText) => {
+                    console.log("Scanned code:", decodedText);
+                    const existingProduct = stockItems.find(item => item.barcode === decodedText || item.sku === decodedText || item.id === decodedText);
+                    
+                    if (scanMode === 'single') {
+                      setIsScannerModalOpen(false);
+                      if (existingProduct) {
+                        showToast(`Produit trouvé : ${existingProduct.name}`, "success");
+                        setIsTxModalOpen(true);
+                        setSelectedProduct(existingProduct);
+                        setTxType('in');
+                      } else {
+                        showToast(`Nouveau code scanné : ${decodedText}. Redirection vers création...`, "success");
+                        setScannedBarcode(decodedText);
+                        setIsAutoCreateModalOpen(true);
+                      }
+                    } else {
+                      // Multiple scan mode
+                      if (existingProduct) {
+                        // Check if already in multiScanItems
+                        setMultiScanItems(prev => {
+                          const existingIdx = prev.findIndex(p => p.id === existingProduct.id);
+                          if (existingIdx >= 0) {
+                            const newItems = [...prev];
+                            newItems[existingIdx].scanQty += 1;
+                            showToast(`Quantité +1 pour ${existingProduct.name}`, "success");
+                            return newItems;
+                          } else {
+                            showToast(`Ajouté : ${existingProduct.name}`, "success");
+                            return [...prev, { ...existingProduct, scanQty: 1 }];
+                          }
+                        });
+                      } else {
+                        showToast(`Produit inconnu ignoré en scan multiple: ${decodedText}`, "error");
+                      }
+                    }
+                  }} 
+                  onError={(err) => {
+                    // Ignore frequent read errors from html5-qrcode
+                  }} 
+                />
               </div>
-              <div className="grid grid-cols-1 gap-2 pt-2">
-                <button 
-                  onClick={() => {
-                    showToast("Simulation : Code scanné avec succès");
-                    setIsScannerModalOpen(false);
-                    setIsTxModalOpen(true);
-                    setSelectedProduct(stockItems[0]); // Simulate picking a product
-                    setTxType('in');
-                  }}
-                  className="w-full bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors shadow-sm"
-                >
-                  Simuler scan (Produit Existant)
-                </button>
-                <button 
-                  onClick={() => {
-                    showToast("IA: Extraction des données du nouveau produit...");
-                    setIsScannerModalOpen(false);
-                    setIsAutoCreateModalOpen(true);
-                  }}
-                  className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
-                >
-                  <Sparkles size={16} className="text-[#DDA956]" />
-                  Simuler scan (Nouveau Produit)
-                </button>
-              </div>
+
+              {scanMode === 'multiple' && multiScanItems.length > 0 && (
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Produits scannés ({multiScanItems.length})</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto mb-4">
+                    {multiScanItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg">
+                        <span className="text-sm font-medium">{item.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm bg-white px-2 py-1 rounded border border-gray-200">
+                            {item.scanQty} {item.unit}
+                          </span>
+                          <button 
+                            onClick={() => setMultiScanItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        for (const item of multiScanItems) {
+                          const newQuantity = item.quantity + item.scanQty;
+                          await updateDoc(doc(db, 'inventoryItems', item.id), {
+                            quantity: newQuantity,
+                            updatedAt: serverTimestamp()
+                          });
+                          
+                          await addDoc(collection(db, 'inventoryTransactions'), {
+                            itemId: item.id,
+                            itemName: item.name,
+                            type: 'in',
+                            quantity: item.scanQty,
+                            reason: 'Scan multiple',
+                            date: new Date().toLocaleDateString('fr-FR'),
+                            user: 'Admin',
+                            amount: item.scanQty,
+                            unit: item.unit,
+                            item: item.name,
+                            createdAt: serverTimestamp()
+                          });
+                        }
+                        showToast(`Entrée en stock de ${multiScanItems.length} produits réussie`);
+                        setIsScannerModalOpen(false);
+                        setMultiScanItems([]);
+                      } catch (err) {
+                        console.error("Erreur scan multiple", err);
+                        showToast("Erreur lors de la mise à jour des stocks", "error");
+                      }
+                    }}
+                    className="w-full bg-green-600 text-white py-3 rounded-xl font-medium hover:bg-green-700 transition-colors shadow-sm"
+                  >
+                    Valider l'entrée groupée
+                  </button>
+                </div>
+              )}
+
+              {scanMode === 'single' && (
+                <div className="grid grid-cols-1 gap-2 pt-2">
+                  <button 
+                    onClick={() => {
+                      showToast("Simulation : Code scanné avec succès");
+                      setIsScannerModalOpen(false);
+                      setIsTxModalOpen(true);
+                      setSelectedProduct(stockItems[0]); // Simulate picking a product
+                      setTxType('in');
+                    }}
+                    className="w-full bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors shadow-sm"
+                  >
+                    Simuler scan (Produit Existant)
+                  </button>
+                  <button 
+                    onClick={() => {
+                      showToast("IA: Extraction des données du nouveau produit...");
+                      setIsScannerModalOpen(false);
+                      setIsAutoCreateModalOpen(true);
+                    }}
+                    className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Sparkles size={16} className="text-[#DDA956]" />
+                    Simuler scan (Nouveau Produit)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -4289,11 +4409,42 @@ function Inventory() {
               </div>
 
               <button 
-                onClick={() => {
-                  showToast("Nouveau produit créé et entrée en stock enregistrée avec succès.");
-                  setIsAutoCreateModalOpen(false);
+                onClick={async () => {
+                  try {
+                    const newProduct = {
+                      name: "Cœur d'Artichaut Extra (Scanné)",
+                      category: "Légumes",
+                      quantity: 15,
+                      unit: "kg",
+                      minStock: 5,
+                      barcode: scannedBarcode || 'SCANNED-' + Date.now(),
+                      createdAt: serverTimestamp()
+                    };
+                    const docRef = await addDoc(collection(db, 'inventoryItems'), newProduct);
+                    
+                    await addDoc(collection(db, 'inventoryTransactions'), {
+                      itemId: docRef.id,
+                      itemName: newProduct.name,
+                      type: 'in',
+                      quantity: 15,
+                      reason: 'Création auto via scan',
+                      date: new Date().toLocaleDateString('fr-FR'),
+                      user: 'Admin',
+                      amount: 15,
+                      unit: 'kg',
+                      item: newProduct.name,
+                      supplier: 'Coop Fès Primeurs',
+                      createdAt: serverTimestamp()
+                    });
+                    
+                    showToast("Nouveau produit créé et entrée en stock enregistrée avec succès.", "success");
+                    setIsAutoCreateModalOpen(false);
+                  } catch (e) {
+                    console.error("Error creating from scan", e);
+                    showToast("Erreur lors de la création", "error");
+                  }
                 }}
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2"
               >
                 Valider la création automatique
               </button>

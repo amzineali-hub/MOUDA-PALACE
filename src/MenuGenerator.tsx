@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer } from 'lucide-react';
+import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 export default function MenuGenerator() {
   const { showToast } = useToast();
@@ -37,8 +40,8 @@ export default function MenuGenerator() {
     const q = query(collection(db, 'menu_items'), orderBy('category'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }));
       setMenuItems(items);
     });
@@ -136,15 +139,49 @@ export default function MenuGenerator() {
   };
 
 
-  const handlePrint = () => {
+    
+  const handlePrint = async () => {
     try {
-      if (window !== window.top) {
-         showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite) pour imprimer votre menu.", "error");
-      } else {
-         window.print();
+      const element = document.getElementById('printable-menu');
+      if (!element) return;
+      
+      showToast("Génération du PDF en cours... Veuillez patienter", "success");
+      
+      const dataUrl = await toPng(element, {
+        quality: 0.95,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2 // High resolution
+      });
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (element.offsetHeight * pdfWidth) / element.offsetWidth;
+      
+      // If the content is taller than one A4 page, it will overflow or get scaled down.
+      // Usually for menus, a long scroll should either span multiple pages or be scaled to fit.
+      // We will add it to the first page, and if it exceeds, we can optionally add multiple pages, 
+      // but to keep it simple, we'll just put the image on the PDF.
+      // A typical A4 page height in mm is 297.
+      let heightLeft = pdfHeight;
+      let position = 0;
+      let pageHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
       }
-    } catch (e) {
-         showToast("Impossible d'imprimer. Ouvrez l'app dans un nouvel onglet.", "error");
+      
+      pdf.save('Menu-Mouda-Palace.pdf');
+      
+      showToast("Menu téléchargé avec succès !", "success");
+    } catch (error) {
+      console.error("Erreur lors de la génération du PDF", error);
+      showToast("Erreur lors de la génération du PDF", "error");
     }
   };
 
@@ -171,24 +208,27 @@ if (isPrintView) {
       <div className="bg-white min-h-screen p-2 sm:p-4 md:p-8 print:p-0 overflow-hidden print:overflow-visible">
         <div className="max-w-5xl mx-auto print:max-w-full">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 print:hidden">
-            <button onClick={() => setIsPrintView(false)} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors">
+            <button onClick={() => setIsPrintView(false)} className="flex items-center justify-center w-full sm:w-auto gap-2 text-gray-500 hover:text-gray-900 transition-colors py-2">
               <X size={20} /> Retour
             </button>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
               <select 
                 value={printTemplate} 
                 onChange={(e) => setPrintTemplate(e.target.value as any)}
-                className="border border-gray-200 rounded-lg px-4 py-2 bg-white text-sm font-medium focus:outline-none focus:border-[#DDA956]"
+                className="w-full sm:w-auto border border-gray-200 rounded-lg px-4 py-2.5 bg-white text-sm font-medium focus:outline-none focus:border-[#DDA956]"
               >
                 <option value="moderne">Modèle Moderne (Minimaliste)</option>
                 <option value="traditionnel">Modèle Traditionnel (Marocain)</option>
               </select>
-              <button onClick={handlePrint} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#c4954b] transition-colors">
-                <Printer size={18} /> Imprimer
-              </button>
+              <div className="w-full sm:w-auto flex flex-col items-center gap-1">
+                <button onClick={handlePrint} className="w-full flex justify-center items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#c4954b] transition-colors">
+                  <Printer size={18} /> Télécharger le PDF
+                </button>
+              </div>
             </div>
           </div>
 
+          <div id="printable-menu">
           {printTemplate === 'moderne' ? (
             <div className="print:p-4">
               <div className="text-center mb-16 border-b-2 border-[#DDA956] pb-10">
@@ -318,12 +358,13 @@ if (isPrintView) {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     );
   }
 
-    return (
+  return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* En-Tête du Menu avec Logo & Identité Mouda Palace */}
       <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
@@ -339,47 +380,30 @@ if (isPrintView) {
             <p className="text-gray-300 text-sm mt-1">Fès, Maroc — Gestion dynamique des menus, tarifs et visuels</p>
           </div>
         </div>
-
         <div className="flex flex-col sm:flex-row items-center gap-3">
-          <button
-            onClick={() => setIsTemplateModalOpen(true)}
-            className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg"
-          >
+          <button onClick={() => setIsPrintView(true)} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg">
             <Printer size={20} />
             <span>Génération du Menu</span>
           </button>
-          <button
-            onClick={() => {
-              setEditingItem(null);
-              setName('');
-              setPrice('');
-              setDesc('');
-              setImageUrl('');
-              setIsAddModalOpen(true);
-            }}
-            className="flex items-center w-full sm:w-auto gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors shadow-lg"
-          >
+          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors shadow-lg">
             <Plus size={20} />
             <span>Ajouter un plat</span>
           </button>
         </div>
       </div>
 
-      {/* Affichage par Catégories */}
-      {categories.map((cat) => {
-        const itemsInCat = menuItems.filter(i => i.category === cat);
-        if (itemsInCat.length === 0) return null;
-
+      {categories.map(category => {
+        const items = menuItems.filter(item => item.category === category);
+        if (items.length === 0) return null;
         return (
-          <div key={cat} className="space-y-4">
+          <div key={category} className="space-y-4">
             <h2 className="text-2xl font-serif text-[#1A1A1A] border-b border-gray-200 pb-2 flex items-center gap-2">
-              <Sparkles size={20} className="text-[#DDA956]" />
-              {cat}
+              <ChefHat size={20} className="text-[#DDA956]" />
+              {category}
             </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {itemsInCat.map((item) => (
-                <motion.div
+              {items.map(item => (
+                <motion.div 
                   key={item.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -387,12 +411,7 @@ if (isPrintView) {
                 >
                   <div className="h-48 relative bg-gray-100">
                     {item.imageUrl ? (
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.name} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                         <span className="text-gray-400">Aucune image</span>
@@ -402,26 +421,16 @@ if (isPrintView) {
                       {item.price}
                     </span>
                   </div>
-
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="font-serif font-semibold text-lg text-gray-900 mb-1">{item.name}</h3>
                     <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-2">{item.desc}</p>
-
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                       <span className="text-xs text-gray-400 font-medium tracking-wider uppercase">Mouda Palace Fès</span>
                       <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-50"
-                          title="Éditer"
-                        >
+                        <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-50" title="Éditer">
                           <Edit2 size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-50"
-                          title="Supprimer"
-                        >
+                        <button onClick={() => handleDelete(item.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-50" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
                       </div>

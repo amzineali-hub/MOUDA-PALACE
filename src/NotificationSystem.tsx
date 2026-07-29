@@ -45,7 +45,7 @@ export default function NotificationSystem() {
             showToast(`Nouvelle réservation VIP : ${data.name} pour ${data.pax} pax`, 'success');
           }
           if (data.isB2B || data.source === 'partenaire' || data.type === 'B2B' || data.tag === 'B2B') {
-            showToast(`Nouvelle réservation B2B (Partenaire) : ${data.name || 'Client B2B'}`, 'info');
+            showToast(`Nouvelle réservation B2B (Partenaire) : ${data.name || 'Client B2B'}`, 'success');
           }
         }
       });

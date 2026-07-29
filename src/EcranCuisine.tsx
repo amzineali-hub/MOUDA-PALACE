@@ -12,7 +12,7 @@ export default function EcranCuisine() {
   useEffect(() => {
     const q = query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
     return () => unsubscribe();
   }, []);

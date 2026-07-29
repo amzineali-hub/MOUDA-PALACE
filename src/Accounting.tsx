@@ -98,7 +98,7 @@ export default function Accounting() {
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'invoices'), orderBy('createdAt', 'desc')), (snapshot) => {
       if (!snapshot.empty) {
-        setInvoices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setInvoices(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       }
     }, (error) => {
       console.error("Error fetching invoices", error);
@@ -124,7 +124,7 @@ export default function Accounting() {
   useEffect(() => {
     const unsubReceipts = onSnapshot(query(collection(db, 'cash_receipts'), orderBy('createdAt', 'desc')), (snapshot) => {
       if (!snapshot.empty) {
-        setReceipts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setReceipts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       }
     }, (error) => {
       console.error("Error fetching receipts", error);
@@ -135,12 +135,12 @@ export default function Accounting() {
   useEffect(() => {
     const unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')), (snapshot) => {
       if (!snapshot.empty) {
-        setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       }
     });
     const unsubReports = onSnapshot(query(collection(db, 'financialReports'), orderBy('createdAt', 'desc')), (snapshot) => {
       if (!snapshot.empty) {
-        setFinancialReports(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setFinancialReports(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       }
     });
     return () => {
@@ -185,7 +185,9 @@ export default function Accounting() {
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => { try { if (window !== window.top) { showToast("L'impression est bloquée dans cet aperçu. Cliquez sur l'icône 'Ouvrir dans un nouvel onglet' (flèche en haut à droite).", "error"); } else { window.print(); } } catch(e) { showToast("Erreur d'impression", "error"); } }}
+            onClick={() => {
+              setTimeout(() => window.print(), 100);
+            }}
             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors"
             title="Exporter en PDF (Impression)"
           >

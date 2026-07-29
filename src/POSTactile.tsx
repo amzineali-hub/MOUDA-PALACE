@@ -59,8 +59,8 @@ export default function POSTactile() {
     const q = query(collection(db, 'menu_items'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
-        id: doc.id,
         ...doc.data(),
+        id: doc.id,
         // Ensure price is a number for calculation
         numPrice: parseFloat((doc.data().price || '0').toString().replace(/[^0-9.]/g, ''))
       }));
@@ -72,7 +72,7 @@ export default function POSTactile() {
 
   useEffect(() => {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
-      setTables(snapshot.docs.map(doc => ({ fbId: doc.id, ...doc.data() })));
+      setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
     });
     return () => unsubTables();
   }, []);
@@ -173,7 +173,7 @@ export default function POSTactile() {
 
       // 3. Déduire automatiquement et instantanément des stocks
       const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
-      const inventoryItems = inventorySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
       for (const cartItem of cart) {
         // Find matching inventory item (by name)

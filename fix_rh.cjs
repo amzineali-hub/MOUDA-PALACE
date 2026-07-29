@@ -1,30 +1,51 @@
 const fs = require('fs');
+let code = fs.readFileSync('src/RH.tsx', 'utf8');
 
-let appCode = fs.readFileSync('src/App.tsx', 'utf8');
+const brokenCode = `          <button 
+            onClick={() => {
+              if (window !== window.top) {
+                showToast("Pour imprimer, ouvrez l'app dans un nouvel onglet via la flèche en haut à droite.", "info");
+              } else {
+                window.print();
+              }
+            }} className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <Printer size={16} /> Imprimer`;
 
-const startIndex = appCode.indexOf('function PayrollModal(');
-if (startIndex !== -1) {
-  const endIndex = appCode.indexOf('function Configuration() {');
-  
-  if (endIndex !== -1) {
-    const payrollCode = appCode.substring(startIndex, endIndex);
-    
-    // Remove it from App.tsx
-    appCode = appCode.substring(0, startIndex) + appCode.substring(endIndex);
-    fs.writeFileSync('src/App.tsx', appCode);
-    
-    // Add it to RH.tsx
-    let rhCode = fs.readFileSync('src/RH.tsx', 'utf8');
-    
-    // Also fix lucide-react imports in RH.tsx
-    const oldImport = "import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter } from 'lucide-react';";
-    const newImport = "import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter, Upload, Timer, CalendarRange, Banknote, Shield, UserCheck, Printer, Trash2 } from 'lucide-react';";
-    rhCode = rhCode.replace(oldImport, newImport);
-    
-    // Insert PayrollModal before export default function RH()
-    rhCode = rhCode.replace('export default function RH() {', payrollCode + '\nexport default function RH() {');
-    
-    fs.writeFileSync('src/RH.tsx', rhCode);
-    console.log("Fixed RH");
-  }
-}
+const fixedCode = `          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-2.5 rounded-xl font-medium shadow-sm hover:bg-black transition-colors"
+          >
+            <Plus size={20} />
+            Ajouter un employé
+          </button>
+        </div>
+      </header>
+
+      {/* Payslip Document Modal */}
+      {isPayslipDocOpen && selectedPayslip && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gray-100 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+          >
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white">
+              <h3 className="text-xl font-serif font-medium text-gray-900">
+                Bulletin de Paie - {selectedPayslip.name}
+              </h3>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    if (window !== window.top) {
+                      showToast("Pour imprimer, ouvrez l'app dans un nouvel onglet via la flèche en haut à droite.", "info");
+                    } else {
+                      window.print();
+                    }
+                  }} 
+                  className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                >
+                  <Printer size={16} /> Imprimer`;
+
+code = code.replace(brokenCode, fixedCode);
+fs.writeFileSync('src/RH.tsx', code);
+console.log("Fixed RH.tsx");

@@ -16,6 +16,14 @@ export default function AchatsFournisseurs() {
   const [selectedCommande, setSelectedCommande] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const { showToast } = useToast();
+
+  const handleGeneratePrevisions = () => {
+    setIsGeneratingPrevisions(true);
+    setTimeout(() => {
+      setIsGeneratingPrevisions(false);
+      showToast("Prévisions générées avec succès ! (Simulation)");
+    }, 1500);
+  };
   
   const [commandes, setCommandes] = useState<any[]>([]);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
@@ -23,14 +31,14 @@ export default function AchatsFournisseurs() {
   
   useEffect(() => {
     const unsubCommandes = onSnapshot(query(collection(db, 'commandes'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setCommandes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     }, (error) => {
       console.error("Error fetching commandes", error);
       showToast("Erreur lors de la récupération des commandes");
     });
 
     const unsubFournisseurs = onSnapshot(query(collection(db, 'fournisseurs'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setFournisseurs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
       setLoading(false);
     }, (error) => {
       console.error("Error fetching fournisseurs", error);

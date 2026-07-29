@@ -98,7 +98,7 @@ import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
-import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
@@ -3756,6 +3756,25 @@ function Inventory() {
                           >
                             <Settings size={18} />
                           </button>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
+                                try {
+                                  if (item.id && !item.id.startsWith('INV00')) {
+                                    await deleteDoc(doc(db, 'inventoryItems', item.id));
+                                  }
+                                  showToast("Produit supprimé");
+                                } catch (e) {
+                                  console.error(e);
+                                  showToast("Erreur lors de la suppression", "error");
+                                }
+                              }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -4604,6 +4623,7 @@ function Inventory() {
               const name = formData.get('name') as string;
               const category = formData.get('category') as string;
               const unit = formData.get('unit') as string;
+              const quantity = Number(formData.get('quantity') || 0);
               
               if (!categories.includes(category)) {
                 try {
@@ -4618,7 +4638,7 @@ function Inventory() {
                 name,
                 category,
                 supplier: 'Non renseigné',
-                quantity: 0,
+                quantity: quantity,
                 unit,
                 minStock: 10,
                 createdAt: serverTimestamp()
@@ -4663,6 +4683,10 @@ function Inventory() {
                     <option value="unité">unité</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Initiale</label>
+                <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 50" />
               </div>
               <button 
                 type="submit"
@@ -4792,25 +4816,77 @@ function Inventory() {
               <p className="font-medium text-gray-900">{selectedProduct.name}</p>
             </div>
             <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                  <input id="edit-cat" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
+                  <div className="flex items-center gap-2">
+                    <input id="edit-qty" type="number" step="0.01" defaultValue={selectedProduct.quantity} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  </div>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Seuil d'alerte (Min. Stock)</label>
                 <div className="flex items-center gap-2">
-                  <input type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input id="edit-min" type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
                   <span className="text-gray-500 text-sm">{selectedProduct.unit}</span>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
-                <input type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input id="edit-sup" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
               <button 
-                onClick={() => {
-                  showToast(`Paramètres mis à jour pour ${selectedProduct.name}`);
+                onClick={async () => {
+                  const newCat = (document.getElementById('edit-cat') as HTMLInputElement)?.value;
+                  const newQty = Number((document.getElementById('edit-qty') as HTMLInputElement)?.value);
+                  const newMin = Number((document.getElementById('edit-min') as HTMLInputElement)?.value);
+                  const newSup = (document.getElementById('edit-sup') as HTMLInputElement)?.value;
+                  
+                  if (selectedProduct.id && !selectedProduct.id.startsWith('INV00')) {
+                    try {
+                      await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), {
+                        category: newCat,
+                        quantity: newQty,
+                        minStock: newMin,
+                        supplier: newSup,
+                        updatedAt: serverTimestamp()
+                      });
+                      showToast(`Paramètres mis à jour pour ${selectedProduct.name}`);
+                    } catch (err) {
+                      console.error("Erreur update", err);
+                      showToast("Erreur lors de la mise à jour", "error");
+                    }
+                  } else {
+                    showToast(`Paramètres simulés pour ${selectedProduct.name}`);
+                  }
                   setIsSettingsModalOpen(false);
                 }}
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
                 Sauvegarder
+              </button>
+              <button 
+                onClick={async () => {
+                  if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
+                    try {
+                      if (selectedProduct.id && !selectedProduct.id.startsWith('INV00')) {
+                        await deleteDoc(doc(db, 'inventoryItems', selectedProduct.id));
+                      }
+                      showToast("Produit supprimé");
+                      setIsSettingsModalOpen(false);
+                    } catch (e) {
+                      console.error(e);
+                      showToast("Erreur lors de la suppression", "error");
+                    }
+                  }
+                }}
+                className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium mt-2 hover:bg-red-50 transition-colors"
+              >
+                Supprimer le produit
               </button>
             </div>
           </div>

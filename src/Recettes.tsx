@@ -141,6 +141,24 @@ export default function Recettes() {
                       <button onClick={() => { setSelectedRecette(recette); setIsEditRecetteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Modifier">
                         <Edit3 size={16} />
                       </button>
+                      <button 
+                        onClick={async () => {
+                          if (window.confirm('Voulez-vous vraiment supprimer cette recette ?')) {
+                            try {
+                              if (recette.id && !recette.id.startsWith('R00')) {
+                                await deleteDoc(doc(db, 'recettes', recette.id));
+                              } else {
+                                setRecettes(prev => prev.filter(r => r.id !== recette.id));
+                              }
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-600 transition-colors" title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                       <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors" title="Fiche technique détaillée">
                         <ChevronRight size={16} />
                       </button>

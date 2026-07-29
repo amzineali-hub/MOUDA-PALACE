@@ -27,28 +27,95 @@ export default function POSTactile() {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [tables, setTables] = useState<any[]>([]);
+  const [recettes, setRecettes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemImage, setNewItemImage] = useState<string>('');
   
+  
+  const handleNameChange = (val: string) => {
+    setNewItemName(val);
+    const matchedRecette = recettes.find(r => r.nom === val);
+    if (matchedRecette) {
+      if (matchedRecette.prix) {
+        setNewItemPrice(String(matchedRecette.prix));
+      } else if (matchedRecette.cout) {
+        // Fallback for mock items that only have cout
+        const numPrice = parseFloat(String(matchedRecette.cout).replace(/[^0-9.]/g, ''));
+        if (!isNaN(numPrice)) {
+          // Add a default 30% margin for suggested price if it only has cost
+          setNewItemPrice(String(Math.round(numPrice * 1.3)));
+        }
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setNewItemImage(dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName || !newItemPrice) return;
     
     try {
-      await addDoc(collection(db, 'menu_items'), {
+      const itemData: any = {
         name: newItemName,
         price: `${newItemPrice} MAD`,
         category: activeCategory,
         active: true,
         desc: ''
-      });
+      };
+      
+      if (newItemImage) {
+        itemData.imageUrl = newItemImage;
+      }
+      
+      await addDoc(collection(db, 'menu_items'), itemData);
+      
       showToast('Article ajouté avec succès');
       setIsAddModalOpen(false);
       setNewItemName('');
       setNewItemPrice('');
+      setNewItemImage('');
     } catch (error) {
       console.error(error);
       showToast('Erreur lors de l\'ajout', 'error');
@@ -74,7 +141,10 @@ export default function POSTactile() {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
       setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
     });
-    return () => unsubTables();
+    const unsubRecettes = onSnapshot(query(collection(db, 'recettes')), (snapshot) => {
+      setRecettes(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
+    });
+    return () => { unsubTables(); unsubRecettes(); };
   }, []);
 
   const filteredItems = menuItems.filter(item => {
@@ -480,11 +550,17 @@ export default function POSTactile() {
                 <input 
                   type="text" 
                   value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="Ex: Coca-Cola" 
                   required 
+                  list="recettes-list"
                   className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
                 />
+                <datalist id="recettes-list">
+                  {recettes.map((r, idx) => (
+                    <option key={idx} value={r.nom} />
+                  ))}
+                </datalist>
               </div>
               
               <div>
@@ -497,6 +573,25 @@ export default function POSTactile() {
                   required 
                   className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photo (Appareil photo)</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment"
+                  onChange={handleImageUpload}
+                  className="w-full border border-gray-200 rounded-xl p-2 focus:outline-none focus:border-[#DDA956] bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                />
+                {newItemImage && (
+                  <div className="mt-2 relative w-32 h-32 rounded-xl overflow-hidden border border-gray-200">
+                    <img src={newItemImage} alt="Preview" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setNewItemImage('')} className="absolute top-1 right-1 bg-white/80 hover:bg-white rounded-full p-1 shadow text-gray-700">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="pt-2">

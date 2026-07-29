@@ -581,6 +581,21 @@ if (isPrintView) {
                   Enregistrer
                 </button>
               </div>
+              {editingItem && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Voulez-vous vraiment supprimer ce plat du menu ?')) {
+                      handleDelete(editingItem.id);
+                      setIsAddModalOpen(false);
+                    }
+                  }}
+                  className="w-full mt-2 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={18} />
+                  Supprimer ce plat
+                </button>
+              )}
             </form>
           </motion.div>
         </div>

@@ -240,15 +240,38 @@ export default function AchatsFournisseurs() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setSelectedCommande(cmd);
-                          setIsDetailsModalOpen(true);
-                        }}
-                        className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1 w-full"
-                      >
-                        Détails <ChevronRight size={16} />
-                      </button>
+                      <div className="flex justify-end gap-3 items-center">
+                        <button 
+                          onClick={() => {
+                            setSelectedCommande(cmd);
+                            setIsDetailsModalOpen(true);
+                          }}
+                          className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1"
+                        >
+                          Détails <ChevronRight size={16} />
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
+                              try {
+                                if (cmd.id && !cmd.id.startsWith('CMD')) {
+                                  await deleteDoc(doc(db, 'commandes', cmd.id));
+                                } else {
+                                  setCommandes(prev => prev.filter(c => c.id !== cmd.id));
+                                }
+                                showToast("Commande supprimée");
+                              } catch (e) {
+                                console.error(e);
+                                showToast("Erreur lors de la suppression", "error");
+                              }
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-700 font-medium text-sm"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -409,12 +432,34 @@ export default function AchatsFournisseurs() {
                       ★ {fournisseur.rating}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => { setSelectedFournisseur(fournisseur); setIsEditSupplierModalOpen(true); }}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                      >
-                        Éditer
-                      </button>
+                      <div className="flex justify-end gap-3 items-center">
+                        <button 
+                          onClick={() => { setSelectedFournisseur(fournisseur); setIsEditSupplierModalOpen(true); }}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                        >
+                          Éditer
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                              try {
+                                if (fournisseur.id && !fournisseur.id.startsWith('F00')) {
+                                  await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
+                                } else {
+                                  setFournisseurs(prev => prev.filter(f => f.id !== fournisseur.id));
+                                }
+                                showToast("Fournisseur supprimé");
+                              } catch (e) {
+                                console.error(e);
+                                showToast("Erreur lors de la suppression", "error");
+                              }
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-700 font-medium text-sm"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -436,7 +481,14 @@ export default function AchatsFournisseurs() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-2">Détails de la Commande {selectedCommande.orderNumber || (selectedCommande.id.startsWith("CMD-") ? selectedCommande.id : "CMD-" + selectedCommande.id.slice(0,4).toUpperCase())}</h3>
-            <p className="text-sm text-gray-500 mb-6">Fournisseur : <span className="font-medium text-gray-900">{selectedCommande.fournisseur}</span> • Date : {selectedCommande.date}</p>
+            <p className="text-sm text-gray-500 mb-2">Fournisseur : <span className="font-medium text-gray-900">{selectedCommande.fournisseur}</span> • Date : {selectedCommande.date}</p>
+            {(selectedCommande.categorie || selectedCommande.quantite) && (
+              <p className="text-sm text-gray-500 mb-6">
+                {selectedCommande.categorie && <>Catégorie : <span className="font-medium text-gray-900">{selectedCommande.categorie}</span></>}
+                {selectedCommande.categorie && selectedCommande.quantite && ' • '}
+                {selectedCommande.quantite && <>Quantité totale : <span className="font-medium text-gray-900">{selectedCommande.quantite}</span></>}
+              </p>
+            )}
             
             <div className="border border-gray-100 rounded-xl overflow-hidden mb-4">
               <table className="w-full text-left border-collapse">
@@ -479,7 +531,28 @@ export default function AchatsFournisseurs() {
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={async () => {
+                  if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
+                    try {
+                      if (selectedCommande.id && !selectedCommande.id.startsWith('CMD')) {
+                        await deleteDoc(doc(db, 'commandes', selectedCommande.id));
+                      } else {
+                        setCommandes(prev => prev.filter(c => c.id !== selectedCommande.id));
+                      }
+                      showToast("Commande supprimée");
+                      setIsDetailsModalOpen(false);
+                    } catch (e) {
+                      console.error(e);
+                      showToast("Erreur lors de la suppression", "error");
+                    }
+                  }
+                }}
+                className="bg-white text-red-500 border border-red-200 px-6 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors"
+              >
+                Supprimer
+              </button>
               <button 
                 onClick={() => setIsDetailsModalOpen(false)}
                 className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors"
@@ -509,6 +582,8 @@ export default function AchatsFournisseurs() {
               const supplierId = formData.get('supplier') as string;
               const deliveryDate = formData.get('deliveryDate') as string;
               const articles = formData.get('articles') as string;
+              const quantite = formData.get('quantite') as string;
+              const categorie = formData.get('categorie') as string;
               
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
@@ -523,6 +598,8 @@ export default function AchatsFournisseurs() {
                   status: 'En attente',
                   items: articles.split(',').length,
                   articles,
+                  quantite,
+                  categorie,
                   createdAt: serverTimestamp()
               };
 
@@ -564,6 +641,16 @@ export default function AchatsFournisseurs() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
                 <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
+                  <input name="categorie" type="text" placeholder="Ex: Alimentaire" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Totale</label>
+                  <input name="quantite" type="text" placeholder="Ex: 50 kg" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
@@ -656,6 +743,28 @@ export default function AchatsFournisseurs() {
               </div>
               <button type="submit" className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-black transition-colors">
                 Mettre à jour
+              </button>
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                    try {
+                      if (selectedFournisseur.id && !selectedFournisseur.id.startsWith('F00')) {
+                        await deleteDoc(doc(db, 'fournisseurs', selectedFournisseur.id));
+                      } else {
+                        setFournisseurs(prev => prev.filter(f => f.id !== selectedFournisseur.id));
+                      }
+                      showToast("Fournisseur supprimé");
+                      setIsEditSupplierModalOpen(false);
+                    } catch (e) {
+                      console.error(e);
+                      showToast("Erreur lors de la suppression", "error");
+                    }
+                  }
+                }}
+                className="w-full mt-2 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium hover:bg-red-50 transition-colors"
+              >
+                Supprimer le fournisseur
               </button>
             </form>
           </div>

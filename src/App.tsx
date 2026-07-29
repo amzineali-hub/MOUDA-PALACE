@@ -5,7 +5,7 @@ import BarcodeScanner from "./components/BarcodeScanner";
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
@@ -3524,16 +3524,13 @@ function Inventory() {
     return () => unsub();
   }, []);
 
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('inventoryCategories');
-    return saved ? JSON.parse(saved) : ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes'];
-  });
-  
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
-  useEffect(() => {
-    localStorage.setItem('inventoryCategories', JSON.stringify(categories));
-  }, [categories]);
+  const categories = useMemo(() => {
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers'];
+    const dbCats = stockItemsData.map(item => item.category).filter(Boolean);
+    return Array.from(new Set([...defaultCats, ...dbCats])).sort();
+  }, [stockItemsData]);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryItems'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -4628,7 +4625,6 @@ function Inventory() {
               if (!categories.includes(category)) {
                 try {
                   await addDoc(collection(db, 'inventoryCategories'), { name: category });
-                  setCategories([...categories, category]);
                 } catch (err) {
                   console.error("Error adding category", err);
                 }

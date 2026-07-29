@@ -3,7 +3,7 @@ import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, delete
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { motion } from 'framer-motion';
-import { Search, Plus, ChefHat, Tag, Scale, AlertCircle, ChevronRight, Edit3, X } from 'lucide-react';
+import { Search, Plus, ChefHat, Tag, Scale, AlertCircle, ChevronRight, Edit3, X, Trash2 } from 'lucide-react';
 
 export default function Recettes() {
   const [activeCategory, setActiveCategory] = useState('toutes');

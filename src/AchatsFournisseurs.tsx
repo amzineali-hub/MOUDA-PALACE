@@ -784,21 +784,71 @@ Détails <ChevronRight size={16} />
               try {
                 await addDoc(collection(db, 'commandes'), newCmd);
 
-                let fileContent = `BON DE COMMANDE\n\n`;
-                fileContent += `Émetteur : Restaurant Mouda Palace\n`;
-                fileContent += `Date d'émission : ${new Date().toLocaleDateString('fr-FR')}\n`;
-                fileContent += `Fournisseur : ${supplierName}\n`;
-                fileContent += `Date de livraison prévue : ${deliveryDate}\n\n`;
-                fileContent += `Articles commandés :\n${articles}\n\n`;
-                fileContent += `Merci de bien vouloir confirmer la réception de cette commande.\n`;
                 
-                const encodedUri = encodeURI("data:text/plain;charset=utf-8," + fileContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Bon_de_commande_${supplierName.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.txt`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
+                let printWindow = window.open('', '', 'width=800,height=900');
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Bon de Commande - ${supplierName}</title>
+                        <style>
+                          body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+                          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #DDA956; padding-bottom: 20px; }
+                          .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+                          .logo-sub { font-size: 14px; color: #666; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
+                          .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+                          .info { margin-bottom: 30px; line-height: 1.6; }
+                          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+                          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                          th { background-color: #f8f9fa; font-weight: bold; }
+                          .footer { text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; position: fixed; bottom: 40px; width: calc(100% - 80px); }
+                          @media print { .no-print { display: none; } }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="header">
+                          <div class="logo-text">MOUDA PALACE</div>
+                          <div class="logo-sub">Restaurant Traditionnel Marocain</div>
+                        </div>
+                        <div class="title">BON DE COMMANDE N° ${newCmd.id}</div>
+                        
+                        <div class="info">
+                          <strong>Émetteur:</strong> Restaurant Mouda Palace<br>
+                          <strong>Date d'émission:</strong> ${new Date().toLocaleDateString('fr-FR')}<br>
+                          <strong>Fournisseur:</strong> ${supplierName}<br>
+                          <strong>Date de livraison prévue:</strong> ${deliveryDate}<br>
+                          <strong>Catégorie d'achat:</strong> ${categorie}<br>
+                        </div>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Désignation de l'article</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${articles.split(',').map(a => `<tr><td>${a.trim()}</td></tr>`).join('')}
+                          </tbody>
+                        </table>
+
+                        <p><strong>Quantité Totale estimée :</strong> ${quantite}</p>
+                        <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.</p>
+                        
+                        <div style="margin-top: 50px;">
+                          <strong>Signature de la direction:</strong>
+                        </div>
+
+                        <div class="footer">
+                          Restaurant Mouda Palace - Fès, Maroc | contact@moudapalace.com | Tél: +212 5 35 XX XX XX
+                        </div>
+                        <script>
+                          window.onload = function() { window.print(); }
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }
+
               } catch (err) {
                 console.error("Error adding order", err);
               }
@@ -819,7 +869,15 @@ Détails <ChevronRight size={16} />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <input name="categorie" type="text" placeholder="Ex: Alimentaire" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                    <option value="">Sélectionner une catégorie</option>
+                    <option value="Alimentaire">Alimentaire</option>
+                    <option value="Boissons">Boissons</option>
+                    <option value="Matériel">Matériel</option>
+                    <option value="Fournitures">Fournitures</option>
+                    <option value="Services">Services</option>
+                    <option value="Autre">Autre</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Totale</label>

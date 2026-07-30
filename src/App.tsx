@@ -6,7 +6,7 @@ import BarcodeScanner from "./components/BarcodeScanner";
  */
 
 import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -791,10 +791,21 @@ export default function App() {
       )}
       {/* Main Content */}
       <main className={`flex-1 min-w-0 relative bg-[#FDFBF7] print:block print:h-auto print:min-h-0 print:overflow-visible ${isFullScreenView ? "h-screen overflow-hidden print:h-auto print:overflow-visible" : "min-h-screen print:min-h-0"}`}>
-        {renderContent()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className={isFullScreenView ? "h-full" : "min-h-full"}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      {!isFullScreenView && <ChatBot />}
+      {/* {!isFullScreenView && <ChatBot />} */}
       {isFullScreenView && activeTab !== 'device_simulator' && (
         <button 
           onClick={() => {

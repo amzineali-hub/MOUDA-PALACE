@@ -1502,6 +1502,7 @@ function Reservations() {
   const today = new Date();
   const isCurrentMonth = today.getMonth() === calendarDate.getMonth() && today.getFullYear() === currentYear;
 
+
   return (
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -3502,7 +3503,17 @@ function Inventory() {
   const [isAutoCreateModalOpen, setIsAutoCreateModalOpen] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
+  const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'fournisseurs'), (snapshot) => {
+      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
   const [newRecipeForm, setNewRecipeForm] = useState({ name: '', category: 'Entrée' });
   const [newRecipeIngredients, setNewRecipeIngredients] = useState<any[]>([]);
@@ -3561,6 +3572,75 @@ function Inventory() {
   });
 
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+
+  const handleExportPDF = () => {
+    let printWindow = window.open('', '', 'width=800,height=900');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>État de l'Inventaire - Mouda Palace</title>
+            <style>
+              body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #DDA956; padding-bottom: 20px; }
+              .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+              .logo-sub { font-size: 14px; color: #666; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
+              .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+              .info { margin-bottom: 30px; line-height: 1.6; text-align: center; }
+              table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+              th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+              th { background-color: #f8f9fa; font-weight: bold; }
+              .footer { text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; position: fixed; bottom: 40px; width: calc(100% - 80px); }
+              @media print { .no-print { display: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="logo-text">MOUDA PALACE</div>
+              <div class="logo-sub">Restaurant Traditionnel Marocain</div>
+            </div>
+            <div class="title">RAPPORT D'INVENTAIRE</div>
+            
+            <div class="info">
+              <strong>Date d'édition:</strong> ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}<br>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Catégorie</th>
+                  <th>Quantité Actuelle</th>
+                  <th>Seuil Min.</th>
+                  <th>Fournisseur</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredStockItems.map(item => `
+                  <tr>
+                    <td>${item.name}</td>
+                    <td>${item.category || '-'}</td>
+                    <td>${item.quantity || 0} ${item.unit || ''}</td>
+                    <td>${item.minStock || 0} ${item.unit || ''}</td>
+                    <td>${item.supplier || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <div class="footer">
+              Restaurant Mouda Palace - Fès, Maroc | contact@moudapalace.com | Tél: +212 5 35 XX XX XX
+            </div>
+            <script>
+              window.onload = function() { window.print(); }
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
   
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryTransactions'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -3682,6 +3762,15 @@ function Inventory() {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+              </div>
+              <div className="w-full sm:w-auto">
+                <button 
+                  onClick={handleExportPDF}
+                  className="w-full px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2 font-medium"
+                >
+                  <Printer size={16} />
+                  Exporter PDF
+                </button>
               </div>
             </div>
           )}
@@ -4101,12 +4190,7 @@ function Inventory() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {[
-                          { name: "Coopérative Taliouine", category: "Épices & Condiments", contact: "Fatima Zahra", phone: "+212 661 234 567", email: "contact@taliouine-safran.ma", city: "Taliouine" },
-                          { name: "Ferme Atlas", category: "Légumes & Huiles", contact: "Karim Benali", phone: "+212 662 345 678", email: "commandes@ferme-atlas.ma", city: "Marrakech" },
-                          { name: "Boucherie Médina", category: "Viandes", contact: "Hassan", phone: "+212 663 456 789", email: "hassan.boucher@gmail.com", city: "Marrakech" },
-                          { name: "Grossiste Fès", category: "Fruits Secs", contact: "Omar", phone: "+212 664 567 890", email: "grossiste.fes@menara.ma", city: "Fès" }
-                        ].map((supplier, idx) => (
+                        {fournisseurs.length > 0 ? fournisseurs.map((supplier, idx) => (
                           <tr key={idx} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <div className="font-medium text-gray-900">{supplier.name}</div>
@@ -4131,10 +4215,16 @@ function Inventory() {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
+                          <button onClick={() => { setSelectedSupplier(supplier); setIsEditSupplierModalOpen(true); }} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
                             </td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              Aucun fournisseur enregistré.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -4969,7 +5059,7 @@ function Inventory() {
         </div>
       )}
 
-      {/* Modal Nouveau Fournisseur */}
+            {/* Modal Nouveau Fournisseur */}
       {isNewSupplierModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
@@ -4980,37 +5070,180 @@ function Inventory() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouveau Fournisseur</h3>
-            <div className="space-y-4">
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get('name') as string;
+              const category = formData.get('category') as string;
+              const contact = formData.get('contact') as string;
+              const phone = formData.get('phone') as string;
+              const email = formData.get('email') as string;
+              const city = formData.get('city') as string;
+              
+              const newFournisseur = {
+                  name,
+                  category,
+                  contact,
+                  phone,
+                  email,
+                  city,
+                  createdAt: serverTimestamp()
+              };
+              
+              showToast("Ajout en cours...");
+              setIsNewSupplierModalOpen(false);
+              try {
+                await addDoc(collection(db, 'fournisseurs'), newFournisseur);
+                showToast("Fournisseur ajouté avec succès");
+              } catch (err) {
+                console.error(err);
+                showToast("Erreur lors de l'ajout", "error");
+              }
+            }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="name" type="text" required placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                  <input name="category" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <input name="city" type="text" required placeholder="Ex: Fès" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <input type="text" placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Personne à contacter</label>
+                <input name="contact" type="text" required placeholder="Ex: Ahmed" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
-                <input type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" type="text" required placeholder="Ex: +212..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input name="email" type="email" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
               </div>
               <button 
-                onClick={() => {
-                  showToast("Fournisseur ajouté avec succès");
-                  setIsNewSupplierModalOpen(false);
-                }}
+                type="submit"
                 className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Ajouter le Fournisseur
               </button>
-            </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modifier Fournisseur */}
+      {isEditSupplierModalOpen && selectedSupplier && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsEditSupplierModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Modifier Fournisseur</h3>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get('name') as string;
+              const category = formData.get('category') as string;
+              const contact = formData.get('contact') as string;
+              const phone = formData.get('phone') as string;
+              const email = formData.get('email') as string;
+              const city = formData.get('city') as string;
+              
+              const updatedData = {
+                  name,
+                  category,
+                  contact,
+                  phone,
+                  email,
+                  city
+              };
+              
+              showToast("Modification en cours...");
+              setIsEditSupplierModalOpen(false);
+              try {
+                if (selectedSupplier.id) {
+                  await updateDoc(doc(db, 'fournisseurs', selectedSupplier.id), updatedData);
+                  showToast("Fournisseur mis à jour avec succès");
+                }
+              } catch (err) {
+                console.error(err);
+                showToast("Erreur lors de la modification", "error");
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
+                <input name="name" type="text" required defaultValue={selectedSupplier.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                  <input name="category" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <input name="city" type="text" required defaultValue={selectedSupplier.city} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Personne à contacter</label>
+                <input name="contact" type="text" required defaultValue={selectedSupplier.contact} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" type="text" required defaultValue={selectedSupplier.phone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input name="email" type="email" defaultValue={selectedSupplier.email} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-4">
+                <button 
+                  type="submit"
+                  className="flex-1 bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors"
+                >
+                  Mettre à jour
+                </button>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    if (window.confirm("Voulez-vous vraiment supprimer ce fournisseur ?")) {
+                      try {
+                        setIsEditSupplierModalOpen(false);
+                        if (selectedSupplier.id) {
+                          await deleteDoc(doc(db, 'fournisseurs', selectedSupplier.id));
+                          showToast("Fournisseur supprimé");
+                        }
+                      } catch (e) {
+                        console.error(e);
+                        showToast("Erreur lors de la suppression", "error");
+                      }
+                    }
+                  }}
+                  className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-
-
 function Configuration() {
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);

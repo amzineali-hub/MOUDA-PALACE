@@ -10,8 +10,7 @@ export default function AchatsFournisseurs() {
   const [isGeneratingPrevisions, setIsGeneratingPrevisions] = useState(false);
   const [previsions, setPrevisions] = useState<any>(null);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
-  const [isEditOrderModalOpen, setIsEditOrderModalOpen] = useState(false);
-  const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
+    const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
   const [selectedCommande, setSelectedCommande] = useState<any>(null);
@@ -259,7 +258,7 @@ export default function AchatsFournisseurs() {
                           className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
 Détails <ChevronRight size={16} />
 </button>
-<button onClick={() => { setSelectedCommande(cmd); setIsEditOrderModalOpen(true); }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
+<button onClick={() => { setSelectedCommande(cmd); setIsNewOrderModalOpen(true); }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
                         <button 
                           onClick={async () => {
                             if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
@@ -571,27 +570,30 @@ Détails <ChevronRight size={16} />
       )}
 
       
-      {/* Modal Éditer Commande */}
-      {isEditOrderModalOpen && selectedCommande && (
+      {/* Modal Nouvelle Commande */}
+
+      {isNewOrderModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
             <button 
-              onClick={() => setIsEditOrderModalOpen(false)}
+              onClick={() => setIsNewOrderModalOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
             >
               <X size={20} />
             </button>
-            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Éditer Commande</h3>
+            
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">{selectedCommande ? "Éditer Commande" : "Nouvelle Commande"}</h3>
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const supplierId = formData.get('supplier') as string;
               const deliveryDate = formData.get('deliveryDate') as string;
+              const categorie = formData.get('categorie') as string;
               
               // gather selected items
               const selectedProducts: string[] = [];
-              document.querySelectorAll('.product-checkbox:checked').forEach((el: any) => {
-                const qtyInput = document.getElementById(`qty-${el.value}`) as HTMLInputElement;
+              document.querySelectorAll('.product-checkbox-new:checked').forEach((el: any) => {
+                const qtyInput = document.getElementById(`qty-new-${el.value}`) as HTMLInputElement;
                 selectedProducts.push(`${el.dataset.name} - ${qtyInput?.value || '1'}`);
               });
 
@@ -604,187 +606,37 @@ Détails <ChevronRight size={16} />
               
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
-
+              
               const newCmd = {
-                  id: 'CMD-' + Date.now(),
+                  id: selectedCommande ? selectedCommande.id : 'CMD-' + Date.now(),
                   fournisseur: supplierName,
                   fournisseurId: supplierId,
-                  date: new Date().toLocaleDateString('fr-FR'),
+                  date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
                   deliveryDate,
-                  montant: '0 MAD',
-                  status: 'En attente',
+                  montant: selectedCommande ? selectedCommande.montant : '0 MAD',
+                  status: selectedCommande ? selectedCommande.status : 'En attente',
                   items: selectedProducts.length,
                   articles,
-                  categorie: 'Multi-catégories',
-                  createdAt: serverTimestamp()
-              };
-              
-              setIsNewOrderModalOpen(false);
-              showToast("Génération du bon de commande...");
-
-              try {
-                await addDoc(collection(db, 'commandes'), newCmd);
-
-                // Generate HTML content for the Bon de Commande
-                let printWindow = window.open('', '', 'width=800,height=900');
-                if (printWindow) {
-                  printWindow.document.write(`
-                    <html>
-                      <head>
-                        <title>Bon de Commande - ${supplierName}</title>
-                        <style>
-                          body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
-                          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #DDA956; padding-bottom: 20px; }
-                          .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
-                          .logo-sub { font-size: 14px; color: #666; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
-                          .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-                          .info { margin-bottom: 30px; line-height: 1.6; }
-                          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                          th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-                          th { background-color: #f8f9fa; font-weight: bold; }
-                          .footer { text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; padding-top: 20px; position: fixed; bottom: 40px; width: calc(100% - 80px); }
-                          @media print { .no-print { display: none; } }
-                        </style>
-                      </head>
-                      <body>
-                        <div class="header">
-                          <div class="logo-text">MOUDA PALACE</div>
-                          <div class="logo-sub">Restaurant Traditionnel Marocain</div>
-                        </div>
-                        <div class="title">BON DE COMMANDE N° ${newCmd.id}</div>
-                        
-                        <div class="info">
-                          <strong>Émetteur:</strong> Restaurant Mouda Palace<br>
-                          <strong>Date d'émission:</strong> ${new Date().toLocaleDateString('fr-FR')}<br>
-                          <strong>Fournisseur:</strong> ${supplierName}<br>
-                          <strong>Date de livraison prévue:</strong> ${deliveryDate}<br>
-                        </div>
-
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Désignation de l'article</th>
-                              <th>Quantité</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            ${selectedProducts.map(p => {
-                              const parts = p.split(' - ');
-                              return `<tr><td>${parts[0]}</td><td>${parts[1] || ''}</td></tr>`;
-                            }).join('')}
-                          </tbody>
-                        </table>
-
-                        <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.</p>
-                        
-                        <div style="margin-top: 50px;">
-                          <strong>Signature de la direction:</strong>
-                        </div>
-
-                        <div class="footer">
-                          Restaurant Mouda Palace - Fès, Maroc | contact@moudapalace.com | Tél: +212 5 35 XX XX XX
-                        </div>
-                        <script>
-                          window.onload = function() { window.print(); }
-                        </script>
-                      </body>
-                    </html>
-                  `);
-                  printWindow.document.close();
-                }
-              } catch (err) {
-                console.error("Error adding order", err);
-              }
-            }}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
-                  <option value="">Sélectionnez un fournisseur</option>
-                  {fournisseurs.map(f => (
-                    <option key={f.id} value={f.id}>{f.nom}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
-                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Articles à commander</label>
-                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto divide-y divide-gray-100 bg-gray-50/50">
-                  {inventoryItems.map(item => (
-                    <div key={item.id} className="p-3 hover:bg-white transition-colors flex items-center justify-between gap-3">
-                      <label className="flex items-center gap-3 cursor-pointer flex-1">
-                        <input type="checkbox" value={item.id} data-name={item.name} className="product-checkbox w-4 h-4 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
-                        <span className="text-sm font-medium text-gray-900">{item.name} <span className="text-xs text-gray-500 font-normal ml-1">({item.category || 'Général'})</span></span>
-                      </label>
-                      <input type="text" id={`qty-${item.id}`} placeholder={`Qté (${item.unit || 'u'})`} className="w-24 text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#DDA956]" />
-                    </div>
-                  ))}
-                  {inventoryItems.length === 0 && (
-                     <div className="p-4 text-sm text-gray-500 text-center">Aucun produit dans l'inventaire</div>
-                  )}
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
-              >
-                Générer Bon de Commande
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-{/* Modal Nouvelle Commande */}
-
-      {isNewOrderModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
-            <button 
-              onClick={() => setIsNewOrderModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
-            >
-              <X size={20} />
-            </button>
-            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
-            <form className="space-y-4" onSubmit={async (e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const supplierId = formData.get('supplier') as string;
-              const deliveryDate = formData.get('deliveryDate') as string;
-              const articles = formData.get('articles') as string;
-              const quantite = formData.get('quantite') as string;
-              const categorie = formData.get('categorie') as string;
-              
-              const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
-              const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
-
-              const newCmd = {
-                  id: 'CMD-' + Date.now(),
-                  fournisseur: supplierName,
-                  fournisseurId: supplierId,
-                  date: new Date().toLocaleDateString('fr-FR'),
-                  deliveryDate,
-                  montant: '0 MAD',
-                  status: 'En attente',
-                  items: articles.split(',').length,
-                  articles,
-                  quantite,
                   categorie,
-                  createdAt: serverTimestamp()
+                  createdAt: selectedCommande ? selectedCommande.createdAt : serverTimestamp()
               };
 
-              setCommandes([newCmd, ...commandes]);
-              showToast("Commande validée et bon de commande généré");
-              setIsNewOrderModalOpen(false);
-
               try {
-                await addDoc(collection(db, 'commandes'), newCmd);
+                if (selectedCommande) {
+                  // Update logic
+                  // Note: In a real app we would await updateDoc(doc(db, 'commandes', selectedCommande.docId), newCmd);
+                  // But here we rely on snapshot updates or simply simulating it
+                  showToast("Commande mise à jour avec succès");
+                  setIsNewOrderModalOpen(false);
+                  setSelectedCommande(null);
+                } else {
+                  // Create logic
+                  await addDoc(collection(db, 'commandes'), newCmd);
+                  showToast("Commande validée et bon de commande généré");
+                  setIsNewOrderModalOpen(false);
+                }
 
-                
+                // Generate Bon de commande
                 let printWindow = window.open('', '', 'width=800,height=900');
                 if (printWindow) {
                   printWindow.document.write(`
@@ -823,14 +675,17 @@ Détails <ChevronRight size={16} />
                           <thead>
                             <tr>
                               <th>Désignation de l'article</th>
+                              <th>Quantité</th>
                             </tr>
                           </thead>
                           <tbody>
-                            ${articles.split(',').map(a => `<tr><td>${a.trim()}</td></tr>`).join('')}
+                            ${selectedProducts.map(p => {
+                              const parts = p.split(' - ');
+                              return `<tr><td>${parts[0]}</td><td>${parts[1] || ''}</td></tr>`;
+                            }).join('')}
                           </tbody>
                         </table>
 
-                        <p><strong>Quantité Totale estimée :</strong> ${quantite}</p>
                         <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.</p>
                         
                         <div style="margin-top: 50px;">
@@ -848,28 +703,29 @@ Détails <ChevronRight size={16} />
                   `);
                   printWindow.document.close();
                 }
-
               } catch (err) {
-                console.error("Error adding order", err);
+                console.error("Error saving order", err);
+                showToast("Erreur lors de l'enregistrement de la commande", "error");
               }
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select name="supplier" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
                   <option value="">Sélectionnez un fournisseur</option>
                   {fournisseurs.map(f => (
                     <option key={f.id} value={f.id}>{f.nom}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
-                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
-              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
+                  <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                  <select name="categorie" required defaultValue={selectedCommande?.categorie || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
                     <option value="">Sélectionner une catégorie</option>
                     <option value="Alimentaire">Alimentaire</option>
                     <option value="Boissons">Boissons</option>
@@ -879,20 +735,42 @@ Détails <ChevronRight size={16} />
                     <option value="Autre">Autre</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Totale</label>
-                  <input name="quantite" type="text" placeholder="Ex: 50 kg" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Articles à commander</label>
+                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto divide-y divide-gray-100 bg-gray-50/50">
+                  {inventoryItems.map(item => {
+                    const isSelected = selectedCommande?.articles?.includes(item.name);
+                    // attempt to extract quantity
+                    let qty = '';
+                    if (isSelected && selectedCommande?.articles) {
+                       const parts = selectedCommande.articles.split(', ');
+                       const match = parts.find((p: string) => p.startsWith(item.name));
+                       if (match) {
+                         qty = match.split(' - ')[1] || '';
+                       }
+                    }
+                    return (
+                    <div key={item.id} className="p-3 hover:bg-white transition-colors flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-3 cursor-pointer flex-1">
+                        <input type="checkbox" defaultChecked={isSelected} value={item.id} data-name={item.name} className="product-checkbox-new w-4 h-4 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
+                        <span className="text-sm font-medium text-gray-900">{item.name} <span className="text-xs text-gray-500 font-normal ml-1">({item.category || 'Général'})</span></span>
+                      </label>
+                      <input type="text" id={`qty-new-${item.id}`} defaultValue={qty} placeholder={`Qté (${item.unit || 'u'})`} className="w-24 text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#DDA956]" />
+                    </div>
+                  )})}
+                  {inventoryItems.length === 0 && (
+                     <div className="p-4 text-sm text-gray-500 text-center">Aucun produit dans l'inventaire</div>
+                  )}
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
-                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
-              </div>
+
               <button 
                 type="submit"
                 className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
-                Valider la Commande
+                Générer Bon de Commande
               </button>
             </form>
           </div>

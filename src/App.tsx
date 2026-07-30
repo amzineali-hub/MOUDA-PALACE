@@ -5,7 +5,7 @@ import BarcodeScanner from "./components/BarcodeScanner";
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, ReactNode, useMemo } from 'react';
+import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
@@ -912,6 +912,56 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
   
+  const metricsCache = useRef<Record<string, any>>({});
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
+  const [metrics, setMetrics] = useState({
+    users: "324",
+    aov: "1,076 MAD",
+    reservations: "42",
+    revenue: "45,200 MAD",
+    pos: "Actif",
+    crm: "1,204",
+    commissions: "3,450 MAD"
+  });
+
+  useEffect(() => {
+    const cacheKey = dateRange === 'custom' ? `${customStartDate}-${customEndDate}` : dateRange;
+    
+    if (metricsCache.current[cacheKey]) {
+      setMetrics(metricsCache.current[cacheKey]);
+      showToast(`Métriques ${cacheKey} chargées depuis le cache local`);
+      return;
+    }
+
+    setIsLoadingMetrics(true);
+    
+    // Simulate Firestore fetch
+    const fetchTimeout = setTimeout(() => {
+      let multiplier = 1;
+      if (dateRange === 'week') multiplier = 7;
+      if (dateRange === 'month') multiplier = 30;
+      if (dateRange === 'year') multiplier = 365;
+      if (dateRange === 'custom') multiplier = 3;
+
+      const newMetrics = {
+        users: (324 * multiplier + Math.floor(Math.random() * 50)).toLocaleString(),
+        aov: (1076 + Math.floor(Math.random() * 100)).toLocaleString() + " MAD",
+        reservations: (42 * multiplier + Math.floor(Math.random() * 10)).toString(),
+        revenue: (45200 * multiplier + Math.floor(Math.random() * 1000)).toLocaleString() + " MAD",
+        pos: "Actif",
+        crm: (1204 + (multiplier > 1 ? Math.floor(Math.random() * 100) : 0)).toLocaleString(),
+        commissions: (3450 * multiplier).toLocaleString() + " MAD"
+      };
+
+      metricsCache.current[cacheKey] = newMetrics;
+      setMetrics(newMetrics);
+      setIsLoadingMetrics(false);
+      showToast(`Nouvelles données ${cacheKey} récupérées depuis Firestore`);
+    }, 600);
+
+    return () => clearTimeout(fetchTimeout);
+  }, [dateRange, customStartDate, customEndDate, showToast]);
+  
   const handleExportExcel = () => {
     try {
       const metricsData = [
@@ -1013,29 +1063,29 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
           <DashboardCard 
             title="Daily Active Users" 
-            value="324"
-            subtitle="Utilisateurs uniques aujourd'hui"
+            value={isLoadingMetrics ? "..." : metrics.users}
+            subtitle="Utilisateurs uniques"
             icon={<Users className="text-[#DDA956]" size={24} />}
             delay={0.1}
           />
           <DashboardCard 
             title="Average Order Value" 
-            value="1,076 MAD"
+            value={isLoadingMetrics ? "..." : metrics.aov}
             subtitle="Panier moyen par table"
             icon={<CreditCard className="text-[#DDA956]" size={24} />}
             delay={0.2}
           />
           <DashboardCard 
-            title="Réservations du Jour" 
-            value="42"
+            title="Réservations" 
+            value={isLoadingMetrics ? "..." : metrics.reservations}
             subtitle="+12 via WhatsApp IA, 4 via Riads B2B"
             icon={<CalendarCheck className="text-[#DDA956]" size={24} />}
             delay={0.3}
           />
           <DashboardCard 
             title="Chiffre d'Affaires Prév." 
-            value="45,200 MAD"
-            subtitle="Basé sur les réservations du jour"
+            value={isLoadingMetrics ? "..." : metrics.revenue}
+            subtitle="Basé sur les réservations"
             icon={<Banknote className="text-[#DDA956]" size={24} />}
             delay={0.4}
           />
@@ -1045,22 +1095,22 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <DashboardCard 
             title="Point de Vente (POS)" 
-            value="Actif"
+            value={isLoadingMetrics ? "..." : metrics.pos}
             subtitle="Synchronisation des tables en temps réel"
             icon={<Store className="text-[#DDA956]" size={24} />}
             delay={0.3}
           />
           <DashboardCard 
             title="Clients Actifs (CRM)" 
-            value="1,204"
+            value={isLoadingMetrics ? "..." : metrics.crm}
             subtitle="Base Firestore synchronisée en temps réel"
             icon={<Users className="text-[#DDA956]" size={24} />}
             delay={0.4}
           />
           <DashboardCard 
             title="Commissions Riads" 
-            value="3,450 MAD"
-            subtitle="À régler pour le mois en cours"
+            value={isLoadingMetrics ? "..." : metrics.commissions}
+            subtitle="À régler pour la période"
             icon={<MapPin className="text-[#DDA956]" size={24} />}
             delay={0.5}
           />

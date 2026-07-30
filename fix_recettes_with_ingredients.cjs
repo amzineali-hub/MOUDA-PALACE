@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from './firebase';
-import { useToast } from './context/ToastContext';
-import { motion } from 'framer-motion';
-import { Search, Plus, ChefHat, Tag, Scale, AlertCircle, ChevronRight, Edit3, X, Trash2 } from 'lucide-react';
+const fs = require('fs');
+let code = fs.readFileSync('src/Recettes.tsx', 'utf8');
 
+// Replace the modals with a new component for the form
 
+const newComponent = `
 function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, onSubmit: (data: any) => void, onCancel: () => void }) {
   const [nom, setNom] = useState(initialData?.nom || '');
   const [categorie, setCategorie] = useState(initialData?.categorie || '');
@@ -110,7 +108,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     type="number" 
                     step="0.01" 
                     disabled={ingredients.length > 0}
-                    className={`w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956] ${ingredients.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`} 
+                    className={\`w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956] \${ingredients.length > 0 ? 'bg-gray-50 text-gray-500' : ''}\`} 
                   />
                   {ingredients.length > 0 && <p className="text-xs text-gray-500 mt-1">Calculé automatiquement</p>}
                 </div>
@@ -182,165 +180,17 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
     </div>
   );
 }
+`;
 
-export default function Recettes() {
-  const [activeCategory, setActiveCategory] = useState('toutes');
-  const [isNewRecetteModalOpen, setIsNewRecetteModalOpen] = useState(false);
-  const [isEditRecetteModalOpen, setIsEditRecetteModalOpen] = useState(false);
-  const [selectedRecette, setSelectedRecette] = useState<any>(null);
-  const { showToast } = useToast();
-  
-  const [recettes, setRecettes] = useState<any[]>([
-    { id: 'R001', nom: 'Pastilla au Pigeon', categorie: 'Plats', cout: '120 MAD', temps: '1h 30m', portion: '4 personnes', difficulte: 'Difficile' },
-    { id: 'R002', nom: 'Couscous Royal', categorie: 'Plats', cout: '150 MAD', temps: '2h', portion: '6 personnes', difficulte: 'Moyenne' },
-    { id: 'R003', nom: 'Zaalouk d\'Aubergines', categorie: 'Entrées', cout: '25 MAD', temps: '40m', portion: '2 personnes', difficulte: 'Facile' },
-    { id: 'R004', nom: 'Tajine d\'Agneau aux Pruneaux', categorie: 'Plats', cout: '110 MAD', temps: '1h 45m', portion: '4 personnes', difficulte: 'Moyenne' },
-    { id: 'R005', nom: 'Corne de Gazelle', categorie: 'Desserts', cout: '60 MAD', temps: '2h', portion: '12 pièces', difficulte: 'Difficile' },
-    { id: '9wc6rMjP9HguOoYa5Euj', nom: 'seffa', categorie: 'Plats', cout: '20 MAD', temps: '1h', portion: '2 personnes', difficulte: 'Facile' },
-    { id: 'R008', nom: 'Briouates aux Amandes', categorie: 'Desserts', cout: '50 MAD', temps: '1h', portion: '10 pièces', difficulte: 'Moyenne' },
-  ]);
+// Insert the new component right before export default function Recettes() {
 
-  useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'recettes'), orderBy('createdAt', 'desc')), (snapshot) => {
-      if (!snapshot.empty) {
-        setRecettes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-      }
-    });
-    return () => unsub();
-  }, []);
+code = code.replace("export default function Recettes() {", newComponent + "\nexport default function Recettes() {");
 
-  const filteredRecettes = recettes.filter(r => activeCategory === 'toutes' || r.categorie.toLowerCase() === activeCategory.toLowerCase());
+// Now replace the modals inside Recettes
+const newModalRegex = /\{isNewRecetteModalOpen && \([\s\S]*?<\/form>\s*<\/div>\s*<\/div>\s*\)\}/;
+const editModalRegex = /\{isEditRecetteModalOpen && selectedRecette && \([\s\S]*?<\/form>\s*<\/div>\s*<\/div>\s*\)\}/;
 
-  return (
-    <div className="p-4 md:p-8 pt-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Recettes & Menus</h2>
-          <p className="text-gray-500">Gérez vos recettes, fiches techniques et coûts</p>
-        </div>
-        <button 
-          onClick={() => setIsNewRecetteModalOpen(true)}
-          className="bg-[#DDA956] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Nouvelle Recette
-        </button>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-            {['Toutes', 'Plats', 'Entrées', 'Desserts', 'Boissons'].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat.toLowerCase())}
-                className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                  activeCategory === cat.toLowerCase()
-                    ? 'bg-[#1A1A1A] text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text"
-              placeholder="Rechercher une recette..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DDA956]/20 focus:border-[#DDA956] transition-colors"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[#FDFBF7] text-gray-500 text-xs font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="px-6 py-4 font-medium text-left">Nom de la recette</th>
-                <th className="px-6 py-4 font-medium text-left">Catégorie</th>
-                <th className="px-6 py-4 font-medium text-center">Portion</th>
-                <th className="px-6 py-4 font-medium text-center">Temps</th>
-                <th className="px-6 py-4 font-medium text-center">Difficulté</th>
-                <th className="px-6 py-4 font-medium text-right">Coût estimé</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredRecettes.map((recette) => (
-                <tr key={recette.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
-                        <ChefHat size={20} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-[#1A1A1A]">{recette.nom}</p>
-                        <p className="text-xs text-gray-400">ID: {recette.id}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    <span className="flex items-center gap-1.5">
-                      <Tag size={14} className="text-gray-400" />
-                      {recette.categorie}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center text-gray-600">
-                    <span className="bg-gray-100 px-2 py-1 rounded text-xs">{recette.portion}</span>
-                  </td>
-                  <td className="px-6 py-4 text-center text-gray-600">{recette.temps}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      recette.difficulte === 'Facile' ? 'bg-green-100 text-green-700' :
-                      recette.difficulte === 'Moyenne' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {recette.difficulte}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right font-medium text-[#1A1A1A]">{typeof recette.cout === 'number' ? recette.cout + ' MAD' : recette.cout}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => { setSelectedRecette(recette); setIsEditRecetteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Modifier">
-                        <Edit3 size={16} />
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          if (window.confirm('Voulez-vous vraiment supprimer cette recette ?')) {
-                            if (recette.id && !recette.id.startsWith('R00')) {
-                              try {
-                                await deleteDoc(doc(db, 'recettes', recette.id));
-                                showToast("Recette supprimée");
-                              } catch (err) {
-                                console.error(err);
-                                showToast("Erreur de suppression");
-                              }
-                            } else {
-                              setRecettes(prev => prev.filter(r => r.id !== recette.id));
-                              showToast("Recette supprimée");
-                            }
-                          }
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="Supprimer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors">
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {isNewRecetteModalOpen && (
+const newModalReplacement = `{isNewRecetteModalOpen && (
         <RecetteForm 
           onSubmit={async (data) => {
             try {
@@ -357,9 +207,9 @@ export default function Recettes() {
           }} 
           onCancel={() => setIsNewRecetteModalOpen(false)} 
         />
-      )}
-
-      {isEditRecetteModalOpen && selectedRecette && (
+      )}`;
+      
+const editModalReplacement = `{isEditRecetteModalOpen && selectedRecette && (
         <RecetteForm 
           initialData={selectedRecette}
           onSubmit={async (data) => {
@@ -378,7 +228,9 @@ export default function Recettes() {
           }} 
           onCancel={() => setIsEditRecetteModalOpen(false)} 
         />
-      )}
-    </div>
-  );
-}
+      )}`;
+
+code = code.replace(newModalRegex, newModalReplacement);
+code = code.replace(editModalRegex, editModalReplacement);
+
+fs.writeFileSync('src/Recettes.tsx', code);

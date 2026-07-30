@@ -139,7 +139,13 @@ export default function BlogWriterAI() {
         body: JSON.stringify({ topic, keywords })
       });
 
-      if (!response.ok) throw new Error('Generation failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        let errMsg = 'Erreur lors de la génération';
+        if (errData.error === "API key not found") errMsg = "La clé d'API Gemini est manquante. Vérifiez les paramètres.";
+        else if (errData.error && errData.error.includes("401")) errMsg = "La clé d'API Gemini utilisée semble invalide.";
+        throw new Error(errMsg);
+      }
 
       const data = await response.json();
       
@@ -194,9 +200,9 @@ export default function BlogWriterAI() {
         }
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast("Erreur lors de la génération de l'article.");
+      showToast(error.message || "Erreur lors de la génération de l'article.", "error");
     } finally {
       setIsGenerating(false);
     }

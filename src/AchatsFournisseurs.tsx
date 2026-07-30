@@ -10,6 +10,7 @@ export default function AchatsFournisseurs() {
   const [isGeneratingPrevisions, setIsGeneratingPrevisions] = useState(false);
   const [previsions, setPrevisions] = useState<any>(null);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [isEditOrderModalOpen, setIsEditOrderModalOpen] = useState(false);
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
@@ -246,15 +247,15 @@ export default function AchatsFournisseurs() {
                             setSelectedCommande(cmd);
                             setIsDetailsModalOpen(true);
                           }}
-                          className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1"
-                        >
-                          Détails <ChevronRight size={16} />
-                        </button>
+                          className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
+Détails <ChevronRight size={16} />
+</button>
+<button onClick={() => { setSelectedCommande(cmd); setIsEditOrderModalOpen(true); }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
                         <button 
                           onClick={async () => {
                             if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
                               try {
-                                if (cmd.id && !cmd.id.startsWith('CMD')) {
+                                if (cmd.id) {
                                   await deleteDoc(doc(db, 'commandes', cmd.id));
                                 } else {
                                   setCommandes(prev => prev.filter(c => c.id !== cmd.id));
@@ -443,7 +444,7 @@ export default function AchatsFournisseurs() {
                           onClick={async () => {
                             if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
                               try {
-                                if (fournisseur.id && !fournisseur.id.startsWith('F00')) {
+                                if (fournisseur.id) {
                                   await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
                                 } else {
                                   setFournisseurs(prev => prev.filter(f => f.id !== fournisseur.id));
@@ -536,7 +537,7 @@ export default function AchatsFournisseurs() {
                 onClick={async () => {
                   if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
                     try {
-                      if (selectedCommande.id && !selectedCommande.id.startsWith('CMD')) {
+                      if (cmd.id) {
                         await deleteDoc(doc(db, 'commandes', selectedCommande.id));
                       } else {
                         setCommandes(prev => prev.filter(c => c.id !== selectedCommande.id));
@@ -564,7 +565,97 @@ export default function AchatsFournisseurs() {
         </div>
       )}
 
-      {/* Modal Nouvelle Commande */}
+      
+      {/* Modal Éditer Commande */}
+      {isEditOrderModalOpen && selectedCommande && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsEditOrderModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Éditer Commande</h3>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const supplierId = formData.get('supplier');
+              const deliveryDate = formData.get('deliveryDate');
+              const articles = formData.get('articles');
+              const quantite = formData.get('quantite');
+              const categorie = formData.get('categorie');
+              
+              const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
+              const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
+
+              const updatedCmd = {
+                  ...selectedCommande,
+                  fournisseur: supplierName,
+                  fournisseurId: supplierId,
+                  deliveryDate,
+                  articles,
+                  quantite,
+                  categorie
+              };
+
+              try {
+                if (selectedCommande.id) {
+                  await updateDoc(doc(db, 'commandes', selectedCommande.id), {
+                    fournisseur: supplierName,
+                    fournisseurId: supplierId,
+                    deliveryDate,
+                    articles,
+                    quantite,
+                    categorie
+                  });
+                }
+                setCommandes(prev => prev.map(c => c.id === selectedCommande.id ? updatedCmd : c));
+                showToast("Commande mise à jour");
+                setIsEditOrderModalOpen(false);
+              } catch (err) {
+                console.error("Error updating order", err);
+                showToast("Erreur lors de la mise à jour", "error");
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                <select name="supplier" required defaultValue={selectedCommande.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                  <option value="">Sélectionnez un fournisseur</option>
+                  {fournisseurs.map(f => (
+                    <option key={f.id} value={f.id}>{f.nom}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
+                <input name="deliveryDate" type="date" required defaultValue={selectedCommande.deliveryDate} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
+                  <input name="categorie" type="text" defaultValue={selectedCommande.categorie} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité (kg/L/unités)</label>
+                  <input name="quantite" type="text" defaultValue={selectedCommande.quantite} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Articles (séparés par des virgules)</label>
+                <textarea name="articles" required defaultValue={selectedCommande.articles} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] min-h-[100px]" placeholder="Ex: 5kg Tomates, 10L Huile d'olive" />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-6 hover:bg-[#333] transition-colors"
+              >
+                Mettre à jour
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+{/* Modal Nouvelle Commande */}
 
       {isNewOrderModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -701,8 +792,8 @@ export default function AchatsFournisseurs() {
               setIsEditSupplierModalOpen(false);
               
               try {
-                if (selectedFournisseur.fbId) {
-                  await updateDoc(doc(db, 'fournisseurs', selectedFournisseur.fbId), updatedFournisseur);
+                if (selectedFournisseur.fbId || selectedFournisseur.id) {
+                  await updateDoc(doc(db, 'fournisseurs', selectedFournisseur.fbId || selectedFournisseur.id), updatedFournisseur);
                 }
               } catch (err) {
                 console.error("Error updating fournisseur", err);
@@ -749,7 +840,7 @@ export default function AchatsFournisseurs() {
                 onClick={async () => {
                   if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
                     try {
-                      if (selectedFournisseur.id && !selectedFournisseur.id.startsWith('F00')) {
+                      if (fournisseur.id) {
                         await deleteDoc(doc(db, 'fournisseurs', selectedFournisseur.id));
                       } else {
                         setFournisseurs(prev => prev.filter(f => f.id !== selectedFournisseur.id));

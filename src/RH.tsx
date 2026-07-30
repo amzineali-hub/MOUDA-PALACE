@@ -265,8 +265,9 @@ export default function RH() {
   };
 
   const handleDeleteStaff = async (id: string) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer cet employé ?')) return;
     try {
-      if (!id.startsWith('EMP-')) {
+      if (id) {
         await deleteDoc(doc(db, 'staff', id));
       }
       showToast("Employé supprimé");
@@ -358,9 +359,14 @@ export default function RH() {
                     </div>
                     <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${staff.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{staff.status}</span>
-                       <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
-                          <Edit2 size={16} />
-                       </button>
+                       <div className="flex gap-2">
+                         <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
+                            <Edit2 size={16} />
+                         </button>
+                         <button onClick={() => handleDeleteStaff(staff.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
+                            <Trash2 size={16} />
+                         </button>
+                       </div>
                     </div>
                  </div>
               ))}

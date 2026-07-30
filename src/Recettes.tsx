@@ -145,7 +145,7 @@ export default function Recettes() {
                         onClick={async () => {
                           if (window.confirm('Voulez-vous vraiment supprimer cette recette ?')) {
                             try {
-                              if (recette.id && !recette.id.startsWith('R00')) {
+                              if (recette.id) {
                                 await deleteDoc(doc(db, 'recettes', recette.id));
                               } else {
                                 setRecettes(prev => prev.filter(r => r.id !== recette.id));
@@ -277,7 +277,7 @@ export default function Recettes() {
                   chef: formData.get('chef')
                 };
 
-                if (selectedRecette.id && !selectedRecette.id.startsWith('R00')) {
+                if (recette.id) {
                   await updateDoc(doc(db, 'recettes', selectedRecette.id), updatedData);
                 } else {
                   // Fallback for mock items

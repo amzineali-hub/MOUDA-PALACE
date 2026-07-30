@@ -51,7 +51,14 @@ export default function ChatBot() {
           showToast("Validation humaine requise pour cette demande !", "warning");
         }
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, une erreur est survenue lors de la connexion au serveur." }]);
+        const errData = await response.json().catch(() => ({}));
+        let errorMessage = "Désolé, une erreur est survenue lors de la connexion au serveur.";
+        if (errData.error === "API key not found") {
+            errorMessage = "La clé d'API Gemini est manquante. Veuillez l'ajouter dans les paramètres du projet (Settings -> Environment Variables).";
+        } else if (errData.error && (errData.error.includes("401") || errData.error.includes("ACCOUNT_STATE_INVALID") || errData.error.includes("UNAUTHENTICATED"))) {
+            errorMessage = "La clé d'API Gemini utilisée semble invalide, désactivée ou expirée. Veuillez vérifier la clé d'API dans vos paramètres (Settings -> Environment Variables).";
+        }
+        setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
       }
     } catch (error) {
       console.error('Chat error:', error);

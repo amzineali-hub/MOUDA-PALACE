@@ -57,13 +57,16 @@ Réponds au format JSON:
       res.json(result);
     } catch (error) {
       console.error("Error analyzing review:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: error.message || "Internal Server Error" });
     }
   });
 
   // API Route for Chatbot
   app.post("/api/chat", async (req, res) => {
     try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "API key not found" });
+      }
       const { message, history } = req.body;
       
       const systemInstruction = `Tu es l'assistant virtuel du restaurant gastronomique Mouda Palace à Fès.
@@ -99,13 +102,16 @@ Si une demande est complexe, propose au client d'être contacté par un humain.`
       });
     } catch (error) {
       console.error("Error in chat:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: error?.message || "Internal Server Error" });
     }
   });
 
   // API Route for Blog Generation
   app.post("/api/generate-blog", async (req, res) => {
     try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "API key not found" });
+      }
       const { topic, keywords } = req.body;
       
       const prompt = `# Role & Identity
@@ -149,7 +155,7 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
       res.json({ article: responseText });
     } catch (error) {
       console.error("Error generating blog:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: error?.message || "Internal Server Error" });
     }
   });
 
@@ -191,13 +197,16 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
       }
     } catch (error) {
       console.error("Error publishing content:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: error?.message || "Internal Server Error" });
     }
   });
 
   // API Route for Menu Translation
   app.post("/api/translate-menu", async (req, res) => {
     try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "API key not found" });
+      }
       const { items } = req.body;
       if (!items || !Array.isArray(items)) {
         return res.status(400).json({ error: "Missing items array" });
@@ -238,7 +247,7 @@ Ne renvoie QUE le tableau JSON valide. Ne rajoute pas de texte avant ou après.`
       res.json(result);
     } catch (error) {
       console.error("Error translating menu:", error);
-      res.status(500).json({ error: "Internal Server Error" });
+      res.status(500).json({ error: error?.message || "Internal Server Error" });
     }
   });
 

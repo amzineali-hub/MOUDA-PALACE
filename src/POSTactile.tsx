@@ -130,6 +130,7 @@ export default function POSTactile() {
   
   const handleDeleteItem = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (!window.confirm('Voulez-vous vraiment supprimer cet article du menu ?')) return;
     try {
       await deleteDoc(doc(db, 'menu_items', id));
       showToast('Article supprimé avec succès');

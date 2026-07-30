@@ -2372,6 +2372,7 @@ Clients apportés: ${partner.clients}
                       <th className="px-6 py-4">Montant</th>
                       <th className="px-6 py-4">Méthode</th>
                       <th className="px-6 py-4">Statut</th>
+<th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -2986,7 +2987,13 @@ function DigitalMenu() {
         body: JSON.stringify({ items: untranslatedItems })
       });
       
-      if (!response.ok) throw new Error('Translation failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        let errMsg = 'Erreur lors de la traduction';
+        if (errData.error === "API key not found") errMsg = "La clé d'API Gemini est manquante. Vérifiez les paramètres.";
+        else if (errData.error && errData.error.includes("401")) errMsg = "La clé d'API Gemini utilisée semble invalide.";
+        throw new Error(errMsg);
+      }
       
       const translationsResult = await response.json();
       
@@ -3003,9 +3010,9 @@ function DigitalMenu() {
       }));
       
       showToast('Traduction terminée avec succès !');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast('Erreur lors de la traduction.');
+      showToast(error.message || 'Erreur lors de la traduction.', 'error');
     } finally {
       setIsTranslating(false);
     }
@@ -3757,9 +3764,9 @@ function Inventory() {
                             onClick={async () => {
                               if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
                                 try {
-                                  if (item.id && !item.id.startsWith('INV00')) {
+                                  
                                     await deleteDoc(doc(db, 'inventoryItems', item.id));
-                                  }
+                                  
                                   showToast("Produit supprimé");
                                 } catch (e) {
                                   console.error(e);
@@ -3888,12 +3895,12 @@ function Inventory() {
                 <button 
                   onClick={() => {
                     showToast("Plan de production généré avec succès d'après 45 pax aujourd'hui");
-                    setProductionTasks([
-                      ...productionTasks,
-                      { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute" },
-                      { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne" },
-                      { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse" }
-                    ]);
+                    const tasks = [
+                      { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute", createdAt: serverTimestamp() },
+                      { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne", createdAt: serverTimestamp() },
+                      { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse", createdAt: serverTimestamp() }
+                    ];
+                    tasks.forEach(async (t) => await addDoc(collection(db, 'productionTasks'), t));
                   }}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
                 >
@@ -3919,10 +3926,10 @@ function Inventory() {
                         <td className="px-6 py-4">
                           <select 
                             value={task.priority}
-                            onChange={(e) => {
-                              const newTasks = [...productionTasks];
-                              newTasks[idx].priority = e.target.value;
-                              setProductionTasks(newTasks);
+                            onChange={async (e) => {
+                              if (task.id) {
+                                await updateDoc(doc(db, 'productionTasks', task.id), { priority: e.target.value });
+                              }
                             }}
                             className={`border rounded-lg text-sm p-1.5 focus:outline-none focus:ring-1 focus:ring-[#DDA956] ${
                               task.priority === 'Haute' ? 'bg-red-50 text-red-700 border-red-200' : 
@@ -3944,6 +3951,19 @@ function Inventory() {
                           <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${task.status === 'Terminé' ? 'bg-green-50 text-green-700' : task.status === 'En cours' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
                             {task.status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button onClick={async () => {
+                            if (window.confirm('Voulez-vous vraiment supprimer cette tâche ?')) {
+                              try {
+                                if (task.id) await deleteDoc(doc(db, 'productionTasks', task.id));
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }
+                          }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -4639,15 +4659,13 @@ function Inventory() {
                 minStock: 10,
                 createdAt: serverTimestamp()
               };
-              const optimisticProduct = { id: 'INV-' + Date.now(), ...newProduct };
-              setStockItemsData([optimisticProduct, ...stockItemsData]);
-              showToast("Produit ajouté avec succès");
-              setIsAddModalOpen(false);
-              
               try {
                 await addDoc(collection(db, 'inventoryItems'), newProduct);
+                showToast("Produit ajouté avec succès");
+                setIsAddModalOpen(false);
               } catch (err) {
                 console.error("Error adding product", err);
+                showToast("Erreur lors de l'ajout", "error");
               }
             }}>
               <div>
@@ -4842,9 +4860,9 @@ function Inventory() {
                   const newMin = Number((document.getElementById('edit-min') as HTMLInputElement)?.value);
                   const newSup = (document.getElementById('edit-sup') as HTMLInputElement)?.value;
                   
-                  if (selectedProduct.id && !selectedProduct.id.startsWith('INV00')) {
+                  if (selectedProduct.id) {
                     try {
-                      await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), {
+                      await updateDoc(doc(db, "inventoryItems", selectedProduct.id), {
                         category: newCat,
                         quantity: newQty,
                         minStock: newMin,
@@ -4856,8 +4874,6 @@ function Inventory() {
                       console.error("Erreur update", err);
                       showToast("Erreur lors de la mise à jour", "error");
                     }
-                  } else {
-                    showToast(`Paramètres simulés pour ${selectedProduct.name}`);
                   }
                   setIsSettingsModalOpen(false);
                 }}
@@ -4869,9 +4885,9 @@ function Inventory() {
                 onClick={async () => {
                   if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
                     try {
-                      if (selectedProduct.id && !selectedProduct.id.startsWith('INV00')) {
+                      
                         await deleteDoc(doc(db, 'inventoryItems', selectedProduct.id));
-                      }
+                      
                       showToast("Produit supprimé");
                       setIsSettingsModalOpen(false);
                     } catch (e) {

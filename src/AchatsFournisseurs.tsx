@@ -10,6 +10,10 @@ export default function AchatsFournisseurs() {
   const [isGeneratingPrevisions, setIsGeneratingPrevisions] = useState(false);
   const [previsions, setPrevisions] = useState<any>(null);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [showSupplierCol, setShowSupplierCol] = useState(true);
+  const [showCategoryCol, setShowCategoryCol] = useState(true);
+  const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string}>>({});
     const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
@@ -133,7 +137,7 @@ export default function AchatsFournisseurs() {
             <Store size={18} />
             <span>Nouveau fournisseur</span>
           </button>
-          <button onClick={() => setIsNewOrderModalOpen(true)} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
             <span>Créer une commande</span>
           </button>
@@ -258,7 +262,24 @@ export default function AchatsFournisseurs() {
                           className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
 Détails <ChevronRight size={16} />
 </button>
-<button onClick={() => { setSelectedCommande(cmd); setIsNewOrderModalOpen(true); }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
+<button onClick={() => {
+                            setSelectedCommande(cmd); 
+                            setProductSearch(''); 
+                            const initialSelections: Record<string, {checked: boolean, qty: string}> = {};
+                            if (cmd.articles) {
+                              cmd.articles.split(', ').forEach((a: string) => {
+                                const parts = a.split(' - ');
+                                const name = parts[0];
+                                const qty = parts[1] || '';
+                                const item = inventoryItems.find(i => i.name === name);
+                                if (item) {
+                                  initialSelections[item.id] = { checked: true, qty };
+                                }
+                              });
+                            }
+                            setOrderSelections(initialSelections);
+                            setIsNewOrderModalOpen(true); 
+                          }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
                         <button 
                           onClick={async () => {
                             if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
@@ -592,9 +613,13 @@ Détails <ChevronRight size={16} />
               
               // gather selected items
               const selectedProducts: string[] = [];
-              document.querySelectorAll('.product-checkbox-new:checked').forEach((el: any) => {
-                const qtyInput = document.getElementById(`qty-new-${el.value}`) as HTMLInputElement;
-                selectedProducts.push(`${el.dataset.name} - ${qtyInput?.value || '1'}`);
+              Object.entries(orderSelections).forEach(([itemId, selection]) => {
+                if (selection.checked) {
+                  const item = inventoryItems.find(i => i.id === itemId);
+                  if (item) {
+                    selectedProducts.push(`${item.name} - ${selection.qty || '1'}`);
+                  }
+                }
               });
 
               if (selectedProducts.length === 0) {
@@ -738,58 +763,103 @@ Détails <ChevronRight size={16} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Articles à commander</label>
-                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto divide-y divide-gray-100 bg-gray-50/50">
+                <div className="flex justify-between items-end mb-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 pb-2">Articles à commander</label>
+                    <div className="flex items-center gap-3 text-sm">
+                      <label className="flex items-center gap-1.5 cursor-pointer text-gray-600">
+                        <input type="checkbox" checked={showSupplierCol} onChange={e => setShowSupplierCol(e.target.checked)} className="w-3.5 h-3.5 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
+                        Fournisseur
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-gray-600">
+                        <input type="checkbox" checked={showCategoryCol} onChange={e => setShowCategoryCol(e.target.checked)} className="w-3.5 h-3.5 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
+                        Catégorie
+                      </label>
+                    </div>
+                  </div>
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher (produit, catégorie, fournisseur)..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                    />
+                  </div>
+                </div>
+                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto bg-white">
                   {(() => {
-                    if (inventoryItems.length === 0) {
-                      return <div className="p-4 text-sm text-gray-500 text-center">Aucun produit dans l'inventaire</div>;
+                    const searchLower = productSearch.toLowerCase();
+                    const filteredItems = inventoryItems.filter(item => {
+                      const matchName = (item.name || '').toLowerCase().includes(searchLower);
+                      const matchCat = (item.category || '').toLowerCase().includes(searchLower);
+                      const matchSup = (item.supplier || '').toLowerCase().includes(searchLower);
+                      
+                      const initials = (item.name || '').split(' ').map((w: string) => w[0]).join('').toLowerCase();
+                      const matchInitials = initials.includes(searchLower);
+                      
+                      return matchName || matchCat || matchSup || matchInitials;
+                    });
+
+                    if (filteredItems.length === 0) {
+                      return <div className="p-4 text-sm text-gray-500 text-center">Aucun produit trouvé</div>;
                     }
-                    
-                    const grouped = inventoryItems.reduce((acc, item) => {
-                      const sup = item.supplier || 'Sans fournisseur';
-                      const cat = item.category || 'Général';
-                      if (!acc[sup]) acc[sup] = {};
-                      if (!acc[sup][cat]) acc[sup][cat] = [];
-                      acc[sup][cat].push(item);
-                      return acc;
-                    }, {} as Record<string, Record<string, typeof inventoryItems>>);
-                    
-                    return Object.keys(grouped).sort().map(supplier => (
-                      <div key={supplier} className="border-b border-gray-200 last:border-0">
-                        <div className="bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider sticky top-0 z-10">
-                          {supplier}
-                        </div>
-                        {Object.keys(grouped[supplier]).sort().map(category => (
-                          <div key={category}>
-                            <div className="bg-gray-50 px-3 py-1.5 text-xs font-semibold text-[#DDA956] border-y border-gray-100">
-                              {category}
-                            </div>
-                            <div className="divide-y divide-gray-50">
-                              {grouped[supplier][category].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(item => {
-                                const isSelected = selectedCommande?.articles?.includes(item.name);
-                                let qty = '';
-                                if (isSelected && selectedCommande?.articles) {
-                                   const parts = selectedCommande.articles.split(', ');
-                                   const match = parts.find((p: string) => p.startsWith(item.name));
-                                   if (match) {
-                                     qty = match.split(' - ')[1] || '';
-                                   }
-                                }
-                                return (
-                                  <div key={item.id} className="p-3 hover:bg-white transition-colors flex items-center justify-between gap-3">
-                                    <label className="flex items-center gap-3 cursor-pointer flex-1">
-                                      <input type="checkbox" defaultChecked={isSelected} value={item.id} data-name={item.name} className="product-checkbox-new w-4 h-4 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
-                                      <span className="text-sm font-medium text-gray-900">{item.name}</span>
-                                    </label>
-                                    <input type="text" id={`qty-new-${item.id}`} defaultValue={qty} placeholder={`Qté (${item.unit || 'u'})`} className="w-24 text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#DDA956]" />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ));
+
+                    return (
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead className="bg-gray-50 text-gray-500 sticky top-0 z-10 border-b border-gray-200">
+                          <tr>
+                            <th className="px-3 py-2 font-medium w-10 text-center">
+                              <ShoppingCart size={14} className="mx-auto text-gray-400" />
+                            </th>
+                            <th className="px-3 py-2 font-medium">Produit</th>
+                            {showCategoryCol && <th className="px-3 py-2 font-medium">Catégorie</th>}
+                            {showSupplierCol && <th className="px-3 py-2 font-medium">Fournisseur</th>}
+                            <th className="px-3 py-2 font-medium w-28 text-right">Quantité</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {filteredItems.sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(item => {
+                            const selection = orderSelections[item.id] || { checked: false, qty: '' };
+                            return (
+                              <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-3 py-2 text-center">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selection.checked} 
+                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: e.target.checked } }))}
+                                    className="w-4 h-4 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" 
+                                  />
+                                </td>
+                                <td className="px-3 py-2 font-medium text-gray-900 cursor-pointer" onClick={() => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: !(prev[item.id]?.checked) } }))}>
+                                  {item.name}
+                                </td>
+                                {showCategoryCol && (
+                                  <td className="px-3 py-2 text-gray-500 text-xs">
+                                    <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{item.category || 'Général'}</span>
+                                  </td>
+                                )}
+                                {showSupplierCol && (
+                                  <td className="px-3 py-2 text-gray-500 text-xs">
+                                    {item.supplier || 'Sans fournisseur'}
+                                  </td>
+                                )}
+                                <td className="px-3 py-2 text-right">
+                                  <input 
+                                    type="text" 
+                                    value={selection.qty}
+                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], qty: e.target.value } }))}
+                                    placeholder={`Qté (${item.unit || 'u'})`} 
+                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#DDA956] text-right" 
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    );
                   })()}
                 </div>
               </div>

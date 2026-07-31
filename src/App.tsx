@@ -4882,7 +4882,26 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-                <input name="name" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Miel pur" />
+                <input name="name" list="product-names-list" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Miel pur" />
+                <datalist id="product-names-list">
+                  {[
+                    "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
+                    "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix", 
+                    "Oeufs", "Oignons", "Olives", "Persil", "Poivre noir", "Pommes de terre", "Poulet", "Safran", "Sel", "Semoule", 
+                    "Sucre", "Tomates", "Viande de boeuf", "Viande hachée"
+                  ].map(name => <option key={name} value={name} />)}
+                  {Array.from(new Set(stockItemsData.map((item: any) => item.name)))
+                    .filter((name: any) => ![
+                      "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
+                      "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix", 
+                      "Oeufs", "Oignons", "Olives", "Persil", "Poivre noir", "Pommes de terre", "Poulet", "Safran", "Sel", "Semoule", 
+                      "Sucre", "Tomates", "Viande de boeuf", "Viande hachée"
+                    ].includes(name))
+                    .sort()
+                    .map((name: any, idx) => (
+                      <option key={`existing-${idx}`} value={name} />
+                  ))}
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

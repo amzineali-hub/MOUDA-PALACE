@@ -3039,7 +3039,7 @@ function WhatsAppAI() {
 
 function DigitalMenu() {
   const { showToast } = useToast();
-  const [activeCategory, setActiveCategory] = useState('Entrées');
+  const [activeCategory, setActiveCategory] = useState('Tous');
   const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<any>(null);
   const [newDishForm, setNewDishForm] = useState({ name: '', category: 'Entrées', price: '', desc: '' });
@@ -3131,7 +3131,7 @@ function DigitalMenu() {
 
   const openAddModal = () => {
     setEditingDish(null);
-    setNewDishForm({ name: '', category: activeCategory, price: '', desc: '' });
+    setNewDishForm({ name: '', category: activeCategory === 'Tous' ? categories[0] : activeCategory, price: '', desc: '' });
     setIsAddDishModalOpen(true);
   };
 
@@ -3185,7 +3185,7 @@ function DigitalMenu() {
     }
   };
 
-  const filteredItems = menuItems.filter(item => item.category === activeCategory);
+  const filteredItems = activeCategory === 'Tous' ? menuItems : menuItems.filter(item => item.category === activeCategory);
 
   return (
     <div className="p-8 md:p-12 relative z-10">
@@ -3242,20 +3242,23 @@ function DigitalMenu() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Categories Tab and Language Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2 gap-4">
-          <div className="flex overflow-x-auto hide-scrollbar p-2 gap-2">
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeCategory === category ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
-              >
-                {category}
-              </button>
-            ))}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#1A1A1A] to-[#333] p-4 gap-4">
+          <div className="flex items-center gap-3">
+            <label htmlFor="category-filter" className="text-white/70 text-sm font-medium">Catégorie :</label>
+            <select
+              id="category-filter"
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="bg-[#1A1A1A] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
+            >
+              <option value="Tous">Toutes les catégories</option>
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
           </div>
           
-          <div className="px-4 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Globe size={16} className="text-gray-400" />
             <select 
               value={displayLanguage}

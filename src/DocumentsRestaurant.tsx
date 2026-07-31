@@ -415,7 +415,7 @@ export default function DocumentsRestaurant() {
                       }).format(doc.createdAt.toDate()) : 'Récemment'}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => setPreviewDoc(doc)}
                           className="p-2 text-gray-500 hover:text-[#DDA956] hover:bg-[#DDA956]/10 rounded-lg transition-colors"

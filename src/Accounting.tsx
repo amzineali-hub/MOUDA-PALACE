@@ -20,7 +20,7 @@ import {
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -30,6 +30,32 @@ export default function Accounting() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isNewExpenseModalOpen, setIsNewExpenseModalOpen] = useState(false);
   const [isNewReceiptModalOpen, setIsNewReceiptModalOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [fournisseurs, setFournisseurs] = useState<any[]>([]);
+  
+  useEffect(() => {
+    const unsubInv = onSnapshot(query(collection(db, 'inventoryItems')), (snapshot) => {
+      setInventoryItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    const unsubFourn = onSnapshot(query(collection(db, 'fournisseurs')), (snapshot) => {
+      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => { unsubInv(); unsubFourn(); };
+  }, []);
+
+  const suppliersList = useMemo(() => {
+    const dbSuppliers = inventoryItems.map((item: any) => item.supplier?.trim()).filter(Boolean).filter(s => s !== 'Non renseigné');
+    const annuaireFournisseurs = fournisseurs.map(f => (f.name || f.nom)?.trim()).filter(Boolean);
+    return Array.from(new Set([...dbSuppliers, ...annuaireFournisseurs])).sort();
+  }, [inventoryItems, fournisseurs]);
+
+  const categories = useMemo(() => {
+    const defaultCats = ['Marchandise', 'Électricité', 'Marketing', 'Salaires', 'Loyer & Charges', 'Divers', 'Assurances', 'Frais Bancaires', 'Entretien & Réparations'];
+    const dbCats = inventoryItems.map((item: any) => item.category?.trim()).filter(Boolean);
+    const dbFournisseurCats = fournisseurs.map(f => (f.category || f.categorie)?.trim()).filter(Boolean);
+    return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
+  }, [inventoryItems, fournisseurs]);
+
   
   const [reportType, setReportType] = useState('Bilan Comptable');
   const [reportFormat, setReportFormat] = useState('PDF');
@@ -830,18 +856,21 @@ export default function Accounting() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="category" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
-                  <option>Marchandise</option>
-                  <option>Électricité</option>
-                  <option>Marketing</option>
-                  <option>Salaires</option>
-                  <option>Loyer & Charges</option>
-                  <option>Divers</option>
-                </select>
+                <input name="category" list="dl-omzfgo-1" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marchandise" />
+                <datalist id="dl-omzfgo-1">
+                  {categories.map((cat, idx) => (
+                    <option key={idx} value={cat} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bénéficiaire (Fournisseur)</label>
-                <input name="supplier" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du bénéficiaire" />
+                <input name="supplier" list="dl-acc-sup" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du bénéficiaire" />
+                <datalist id="dl-acc-sup">
+                  {suppliersList.map((sup, idx) => (
+                    <option key={idx} value={sup} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>

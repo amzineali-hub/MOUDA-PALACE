@@ -478,13 +478,16 @@ if (isPrintView) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select 
+                  <input 
+                    list="dl-menu-cat"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
-                  >
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    placeholder="Ex: Entrées"
+                  />
+                  <datalist id="dl-menu-cat">
+                    {categories.map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tarif (ex: 220 MAD)</label>

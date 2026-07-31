@@ -75,32 +75,19 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
+                  <input
+                    list="dl-recettes-cat"
                     value={categorie}
                     onChange={e => setCategorie(e.target.value)}
                     required
                     className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="">Sélectionner une catégorie</option>
-                    <option value="Amuse-bouche">Amuse-bouche</option>
-                    <option value="Entrées Froides">Entrées Froides</option>
-                    <option value="Entrées Chaudes">Entrées Chaudes</option>
-                    <option value="Soupes & Potages">Soupes & Potages</option>
-                    <option value="Salades">Salades</option>
-                    <option value="Plats Principaux">Plats Principaux</option>
-                    <option value="Spécialités du Chef">Spécialités du Chef</option>
-                    <option value="Grillades & Rôtis">Grillades & Rôtis</option>
-                    <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
-                    <option value="Pâtes & Risottos">Pâtes & Risottos</option>
-                    <option value="Accompagnements">Accompagnements</option>
-                    <option value="Sauces & Condiments">Sauces & Condiments</option>
-                    <option value="Desserts">Desserts</option>
-                    <option value="Pâtisseries">Pâtisseries</option>
-                    <option value="Glaces & Sorbets">Glaces & Sorbets</option>
-                    <option value="Boissons Chaudes">Boissons Chaudes</option>
-                    <option value="Boissons Froides">Boissons Froides</option>
-                    <option value="Cocktails">Cocktails</option>
-                  </select>
+                    placeholder="Ex: Entrées Froides"
+                  />
+                  <datalist id="dl-recettes-cat">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portion</label>

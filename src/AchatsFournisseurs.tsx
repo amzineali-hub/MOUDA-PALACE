@@ -42,6 +42,19 @@ export default function AchatsFournisseurs() {
 
   const [loading, setLoading] = useState(true);
   
+  const categories = useMemo(() => {
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
+    const dbCats = inventoryItems.map((item: any) => item.category?.trim()).filter(Boolean);
+    const dbFournisseurCats = fournisseurs.map(f => (f.category || f.categorie)?.trim()).filter(Boolean);
+    return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
+  }, [inventoryItems, fournisseurs]);
+
+  const suppliersList = useMemo(() => {
+    const dbSuppliers = inventoryItems.map((item: any) => item.supplier?.trim()).filter(Boolean).filter(s => s !== 'Non renseigné');
+    const annuaireFournisseurs = fournisseurs.map(f => (f.name || f.nom)?.trim()).filter(Boolean);
+    return Array.from(new Set([...dbSuppliers, ...annuaireFournisseurs])).sort();
+  }, [inventoryItems, fournisseurs]);
+  
   useEffect(() => {
     const unsubCommandes = onSnapshot(query(collection(db, 'commandes'), orderBy('createdAt', 'desc')), (snapshot) => {
       setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
@@ -735,12 +748,12 @@ Détails <ChevronRight size={16} />
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
-                  <option value="">Sélectionnez un fournisseur</option>
-                  {fournisseurs.map(f => (
-                    <option key={f.id} value={f.id}>{f.nom}</option>
+                <input name="supplier" list="dl-achats-suppliers" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" placeholder="Nom du fournisseur" />
+                <datalist id="dl-achats-suppliers">
+                  {suppliersList.map((sup, idx) => (
+                    <option key={idx} value={sup} />
                   ))}
-                </select>
+                </datalist>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -750,15 +763,12 @@ Détails <ChevronRight size={16} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <select name="categorie" required defaultValue={selectedCommande?.categorie || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
-                    <option value="">Sélectionner une catégorie</option>
-                    <option value="Alimentaire">Alimentaire</option>
-                    <option value="Boissons">Boissons</option>
-                    <option value="Matériel">Matériel</option>
-                    <option value="Fournitures">Fournitures</option>
-                    <option value="Services">Services</option>
-                    <option value="Autre">Autre</option>
-                  </select>
+                  <input name="categorie" list="dl-prta6x-1" defaultValue={selectedCommande?.categorie || ''} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Alimentaire" />
+                  <datalist id="dl-prta6x-1">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -922,20 +932,12 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="categorie" defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white max-h-48 overflow-y-auto">
-                  <option value="">Sélectionnez une catégorie</option>
-                  <option value="Fruits & Légumes">Fruits & Légumes</option>
-                  <option value="Viandes & Volailles">Viandes & Volailles</option>
-                  <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
-                  <option value="Épices & Safran">Épices & Safran</option>
-                  <option value="Épicerie & Sec">Épicerie & Sec</option>
-                  <option value="Produits Laitiers">Produits Laitiers</option>
-                  <option value="Boissons">Boissons</option>
-                  <option value="Nettoyage & Hygiène">Nettoyage & Hygiène</option>
-                  <option value="Emballages">Emballages</option>
-                  <option value="Matériel Cuisine">Matériel Cuisine</option>
-                  <option value="Services Extérieurs">Services Extérieurs</option>
-                </select>
+                <input name="categorie" list="dl-3is51f-2" defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fruits & Légumes" />
+                <datalist id="dl-3is51f-2">
+                  {categories.map((cat, idx) => (
+                    <option key={idx} value={cat} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du contact</label>
@@ -1018,18 +1020,20 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white max-h-48 overflow-y-auto">
-                  <option value="">Sélectionnez une catégorie</option>
-                  <option value="Fruits & Légumes">Fruits & Légumes</option>
-                  <option value="Viandes & Volailles">Viandes & Volailles</option>
-                  <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
-                  <option value="Épices & Safran">Épices & Safran</option>
-                  <option value="Épicerie & Sec">Épicerie & Sec</option>
-                  <option value="Produits Laitiers">Produits Laitiers</option>
-                  <option value="Boissons">Boissons</option>
-                  <option value="Emballages & Consommables">Emballages & Consommables</option>
-                  <option value="Autre">Autre</option>
-                </select>
+                <input name="categorie" list="dl-42peds-3"  required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fruits & Légumes" />
+                <datalist id="dl-42peds-3">
+                  <option value="Fruits & Légumes" />
+                  <option value="Viandes & Volailles" />
+                  <option value="Poissons & Fruits de mer" />
+                  <option value="Boulangerie & Pâtisserie" />
+                  <option value="Produits Laitiers & Œufs" />
+                  <option value="Épicerie Sèche" />
+                  <option value="Boissons & Vins" />
+                  <option value="Emballages & Consommables" />
+                  <option value="Hygiène & Entretien" />
+                  <option value="Équipement & Matériel" />
+                  <option value="Services" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>

@@ -334,12 +334,12 @@ function InventoryAlerts() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur (Optionnel)</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all">
-                    <option value="">Sélectionner un fournisseur régulier</option>
-                    <option value="f1">Fournisseur Principal (Marché Central)</option>
-                    <option value="f2">Grossiste Viande & Volaille</option>
-                    <option value="f3">Distributeur Epicerie Fine</option>
-                  </select>
+                  <input list="dl-xrqdjw-1" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all" placeholder="Ex: Marché Central" />
+                  <datalist id="dl-xrqdjw-1">
+                    {suppliersList.map((sup, idx) => (
+                      <option key={idx} value={sup} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               
@@ -3682,15 +3682,17 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
     const dbCats = stockItemsData.map(item => item.category?.trim()).filter(Boolean);
-    return Array.from(new Set([...defaultCats, ...dbCats])).sort();
-  }, [stockItemsData]);
+    const dbFournisseurCats = fournisseurs.map(f => (f.category || f.categorie)?.trim()).filter(Boolean);
+    return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
+  }, [stockItemsData, fournisseurs]);
 
   const suppliersList = useMemo(() => {
     const dbSuppliers = stockItemsData.map(item => item.supplier?.trim()).filter(Boolean).filter(s => s !== 'Non renseigné');
-    return Array.from(new Set([...dbSuppliers])).sort();
-  }, [stockItemsData]);
+    const annuaireFournisseurs = fournisseurs.map(f => (f.name || f.nom)?.trim()).filter(Boolean);
+    return Array.from(new Set([...dbSuppliers, ...annuaireFournisseurs])).sort();
+  }, [stockItemsData, fournisseurs]);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryItems'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -4828,31 +4830,18 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
+                  <input
+                    list="dl-recipe-cat-form"
                     value={newRecipeForm.category}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
+                    placeholder="Ex: Entrées Froides"
                     className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="">Sélectionner une catégorie</option>
-                    <option value="Amuse-bouche">Amuse-bouche</option>
-                    <option value="Entrées Froides">Entrées Froides</option>
-                    <option value="Entrées Chaudes">Entrées Chaudes</option>
-                    <option value="Soupes & Potages">Soupes & Potages</option>
-                    <option value="Salades">Salades</option>
-                    <option value="Plats Principaux">Plats Principaux</option>
-                    <option value="Spécialités du Chef">Spécialités du Chef</option>
-                    <option value="Grillades & Rôtis">Grillades & Rôtis</option>
-                    <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
-                    <option value="Pâtes & Risottos">Pâtes & Risottos</option>
-                    <option value="Accompagnements">Accompagnements</option>
-                    <option value="Sauces & Condiments">Sauces & Condiments</option>
-                    <option value="Desserts">Desserts</option>
-                    <option value="Pâtisseries">Pâtisseries</option>
-                    <option value="Glaces & Sorbets">Glaces & Sorbets</option>
-                    <option value="Boissons Chaudes">Boissons Chaudes</option>
-                    <option value="Boissons Froides">Boissons Froides</option>
-                    <option value="Cocktails">Cocktails</option>
-                  </select>
+                  />
+                  <datalist id="dl-recipe-cat-form">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               
@@ -4997,8 +4986,8 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-                <input name="name" list="product-names-list" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Miel pur" />
-                <datalist id="product-names-list">
+                <input name="name" list="dl-v9oy8w-2" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Miel pur" />
+                <datalist id="dl-v9oy8w-2">
                   {[
                     "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
                     "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix", 
@@ -5021,16 +5010,12 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
-                    name="category"
-                    required
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="">Sélectionner une catégorie</option>
+                  <input name="category" list="dl-o04gf1-3" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Viandes" />
+                  <datalist id="dl-o04gf1-3">
                     {categories.map((cat, idx) => (
-                      <option key={idx} value={cat}>{cat}</option>
+                      <option key={idx} value={cat} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -5107,7 +5092,12 @@ function Inventory() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                    <input id="tx-supplier" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
+                    <input id="tx-supplier" list="dl-ye9z4i-4" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
+                    <datalist id="dl-ye9z4i-4">
+                      {suppliersList.map((sup, idx) => (
+                        <option key={idx} value={sup} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
@@ -5197,7 +5187,12 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input id="edit-cat" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <input id="edit-cat" list="dl-o3ghs2-5" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <datalist id="dl-o3ghs2-5">
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -5235,7 +5230,12 @@ function Inventory() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
-                <input id="edit-sup" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                <input id="edit-sup" list="dl-zik38c-6" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                <datalist id="dl-zik38c-6">
+                  {suppliersList.map((sup, idx) => (
+                    <option key={idx} value={sup} />
+                  ))}
+                </datalist>
               </div>
               <button 
                 onClick={async () => {
@@ -5330,11 +5330,12 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
-                  <option>Coopérative Taliouine</option>
-                  <option>Ferme Atlas</option>
-                  <option>Boucherie Centrale</option>
-                </select>
+                <input name="supplier" list="dl-new-order-sup" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Ferme Atlas" />
+                <datalist id="dl-new-order-sup">
+                  {suppliersList.map((sup, idx) => (
+                    <option key={idx} value={sup} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
@@ -5403,7 +5404,20 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <input name="category" list="dl-elq0au-7" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <datalist id="dl-elq0au-7">
+                    <option value="Fruits & Légumes" />
+                    <option value="Viandes & Volailles" />
+                    <option value="Poissons & Fruits de mer" />
+                    <option value="Boulangerie & Pâtisserie" />
+                    <option value="Produits Laitiers & Œufs" />
+                    <option value="Épicerie Sèche" />
+                    <option value="Boissons & Vins" />
+                    <option value="Emballages & Consommables" />
+                    <option value="Hygiène & Entretien" />
+                    <option value="Équipement & Matériel" />
+                    <option value="Services" />
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
@@ -5484,7 +5498,20 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <input name="category" list="dl-7sr3pv-8" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <datalist id="dl-7sr3pv-8">
+                    <option value="Fruits & Légumes" />
+                    <option value="Viandes & Volailles" />
+                    <option value="Poissons & Fruits de mer" />
+                    <option value="Boulangerie & Pâtisserie" />
+                    <option value="Produits Laitiers & Œufs" />
+                    <option value="Épicerie Sèche" />
+                    <option value="Boissons & Vins" />
+                    <option value="Emballages & Consommables" />
+                    <option value="Hygiène & Entretien" />
+                    <option value="Équipement & Matériel" />
+                    <option value="Services" />
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>

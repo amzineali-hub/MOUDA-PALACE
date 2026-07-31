@@ -215,13 +215,13 @@ if (isPrintView) {
               <select 
                 value={printTemplate} 
                 onChange={(e) => setPrintTemplate(e.target.value as any)}
-                className="w-full sm:w-auto border border-gray-200 rounded-lg px-4 py-2.5 bg-white text-sm font-medium focus:outline-none focus:border-[#DDA956]"
+                className="w-full sm:w-auto border border-gray-200 rounded-lg px-4 py-2.5 bg-white text-sm font-medium focus:outline-none focus:border-[#F4C75B]"
               >
                 <option value="moderne">Modèle Moderne (Minimaliste)</option>
                 <option value="traditionnel">Modèle Traditionnel (Marocain)</option>
               </select>
               <div className="w-full sm:w-auto flex flex-col items-center gap-1">
-                <button onClick={handlePrint} className="w-full flex justify-center items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#c4954b] transition-colors">
+                <button onClick={handlePrint} className="w-full flex justify-center items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#E5B745] transition-colors">
                   <Printer size={18} /> Télécharger le PDF
                 </button>
               </div>
@@ -231,9 +231,9 @@ if (isPrintView) {
           <div id="printable-menu">
           {printTemplate === 'moderne' ? (
             <div className="print:p-4">
-              <div className="text-center mb-16 border-b-2 border-[#DDA956] pb-10">
+              <div className="text-center mb-16 border-b-2 border-[#F4C75B] pb-10">
                 <div className="flex justify-center mb-6">
-                  <div className="w-20 h-20 rounded-full border border-[#DDA956] flex items-center justify-center overflow-hidden bg-white p-2">
+                  <div className="w-20 h-20 rounded-full border border-[#F4C75B] flex items-center justify-center overflow-hidden bg-white p-2">
                     <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
                   </div>
                 </div>
@@ -248,16 +248,16 @@ if (isPrintView) {
 
                   return (
                     <div key={cat} className="break-inside-avoid">
-                      <h2 className="text-2xl sm:text-3xl font-serif text-[#DDA956] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-4 sm:gap-6">
-                        <span className="h-[1px] w-12 bg-[#DDA956]"></span> 
+                      <h2 className="text-2xl sm:text-3xl font-serif text-[#F4C75B] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-4 sm:gap-6">
+                        <span className="h-[1px] w-12 bg-[#F4C75B]"></span> 
                         {cat} 
-                        <span className="h-[1px] w-12 bg-[#DDA956]"></span>
+                        <span className="h-[1px] w-12 bg-[#F4C75B]"></span>
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                         {itemsInCat.map(item => (
                           <div key={item.id} className="flex gap-3 sm:gap-5 break-inside-avoid items-center sm:items-start">
                             {item.imageUrl && (
-                              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40 shrink-0 rounded-full overflow-hidden border-2 border-[#DDA956]/30 shadow-sm print:border-gray-200">
+                              <div className="w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40 shrink-0 rounded-full overflow-hidden border-2 border-[#F4C75B]/30 shadow-sm print:border-gray-200">
                                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                               </div>
                             )}
@@ -265,7 +265,7 @@ if (isPrintView) {
                               <div className="flex justify-between items-baseline mb-2 gap-4">
                                 <h3 className="text-lg md:text-xl font-serif font-bold text-gray-900">{item.name}</h3>
                                 <div className="flex-1 border-b-2 border-dotted border-gray-300 relative -top-1"></div>
-                                <span className="text-lg font-serif font-bold text-[#DDA956] whitespace-nowrap">{item.price}</span>
+                                <span className="text-lg font-serif font-bold text-[#F4C75B] whitespace-nowrap">{item.price}</span>
                               </div>
                               <p className="text-sm text-gray-600 italic leading-relaxed">{item.desc}</p>
                             </div>
@@ -369,12 +369,12 @@ if (isPrintView) {
       {/* En-Tête du Menu avec Logo & Identité Mouda Palace */}
       <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-[#DDA956]/20 border border-[#DDA956]/40 flex items-center justify-center overflow-hidden p-2">
+          <div className="w-16 h-16 rounded-2xl bg-[#F4C75B]/20 border border-[#F4C75B]/40 flex items-center justify-center overflow-hidden p-2">
             <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-widest text-[#DDA956] font-semibold">Éditeur de Carte Officiel</span>
+              <span className="text-xs uppercase tracking-widest text-[#F4C75B] font-semibold">Éditeur de Carte Officiel</span>
             </div>
             <h1 className="text-3xl font-serif font-bold tracking-wide">Restaurant Mouda Palace</h1>
             <p className="text-gray-300 text-sm mt-1">Fès, Maroc — Gestion dynamique des menus, tarifs et visuels</p>
@@ -385,7 +385,7 @@ if (isPrintView) {
             <Printer size={20} />
             <span>Génération du Menu</span>
           </button>
-          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#DDA956] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors shadow-lg">
+          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />
             <span>Ajouter un plat</span>
           </button>
@@ -398,7 +398,7 @@ if (isPrintView) {
         return (
           <div key={category} className="space-y-4">
             <h2 className="text-2xl font-serif text-[#1A1A1A] border-b border-gray-200 pb-2 flex items-center gap-2">
-              <ChefHat size={20} className="text-[#DDA956]" />
+              <ChefHat size={20} className="text-[#F4C75B]" />
               {category}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -417,7 +417,7 @@ if (isPrintView) {
                         <span className="text-gray-400">Aucune image</span>
                       </div>
                     )}
-                    <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-[#DDA956] font-serif font-bold px-3 py-1 rounded-full text-sm">
+                    <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-[#F4C75B] font-serif font-bold px-3 py-1 rounded-full text-sm">
                       {item.price}
                     </span>
                   </div>
@@ -427,7 +427,7 @@ if (isPrintView) {
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                       <span className="text-xs text-gray-400 font-medium tracking-wider uppercase">Mouda Palace Fès</span>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-50" title="Éditer">
+                        <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-50" title="Éditer">
                           <Edit2 size={16} />
                         </button>
                         <button onClick={async () => { if (window.confirm('Voulez-vous vraiment supprimer ce plat du menu ?')) { try { await deleteDoc(doc(db, 'menu_items', item.id)); showToast('Plat supprimé.'); } catch (e) { showToast('Erreur', 'error'); } } }} className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-50" title="Supprimer">
@@ -471,7 +471,7 @@ if (isPrintView) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Tagine d'Agneau aux Pruneaux" 
                   required 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]" 
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]" 
                 />
               </div>
 
@@ -481,7 +481,7 @@ if (isPrintView) {
                   <select 
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -494,7 +494,7 @@ if (isPrintView) {
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="220" 
                     required 
-                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]" 
                   />
                 </div>
               </div>
@@ -506,7 +506,7 @@ if (isPrintView) {
                   onChange={(e) => setDesc(e.target.value)}
                   rows={3}
                   placeholder="Ingrédients, préparation, traditions..." 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] resize-none" 
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] resize-none" 
                 />
               </div>
 
@@ -520,8 +520,8 @@ if (isPrintView) {
                       onChange={handleImageUpload}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#DDA956]/60 bg-[#FAF3E0]/50 rounded-2xl p-6 text-sm text-[#DDA956] group-hover:bg-[#FAF3E0] group-hover:border-[#DDA956] transition-all cursor-pointer">
-                      <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[#DDA956] group-hover:scale-110 transition-transform">
+                    <div className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#F4C75B]/60 bg-[#FAF3E0]/50 rounded-2xl p-6 text-sm text-[#F4C75B] group-hover:bg-[#FAF3E0] group-hover:border-[#F4C75B] transition-all cursor-pointer">
+                      <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[#F4C75B] group-hover:scale-110 transition-transform">
                         <Upload size={24} />
                       </div>
                       <div className="text-center">
@@ -546,7 +546,7 @@ if (isPrintView) {
                     <select
                       value={availableImages.includes(imageUrl) ? imageUrl : ""}
                       onChange={(e) => setImageUrl(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white text-gray-700"
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white text-gray-700"
                     >
                       <option value="">Sélectionner depuis la bibliothèque</option>
                       {availableImages.map(img => (
@@ -559,7 +559,7 @@ if (isPrintView) {
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="Ou coller une URL d'image existante"
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] text-sm text-gray-700"
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] text-sm text-gray-700"
                     />
                   </div>
                 </div>
@@ -575,7 +575,7 @@ if (isPrintView) {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors shadow-sm flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-sm flex items-center justify-center gap-2"
                 >
                   <Save size={18} />
                   Enregistrer
@@ -623,7 +623,7 @@ if (isPrintView) {
                   setIsTemplateModalOpen(false);
                   setIsPrintView(true);
                 }}
-                className="flex flex-col items-center text-left border-2 border-gray-100 hover:border-[#DDA956] rounded-2xl p-6 transition-all hover:shadow-lg group"
+                className="flex flex-col items-center text-left border-2 border-gray-100 hover:border-[#F4C75B] rounded-2xl p-6 transition-all hover:shadow-lg group"
               >
                 <div className="w-full aspect-[1/1.4] bg-gray-50 rounded-xl mb-4 border border-gray-200 flex flex-col items-center p-4 relative overflow-hidden group-hover:bg-[#fcfaf5] transition-colors">
                    <div className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center mb-4">

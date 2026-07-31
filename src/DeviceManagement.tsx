@@ -123,7 +123,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                 console.error('Fullscreen error', e);
               }
             }}
-            className="w-full sm:w-auto justify-center bg-white border border-[#DDA956] text-[#DDA956] px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#DDA956]/10 transition-colors shadow-sm"
+            className="w-full sm:w-auto justify-center bg-white border border-[#F4C75B] text-[#F4C75B] px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#F4C75B]/10 transition-colors shadow-sm"
           >
             <Smartphone size={18} />
             Simuler Tablette
@@ -133,7 +133,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
               setIsAddingDevice(true);
               generatePairingCode();
             }}
-            className="w-full sm:w-auto justify-center bg-[#DDA956] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#cda25b] transition-colors shadow-sm"
+            className="w-full sm:w-auto justify-center bg-[#F4C75B] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#cda25b] transition-colors shadow-sm"
           >
             <Plus size={18} />
             Ajouter un Écran
@@ -206,7 +206,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                 <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                                     <button 
                     onClick={() => openConfigure(device)}
-                    className="text-sm text-gray-500 hover:text-[#DDA956] font-medium flex items-center gap-1 transition-colors"
+                    className="text-sm text-gray-500 hover:text-[#F4C75B] font-medium flex items-center gap-1 transition-colors"
                   >
                     <Settings size={14} /> Configurer
                   </button>
@@ -247,7 +247,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                   onChange={(e) => setNewDeviceName(e.target.value)}
                   placeholder="Ex: Caisse Bar" 
                   required 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
               
@@ -256,7 +256,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                 <select 
                   value={newDeviceType}
                   onChange={(e) => setNewDeviceType(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 >
                   <option value="POS Tactile">Caisse Tactile (POS)</option>
                   <option value="KDS">Écran Cuisine (KDS)</option>
@@ -271,14 +271,14 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                   value={newDeviceIdentifier}
                   onChange={(e) => setNewDeviceIdentifier(e.target.value)}
                   placeholder="Ex: BAR-01, KDS-CUI" 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
 
               <div className="pt-4">
                 <button 
                   type="submit"
-                  className="w-full py-3 bg-[#DDA956] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
+                  className="w-full py-3 bg-[#F4C75B] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
                 >
                   Valider et Ajouter
                 </button>
@@ -321,7 +321,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                   value={editDeviceName}
                   onChange={(e) => setEditDeviceName(e.target.value)}
                   required 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
               
@@ -330,7 +330,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                 <select 
                   value={editDeviceType}
                   onChange={(e) => setEditDeviceType(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 >
                   <option value="POS Tactile">Caisse Tactile (POS)</option>
                   <option value="KDS">Écran Cuisine (KDS)</option>
@@ -345,7 +345,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                   value={editDeviceIdentifier}
                   onChange={(e) => setEditDeviceIdentifier(e.target.value)}
                   placeholder="Ex: BAR-01, KDS-CUI" 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
 
@@ -356,7 +356,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                   value={editDeviceAssignedTo}
                   onChange={(e) => setEditDeviceAssignedTo(e.target.value)}
                   placeholder="Ex: Saïd" 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956]"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
 
@@ -370,7 +370,7 @@ export default function DeviceManagement({ setActiveTab }: { setActiveTab?: (tab
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 py-3 bg-[#DDA956] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
+                  className="flex-1 py-3 bg-[#F4C75B] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
                 >
                   Enregistrer
                 </button>

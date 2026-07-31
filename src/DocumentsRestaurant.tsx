@@ -117,7 +117,7 @@ const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose
       return (
         <div className="w-full h-full flex items-center justify-center">
           <div className="flex flex-col items-center text-gray-500">
-            <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#DDA956]" />
+            <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#F4C75B]" />
             <p>Génération de l'aperçu du document...</p>
           </div>
         </div>
@@ -137,7 +137,7 @@ const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose
               href={docData.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#DDA956] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F4C75B] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
               download
             >
               <Download size={20} />
@@ -171,7 +171,7 @@ const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose
             href={docData.url} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#DDA956] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F4C75B] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
             download
           >
             <Download size={20} />
@@ -333,7 +333,7 @@ export default function DocumentsRestaurant() {
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-2 bg-[#DDA956] text-white px-5 py-2.5 rounded-lg hover:bg-[#C5964A] transition-colors font-medium shadow-sm disabled:opacity-70"
+            className="flex items-center gap-2 bg-[#F4C75B] text-white px-5 py-2.5 rounded-lg hover:bg-[#C5964A] transition-colors font-medium shadow-sm disabled:opacity-70"
           >
             {uploading ? (
               <>
@@ -360,7 +360,7 @@ export default function DocumentsRestaurant() {
               placeholder="Rechercher un document..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DDA956] focus:border-transparent text-sm"
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -374,7 +374,7 @@ export default function DocumentsRestaurant() {
             <p className="text-gray-500 mb-6">Ajoutez des menus, des fiches techniques, ou des contrats.</p>
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="text-[#DDA956] hover:text-[#C5964A] font-medium"
+              className="text-[#F4C75B] hover:text-[#C5964A] font-medium"
             >
               Importer le premier fichier
             </button>
@@ -418,7 +418,7 @@ export default function DocumentsRestaurant() {
                       <div className="flex items-center justify-end gap-2">
                         <button 
                           onClick={() => setPreviewDoc(doc)}
-                          className="p-2 text-gray-500 hover:text-[#DDA956] hover:bg-[#DDA956]/10 rounded-lg transition-colors"
+                          className="p-2 text-gray-500 hover:text-[#F4C75B] hover:bg-[#F4C75B]/10 rounded-lg transition-colors"
                           title="Aperçu"
                         >
                           <Eye size={18} />

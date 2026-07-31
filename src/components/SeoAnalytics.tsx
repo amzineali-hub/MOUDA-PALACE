@@ -116,7 +116,7 @@ export default function SeoAnalytics({ articles }: SeoAnalyticsProps) {
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
                 <Tooltip cursor={{ fill: '#f9fafb' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Bar dataKey="articles" fill="#DDA956" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="articles" fill="#F4C75B" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -137,15 +137,15 @@ export default function SeoAnalytics({ articles }: SeoAnalyticsProps) {
               <AreaChart data={stats.trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorWords" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#DDA956" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#DDA956" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#F4C75B" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#F4C75B" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-                <Tooltip cursor={{ stroke: '#DDA956', strokeWidth: 1, strokeDasharray: '4 4' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Area type="monotone" dataKey="words" stroke="#DDA956" strokeWidth={3} fillOpacity={1} fill="url(#colorWords)" />
+                <Tooltip cursor={{ stroke: '#F4C75B', strokeWidth: 1, strokeDasharray: '4 4' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                <Area type="monotone" dataKey="words" stroke="#F4C75B" strokeWidth={3} fillOpacity={1} fill="url(#colorWords)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -156,7 +156,7 @@ export default function SeoAnalytics({ articles }: SeoAnalyticsProps) {
       <div className="bg-[#1A1A1A] rounded-2xl p-6 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-lg">
         <div>
           <h3 className="text-lg font-bold flex items-center gap-2">
-            <Search size={20} className="text-[#DDA956]" />
+            <Search size={20} className="text-[#F4C75B]" />
             Connecter Google Search Console
           </h3>
           <p className="text-gray-400 mt-2 text-sm max-w-2xl leading-relaxed">
@@ -166,7 +166,7 @@ export default function SeoAnalytics({ articles }: SeoAnalyticsProps) {
         </div>
         <button 
           onClick={() => alert("L'intégration Google Search Console sera disponible prochainement.")}
-          className="w-full md:w-auto px-6 py-3 bg-[#DDA956] hover:bg-[#c59648] text-[#1A1A1A] rounded-xl font-bold transition-colors text-sm whitespace-nowrap text-center"
+          className="w-full md:w-auto px-6 py-3 bg-[#F4C75B] hover:bg-[#c59648] text-[#1A1A1A] rounded-xl font-bold transition-colors text-sm whitespace-nowrap text-center"
         >
           Connecter le compte
         </button>

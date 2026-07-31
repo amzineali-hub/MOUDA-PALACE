@@ -163,7 +163,7 @@ export default function Accounting() {
     { name: 'Marketing', value: 5000 },
     { name: 'Divers', value: 2500 },
   ];
-  const COLORS = ['#DDA956', '#1A1A1A', '#4b5563', '#9ca3af', '#e5e7eb'];
+  const COLORS = ['#F4C75B', '#1A1A1A', '#4b5563', '#9ca3af', '#e5e7eb'];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -259,7 +259,7 @@ export default function Accounting() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#DDA956]' : 'text-gray-500 hover:text-gray-900'}`}
+                className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#F4C75B]' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 {tab === 'invoices' && 'Factures Clients'}
                 {tab === 'receipts' && 'Recettes Caisses'}
@@ -268,7 +268,7 @@ export default function Accounting() {
                 {activeTab === tab && (
                   <motion.div 
                     layoutId="accounting-active-tab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DDA956]"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#F4C75B]"
                   />
                 )}
               </button>
@@ -284,7 +284,7 @@ export default function Accounting() {
               placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] bg-white"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] bg-white"
             />
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
@@ -324,10 +324,10 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900 text-right">{invoice.amount}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
+                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
                           <Eye size={16} />
                         </button>
-                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
                           <Download size={16} />
                         </button>
                       </div>
@@ -362,7 +362,7 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900 text-right">{receipt.amount.toFixed(2)} MAD</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { setSelectedReceipt(receipt); setIsReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
+                        <button onClick={() => { setSelectedReceipt(receipt); setIsReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
                           <Eye size={16} />
                         </button>
                       </div>
@@ -416,7 +416,7 @@ export default function Accounting() {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-medium">Déclaration TVA (Période en cours)</h2>
-              <button className="bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium">Générer la déclaration</button>
+              <button className="bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium">Générer la déclaration</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
@@ -482,7 +482,7 @@ export default function Accounting() {
               <h2 className="text-xl font-medium">Journal des Écritures</h2>
               <div className="flex gap-2">
                 <button className="border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2"><Download size={16}/> Exporter</button>
-                <button className="bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2"><Plus size={16}/> Saisie manuelle</button>
+                <button className="bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2"><Plus size={16}/> Saisie manuelle</button>
               </div>
             </div>
             
@@ -552,8 +552,8 @@ export default function Accounting() {
                 <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-medium">
                   <tr>
                     <td colSpan={4} className="px-6 py-4 text-right">Total Période</td>
-                    <td className="px-6 py-4 text-right text-[#DDA956]">17,900.00</td>
-                    <td className="px-6 py-4 text-right text-[#DDA956]">17,900.00</td>
+                    <td className="px-6 py-4 text-right text-[#F4C75B]">17,900.00</td>
+                    <td className="px-6 py-4 text-right text-[#F4C75B]">17,900.00</td>
                   </tr>
                 </tfoot>
               </table>
@@ -577,7 +577,7 @@ export default function Accounting() {
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       />
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
-                      <Bar dataKey="revenus" name="Revenus (CA)" fill="#DDA956" radius={[4, 4, 0, 0]} barSize={20} />
+                      <Bar dataKey="revenus" name="Revenus (CA)" fill="#F4C75B" radius={[4, 4, 0, 0]} barSize={20} />
                       <Bar dataKey="depenses" name="Dépenses" fill="#1A1A1A" radius={[4, 4, 0, 0]} barSize={20} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -649,10 +649,10 @@ export default function Accounting() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
+                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
                             <Eye size={16} />
                           </button>
-                          <button onClick={() => handleDownloadReport(report.type, report.format)} className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger">
+                          <button onClick={() => handleDownloadReport(report.type, report.format)} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger">
                             <Download size={16} />
                           </button>
                         </div>
@@ -701,19 +701,19 @@ export default function Accounting() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
-                <input name="client" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Nom du client" />
+                <input name="client" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du client" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
-                <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 001538629000041" maxLength={15} />
+                <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
-                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0.00" />
+                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
-                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <button 
                 type="submit"
@@ -739,7 +739,7 @@ export default function Accounting() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type de rapport</label>
-                <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select value={reportType} onChange={(e) => setReportType(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option>Bilan Comptable</option>
                   <option>CPC (Compte de Produits et Charges)</option>
                   <option>Déclaration TVA (Maroc)</option>
@@ -750,7 +750,7 @@ export default function Accounting() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Période</label>
-                <select value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select value={reportPeriod} onChange={(e) => setReportPeriod(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option>Mois en cours</option>
                   <option>Mois précédent</option>
                   <option>Trimestre en cours</option>
@@ -759,7 +759,7 @@ export default function Accounting() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Format d'export</label>
-                <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select value={reportFormat} onChange={(e) => setReportFormat(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option>PDF</option>
                   <option>Excel / CSV</option>
                   <option>XML</option>
@@ -830,7 +830,7 @@ export default function Accounting() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="category" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select name="category" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option>Marchandise</option>
                   <option>Électricité</option>
                   <option>Marketing</option>
@@ -841,19 +841,19 @@ export default function Accounting() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bénéficiaire (Fournisseur)</label>
-                <input name="supplier" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Nom du bénéficiaire" />
+                <input name="supplier" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du bénéficiaire" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
-                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 500" />
+                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 500" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white" />
+                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Méthode de paiement</label>
-                <select name="method" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select name="method" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option>Espèces</option>
                   <option>Virement</option>
                   <option>Carte Bancaire</option>
@@ -877,7 +877,7 @@ export default function Accounting() {
           <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
               <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                <Printer size={18} className="text-[#DDA956]" />
+                <Printer size={18} className="text-[#F4C75B]" />
                 Ticket de Caisse
               </h3>
               <button onClick={() => setIsReceiptModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-200">
@@ -964,7 +964,7 @@ export default function Accounting() {
                   showToast("Impression du ticket...");
                   setTimeout(() => setIsReceiptModalOpen(false), 500);
                 }}
-                className="flex-1 bg-[#DDA956] text-[#1A1A1A] py-2.5 rounded-lg font-medium hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2"
+                className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2.5 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 <Printer size={16} /> Imprimer
               </button>

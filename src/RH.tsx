@@ -94,14 +94,14 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
                 required 
                 value={selectedStaffName}
                 onChange={(e) => setSelectedStaffName(e.target.value)}
-                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
               >
                 {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Période</label>
-              <input type="text" name="period" required defaultValue="Juil 2026" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+              <input type="text" name="period" required defaultValue="Juil 2026" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
@@ -110,7 +110,7 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
                 value={baseSalary || ''} 
                 onChange={(e) => setBaseSalary(Number(e.target.value))}
                 required 
-                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" 
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" 
               />
             </div>
             
@@ -130,13 +130,13 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
               </div>
               <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between items-center">
                 <span className="font-medium text-gray-900">Salaire Net à Payer</span>
-                <span className="font-bold text-[#DDA956] text-lg">{netSalary.toFixed(2)} MAD</span>
+                <span className="font-bold text-[#F4C75B] text-lg">{netSalary.toFixed(2)} MAD</span>
               </div>
             </div>
           </div>
           <div className="mt-8 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-            <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+            <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2">
               <CheckCircle size={16} /> Valider & Générer
             </button>
           </div>
@@ -315,7 +315,7 @@ export default function RH() {
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id)} 
-            className={`pb-4 px-2 font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'border-[#DDA956] text-[#DDA956]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+            className={`pb-4 px-2 font-medium border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === tab.id ? 'border-[#F4C75B] text-[#F4C75B]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
           >
             <tab.icon size={18} />
             {tab.label}
@@ -328,9 +328,9 @@ export default function RH() {
            <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                <input type="text" placeholder="Rechercher un employé..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#DDA956]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input type="text" placeholder="Rechercher un employé..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#F4C75B]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
-              <select className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#DDA956]" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+              <select className="px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#F4C75B]" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
                 <option value="Tous">Tous les départements</option>
                 <option value="Cuisine">Cuisine</option>
                 <option value="Salle">Salle</option>
@@ -360,7 +360,7 @@ export default function RH() {
                     <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${staff.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{staff.status}</span>
                        <div className="flex gap-2">
-                         <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
+                         <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg">
                             <Edit2 size={16} />
                          </button>
                          <button onClick={() => handleDeleteStaff(staff.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
@@ -405,7 +405,7 @@ export default function RH() {
                        <td className="p-4 font-bold text-green-600">{item.net}</td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
-                         <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#DDA956] hover:text-[#c4954b] p-2 bg-amber-50 rounded-lg">
+                         <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg">
                            <FileText size={16} />
                          </button>
                        </td>
@@ -448,7 +448,7 @@ export default function RH() {
                   onClick={() => {
                     setTimeout(() => window.print(), 100);
                   }} 
-                  className="px-4 py-1.5 bg-[#DDA956] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                  className="px-4 py-1.5 bg-[#F4C75B] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >
                   <Printer size={16} /> Imprimer
                 </button>
@@ -662,27 +662,27 @@ export default function RH() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Photo (URL optionnelle)</label>
-                  <input name="photo" defaultValue={editingStaff?.photo} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="https://..." />
+                  <input name="photo" defaultValue={editingStaff?.photo} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="https://..." />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
-                  <input name="name" defaultValue={editingStaff?.name} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Karim El Fassi" />
+                  <input name="name" defaultValue={editingStaff?.name} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Karim El Fassi" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">CIN</label>
-                  <input name="cin" defaultValue={editingStaff?.cin} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: A123456" />
+                  <input name="cin" defaultValue={editingStaff?.cin} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: A123456" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">CNSS</label>
-                  <input name="cnss" defaultValue={editingStaff?.cnss} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 123456789" />
+                  <input name="cnss" defaultValue={editingStaff?.cnss} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 123456789" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
-                  <input name="role" defaultValue={editingStaff?.role} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Serveur" />
+                  <input name="role" defaultValue={editingStaff?.role} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Serveur" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
-                  <select name="department" defaultValue={editingStaff?.department || 'Salle'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <select name="department" defaultValue={editingStaff?.department || 'Salle'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     <option value="Salle">Salle</option>
                     <option value="Cuisine">Cuisine</option>
                     <option value="Accueil">Accueil</option>
@@ -691,23 +691,23 @@ export default function RH() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>
-                  <input name="hireDate" defaultValue={editingStaff?.hireDate} type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="hireDate" defaultValue={editingStaff?.hireDate} type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Langues (séparées par virgule)</label>
-                  <input name="language" defaultValue={editingStaff?.language} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Français, Arabe" />
+                  <input name="language" defaultValue={editingStaff?.language} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Français, Arabe" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input name="email" defaultValue={editingStaff?.email} type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="email@exemple.com" />
+                  <input name="email" defaultValue={editingStaff?.email} type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="email@exemple.com" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input name="phone" defaultValue={editingStaff?.phone} type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="+212..." />
+                  <input name="phone" defaultValue={editingStaff?.phone} type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="+212..." />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                  <select name="status" defaultValue={editingStaff?.status || 'Actif'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <select name="status" defaultValue={editingStaff?.status || 'Actif'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     <option value="Actif">Actif</option>
                     <option value="En congé">En congé</option>
                     <option value="Inactif">Inactif</option>
@@ -715,7 +715,7 @@ export default function RH() {
                 </div>
                 <div className="md:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Service (Optionnel)</label>
-                  <select name="shift" defaultValue={editingStaff?.shift || '-'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <select name="shift" defaultValue={editingStaff?.shift || '-'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     <option value="-">- Non assigné -</option>
                     <option value="Matin">Matin</option>
                     <option value="Soir">Soir</option>
@@ -723,7 +723,7 @@ export default function RH() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
-                  <input name="baseSalary" defaultValue={editingStaff?.baseSalary || 4000} type="number" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 4000" />
+                  <input name="baseSalary" defaultValue={editingStaff?.baseSalary || 4000} type="number" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 4000" />
                 </div>
               </div>
               
@@ -749,7 +749,7 @@ export default function RH() {
                   </button>
                   <button 
                     type="submit" 
-                    className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors"
+                    className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors"
                   >
                     {editingStaff ? 'Sauvegarder' : 'Ajouter'}
                   </button>
@@ -786,7 +786,7 @@ export default function RH() {
                       <input 
                         type="number" 
                         defaultValue={21}
-                        className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" 
+                        className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" 
                       />
                       <span className="text-sm text-gray-500">jours</span>
                     </div>
@@ -805,7 +805,7 @@ export default function RH() {
                     showToast("Soldes mis à jour");
                     setIsLeaveBalanceModalOpen(false);
                   }}
-                  className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors"
+                  className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors"
                 >
                   Enregistrer
                 </button>
@@ -848,22 +848,22 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
                     {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Score global (sur 5)</label>
-                  <input type="number" name="score" min="1" max="5" step="0.1" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="number" name="score" min="1" max="5" step="0.1" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires et points d'amélioration</label>
-                  <textarea rows={4} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"></textarea>
+                  <textarea rows={4} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"></textarea>
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsEvalModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Sauvegarder</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Sauvegarder</button>
               </div>
             </form>
           </motion.div>
@@ -903,24 +903,24 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Titre de la formation</label>
-                  <input type="text" name="title" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="text" name="title" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input type="date" name="date" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="date" name="date" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Formateur</label>
-                  <input type="text" name="trainer" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="text" name="trainer" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre prévu de participants</label>
-                  <input type="number" name="participants" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="number" name="participants" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsTrainingModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Planifier</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Planifier</button>
               </div>
             </form>
           </motion.div>
@@ -964,16 +964,16 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom du Rôle</label>
-                  <input type="text" name="role" defaultValue={editingRole?.role} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                  <input type="text" name="role" defaultValue={editingRole?.role} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description des Accès</label>
-                  <textarea name="access" defaultValue={editingRole?.access} rows={4} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"></textarea>
+                  <textarea name="access" defaultValue={editingRole?.access} rows={4} required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"></textarea>
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsRoleModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">{editingRole ? 'Enregistrer' : 'Créer'}</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">{editingRole ? 'Enregistrer' : 'Créer'}</button>
               </div>
             </form>
           </motion.div>
@@ -1012,7 +1012,7 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Horaire</label>
-                  <select name="shift" defaultValue={editingShift.current} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                  <select name="shift" defaultValue={editingShift.current} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
                     <option value="Repos">Repos</option>
                     <option value="08:00 - 16:30">Matin (08:00 - 16:30)</option>
                     <option value="15:00 - 23:30">Soir (15:00 - 23:30)</option>
@@ -1022,7 +1022,7 @@ export default function RH() {
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsShiftModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Enregistrer</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
               </div>
             </form>
           </motion.div>
@@ -1054,7 +1054,7 @@ export default function RH() {
                 <p className="text-sm text-gray-500 mb-4">
                   Importez les fichiers de pointage générés par votre machine biométrique ou badgeuse.
                 </p>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#DDA956] transition-colors bg-gray-50 cursor-pointer">
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#F4C75B] transition-colors bg-gray-50 cursor-pointer">
                   <div className="flex justify-center mb-2 text-gray-400">
                     <Upload size={32} />
                   </div>
@@ -1075,7 +1075,7 @@ export default function RH() {
                     showToast("Importation du fichier de pointage démarrée...");
                     setIsImportAttendanceModalOpen(false);
                   }}
-                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
+                  className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors"
                 >
                   Sélectionner un fichier
                 </button>
@@ -1117,24 +1117,24 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]">
+                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
                     {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
-                    <input type="time" name="timeIn" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                    <input type="time" name="timeIn" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Heure de départ (Optionnel)</label>
-                    <input type="time" name="timeOut" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]" />
+                    <input type="time" name="timeOut" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                   </div>
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsAttendanceModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors">Enregistrer</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
               </div>
             </form>
           </motion.div>

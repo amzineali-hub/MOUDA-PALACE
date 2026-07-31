@@ -40,7 +40,7 @@ export default function GuideEcrans() {
       <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
         <div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4 flex items-center gap-2">
-            <Activity className="text-[#DDA956]" /> Fonctionnement Général
+            <Activity className="text-[#F4C75B]" /> Fonctionnement Général
           </h2>
           <div className="space-y-4 text-gray-600">
             <p>
@@ -59,7 +59,7 @@ export default function GuideEcrans() {
 
         <div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4 flex items-center gap-2">
-            <RefreshCw className="text-[#DDA956]" /> Suivi et Supervision
+            <RefreshCw className="text-[#F4C75B]" /> Suivi et Supervision
           </h2>
           <div className="space-y-4 text-gray-600">
             <p>
@@ -89,7 +89,7 @@ export default function GuideEcrans() {
         {/* NOUVEAU MODULE : MODE D'EMPLOI ET CONFIGURATION */}
         <div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4 flex items-center gap-2">
-            <Smartphone className="text-[#DDA956]" /> Mode d'emploi : Connexion et Configuration
+            <Smartphone className="text-[#F4C75B]" /> Mode d'emploi : Connexion et Configuration
           </h2>
           <div className="space-y-6 text-gray-600">
             <p>
@@ -160,7 +160,7 @@ export default function GuideEcrans() {
 
         <div>
           <h2 className="text-2xl font-bold text-[#1A1A1A] mb-4 flex items-center gap-2">
-            <ArrowRight className="text-[#DDA956]" /> Résolution des Problèmes Courants
+            <ArrowRight className="text-[#F4C75B]" /> Résolution des Problèmes Courants
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-xl bg-red-50 text-red-900 border border-red-100">

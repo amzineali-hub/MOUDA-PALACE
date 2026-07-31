@@ -303,7 +303,7 @@ export default function POSTactile() {
   const getCategoryColor = (cat: string) => {
     switch(cat) {
       case 'Entrées': return 'from-green-400 to-emerald-500 shadow-green-500/40 text-white';
-      case 'Plats Principaux': return 'from-[#DDA956] to-orange-500 shadow-[#DDA956]/40 text-[#1A1A1A]';
+      case 'Plats Principaux': return 'from-[#F4C75B] to-orange-500 shadow-[#F4C75B]/40 text-[#1A1A1A]';
       case 'Desserts': return 'from-pink-400 to-rose-500 shadow-rose-500/40 text-white';
       case 'Boissons': return 'from-blue-400 to-indigo-500 shadow-blue-500/40 text-white';
       default: return 'from-gray-700 to-gray-900 shadow-gray-900/40 text-white';
@@ -328,7 +328,7 @@ export default function POSTactile() {
                   <input 
                     type="text" 
                     placeholder="Rechercher un plat..." 
-                    className="w-full pl-12 pr-4 py-3 bg-white border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#DDA956] text-gray-700 font-medium transition-all"
+                    className="w-full pl-12 pr-4 py-3 bg-white border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4C75B] text-gray-700 font-medium transition-all"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                   />
@@ -350,7 +350,7 @@ export default function POSTactile() {
                   onClick={() => { setActiveCategory(cat.id); setSearchQuery(''); }}
                                     className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-bold whitespace-nowrap transition-all duration-300 ${
                     activeCategory === cat.id && !searchQuery
-                      ? 'bg-[#1A1A1A] text-[#DDA956] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[4px]' 
+                      ? 'bg-[#1A1A1A] text-[#F4C75B] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[4px]' 
                       : 'bg-white text-gray-500 hover:text-gray-900 shadow-[0_6px_0_#d1d5db,0_10px_15px_rgba(0,0,0,0.1)] border border-gray-100 -translate-y-[2px] active:translate-y-[4px] active:shadow-[0_0px_0_#d1d5db]'
                   }`}
                 >
@@ -375,7 +375,7 @@ export default function POSTactile() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 #d1d5db, 0 8px 10px rgba(0,0,0,0.1)" }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#DDA956] hover:border-[#DDA956] hover:bg-[#DDA956]/5 bg-white shadow-[0_8px_0_#d1d5db,0_12px_20px_rgba(0,0,0,0.1)] transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_8px_0_#d1d5db,0_12px_20px_rgba(0,0,0,0.1)] transition-all"
                   >
                     <Plus size={32} className="mb-2" />
                     <span className="font-bold text-sm">Ajouter un article</span>
@@ -448,7 +448,7 @@ export default function POSTactile() {
           {/* Ticket Header */}
           <div className="p-6 bg-white flex justify-between items-center border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#DDA956]/20 flex items-center justify-center text-[#DDA956]">
+              <div className="w-10 h-10 rounded-xl bg-[#F4C75B]/20 flex items-center justify-center text-[#F4C75B]">
                 <Receipt size={20} />
               </div>
               <h2 className="font-bold text-[#1A1A1A] text-xl">Ticket</h2>
@@ -492,7 +492,7 @@ export default function POSTactile() {
                   >
                     <div className="flex-1 pr-3">
                       <h4 className="font-bold text-[#1A1A1A] leading-tight text-[15px] mb-1 line-clamp-2">{item.name}</h4>
-                      <div className="text-[#DDA956] font-black text-sm">{item.numPrice * item.qty} MAD</div>
+                      <div className="text-[#F4C75B] font-black text-sm">{item.numPrice * item.qty} MAD</div>
                     </div>
                     
                     <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1 shadow-inner">
@@ -595,12 +595,44 @@ export default function POSTactile() {
                         }
                       }}
                       required
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white appearance-none"
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white appearance-none"
                     >
                       <option value="" disabled>Sélectionner un plat...</option>
-                      {recettes.map((r, idx) => (
-                        <option key={idx} value={r.nom}>{r.nom}</option>
-                      ))}
+                      
+                      {(() => {
+                        const groups = [
+                          { label: 'Plats Principaux', keys: ['plats principaux', 'plats'] },
+                          { label: 'Entrées', keys: ['entrées', 'entree', 'entrée', 'entrees'] },
+                          { label: 'Desserts', keys: ['desserts', 'dessert'] },
+                          { label: 'Boissons', keys: ['boissons', 'boisson'] }
+                        ];
+                        
+                        return groups.map(group => {
+                          const items = recettes.filter(r => group.keys.includes((r.categorie || '').toLowerCase()));
+                          if (items.length === 0) return null;
+                          return (
+                            <optgroup key={group.label} label={group.label}>
+                              {items.map((r, idx) => (
+                                <option key={idx} value={r.nom}>{r.nom}</option>
+                              ))}
+                            </optgroup>
+                          );
+                        });
+                      })()}
+
+                      {(() => {
+                        const mainCats = ['plats principaux', 'plats', 'entrées', 'entree', 'entrée', 'entrees', 'desserts', 'dessert', 'boissons', 'boisson'];
+                        const otherItems = recettes.filter(r => !mainCats.includes((r.categorie || '').toLowerCase()));
+                        if (otherItems.length === 0) return null;
+                        return (
+                          <optgroup label="Autres">
+                            {otherItems.map((r, idx) => (
+                              <option key={idx} value={r.nom}>{r.nom}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })()}
+
                       <option value="manual">+ Autre (Saisie manuelle)</option>
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -616,7 +648,7 @@ export default function POSTactile() {
                       placeholder="Nom de l'article" 
                       required 
                       autoFocus
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
+                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
                     />
                     <button type="button" onClick={() => { setIsManualName(false); setNewItemName(''); }} className="p-3 text-gray-500 hover:bg-gray-100 rounded-xl border border-gray-200">
                       <X size={20} />
@@ -633,7 +665,7 @@ export default function POSTactile() {
                   onChange={(e) => setNewItemPrice(e.target.value)}
                   placeholder="Ex: 25" 
                   required 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#DDA956] bg-white"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
                 />
               </div>
 
@@ -645,7 +677,7 @@ export default function POSTactile() {
                       type="file" 
                       accept="image/*" 
                       onChange={handleImageUpload}
-                      className="w-full border border-gray-200 rounded-xl p-2 focus:outline-none focus:border-[#DDA956] bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                      className="w-full border border-gray-200 rounded-xl p-2 focus:outline-none focus:border-[#F4C75B] bg-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                     />
                   </div>
                   <button 
@@ -667,7 +699,7 @@ export default function POSTactile() {
                           setNewItemImage(url);
                           setIsPhotoGalleryOpen(false);
                         }}
-                        className={`relative aspect-square rounded-lg overflow-hidden border-2 ${newItemImage === url ? 'border-[#DDA956]' : 'border-transparent hover:border-gray-300'}`}
+                        className={`relative aspect-square rounded-lg overflow-hidden border-2 ${newItemImage === url ? 'border-[#F4C75B]' : 'border-transparent hover:border-gray-300'}`}
                       >
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       </button>
@@ -691,7 +723,7 @@ export default function POSTactile() {
               <div className="pt-2">
                 <button 
                   type="submit"
-                  className="w-full py-3 bg-[#DDA956] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
+                  className="w-full py-3 bg-[#F4C75B] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
                 >
                   Ajouter dans {activeCategory}
                 </button>
@@ -729,7 +761,7 @@ export default function POSTactile() {
                       setSelectedTable(table.id);
                       setIsTableModalOpen(false);
                     }}
-                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.id ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#DDA956]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
+                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.id ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
                   >
                     <span className="text-xl mb-1">{table.id}</span>
                     <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -745,7 +777,7 @@ export default function POSTactile() {
                     setSelectedTable('À emporter');
                     setIsTableModalOpen(false);
                   }}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${selectedTable === 'À emporter' ? 'bg-[#DDA956] text-[#1A1A1A] shadow-md' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'}`}
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${selectedTable === 'À emporter' ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md' : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'}`}
                 >
                   À emporter (Takeaway)
                 </button>

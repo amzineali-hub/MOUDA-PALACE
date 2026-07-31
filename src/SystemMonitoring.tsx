@@ -57,7 +57,7 @@ export default function SystemMonitoring() {
         </div>
       </div>
 
-      <div className="w-full flex justify-center overflow-hidden"><div className="relative w-[500px] h-[360px] flex-shrink-0 [transform:scale(0.5)] sm:[transform:scale(0.65)] md:[transform:scale(0.75)] origin-center -my-24 sm:-my-16 md:-my-10">
+      <div className="w-full flex justify-center overflow-hidden"><div className="relative w-[500px] h-[360px] flex-shrink-0 [transform:scale(0.75)] sm:[transform:scale(0.9)] md:[transform:scale(1)] origin-center -my-12 sm:-my-8 md:my-0">
         {/* SVG Synapses */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 500 360">
           {/* Defs for gradients and animations */}

@@ -388,7 +388,7 @@ export default function BlogWriterAI() {
       <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#DDA956]/10 text-[#DDA956] rounded-xl">
+            <div className="p-3 bg-[#F4C75B]/10 text-[#F4C75B] rounded-xl">
               <PenTool size={24} />
             </div>
             <div>
@@ -398,7 +398,7 @@ export default function BlogWriterAI() {
           </div>
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 text-gray-400 hover:text-[#DDA956] hover:bg-[#DDA956]/10 rounded-lg transition-colors flex items-center gap-2"
+            className="p-2 text-gray-400 hover:text-[#F4C75B] hover:bg-[#F4C75B]/10 rounded-lg transition-colors flex items-center gap-2"
           >
             <Settings size={20} />
             <span className="text-sm font-medium hidden md:inline">Webhook</span>
@@ -463,7 +463,7 @@ export default function BlogWriterAI() {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="Ex: Les secrets du zellige fassi et l'architecture du Mouda Palace..."
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all resize-none h-32"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all resize-none h-32"
               />
             </div>
             
@@ -475,7 +475,7 @@ export default function BlogWriterAI() {
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
                 placeholder="Ex: Parler du tajine aux pruneaux, mentionner la terrasse panoramique..."
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all resize-none h-24"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all resize-none h-24"
               />
             </div>
 
@@ -493,7 +493,7 @@ export default function BlogWriterAI() {
                         setImageUrl(e.target.value);
                       }
                     }}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                   >
                     <option value="">Image aléatoire</option>
                     {availableImages.map(img => (
@@ -515,7 +515,7 @@ export default function BlogWriterAI() {
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="URL de l'image (ex: https://...)"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                   />
                 ) : null}
               </div>
@@ -537,7 +537,7 @@ export default function BlogWriterAI() {
                 </>
               ) : (
                 <>
-                  <Sparkles size={18} className="text-[#DDA956]" />
+                  <Sparkles size={18} className="text-[#F4C75B]" />
                   Générer l'article
                 </>
               )}
@@ -548,7 +548,7 @@ export default function BlogWriterAI() {
             <div className="bg-gray-50 rounded-2xl border border-gray-100 h-full min-h-[500px] flex flex-col relative overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-white flex items-center justify-between">
                 <div className="flex items-center gap-2 text-gray-700 font-medium">
-                  <FileText size={18} className="text-[#DDA956]" />
+                  <FileText size={18} className="text-[#F4C75B]" />
                   Aperçu de la rédaction
                 </div>
                 {activeArticle && (
@@ -647,7 +647,7 @@ export default function BlogWriterAI() {
                       )}
                       <button 
                         onClick={() => handleEditClick(article)}
-                        className="text-gray-400 hover:text-[#DDA956] transition-colors p-1"
+                        className="text-gray-400 hover:text-[#F4C75B] transition-colors p-1"
                         title="Éditer"
                       >
                         <Edit2 size={16} />
@@ -662,7 +662,7 @@ export default function BlogWriterAI() {
                     </div>
                   </div>
                   {article.keywords && (
-                    <div className="mb-4 text-xs font-medium text-[#DDA956] bg-[#DDA956]/10 px-2 py-1 rounded-md inline-block w-fit line-clamp-1">
+                    <div className="mb-4 text-xs font-medium text-[#F4C75B] bg-[#F4C75B]/10 px-2 py-1 rounded-md inline-block w-fit line-clamp-1">
                       {article.keywords}
                     </div>
                   )}
@@ -678,7 +678,7 @@ export default function BlogWriterAI() {
                         setActiveArticle(article);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="flex items-center gap-1 text-sm font-medium text-[#1A1A1A] hover:text-[#DDA956] transition-colors"
+                      className="flex items-center gap-1 text-sm font-medium text-[#1A1A1A] hover:text-[#F4C75B] transition-colors"
                     >
                       Lire <ArrowRight size={16} />
                     </button>
@@ -717,7 +717,7 @@ export default function BlogWriterAI() {
                   type="text"
                   value={editTopic}
                   onChange={(e) => setEditTopic(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -735,7 +735,7 @@ export default function BlogWriterAI() {
                         setEditImageUrl(e.target.value);
                       }
                     }}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                   >
                     <option value="">Image aléatoire</option>
                     {availableImages.map(img => (
@@ -757,7 +757,7 @@ export default function BlogWriterAI() {
                       value={editImageUrl}
                       onChange={(e) => setEditImageUrl(e.target.value)}
                       placeholder="URL de l'image (ex: https://...)"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                     />
                   ) : null}
                 </div>
@@ -775,7 +775,7 @@ export default function BlogWriterAI() {
                 <textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all resize-none h-96 font-mono text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all resize-none h-96 font-mono text-sm"
                 />
               </div>
             </div>
@@ -808,7 +808,7 @@ export default function BlogWriterAI() {
             className="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl"
           >
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#DDA956]" /> Webhook Config</h2>
+              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#F4C75B]" /> Webhook Config</h2>
               <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
                 <X size={20} />
               </button>
@@ -825,7 +825,7 @@ export default function BlogWriterAI() {
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   placeholder="https://hook.eu1.make.com/..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                 />
               </div>
             </div>

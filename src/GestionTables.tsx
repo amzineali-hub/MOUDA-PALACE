@@ -148,7 +148,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
             <CalendarDays size={18} />
             <span>Planifier</span>
           </button>
-          <button onClick={() => { setActiveTab?.("reservations"); sessionStorage.setItem("open-floorplan", "true"); }} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => { setActiveTab?.("reservations"); sessionStorage.setItem("open-floorplan", "true"); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Maximize size={18} />
             <span>Plan de salle 2D</span>
           </button>
@@ -163,10 +163,10 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
             className={`p-4 rounded-xl border text-left transition-all ${
               activeZone === zone.id 
                 ? 'bg-[#1A1A1A] border-[#1A1A1A] shadow-md shadow-[#1A1A1A]/10' 
-                : 'bg-white border-gray-200 hover:border-[#DDA956]'
+                : 'bg-white border-gray-200 hover:border-[#F4C75B]'
             }`}
           >
-            <h3 className={`font-medium mb-1 ${activeZone === zone.id ? 'text-[#DDA956]' : 'text-[#1A1A1A]'}`}>
+            <h3 className={`font-medium mb-1 ${activeZone === zone.id ? 'text-[#F4C75B]' : 'text-[#1A1A1A]'}`}>
               {zone.name}
             </h3>
             <div className={`flex justify-between items-center text-sm ${activeZone === zone.id ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -263,7 +263,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     type="text" 
                     value={newTable.id}
                     onChange={(e) => setNewTable({...newTable, id: e.target.value})}
-                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                     placeholder="Numéro ou nom de table"
                     required
                   />
@@ -277,7 +277,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     max="20"
                     value={newTable.capacity}
                     onChange={(e) => setNewTable({...newTable, capacity: parseInt(e.target.value) || 2})}
-                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                     required
                   />
                 </div>
@@ -288,7 +288,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     <button 
                       type="button"
                       onClick={() => setNewTable({...newTable, shape: 'carre'})}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'carre' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'carre' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
                       <Square size={24} className="mb-1" />
                       <span className="text-xs font-medium">Carré</span>
@@ -296,7 +296,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     <button 
                       type="button"
                       onClick={() => setNewTable({...newTable, shape: 'rond'})}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rond' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rond' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
                       <Circle size={24} className="mb-1" />
                       <span className="text-xs font-medium">Rond</span>
@@ -304,7 +304,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     <button 
                       type="button"
                       onClick={() => setNewTable({...newTable, shape: 'rectangle'})}
-                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rectangle' ? 'border-[#DDA956] bg-orange-50 text-[#DDA956]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${newTable.shape === 'rectangle' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
                     >
                       <RectangleHorizontal size={24} className="mb-1" />
                       <span className="text-xs font-medium">Rectangle</span>

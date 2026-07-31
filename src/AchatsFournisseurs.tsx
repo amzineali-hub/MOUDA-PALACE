@@ -137,7 +137,7 @@ export default function AchatsFournisseurs() {
             <Store size={18} />
             <span>Nouveau fournisseur</span>
           </button>
-          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#DDA956] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
             <span>Créer une commande</span>
           </button>
@@ -195,7 +195,7 @@ export default function AchatsFournisseurs() {
               onClick={() => setActiveTab('previsions')}
               className={`flex-1 sm:flex-none px-6 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'previsions' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
             >
-              <Sparkles size={16} className={activeTab === 'previsions' ? 'text-[#DDA956]' : 'text-gray-400'} />
+              <Sparkles size={16} className={activeTab === 'previsions' ? 'text-[#F4C75B]' : 'text-gray-400'} />
               Prévisions
             </button>
           </div>
@@ -204,7 +204,7 @@ export default function AchatsFournisseurs() {
             <input 
               type="text" 
               placeholder="Rechercher..." 
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#DDA956] focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
           </div>
@@ -259,7 +259,7 @@ export default function AchatsFournisseurs() {
                             setSelectedCommande(cmd);
                             setIsDetailsModalOpen(true);
                           }}
-                          className="text-[#DDA956] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
+                          className="text-[#F4C75B] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
 Détails <ChevronRight size={16} />
 </button>
 <button onClick={() => {
@@ -314,11 +314,11 @@ Détails <ChevronRight size={16} />
             <div className="p-8 max-w-5xl mx-auto w-full">
               <div className="flex flex-col md:flex-row gap-8 items-start">
                 <div className="flex-1 bg-gradient-to-br from-white to-[#FAFAFA] p-8 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#DDA956]/10 rounded-full blur-3xl"></div>
+                  <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#F4C75B]/10 rounded-full blur-3xl"></div>
                   
                   <div className="flex items-center gap-4 mb-6 relative z-10">
-                    <div className="w-12 h-12 rounded-xl bg-[#DDA956]/10 flex items-center justify-center">
-                      <Brain className="text-[#DDA956]" size={24} />
+                    <div className="w-12 h-12 rounded-xl bg-[#F4C75B]/10 flex items-center justify-center">
+                      <Brain className="text-[#F4C75B]" size={24} />
                     </div>
                     <div>
                       <h2 className="text-2xl font-serif text-[#1A1A1A]">Prévisions d'Achats Intelligentes</h2>
@@ -386,7 +386,7 @@ Détails <ChevronRight size={16} />
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-serif text-[#1A1A1A]">Liste d'Achats Recommandée</h3>
-                    <button className="text-sm bg-[#DDA956]/10 text-[#DDA956] hover:bg-[#DDA956]/20 px-4 py-2 rounded-lg font-medium transition-colors">
+                    <button className="text-sm bg-[#F4C75B]/10 text-[#F4C75B] hover:bg-[#F4C75B]/20 px-4 py-2 rounded-lg font-medium transition-colors">
                       Créer des bons de commande
                     </button>
                   </div>
@@ -409,7 +409,7 @@ Détails <ChevronRight size={16} />
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-2">
-                                  <Sparkles size={14} className="text-[#DDA956]" />
+                                  <Sparkles size={14} className="text-[#F4C75B]" />
                                   <span className="text-sm text-gray-600">{item.reason}</span>
                                 </div>
                               </div>
@@ -418,7 +418,7 @@ Détails <ChevronRight size={16} />
                                   <span className="block text-xs uppercase tracking-wider text-gray-400 mb-0.5">Fournisseur recommandé</span>
                                   {item.supplier}
                                 </div>
-                                <button className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors bg-white border border-gray-100 shadow-sm rounded-lg hover:border-[#DDA956]/30">
+                                <button className="p-2 text-gray-400 hover:text-[#F4C75B] transition-colors bg-white border border-gray-100 shadow-sm rounded-lg hover:border-[#F4C75B]/30">
                                   <ShoppingCart size={18} />
                                 </button>
                               </div>
@@ -553,7 +553,7 @@ Détails <ChevronRight size={16} />
                         })}
                         <tr className="bg-gray-50 font-bold text-[#1A1A1A]">
                           <td colSpan={3} className="px-4 py-3 text-right uppercase text-xs tracking-wider text-gray-500">Total calculé</td>
-                          <td className="px-4 py-3 text-right text-lg text-[#DDA956]">{totalGlobal.toFixed(2)} DH</td>
+                          <td className="px-4 py-3 text-right text-lg text-[#F4C75B]">{totalGlobal.toFixed(2)} DH</td>
                         </tr>
                       </>
                     )
@@ -670,7 +670,7 @@ Détails <ChevronRight size={16} />
                         <title>Bon de Commande - ${supplierName}</title>
                         <style>
                           body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
-                          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #DDA956; padding-bottom: 20px; }
+                          .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
                           .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
                           .logo-sub { font-size: 14px; color: #666; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
                           .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
@@ -735,7 +735,7 @@ Détails <ChevronRight size={16} />
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                <select name="supplier" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                   <option value="">Sélectionnez un fournisseur</option>
                   {fournisseurs.map(f => (
                     <option key={f.id} value={f.id}>{f.nom}</option>
@@ -746,11 +746,11 @@ Détails <ChevronRight size={16} />
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
-                  <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <select name="categorie" required defaultValue={selectedCommande?.categorie || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                  <select name="categorie" required defaultValue={selectedCommande?.categorie || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                     <option value="">Sélectionner une catégorie</option>
                     <option value="Alimentaire">Alimentaire</option>
                     <option value="Boissons">Boissons</option>
@@ -768,11 +768,11 @@ Détails <ChevronRight size={16} />
                     <label className="block text-sm font-medium text-gray-700 pb-2">Articles à commander</label>
                     <div className="flex items-center gap-3 text-sm">
                       <label className="flex items-center gap-1.5 cursor-pointer text-gray-600">
-                        <input type="checkbox" checked={showSupplierCol} onChange={e => setShowSupplierCol(e.target.checked)} className="w-3.5 h-3.5 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
+                        <input type="checkbox" checked={showSupplierCol} onChange={e => setShowSupplierCol(e.target.checked)} className="w-3.5 h-3.5 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" />
                         Fournisseur
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer text-gray-600">
-                        <input type="checkbox" checked={showCategoryCol} onChange={e => setShowCategoryCol(e.target.checked)} className="w-3.5 h-3.5 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" />
+                        <input type="checkbox" checked={showCategoryCol} onChange={e => setShowCategoryCol(e.target.checked)} className="w-3.5 h-3.5 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" />
                         Catégorie
                       </label>
                     </div>
@@ -784,7 +784,7 @@ Détails <ChevronRight size={16} />
                       placeholder="Rechercher (produit, catégorie, fournisseur)..."
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
-                      className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                      className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
                     />
                   </div>
                 </div>
@@ -829,7 +829,7 @@ Détails <ChevronRight size={16} />
                                     type="checkbox" 
                                     checked={selection.checked} 
                                     onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: e.target.checked } }))}
-                                    className="w-4 h-4 text-[#DDA956] rounded border-gray-300 focus:ring-[#DDA956]" 
+                                    className="w-4 h-4 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" 
                                   />
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-900 cursor-pointer" onClick={() => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: !(prev[item.id]?.checked) } }))}>
@@ -851,7 +851,7 @@ Détails <ChevronRight size={16} />
                                     value={selection.qty}
                                     onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], qty: e.target.value } }))}
                                     placeholder={`Qté (${item.unit || 'u'})`} 
-                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#DDA956] text-right" 
+                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right" 
                                   />
                                 </td>
                               </tr>
@@ -866,7 +866,7 @@ Détails <ChevronRight size={16} />
 
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
                 Générer Bon de Commande
               </button>
@@ -918,11 +918,11 @@ Détails <ChevronRight size={16} />
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input name="nom" defaultValue={selectedFournisseur.nom} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="nom" defaultValue={selectedFournisseur.nom} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="categorie" defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white max-h-48 overflow-y-auto">
+                <select name="categorie" defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white max-h-48 overflow-y-auto">
                   <option value="">Sélectionnez une catégorie</option>
                   <option value="Fruits & Légumes">Fruits & Légumes</option>
                   <option value="Viandes & Volailles">Viandes & Volailles</option>
@@ -939,15 +939,15 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du contact</label>
-                <input name="contact" defaultValue={selectedFournisseur.contact} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="contact" defaultValue={selectedFournisseur.contact} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                <input name="tel" defaultValue={selectedFournisseur.tel || ''} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="tel" defaultValue={selectedFournisseur.tel || ''} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input name="email" defaultValue={selectedFournisseur.email || ''} type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="email" defaultValue={selectedFournisseur.email || ''} type="email" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <button type="submit" className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-black transition-colors">
                 Mettre à jour
@@ -1014,11 +1014,11 @@ Détails <ChevronRight size={16} />
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input name="nom" required type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="nom" required type="text" placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white max-h-48 overflow-y-auto">
+                <select name="categorie" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white max-h-48 overflow-y-auto">
                   <option value="">Sélectionnez une catégorie</option>
                   <option value="Fruits & Légumes">Fruits & Légumes</option>
                   <option value="Viandes & Volailles">Viandes & Volailles</option>
@@ -1033,11 +1033,11 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
-                <input name="contact" required type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="contact" required type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
                 Ajouter le Fournisseur
               </button>

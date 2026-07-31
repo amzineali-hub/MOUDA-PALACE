@@ -70,7 +70,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
               <h4 className="font-medium text-gray-900 border-b border-gray-100 pb-2">Informations Générales</h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de la recette</label>
-                <input value={nom} onChange={e => setNom(e.target.value)} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956]" />
+                <input value={nom} onChange={e => setNom(e.target.value)} required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -79,7 +79,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     value={categorie}
                     onChange={e => setCategorie(e.target.value)}
                     required
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner une catégorie</option>
                     <option value="Amuse-bouche">Amuse-bouche</option>
@@ -108,7 +108,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     value={portion}
                     onChange={e => setPortion(e.target.value)}
                     required
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner une portion</option>
                     <option value="1 personne">1 personne</option>
@@ -129,7 +129,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     value={temps}
                     onChange={e => setTemps(e.target.value)}
                     required
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner un temps</option>
                     <option value="5 min">5 min</option>
@@ -148,7 +148,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>
-                  <select value={difficulte} onChange={e => setDifficulte(e.target.value)} required className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]">
+                  <select value={difficulte} onChange={e => setDifficulte(e.target.value)} required className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#F4C75B]">
                     <option value="Facile">Facile</option>
                     <option value="Moyenne">Moyenne</option>
                     <option value="Difficile">Difficile</option>
@@ -163,7 +163,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     type="number" 
                     step="0.01" 
                     disabled={ingredients.length > 0}
-                    className={`w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956] ${ingredients.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`} 
+                    className={`w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#F4C75B] ${ingredients.length > 0 ? 'bg-gray-50 text-gray-500' : ''}`} 
                   />
                   {ingredients.length > 0 && <p className="text-xs text-gray-500 mt-1">Calculé automatiquement</p>}
                 </div>
@@ -173,7 +173,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                 <h4 className="font-medium text-gray-900">Fiche Technique (Ingrédients)</h4>
-                <button type="button" onClick={addIngredient} className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium flex items-center gap-1">
+                <button type="button" onClick={addIngredient} className="text-sm text-[#F4C75B] hover:text-[#E5B745] font-medium flex items-center gap-1">
                   <Plus size={16} /> Ajouter
                 </button>
               </div>
@@ -188,19 +188,19 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     <div key={idx} className="flex items-start gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                       <div className="flex-1">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Ingrédient</label>
-                        <input value={ing.nom} onChange={e => updateIngredient(idx, 'nom', e.target.value)} required type="text" placeholder="Nom" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#DDA956]" />
+                        <input value={ing.nom} onChange={e => updateIngredient(idx, 'nom', e.target.value)} required type="text" placeholder="Nom" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#F4C75B]" />
                       </div>
                       <div className="w-20">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Qté</label>
-                        <input value={ing.quantite} onChange={e => updateIngredient(idx, 'quantite', Number(e.target.value))} required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#DDA956]" />
+                        <input value={ing.quantite} onChange={e => updateIngredient(idx, 'quantite', Number(e.target.value))} required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#F4C75B]" />
                       </div>
                       <div className="w-24">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Unité</label>
-                        <input value={ing.unite} onChange={e => updateIngredient(idx, 'unite', e.target.value)} required type="text" placeholder="kg, L..." className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#DDA956]" />
+                        <input value={ing.unite} onChange={e => updateIngredient(idx, 'unite', e.target.value)} required type="text" placeholder="kg, L..." className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#F4C75B]" />
                       </div>
                       <div className="w-28">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Prix Unitaire</label>
-                        <input value={ing.coutUnitaire} onChange={e => updateIngredient(idx, 'coutUnitaire', Number(e.target.value))} required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#DDA956]" />
+                        <input value={ing.coutUnitaire} onChange={e => updateIngredient(idx, 'coutUnitaire', Number(e.target.value))} required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2 text-sm outline-none focus:border-[#F4C75B]" />
                       </div>
                       <div className="w-24">
                         <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
@@ -214,7 +214,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     </div>
                   ))}
                   <div className="flex justify-end pt-2 text-sm font-medium text-gray-700">
-                    Coût Total Fiche Technique: <span className="ml-2 text-[#DDA956] text-lg">{computedCout.toFixed(2)} MAD</span>
+                    Coût Total Fiche Technique: <span className="ml-2 text-[#F4C75B] text-lg">{computedCout.toFixed(2)} MAD</span>
                   </div>
                 </div>
               )}
@@ -226,7 +226,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
           <button 
             type="submit"
             form="recette-form"
-            className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors"
+            className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors"
           >
             {initialData ? 'Sauvegarder' : 'Ajouter la Recette'}
           </button>
@@ -273,7 +273,7 @@ export default function Recettes() {
         </div>
         <button 
           onClick={() => setIsNewRecetteModalOpen(true)}
-          className="bg-[#DDA956] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+          className="bg-[#F4C75B] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
           Nouvelle Recette
@@ -303,7 +303,7 @@ export default function Recettes() {
             <input 
               type="text"
               placeholder="Rechercher une recette..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DDA956]/20 focus:border-[#DDA956] transition-colors"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F4C75B]/20 focus:border-[#F4C75B] transition-colors"
             />
           </div>
         </div>
@@ -381,7 +381,7 @@ export default function Recettes() {
                       >
                         <Trash2 size={16} />
                       </button>
-                      <button className="p-1.5 text-gray-400 hover:text-[#DDA956] transition-colors">
+                      <button className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors">
                         <ChevronRight size={16} />
                       </button>
                     </div>

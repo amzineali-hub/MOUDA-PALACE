@@ -67,8 +67,8 @@ export default function DeviceSimulator({ setActiveTab }: { setActiveTab: (tab: 
   return (
     <div className="fixed inset-0 bg-gray-900 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] bg-[#DDA956]/10 blur-[120px] rounded-full"></div>
-        <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] bg-[#DDA956]/10 blur-[120px] rounded-full"></div>
+        <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] bg-[#F4C75B]/10 blur-[120px] rounded-full"></div>
+        <div className="absolute -bottom-[40%] -right-[20%] w-[80%] h-[80%] bg-[#F4C75B]/10 blur-[120px] rounded-full"></div>
       </div>
       
       <motion.div 
@@ -98,7 +98,7 @@ export default function DeviceSimulator({ setActiveTab }: { setActiveTab: (tab: 
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\\D/g, ''))}
                 placeholder="000000"
-                className="w-full max-w-[280px] text-center text-4xl md:text-5xl tracking-[0.2em] md:tracking-[0.5em] font-mono font-bold text-[#1A1A1A] bg-gray-50 border-2 border-gray-200 rounded-2xl py-4 focus:outline-none focus:border-[#DDA956] focus:bg-white transition-all placeholder:text-gray-300"
+                className="w-full max-w-[280px] text-center text-4xl md:text-5xl tracking-[0.2em] md:tracking-[0.5em] font-mono font-bold text-[#1A1A1A] bg-gray-50 border-2 border-gray-200 rounded-2xl py-4 focus:outline-none focus:border-[#F4C75B] focus:bg-white transition-all placeholder:text-gray-300"
               />
             </div>
           </div>

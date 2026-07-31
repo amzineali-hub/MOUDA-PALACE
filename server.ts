@@ -23,6 +23,37 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Proxy route for document previews to bypass CORS
+  app.get("/api/proxy-document", async (req, res) => {
+    try {
+      const url = req.query.url;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).send("Missing URL parameter");
+      }
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      res.send(buffer);
+    } catch (error: any) {
+      console.error("Proxy error:", error);
+      res.status(500).send(error.message || "Failed to proxy document");
+    }
+  });
+
   // API Route for Gemini analysis
   app.post("/api/analyze-review", async (req, res) => {
     try {

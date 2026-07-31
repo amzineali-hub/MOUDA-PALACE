@@ -33,7 +33,14 @@ const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(docData.url);
+        // Use proxy to avoid CORS issues from Firebase Storage
+        const proxyUrl = `/api/proxy-document?url=${encodeURIComponent(docData.url)}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load document via proxy');
+        }
+        
         const arrayBuffer = await response.arrayBuffer();
 
         if (docData.type.includes('excel') || docData.type.includes('spreadsheet') || docData.name.match(/\.(xls|xlsx)$/i)) {

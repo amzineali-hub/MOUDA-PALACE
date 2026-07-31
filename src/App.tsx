@@ -4041,9 +4041,12 @@ function Inventory() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-4">
                           <button 
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               setSelectedProduct(item);
                               setTxType('out');
                               setIsTxModalOpen(true);
@@ -4055,7 +4058,10 @@ function Inventory() {
                             <span className="sr-only">Sortie</span>
                           </button>
                           <button 
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               setSelectedProduct(item);
                               setTxType('in');
                               setIsTxModalOpen(true);
@@ -4067,7 +4073,10 @@ function Inventory() {
                             <span className="sr-only">Entrée</span>
                           </button>
                           <button 
-                            onClick={() => {
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               setSelectedProduct(item);
                               setIsSettingsModalOpen(true);
                             }}
@@ -4077,15 +4086,16 @@ function Inventory() {
                             <Settings size={18} />
                           </button>
                           <button 
-                            onClick={async () => {
+                            type="button"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
                                 try {
-                                  
-                                    await deleteDoc(doc(db, 'inventoryItems', item.id));
-                                  
+                                  await deleteDoc(doc(db, 'inventoryItems', item.id));
                                   showToast("Produit supprimé");
-                                } catch (e) {
-                                  console.error(e);
+                                } catch (err) {
+                                  console.error(err);
                                   showToast("Erreur lors de la suppression", "error");
                                 }
                               }
@@ -5240,7 +5250,10 @@ function Inventory() {
                 </datalist>
               </div>
               <button 
-                onClick={async () => {
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   const newCat = (document.getElementById('edit-cat') as HTMLInputElement)?.value;
                   const newUnit = (document.getElementById('edit-unit') as HTMLSelectElement)?.value;
                   const newQty = Number((document.getElementById('edit-qty') as HTMLInputElement)?.value);
@@ -5270,16 +5283,17 @@ function Inventory() {
                 Sauvegarder
               </button>
               <button 
-                onClick={async () => {
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
                     try {
-                      
-                        await deleteDoc(doc(db, 'inventoryItems', selectedProduct.id));
-                      
+                      await deleteDoc(doc(db, 'inventoryItems', selectedProduct.id));
                       showToast("Produit supprimé");
                       setIsSettingsModalOpen(false);
-                    } catch (e) {
-                      console.error(e);
+                    } catch (err) {
+                      console.error(err);
                       showToast("Erreur lors de la suppression", "error");
                     }
                   }

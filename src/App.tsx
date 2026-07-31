@@ -5083,6 +5083,8 @@ function Inventory() {
                     <option value="">Sélectionner une destination</option>
                     <option value="Cuisine">Cuisine</option>
                     <option value="Bar">Bar</option>
+                    <option value="Entretien">Entretien</option>
+                    <option value="Ménage">Ménage</option>
                   </select>
                 ) : (
                   <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Achat du jour" />

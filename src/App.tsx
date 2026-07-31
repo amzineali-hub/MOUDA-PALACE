@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -163,7 +163,7 @@ function ReviewAnalyzer() {
         <button 
           onClick={analyzeReview}
           disabled={loading || !review}
-          className="flex items-center gap-2 bg-[#1A1A1A] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 bg-[#163832] text-white px-6 py-2.5 rounded-lg font-medium hover:bg-[#1F4A42] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading && <Loader2 size={16} className="animate-spin" />}
           Analyse IA
@@ -373,7 +373,7 @@ const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
       onClick={onClick}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
         isExpanded 
-          ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20' 
+          ? 'bg-[#DDA956] text-[#163832] shadow-lg shadow-[#DDA956]/20' 
           : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
       }`}
     >
@@ -396,7 +396,7 @@ const SubNavItem = ({ icon, label, active, onClick }: any) => (
     onClick={onClick}
     className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium w-full text-left ${
       active 
-        ? 'bg-[#333] text-white shadow-sm' 
+        ? 'bg-[#1F4A42] text-white shadow-sm' 
         : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-[#E8E6E1]'
     }`}
   >
@@ -558,7 +558,7 @@ export default function App() {
       <NotificationSystem />
       {/* Mobile Header */}
       {!isFullScreenView && (
-      <div className="print:hidden md:hidden flex items-center justify-between bg-[#1A1A1A] p-4 text-[#DDA956] z-40 sticky top-0">
+      <div className="print:hidden md:hidden flex items-center justify-between bg-[#163832] p-4 text-[#DDA956] z-40 sticky top-0">
         <div className="flex items-center gap-4">
           <div 
              className="h-10 w-12 bg-[#DDA956]" 
@@ -583,7 +583,7 @@ export default function App() {
 
       {/* Sidebar Navigation */}
       {!isFullScreenView && (
-      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#1A1A1A] text-[#E8E6E1] p-6 flex-col border-r border-[#333] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
+      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#163832] text-[#E8E6E1] p-6 flex-col border-r border-[#1F4A42] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
             className="h-24 w-32 mb-4 bg-[#DDA956]" 
@@ -614,7 +614,7 @@ export default function App() {
               placeholder="Rechercher..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#222] text-[#E8E6E1] placeholder-gray-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#DDA956] border border-[#333]"
+              className="w-full bg-[#222] text-[#E8E6E1] placeholder-gray-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#DDA956] border border-[#1F4A42]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-500" />
             {searchQuery && (
@@ -626,11 +626,11 @@ export default function App() {
           
           {/* Search Results Dropdown */}
           {searchQuery && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-[#222] border border-[#333] rounded-lg shadow-xl overflow-hidden z-50">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#222] border border-[#1F4A42] rounded-lg shadow-xl overflow-hidden z-50">
               {filteredSearch.length > 0 ? (
                 <ul className="max-h-60 overflow-y-auto">
                   {filteredSearch.map((item, idx) => (
-                    <li key={idx} className="px-4 py-3 hover:bg-[#333] cursor-pointer transition-colors border-b border-[#333] last:border-0" onClick={() => { setSearchQuery(''); handleTabChange(item.tab); setIsMobileMenuOpen(false); }}>
+                    <li key={idx} className="px-4 py-3 hover:bg-[#1F4A42] cursor-pointer transition-colors border-b border-[#1F4A42] last:border-0" onClick={() => { setSearchQuery(''); handleTabChange(item.tab); setIsMobileMenuOpen(false); }}>
                       <div className="text-xs text-[#DDA956] font-medium mb-1 uppercase tracking-wider">{item.type}</div>
                       <div className="text-sm text-[#E8E6E1]">{item.text}</div>
                     </li>
@@ -643,8 +643,8 @@ export default function App() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-2 pb-8 scrollbar-thin scrollbar-thumb-[#333] scrollbar-track-transparent">
-          <div className="mb-4 text-[#DDA956] font-serif text-lg tracking-wider font-semibold border-b border-[#333] pb-2">
+        <div className="flex-1 overflow-y-auto pr-2 pb-8 scrollbar-thin scrollbar-thumb-[#1F4A42] scrollbar-track-transparent">
+          <div className="mb-4 text-[#DDA956] font-serif text-lg tracking-wider font-semibold border-b border-[#1F4A42] pb-2">
             Tableau de Bord
           </div>
           
@@ -652,7 +652,7 @@ export default function App() {
             onClick={() => handleTabChange('overview')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'overview'
-                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                ? 'bg-[#DDA956] text-[#163832] shadow-lg shadow-[#DDA956]/20'
                 : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
             }`}
           >
@@ -664,7 +664,7 @@ export default function App() {
             onClick={() => handleTabChange('finance')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'finance'
-                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                ? 'bg-[#DDA956] text-[#163832] shadow-lg shadow-[#DDA956]/20'
                 : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
             }`}
           >
@@ -676,7 +676,7 @@ export default function App() {
             onClick={() => handleTabChange('docs_devices')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'docs_devices'
-                ? 'bg-[#DDA956] text-[#1A1A1A] shadow-lg shadow-[#DDA956]/20'
+                ? 'bg-[#DDA956] text-[#163832] shadow-lg shadow-[#DDA956]/20'
                 : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
             }`}
           >
@@ -688,7 +688,7 @@ export default function App() {
             onClick={() => handleTabChange('menu')}
             className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold mb-6 border-2 shadow-sm ${
               activeTab === 'menu'
-                ? 'bg-[#DDA956] text-[#1A1A1A] border-[#DDA956] shadow-[#DDA956]/30'
+                ? 'bg-[#DDA956] text-[#163832] border-[#DDA956] shadow-[#DDA956]/30'
                 : 'text-[#DDA956] border-[#DDA956]/50 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
             }`}
           >
@@ -774,12 +774,12 @@ export default function App() {
           </NavCategory>
         </div>
 
-        <div className="mt-auto pt-4 border-t border-[#333]">
+        <div className="mt-auto pt-4 border-t border-[#1F4A42]">
           <div className="flex items-center justify-between gap-3">
             {user ? (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#DDA956] flex items-center justify-center text-[#1A1A1A] font-medium overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-[#DDA956] flex items-center justify-center text-[#163832] font-medium overflow-hidden">
                     {user.photoURL ? <img src={user.photoURL} alt={user.displayName || 'User'} /> : (user.displayName?.charAt(0) || user.email?.charAt(0) || 'U').toUpperCase()}
                   </div>
                   <div className="text-sm">
@@ -787,12 +787,12 @@ export default function App() {
                     <p className="text-xs text-gray-500 capitalize">{role || 'User'}</p>
                   </div>
                 </div>
-                <button onClick={handleLogout} className="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-[#333]">
+                <button onClick={handleLogout} className="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-[#1F4A42]">
                   <LogOut size={16} />
                 </button>
               </>
             ) : (
-              <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 bg-[#DDA956] text-[#1A1A1A] py-2 px-4 rounded-lg font-medium text-sm hover:bg-[#c4954b] transition-colors">
+              <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 bg-[#DDA956] text-[#163832] py-2 px-4 rounded-lg font-medium text-sm hover:bg-[#c4954b] transition-colors">
                 <LogIn size={16} />
                 <span>Connexion</span>
               </button>
@@ -831,7 +831,7 @@ export default function App() {
               console.error(e);
             }
           }}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#1A1A1A] text-white p-3 rounded-full shadow-lg hover:bg-black transition-colors z-50 print:hidden flex items-center gap-2 px-6"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#163832] text-white p-3 rounded-full shadow-lg hover:bg-black transition-colors z-50 print:hidden flex items-center gap-2 px-6"
           title="Quitter le mode plein écran"
         >
           <X size={20} />
@@ -920,7 +920,7 @@ function PerformanceAnalysis() {
                 cursor={{ fill: '#f9fafb' }}
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
-              <Bar dataKey="value" fill="#1A1A1A" radius={[4, 4, 0, 0]} barSize={40} />
+              <Bar dataKey="value" fill="#163832" radius={[4, 4, 0, 0]} barSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1174,7 +1174,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               setActiveTab('reservations');
               showToast('Ouverture du module Réservation...');
             }}
-            className="bg-[#1A1A1A] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#333] flex items-center gap-4 transition-all"
+            className="bg-[#163832] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#1F4A42] flex items-center gap-4 transition-all"
           >
             <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-lg">
               <CalendarCheck size={20} />
@@ -1190,7 +1190,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               setActiveTab('inventory');
               showToast('Ouverture du module Inventaire...');
             }}
-            className="bg-[#1A1A1A] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#333] flex items-center gap-4 transition-all"
+            className="bg-[#163832] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#1F4A42] flex items-center gap-4 transition-all"
           >
             <div className="p-3 bg-blue-500/20 text-blue-400 rounded-lg">
               <ChefHat size={20} />
@@ -1206,7 +1206,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               setActiveTab('whatsapp');
               showToast('Ouverture WhatsApp...');
             }}
-            className="bg-[#1A1A1A] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#333] flex items-center gap-4 transition-all"
+            className="bg-[#163832] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#1F4A42] flex items-center gap-4 transition-all"
           >
             <div className="p-3 bg-green-500/20 text-green-400 rounded-lg">
               <MessageCircle size={20} />
@@ -1227,7 +1227,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             className="lg:col-span-2 bg-white/95 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-xl"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-serif font-medium text-[#1A1A1A]">Performance Marketing & ROI</h3>
+              <h3 className="text-xl font-serif font-medium text-[#163832]">Performance Marketing & ROI</h3>
               <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none">
                 <option>7 derniers jours</option>
                 <option>Ce mois-ci</option>
@@ -1253,10 +1253,10 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                   <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ color: '#1A1A1A', fontWeight: 500 }}
+                    itemStyle={{ color: '#163832', fontWeight: 500 }}
                   />
                   <Legend />
-                  <Bar yAxisId="left" name="Budget Ads (MAD)" dataKey="spend" fill="#1A1A1A" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" name="Budget Ads (MAD)" dataKey="spend" fill="#163832" radius={[4, 4, 0, 0]} />
                   <Bar yAxisId="right" name="Revenu Généré (MAD)" dataKey="revenu" fill="#DDA956" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1271,7 +1271,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           >
             <button 
               onClick={() => showToast('Lancement Nouvelle Campagne Meta...')}
-              className="w-full bg-[#1A1A1A] hover:bg-[#222] text-white p-6 rounded-2xl shadow-xl border border-[#333] flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-1"
+              className="w-full bg-[#163832] hover:bg-[#222] text-white p-6 rounded-2xl shadow-xl border border-[#1F4A42] flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-1"
             >
               <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-full">
                 <Megaphone size={28} />
@@ -1280,7 +1280,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <span className="text-xs text-gray-400">Générer et cibler avec l'IA Meta</span>
             </button>
 
-            <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-[#333] shadow-xl flex-1 text-white">
+            <div className="bg-[#163832] rounded-2xl p-6 border border-[#1F4A42] shadow-xl flex-1 text-white">
               <h4 className="font-medium mb-6 flex items-center gap-2"><TrendingUp size={16} className="text-green-400"/> Retour sur Investissement</h4>
               <div className="space-y-5">
                 <div>
@@ -1288,7 +1288,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                     <span className="text-gray-400 font-medium">Facebook Ads</span>
                     <span className="font-bold text-green-400">x4.2 ROAS</span>
                   </div>
-                  <div className="w-full bg-[#333] rounded-full h-2">
+                  <div className="w-full bg-[#1F4A42] rounded-full h-2">
                     <div className="bg-blue-500 h-2 rounded-full" style={{ width: '75%' }}></div>
                   </div>
                 </div>
@@ -1297,7 +1297,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                     <span className="text-gray-400 font-medium">Instagram Ads</span>
                     <span className="font-bold text-green-400">x5.8 ROAS</span>
                   </div>
-                  <div className="w-full bg-[#333] rounded-full h-2">
+                  <div className="w-full bg-[#1F4A42] rounded-full h-2">
                     <div className="bg-pink-500 h-2 rounded-full" style={{ width: '85%' }}></div>
                   </div>
                 </div>
@@ -1441,7 +1441,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                   showToast("Impression du résumé en cours...");
                   setTimeout(() => { try { window.print(); } catch(e) { showToast("Erreur d'impression", "error"); } }, 500);
                 }}
-                className="px-6 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
+                className="px-6 py-2 bg-[#DDA956] text-[#163832] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Download size={18} /> Imprimer / Exporter PDF
               </button>
@@ -1617,7 +1617,7 @@ function Reservations() {
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Réservations (CRM)</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Réservations (CRM)</h2>
           <p className="text-gray-500">Gestion des réservations, historique client et synchronisation TripAdvisor.</p>
         </div>
         <div className="flex gap-3">
@@ -1630,7 +1630,7 @@ function Reservations() {
           </button>
           <button 
             onClick={() => setIsNewResOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Nouvelle Réservation
@@ -1652,7 +1652,7 @@ function Reservations() {
             </svg>
           </div>
           <div>
-            <h3 className="font-serif font-medium text-[#1A1A1A] text-lg flex items-center gap-2">
+            <h3 className="font-serif font-medium text-[#163832] text-lg flex items-center gap-2">
               Synchronisation TripAdvisor Active
               <span className="px-2 py-0.5 bg-[#00AA6C] text-white text-[10px] uppercase font-bold tracking-wider rounded-sm">Connecté</span>
             </h3>
@@ -1664,7 +1664,7 @@ function Reservations() {
             href="https://www.tripadvisor.fr/Search?q=Mouda+Palace+Fes" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-white text-[#1A1A1A] rounded-lg font-medium text-sm hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm flex items-center gap-2"
+            className="px-4 py-2 bg-white text-[#163832] rounded-lg font-medium text-sm hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm flex items-center gap-2"
           >
             <ExternalLink size={16} />
             Voir la page
@@ -1681,7 +1681,7 @@ function Reservations() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#163832] to-[#1F4A42] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['upcoming', 'floorplan', 'waitlist', 'history', 'reviews'].map(tab => (
             <button
               key={tab}
@@ -1797,7 +1797,7 @@ function Reservations() {
                    <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">Plan de Salle Interactif</h3>
                    <p className="text-sm text-gray-500">Gérez les tables et les affectations en temps réel.</p>
                  </div>
-                 <button onClick={autoAssignTables} className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm flex items-center gap-2">
+                 <button onClick={autoAssignTables} className="px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm flex items-center gap-2">
                    <Wand2 size={16} /> Attribution Auto
                  </button>
                </div>
@@ -2051,7 +2051,7 @@ function Reservations() {
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Confirmer la réservation
               </button>
@@ -2105,7 +2105,7 @@ function Reservations() {
                     showToast('Veuillez entrer un nom');
                   }
                 }}
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#DDA956] text-[#163832] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Ajouter
               </button>
@@ -2187,7 +2187,7 @@ function Reservations() {
                   showToast(`Lien de paiement envoyé par SMS à ${selectedActionRes.phone}`);
                   setIsPaymentOpen(false);
                 }}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors flex items-center justify-center gap-2"
               >
                 <CreditCard size={18} /> Générer et envoyer le lien
               </button>
@@ -2321,12 +2321,12 @@ Clients apportés: ${partner.clients}
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Portail B2B & Partenaires</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Portail B2B & Partenaires</h2>
           <p className="text-gray-500">Gérez vos partenariats avec les Riads, Agences et loueurs, et suivez vos commissions.</p>
         </div>
         <button 
           onClick={() => setIsAddPartnerModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
         >
           <Plus size={16} />
           Ajouter un Partenaire
@@ -2371,7 +2371,7 @@ Clients apportés: ${partner.clients}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#163832] to-[#1F4A42] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['partners', 'commissions'].map(tab => (
             <button
               key={tab}
@@ -2523,7 +2523,7 @@ Clients apportés: ${partner.clients}
             </div>
             
             <div className="mb-4">
-              <h4 className="text-lg font-medium text-[#1A1A1A]">{selectedPartner.name}</h4>
+              <h4 className="text-lg font-medium text-[#163832]">{selectedPartner.name}</h4>
               <p className="text-sm text-gray-500">ID de suivi : {selectedPartner.id}</p>
             </div>
 
@@ -2562,13 +2562,13 @@ Clients apportés: ${partner.clients}
                             <style>
                               body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center; background: #fff; }
                               .print-container { max-width: 800px; padding: 40px; }
-                              h1 { font-size: 3rem; margin-bottom: 0.5rem; color: #1A1A1A; }
+                              h1 { font-size: 3rem; margin-bottom: 0.5rem; color: #163832; }
                               p.subtitle { font-size: 1.5rem; color: #666; margin-bottom: 3rem; }
-                              .qr-wrapper { display: inline-block; padding: 2rem; border: 4px solid #1A1A1A; border-radius: 2rem; margin-bottom: 3rem; }
+                              .qr-wrapper { display: inline-block; padding: 2rem; border: 4px solid #163832; border-radius: 2rem; margin-bottom: 3rem; }
                               .qr-placeholder { width: 400px; height: 400px; background-image: url('https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=https://moudapalace.com/reserve/${selectedPartner.id}'); background-size: cover; background-position: center; }
                               .controls { margin-top: 2rem; }
-                              button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #DDA956; color: #1A1A1A; border: none; border-radius: 8px; font-weight: bold; margin: 0 10px; }
-                              button.secondary { background: #1A1A1A; color: #fff; }
+                              button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #DDA956; color: #163832; border: none; border-radius: 8px; font-weight: bold; margin: 0 10px; }
+                              button.secondary { background: #163832; color: #fff; }
                               @media print { .controls { display: none !important; } }
                             </style>
                           </head>
@@ -2591,7 +2591,7 @@ Clients apportés: ${partner.clients}
                     showToast("Page d'impression HD ouverte dans un nouvel onglet");
                     setIsQRModalOpen(false);
                   }}
-                  className="flex-1 bg-[#1A1A1A] text-[#DDA956] py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#163832] text-[#DDA956] py-2.5 rounded-lg font-medium hover:bg-[#1F4A42] transition-colors flex items-center justify-center gap-2"
                 >
                   <Printer size={18} />
                   Ouvrir HD / Imprimer
@@ -2720,7 +2720,7 @@ Clients apportés: ${partner.clients}
                   setNewPartnerEmail('');
                   setNewPartnerAccessCode('');
                 }}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Ajouter et générer le QR
               </button>
@@ -2823,7 +2823,7 @@ Clients apportés: ${partner.clients}
                   setNewPartnerEmail('');
                   setNewPartnerAccessCode('');
                 }}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Sauvegarder les modifications
               </button>
@@ -2849,7 +2849,7 @@ function WhatsAppAI() {
   return (
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10">
-        <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">WhatsApp & IA</h2>
+        <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">WhatsApp & IA</h2>
         <p className="text-gray-500">Configuration du bot WhatsApp et paramètres de l'IA.</p>
       </header>
 
@@ -2919,7 +2919,7 @@ function WhatsAppAI() {
               <button onClick={() => {
                 savedPrompt = prompt;
                 showToast("Paramètres IA enregistrés");
-              }} className="mt-4 px-6 py-2.5 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium hover:bg-[#333] transition-colors">
+              }} className="mt-4 px-6 py-2.5 bg-[#163832] text-white rounded-lg text-sm font-medium hover:bg-[#1F4A42] transition-colors">
                 Enregistrer les paramètres
               </button>
             </div>
@@ -3025,7 +3025,7 @@ function WhatsAppAI() {
                 <button onClick={() => {
                   showToast("Base de connaissances mise à jour avec succès.");
                   setIsKnowledgeBaseOpen(false);
-                }} className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg font-medium hover:bg-[#333] transition-colors">
+                }} className="px-4 py-2 bg-[#163832] text-white rounded-lg font-medium hover:bg-[#1F4A42] transition-colors">
                   Enregistrer les modifications
                 </button>
               </div>
@@ -3040,6 +3040,7 @@ function WhatsAppAI() {
 function DigitalMenu() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Tous');
+  const [favorites, setFavorites] = useState<number[]>([]);
   const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<any>(null);
   const [newDishForm, setNewDishForm] = useState({ name: '', category: 'Entrées', price: '', desc: '' });
@@ -3185,13 +3186,21 @@ function DigitalMenu() {
     }
   };
 
-  const filteredItems = activeCategory === 'Tous' ? menuItems : menuItems.filter(item => item.category === activeCategory);
+  const toggleFavorite = (id: number) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
+  };
+
+  const filteredItems = activeCategory === 'Tous' 
+    ? menuItems 
+    : activeCategory === 'Favoris'
+      ? menuItems.filter(item => favorites.includes(item.id))
+      : menuItems.filter(item => item.category === activeCategory);
 
   return (
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Menu Digital</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Menu Digital</h2>
           <p className="text-gray-500">Gestion des plats, prix, et traductions automatiques.</p>
         </div>
         <div className="flex flex-wrap justify-end gap-3">
@@ -3211,7 +3220,7 @@ function DigitalMenu() {
           </button>
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Ajouter un plat
@@ -3220,7 +3229,7 @@ function DigitalMenu() {
       </header>
 
       {/* AI Translation Banner */}
-      <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+      <div className="bg-gradient-to-r from-[#163832] to-[#1F4A42] rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-4 text-white">
           <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-xl">
             <Globe size={24} />
@@ -3233,7 +3242,7 @@ function DigitalMenu() {
         <button 
           onClick={handleTranslate}
           disabled={isTranslating || menuItems.filter(i => !i.translated).length === 0}
-          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#1A1A1A] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${(isTranslating || menuItems.filter(i => !i.translated).length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
+          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#163832] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${(isTranslating || menuItems.filter(i => !i.translated).length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
           {isTranslating ? <Loader2 size={16} className="text-[#DDA956] animate-spin" /> : <Sparkles size={16} className={menuItems.filter(i => !i.translated).length === 0 ? "text-gray-400" : "text-[#DDA956]"} />}
           {isTranslating ? 'Traduction en cours...' : menuItems.filter(i => !i.translated).length === 0 ? 'Tous les plats sont traduits' : `Traduire ${menuItems.filter(i => !i.translated).length} plat(s) non traduit(s)`}
@@ -3242,16 +3251,17 @@ function DigitalMenu() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Categories Tab and Language Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#1A1A1A] to-[#333] p-4 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#163832] to-[#1F4A42] p-4 gap-4">
           <div className="flex items-center gap-3">
             <label htmlFor="category-filter" className="text-white/70 text-sm font-medium">Catégorie :</label>
             <select
               id="category-filter"
               value={activeCategory}
               onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-[#1A1A1A] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
+              className="bg-[#163832] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
             >
               <option value="Tous">Toutes les catégories</option>
+              <option value="Favoris">Favoris ❤️</option>
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
@@ -3265,14 +3275,14 @@ function DigitalMenu() {
               onChange={(e) => setDisplayLanguage(e.target.value)}
               className="text-sm border-none bg-transparent text-white font-medium focus:ring-0 outline-none focus:outline-none cursor-pointer"
             >
-              <option value="fr" className="bg-[#1A1A1A] text-white">Français (FR)</option>
-              <option value="en" className="bg-[#1A1A1A] text-white">English (EN)</option>
-              <option value="es" className="bg-[#1A1A1A] text-white">Español (ES)</option>
-              <option value="ar" className="bg-[#1A1A1A] text-white">العربية (AR)</option>
-              <option value="de" className="bg-[#1A1A1A] text-white">Deutsch (DE)</option>
-              <option value="zh" className="bg-[#1A1A1A] text-white">中文 (ZH)</option>
-              <option value="ko" className="bg-[#1A1A1A] text-white">한국어 (KO)</option>
-              <option value="pt" className="bg-[#1A1A1A] text-white">Português (PT)</option>
+              <option value="fr" className="bg-[#163832] text-white">Français (FR)</option>
+              <option value="en" className="bg-[#163832] text-white">English (EN)</option>
+              <option value="es" className="bg-[#163832] text-white">Español (ES)</option>
+              <option value="ar" className="bg-[#163832] text-white">العربية (AR)</option>
+              <option value="de" className="bg-[#163832] text-white">Deutsch (DE)</option>
+              <option value="zh" className="bg-[#163832] text-white">中文 (ZH)</option>
+              <option value="ko" className="bg-[#163832] text-white">한국어 (KO)</option>
+              <option value="pt" className="bg-[#163832] text-white">Português (PT)</option>
             </select>
           </div>
         </div>
@@ -3307,6 +3317,14 @@ function DigitalMenu() {
                   <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-bold text-gray-900 shadow-sm">
                     {item.price}
                   </div>
+                  <div className="absolute top-3 left-3">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
+                      className={`p-2 rounded-full backdrop-blur-sm shadow-sm transition-colors ${favorites.includes(item.id) ? 'bg-white/95 text-red-500' : 'bg-black/20 text-white hover:bg-black/40'}`}
+                    >
+                      <Heart size={18} fill={favorites.includes(item.id) ? "currentColor" : "none"} />
+                    </button>
+                  </div>
                 </div>
                 <div className={`p-5 flex-1 flex flex-col ${displayLanguage === 'ar' ? 'text-right' : ''}`} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
                   <h4 className="font-serif font-medium text-lg text-gray-900 mb-2">{displayName}</h4>
@@ -3339,6 +3357,12 @@ function DigitalMenu() {
                 <div className={displayLanguage === 'ar' ? 'text-right w-full' : ''} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
                   <div className={`flex items-center gap-3 mb-1 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
                     <h4 className="font-medium text-gray-900">{displayName}</h4>
+                    <button 
+                      onClick={() => toggleFavorite(item.id)}
+                      className={`p-1 rounded-full transition-colors ${favorites.includes(item.id) ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      <Heart size={16} fill={favorites.includes(item.id) ? "currentColor" : "none"} />
+                    </button>
                     {!item.active && (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md font-medium flex items-center gap-1">
                         <EyeOff size={12} /> Masqué
@@ -3348,7 +3372,7 @@ function DigitalMenu() {
                   <p className="text-sm text-gray-500 line-clamp-2 max-w-2xl">{displayDesc}</p>
                   
                   <div className={`flex items-center gap-4 mt-3 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
-                    <span className="font-semibold text-[#1A1A1A]">{item.price}</span>
+                    <span className="font-semibold text-[#163832]">{item.price}</span>
                     <div className="w-px h-4 bg-gray-200"></div>
                     {item.translated ? (
                       <span className="text-xs text-green-600 flex items-center gap-1">
@@ -3511,7 +3535,7 @@ function DigitalMenu() {
                   showToast("Lancement de l'impression...");
                   setIsQRModalOpen(false);
                 }}
-                className="flex-1 bg-[#1A1A1A] text-white py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors"
+                className="flex-1 bg-[#163832] text-white py-2.5 rounded-lg font-medium hover:bg-[#1F4A42] transition-colors"
               >
                 Imprimer
               </button>
@@ -3590,7 +3614,7 @@ function DigitalMenu() {
               </div>
               <button 
                 onClick={handleSaveDish}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 {editingDish ? 'Enregistrer et Traduire' : 'Ajouter et Traduire'}
               </button>
@@ -3658,8 +3682,8 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers'];
-    const dbCats = stockItemsData.map(item => item.category).filter(Boolean);
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', "Produits d'entretien"];
+    const dbCats = stockItemsData.map(item => item.category?.trim()).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats])).sort();
   }, [stockItemsData]);
 
@@ -3768,7 +3792,7 @@ function Inventory() {
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Production Cuisine & Stocks</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Production Cuisine & Stocks</h2>
           <p className="text-gray-500">Fiches techniques, food cost, production journalière et inventaires automatiques.</p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -3788,7 +3812,7 @@ function Inventory() {
           </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Ajouter un produit
@@ -3831,7 +3855,7 @@ function Inventory() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
-        <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] flex overflow-x-auto hide-scrollbar p-2 gap-2">
+        <div className="bg-gradient-to-r from-[#163832] to-[#1F4A42] flex overflow-x-auto hide-scrollbar p-2 gap-2">
           {['stocks', 'requirements', 'recipes', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
@@ -3853,7 +3877,8 @@ function Inventory() {
         {/* Content */}
         <div className="p-0">
           {activeTab === 'stocks' && (
-            <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            <>
+            <div className="mb-4 flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                 <input 
@@ -3879,13 +3904,77 @@ function Inventory() {
               <div className="w-full sm:w-auto">
                 <button 
                   onClick={handleExportPDF}
-                  className="w-full px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2 font-medium"
+                  className="w-full px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2 font-medium"
                 >
                   <Printer size={16} />
                   Exporter PDF
                 </button>
               </div>
             </div>
+            
+            <div className="mb-6 flex overflow-x-auto hide-scrollbar gap-2 pb-2">
+              <button
+                onClick={() => setSelectedCategory('Tous')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Tous' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Tous
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Fruits')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Fruits' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Fruits 🍎
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Légumes')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Légumes' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Légumes 🥦
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Viandes')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Viandes' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Viandes 🥩
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Poissons')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Poissons' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Poissons 🐟
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Produits Laitiers')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Produits Laitiers' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Produits Laitiers 🥛
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Épices')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Épices' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Épices 🌶️
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Boissons')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Boissons' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Boissons 🥤
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Boissons Alcoolisées')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Boissons Alcoolisées' ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Boissons Alcoolisées 🍷
+              </button>
+              <button
+                onClick={() => setSelectedCategory("Produits d'entretien")}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === "Produits d'entretien" ? 'bg-[#163832] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Entretien ✨
+              </button>
+            </div>
+            </>
           )}
           {activeTab === 'stocks' && (
             <div className="overflow-x-auto">
@@ -3996,7 +4085,7 @@ function Inventory() {
                 <h3 className="text-lg font-medium text-gray-900">Définition des Besoins et Seuils d'Alerte</h3>
                 <button 
                   onClick={() => showToast("Paramètres enregistrés avec succès")}
-                  className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium hover:bg-[#333] transition-colors"
+                  className="px-4 py-2 bg-[#163832] text-white rounded-lg text-sm font-medium hover:bg-[#1F4A42] transition-colors"
                 >
                   Enregistrer les modifications
                 </button>
@@ -4052,7 +4141,7 @@ function Inventory() {
                 <h3 className="text-lg font-medium text-gray-900">Fiches Techniques & Food Cost</h3>
                 <button 
                   onClick={() => setIsNewRecipeModalOpen(true)}
-                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
                 >
                   <Plus size={16} /> Nouvelle Fiche
                 </button>
@@ -4256,7 +4345,7 @@ function Inventory() {
                   <button onClick={() => setIsNewOrderModalOpen(true)}  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
                     <Truck size={16} /> Nouvelle Commande
                   </button>
-                  <button onClick={() => setIsNewSupplierModalOpen(true)}  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <button onClick={() => setIsNewSupplierModalOpen(true)}  className="px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
                     <Plus size={16} /> Nouveau Fournisseur
                   </button>
                 </div>
@@ -4580,7 +4669,7 @@ function Inventory() {
                       setIsScannerModalOpen(false);
                       setIsAutoCreateModalOpen(true);
                     }}
-                    className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-[#333] transition-colors flex items-center justify-center gap-2"
+                    className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium hover:bg-[#1F4A42] transition-colors flex items-center justify-center gap-2"
                   >
                     <Sparkles size={16} className="text-[#DDA956]" />
                     Simuler scan (Nouveau Produit)
@@ -4683,7 +4772,7 @@ function Inventory() {
                     showToast("Erreur lors de la création", "error");
                   }
                 }}
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#DDA956] text-[#163832] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2"
               >
                 Valider la création automatique
               </button>
@@ -4785,7 +4874,7 @@ function Inventory() {
                         setIngredientQty('');
                       }
                     }}
-                    className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b]"
+                    className="px-4 py-2 bg-[#DDA956] text-[#163832] font-medium rounded-lg hover:bg-[#c4954b]"
                   >
                     Ajouter
                   </button>
@@ -4830,7 +4919,7 @@ function Inventory() {
                   setNewRecipeIngredients([]);
                   setIsNewRecipeModalOpen(false);
                 }}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Sauvegarder Fiche Technique
               </button>
@@ -4923,10 +5012,20 @@ function Inventory() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
                   <select name="unit" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
+                    <option value="kg">Kg</option>
+                    <option value="g">G</option>
                     <option value="L">L</option>
-                    <option value="unité">unité</option>
+                    <option value="cl">Cl</option>
+                    <option value="ml">Ml</option>
+                    <option value="pièce">Pièce</option>
+                    <option value="boîte">Boîte</option>
+                    <option value="bouteille">Bouteille</option>
+                    <option value="sachet">Sachet</option>
+                    <option value="carton">Carton</option>
+                    <option value="botte">Botte</option>
+                    <option value="cannette">Cannette</option>
+                    <option value="bidon">Bidon</option>
+                    <option value="plateau">Plateau</option>
                   </select>
                 </div>
               </div>
@@ -4936,7 +5035,7 @@ function Inventory() {
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Ajouter à l'inventaire
               </button>
@@ -5078,17 +5177,37 @@ function Inventory() {
                   <input id="edit-cat" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select id="edit-unit" defaultValue={selectedProduct.unit} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                    <option value="kg">Kg</option>
+                    <option value="g">G</option>
+                    <option value="L">L</option>
+                    <option value="cl">Cl</option>
+                    <option value="ml">Ml</option>
+                    <option value="pièce">Pièce</option>
+                    <option value="boîte">Boîte</option>
+                    <option value="bouteille">Bouteille</option>
+                    <option value="sachet">Sachet</option>
+                    <option value="carton">Carton</option>
+                    <option value="botte">Botte</option>
+                    <option value="cannette">Cannette</option>
+                    <option value="bidon">Bidon</option>
+                    <option value="plateau">Plateau</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
                   <div className="flex items-center gap-2">
                     <input id="edit-qty" type="number" step="0.01" defaultValue={selectedProduct.quantity} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
                   </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seuil d'alerte (Min. Stock)</label>
-                <div className="flex items-center gap-2">
-                  <input id="edit-min" type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
-                  <span className="text-gray-500 text-sm">{selectedProduct.unit}</span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Seuil d'alerte</label>
+                  <div className="flex items-center gap-2">
+                    <input id="edit-min" type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  </div>
                 </div>
               </div>
               <div>
@@ -5098,6 +5217,7 @@ function Inventory() {
               <button 
                 onClick={async () => {
                   const newCat = (document.getElementById('edit-cat') as HTMLInputElement)?.value;
+                  const newUnit = (document.getElementById('edit-unit') as HTMLSelectElement)?.value;
                   const newQty = Number((document.getElementById('edit-qty') as HTMLInputElement)?.value);
                   const newMin = Number((document.getElementById('edit-min') as HTMLInputElement)?.value);
                   const newSup = (document.getElementById('edit-sup') as HTMLInputElement)?.value;
@@ -5106,6 +5226,7 @@ function Inventory() {
                     try {
                       await updateDoc(doc(db, "inventoryItems", selectedProduct.id), {
                         category: newCat,
+                        unit: newUnit,
                         quantity: newQty,
                         minStock: newMin,
                         supplier: newSup,
@@ -5119,7 +5240,7 @@ function Inventory() {
                   }
                   setIsSettingsModalOpen(false);
                 }}
-                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                className="w-full bg-[#163832] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#1F4A42] transition-colors"
               >
                 Sauvegarder
               </button>
@@ -5202,7 +5323,7 @@ function Inventory() {
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#DDA956] text-[#163832] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Valider la Commande
               </button>
@@ -5282,7 +5403,7 @@ function Inventory() {
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#DDA956] text-[#163832] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
               >
                 Ajouter le Fournisseur
               </button>
@@ -5364,7 +5485,7 @@ function Inventory() {
               <div className="flex gap-3 mt-4">
                 <button 
                   type="submit"
-                  className="flex-1 bg-[#DDA956] text-[#1A1A1A] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors"
+                  className="flex-1 bg-[#DDA956] text-[#163832] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors"
                 >
                   Mettre à jour
                 </button>
@@ -5446,10 +5567,10 @@ function Configuration() {
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Configuration</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Configuration</h2>
           <p className="text-gray-500">Paramètres généraux de l'établissement.</p>
         </div>
-        <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#333] transition-colors disabled:opacity-50">
+        <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 bg-[#163832] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#1F4A42] transition-colors disabled:opacity-50">
           <Save size={18} />
           {isSaving ? "Sauvegarde..." : "Sauvegarder"}
         </button>
@@ -5472,7 +5593,7 @@ function Configuration() {
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-8">
               <div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-xl font-serif font-medium text-[#1A1A1A] mb-0 border-0 pb-0">Informations de l'Établissement</h3>
+                  <h3 className="text-xl font-serif font-medium text-[#163832] mb-0 border-0 pb-0">Informations de l'Établissement</h3>
                   <a href="/DOCUMENTATION.pdf" target="_blank" download className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-white rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm">
                     <Download size={16} />
                     Documentation (PDF)
@@ -5511,7 +5632,7 @@ function Configuration() {
               </div>
               
               <div>
-                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#1A1A1A]">Localisation & Devise</h3>
+                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#163832]">Localisation & Devise</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -5537,7 +5658,7 @@ function Configuration() {
 
           {activeSettingsTab === 'integrations' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-6">
-              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#1A1A1A]">Clés API et Intégrations</h3>
+              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#163832]">Clés API et Intégrations</h3>
               
               <div className="space-y-6">
                 <div className="p-5 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition-colors">
@@ -5573,7 +5694,7 @@ function Configuration() {
 
           {activeSettingsTab === 'website' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-6">
-              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#1A1A1A]">Configuration du site web</h3>
+              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#163832]">Configuration du site web</h3>
               <p className="text-sm text-gray-500 mb-6">Paramétrez les accès à votre site WordPress (moudapalace.com) et les webhooks d'automatisation (Make.com, Zapier).</p>
               
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
@@ -5649,7 +5770,7 @@ function Configuration() {
 
           {activeSettingsTab === 'notifications' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-6">
-              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#1A1A1A]">Préférences de Notification</h3>
+              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#163832]">Préférences de Notification</h3>
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-5 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-colors">
@@ -5689,7 +5810,7 @@ function Configuration() {
           {activeSettingsTab === 'billing' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-8">
               <div>
-                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#1A1A1A]">Méthodes de paiement acceptées</h3>
+                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#163832]">Méthodes de paiement acceptées</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-5 border border-gray-100 rounded-xl bg-gray-50/30 hover:bg-gray-50/80 transition-colors">
@@ -5737,7 +5858,7 @@ function Configuration() {
               </div>
 
               <div>
-                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#1A1A1A]">Intégration Stripe</h3>
+                <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#163832]">Intégration Stripe</h3>
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clé publique (Publishable key)</label>
@@ -5787,7 +5908,7 @@ function NavItem({ icon, label, active = false, onClick }: { icon: ReactNode, la
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${active ? 'bg-[#333] text-white' : 'text-gray-400 hover:bg-[#222] hover:text-white'}`}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${active ? 'bg-[#1F4A42] text-white' : 'text-gray-400 hover:bg-[#222] hover:text-white'}`}
     >
       {icon}
       <span>{label}</span>
@@ -5809,7 +5930,7 @@ function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: str
           {icon}
         </div>
       </div>
-      <div className="text-3xl font-serif font-semibold text-[#1A1A1A] mb-1">
+      <div className="text-3xl font-serif font-semibold text-[#163832] mb-1">
         {value}
       </div>
       <div className="text-xs text-gray-500 mt-auto">
@@ -5837,7 +5958,7 @@ function IntegrationRow({ name, status, desc }: { name: string, status: string, 
 
 function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') => void }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#163832] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
 
       <motion.div 
@@ -5899,7 +6020,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1A1A1A] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-[#163832] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -5910,7 +6031,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
             <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6">
               <Briefcase size={32} />
             </div>
-            <h2 className="text-2xl font-serif text-[#1A1A1A] font-semibold mb-2">Espace Partenaire</h2>
+            <h2 className="text-2xl font-serif text-[#163832] font-semibold mb-2">Espace Partenaire</h2>
             <p className="text-gray-500 text-sm mb-8">Veuillez saisir votre code d'accès pour consulter vos performances et commissions.</p>
             
             <form onSubmit={(e) => {
@@ -5934,7 +6055,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#1A1A1A] text-white py-3.5 rounded-xl font-medium hover:bg-[#333] transition-colors mb-4"
+                className="w-full bg-[#163832] text-white py-3.5 rounded-xl font-medium hover:bg-[#1F4A42] transition-colors mb-4"
               >
                 Accéder à mon espace
               </button>
@@ -5957,7 +6078,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
       <div className="w-full max-w-4xl pt-8">
         <header className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Espace Partenaire</h2>
+            <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Espace Partenaire</h2>
             <p className="text-gray-500">Bienvenue sur votre portail Riad & Agence.</p>
           </div>
           <button 
@@ -6100,7 +6221,7 @@ function TacSystemsPOS() {
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-serif text-[#1A1A1A] font-semibold mb-2">Caisse & Finance</h2>
+          <h2 className="text-3xl font-serif text-[#163832] font-semibold mb-2">Caisse & Finance</h2>
           <p className="text-gray-500">Passerelle API TacSystems : Mouvements de caisse en temps réel.</p>
         </div>
         <div className="flex gap-3">
@@ -6113,7 +6234,7 @@ function TacSystemsPOS() {
           <button 
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm disabled:opacity-50"
           >
             {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             {isSyncing ? 'Synchronisation API' : 'Synchroniser API'}
@@ -6448,7 +6569,7 @@ function TacSystemsPOS() {
                     showToast("Importation du journal de caisse démarrée...");
                     setIsImportTacModalOpen(false);
                   }}
-                  className="px-4 py-2 bg-[#DDA956] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
+                  className="px-4 py-2 bg-[#DDA956] text-[#163832] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
                 >
                   Sélectionner un fichier
                 </button>
@@ -6498,7 +6619,7 @@ function TacSystemsPOS() {
                 </button>
                 <button 
                   type="submit" 
-                  className="px-5 py-2 bg-[#DDA956] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                  className="px-5 py-2 bg-[#DDA956] text-[#163832] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
                 >
                   <Save size={16} /> Enregistrer
                 </button>

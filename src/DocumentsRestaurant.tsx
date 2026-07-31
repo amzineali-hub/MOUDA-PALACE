@@ -3,6 +3,8 @@ import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from '
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { FileText, File, Upload, Trash2, Download, FileSpreadsheet, FileIcon, Loader2, Search, Eye, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import mammoth from 'mammoth';
 
 interface RestaurantDoc {
   id: string;
@@ -13,6 +15,189 @@ interface RestaurantDoc {
   createdAt: any;
   storagePath: string;
 }
+
+const getFileIcon = (type: string, name: string) => {
+  if (type.includes('pdf') || name.endsWith('.pdf')) return <FileText className="text-red-500" size={24} />;
+  if (type.includes('word') || name.endsWith('.doc') || name.endsWith('.docx')) return <File className="text-blue-500" size={24} />;
+  if (type.includes('excel') || type.includes('spreadsheet') || name.endsWith('.xls') || name.endsWith('.xlsx')) return <FileSpreadsheet className="text-green-500" size={24} />;
+  return <FileIcon className="text-gray-500" size={24} />;
+};
+
+const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose: () => void }) => {
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadContent = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(docData.url);
+        const arrayBuffer = await response.arrayBuffer();
+
+        if (docData.type.includes('excel') || docData.type.includes('spreadsheet') || docData.name.match(/\.(xls|xlsx)$/i)) {
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const html = XLSX.utils.sheet_to_html(worksheet, { id: 'excel-table' });
+          
+          // Basic styling for the excel HTML
+          const styledHtml = html
+            .replace(/<table/g, '<table class="w-full text-left text-sm border-collapse bg-white shadow-sm rounded-lg overflow-hidden"')
+            .replace(/<td/g, '<td class="border border-gray-200 px-4 py-2 text-gray-700"')
+            .replace(/<th/g, '<th class="border border-gray-200 px-4 py-3 bg-gray-50 font-medium text-gray-900"');
+          
+          setHtmlContent(styledHtml);
+        } else if (docData.type.includes('word') || docData.name.match(/\.(doc|docx)$/i)) {
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          // Basic styling for Word docs
+          const styledHtml = `<div class="prose max-w-none p-8 bg-white shadow-sm rounded-lg">${result.value}</div>`;
+          setHtmlContent(styledHtml);
+        } else {
+          setError("Format non supporté pour la prévisualisation native.");
+        }
+      } catch (err) {
+        console.error("Preview error:", err);
+        setError("Impossible de prévisualiser ce fichier. Il peut être corrompu ou d'un format non pris en charge.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (docData.name.match(/\.(xls|xlsx|doc|docx)$/i)) {
+      loadContent();
+    } else {
+      setLoading(false);
+    }
+  }, [docData]);
+
+  const renderContent = () => {
+    if (docData.type.includes('pdf') || docData.name.endsWith('.pdf')) {
+      return (
+        <iframe 
+          src={`${docData.url}#toolbar=0`} 
+          className="w-full h-full border-0"
+          title="PDF Preview"
+        />
+      );
+    }
+    if (docData.type.includes('image') || docData.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-4">
+          <img 
+            src={docData.url} 
+            alt={docData.name} 
+            className="max-w-full max-h-full object-contain rounded shadow-sm bg-white"
+          />
+        </div>
+      );
+    }
+    
+    // For DOCX / XLSX
+    if (loading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="flex flex-col items-center text-gray-500">
+            <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#DDA956]" />
+            <p>Génération de l'aperçu du document...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="w-full h-full flex items-center justify-center p-6 text-center">
+          <div className="max-w-md">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileIcon className="text-red-500" size={32} />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Erreur de prévisualisation</h3>
+            <p className="text-gray-500 mb-6">{error}</p>
+            <a 
+              href={docData.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#DDA956] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
+              download
+            >
+              <Download size={20} />
+              Télécharger le fichier original
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    if (htmlContent) {
+      return (
+        <div className="w-full h-full overflow-auto p-4 md:p-8 bg-gray-100">
+          <div 
+            dangerouslySetInnerHTML={{ __html: htmlContent }} 
+            className="max-w-5xl mx-auto"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full h-full flex items-center justify-center p-6 text-center">
+        <div className="max-w-md">
+          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileIcon className="text-gray-400" size={32} />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Aperçu non disponible</h3>
+          <p className="text-gray-500 mb-6">Ce type de fichier ne peut pas être prévisualisé directement dans le navigateur.</p>
+          <a 
+            href={docData.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#DDA956] text-white font-medium rounded-lg hover:bg-[#C5964A] transition-colors"
+            download
+          >
+            <Download size={20} />
+            Télécharger le fichier
+          </a>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            {getFileIcon(docData.type, docData.name)}
+            <h3 className="font-medium text-gray-900 truncate max-w-xl" title={docData.name}>{docData.name}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <a 
+              href={docData.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              download
+            >
+              <Download size={16} />
+              Télécharger
+            </a>
+            <button 
+              onClick={onClose}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 bg-gray-50 overflow-hidden relative">
+          {renderContent()}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function DocumentsRestaurant() {
   const [documents, setDocuments] = useState<RestaurantDoc[]>([]);
@@ -249,63 +434,7 @@ export default function DocumentsRestaurant() {
 
       {/* Preview Modal */}
       {previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                {getFileIcon(previewDoc.type, previewDoc.name)}
-                <h3 className="font-medium text-gray-900 truncate max-w-xl" title={previewDoc.name}>{previewDoc.name}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <a 
-                  href={previewDoc.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                  download
-                >
-                  <Download size={16} />
-                  Télécharger
-                </a>
-                <button 
-                  onClick={() => setPreviewDoc(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 bg-gray-50 overflow-hidden relative">
-              {previewDoc.type.includes('pdf') || previewDoc.name.endsWith('.pdf') ? (
-                <iframe 
-                  src={`${previewDoc.url}#toolbar=0`} 
-                  className="w-full h-full border-0"
-                  title="PDF Preview"
-                />
-              ) : previewDoc.type.includes('image') || previewDoc.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                <div className="w-full h-full flex items-center justify-center p-4">
-                  <img 
-                    src={previewDoc.url} 
-                    alt={previewDoc.name} 
-                    className="max-w-full max-h-full object-contain rounded shadow-sm"
-                  />
-                </div>
-              ) : previewDoc.name.match(/\.(doc|docx|xls|xlsx|ppt|pptx)$/i) ? (
-                <iframe 
-                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewDoc.url)}`} 
-                  className="w-full h-full border-0"
-                  title="Office Document Preview"
-                />
-              ) : (
-                <iframe 
-                  src={`https://docs.google.com/gview?url=${encodeURIComponent(previewDoc.url)}&embedded=true`} 
-                  className="w-full h-full border-0"
-                  title="Document Preview"
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <DocumentPreview docData={previewDoc} onClose={() => setPreviewDoc(null)} />
       )}
     </div>
   );

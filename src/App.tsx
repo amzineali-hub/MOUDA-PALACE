@@ -336,7 +336,7 @@ function InventoryAlerts() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur (Optionnel)</label>
                   <input list="dl-xrqdjw-1" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all" placeholder="Ex: Marché Central" />
                   <datalist id="dl-xrqdjw-1">
-                    {suppliersList.map((sup, idx) => (
+                    {['Marché Central', 'Ferme Atlas', 'Boucherie Centrale'].map((sup, idx) => (
                       <option key={idx} value={sup} />
                     ))}
                   </datalist>

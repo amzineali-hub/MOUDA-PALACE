@@ -15,7 +15,8 @@ import {
   CheckCircle,
   Clock,
   X,
-  Printer
+  Printer,
+  QrCode
 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';

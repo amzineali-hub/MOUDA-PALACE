@@ -84,7 +84,7 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     placeholder="Ex: Entrées Froides"
                   />
                   <datalist id="dl-recettes-cat">
-                    {categories.map((cat, idx) => (
+                    {['Entrées Froides', 'Plats Principaux', 'Desserts'].map((cat, idx) => (
                       <option key={idx} value={cat} />
                     ))}
                   </datalist>

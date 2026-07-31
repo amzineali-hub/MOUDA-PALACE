@@ -4923,8 +4923,18 @@ function Inventory() {
                 <input id="tx-qty" type="number" min="0" step="0.1" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Raison / Commentaire</label>
-                <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder={txType === 'in' ? "Ex: Achat du jour" : "Ex: Service Cuisine"} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {txType === 'out' ? 'Destinataire' : 'Raison / Commentaire'}
+                </label>
+                {txType === 'out' ? (
+                  <select id="tx-reason" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                    <option value="">Sélectionner une destination</option>
+                    <option value="Cuisine">Cuisine</option>
+                    <option value="Bar">Bar</option>
+                  </select>
+                ) : (
+                  <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Achat du jour" />
+                )}
               </div>
               {txType === 'in' && (
                 <div className="grid grid-cols-2 gap-4">

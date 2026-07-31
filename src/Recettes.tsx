@@ -75,13 +75,18 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input 
-                    value={categorie} onChange={e => setCategorie(e.target.value)}
-                    required 
-                    list="recipe-categories-list"
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]" 
-                    placeholder="Sélectionner ou saisir..." 
-                  />
+                  <select
+                    value={categorie}
+                    onChange={e => setCategorie(e.target.value)}
+                    required
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner une catégorie</option>
+                    <option value="Plats">Plats</option>
+                    <option value="Entrées">Entrées</option>
+                    <option value="Desserts">Desserts</option>
+                    <option value="Boissons">Boissons</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portion</label>

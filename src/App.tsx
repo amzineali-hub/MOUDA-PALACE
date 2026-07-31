@@ -3687,6 +3687,11 @@ function Inventory() {
     return Array.from(new Set([...defaultCats, ...dbCats])).sort();
   }, [stockItemsData]);
 
+  const suppliersList = useMemo(() => {
+    const dbSuppliers = stockItemsData.map(item => item.supplier?.trim()).filter(Boolean).filter(s => s !== 'Non renseigné');
+    return Array.from(new Set([...dbSuppliers])).sort();
+  }, [stockItemsData]);
+
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryItems'), orderBy('createdAt', 'desc')), (snapshot) => {
       setStockItemsData(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));

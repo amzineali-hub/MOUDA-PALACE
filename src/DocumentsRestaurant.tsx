@@ -33,15 +33,26 @@ const DocumentPreview = ({ docData, onClose }: { docData: RestaurantDoc, onClose
       setLoading(true);
       setError(null);
       try {
-        // Use proxy to avoid CORS issues from Firebase Storage
-        const proxyUrl = `/api/proxy-document?url=${encodeURIComponent(docData.url)}`;
-        const response = await fetch(proxyUrl);
+        let arrayBuffer: ArrayBuffer;
         
-        if (!response.ok) {
-          throw new Error('Failed to load document via proxy');
+        try {
+          // Use proxy to avoid CORS issues from Firebase Storage (works on Express and Vercel)
+          const proxyUrl = `/api/proxy-document?url=${encodeURIComponent(docData.url)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            throw new Error('Failed to load document via proxy');
+          }
+          arrayBuffer = await response.arrayBuffer();
+        } catch (proxyError) {
+          console.warn("Proxy failed, trying direct fetch...", proxyError);
+          // Fallback to direct fetch in case proxy is unavailable but CORS is allowed
+          const directResponse = await fetch(docData.url);
+          if (!directResponse.ok) {
+            throw new Error('Failed to load document directly');
+          }
+          arrayBuffer = await directResponse.arrayBuffer();
         }
-        
-        const arrayBuffer = await response.arrayBuffer();
 
         if (docData.type.includes('excel') || docData.type.includes('spreadsheet') || docData.name.match(/\.(xls|xlsx)$/i)) {
           const workbook = XLSX.read(arrayBuffer, { type: 'array' });

@@ -3808,7 +3808,7 @@ function Inventory() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Fournisseurs Actifs</p>
-            <h4 className="text-2xl font-bold text-gray-900 mt-1">7</h4>
+            <h4 className="text-2xl font-bold text-gray-900 mt-1">{fournisseurs.length}</h4>
           </div>
         </div>
       </div>
@@ -4700,19 +4700,31 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input 
+                  <select
                     value={newRecipeForm.category}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
-                    list="fiche-categories-list"
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]"
-                    placeholder="Sélectionner ou saisir..."
-                  />
-                  <datalist id="fiche-categories-list">
-                    <option value="Entrée" />
-                    <option value="Plat Principal" />
-                    <option value="Dessert" />
-                    <option value="Boisson" />
-                  </datalist>
+                    className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner une catégorie</option>
+                    <option value="Amuse-bouche">Amuse-bouche</option>
+                    <option value="Entrées Froides">Entrées Froides</option>
+                    <option value="Entrées Chaudes">Entrées Chaudes</option>
+                    <option value="Soupes & Potages">Soupes & Potages</option>
+                    <option value="Salades">Salades</option>
+                    <option value="Plats Principaux">Plats Principaux</option>
+                    <option value="Spécialités du Chef">Spécialités du Chef</option>
+                    <option value="Grillades & Rôtis">Grillades & Rôtis</option>
+                    <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
+                    <option value="Pâtes & Risottos">Pâtes & Risottos</option>
+                    <option value="Accompagnements">Accompagnements</option>
+                    <option value="Sauces & Condiments">Sauces & Condiments</option>
+                    <option value="Desserts">Desserts</option>
+                    <option value="Pâtisseries">Pâtisseries</option>
+                    <option value="Glaces & Sorbets">Glaces & Sorbets</option>
+                    <option value="Boissons Chaudes">Boissons Chaudes</option>
+                    <option value="Boissons Froides">Boissons Froides</option>
+                    <option value="Cocktails">Cocktails</option>
+                  </select>
                 </div>
               </div>
               
@@ -4862,18 +4874,16 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input 
+                  <select
                     name="category"
                     required
-                    list="categories-list"
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
-                    placeholder="Sélectionner ou saisir..."
-                  />
-                  <datalist id="categories-list">
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner une catégorie</option>
                     {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
+                      <option key={idx} value={cat}>{cat}</option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>

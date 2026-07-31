@@ -82,21 +82,69 @@ function RecetteForm({ initialData, onSubmit, onCancel }: { initialData?: any, o
                     className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
                   >
                     <option value="">Sélectionner une catégorie</option>
-                    <option value="Plats">Plats</option>
-                    <option value="Entrées">Entrées</option>
+                    <option value="Amuse-bouche">Amuse-bouche</option>
+                    <option value="Entrées Froides">Entrées Froides</option>
+                    <option value="Entrées Chaudes">Entrées Chaudes</option>
+                    <option value="Soupes & Potages">Soupes & Potages</option>
+                    <option value="Salades">Salades</option>
+                    <option value="Plats Principaux">Plats Principaux</option>
+                    <option value="Spécialités du Chef">Spécialités du Chef</option>
+                    <option value="Grillades & Rôtis">Grillades & Rôtis</option>
+                    <option value="Poissons & Fruits de mer">Poissons & Fruits de mer</option>
+                    <option value="Pâtes & Risottos">Pâtes & Risottos</option>
+                    <option value="Accompagnements">Accompagnements</option>
+                    <option value="Sauces & Condiments">Sauces & Condiments</option>
                     <option value="Desserts">Desserts</option>
-                    <option value="Boissons">Boissons</option>
+                    <option value="Pâtisseries">Pâtisseries</option>
+                    <option value="Glaces & Sorbets">Glaces & Sorbets</option>
+                    <option value="Boissons Chaudes">Boissons Chaudes</option>
+                    <option value="Boissons Froides">Boissons Froides</option>
+                    <option value="Cocktails">Cocktails</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portion</label>
-                  <input value={portion} onChange={e => setPortion(e.target.value)} required type="text" placeholder="Ex: 4 personnes" className="w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956]" />
+                  <select
+                    value={portion}
+                    onChange={e => setPortion(e.target.value)}
+                    required
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner une portion</option>
+                    <option value="1 personne">1 personne</option>
+                    <option value="2 personnes">2 personnes</option>
+                    <option value="3 personnes">3 personnes</option>
+                    <option value="4 personnes">4 personnes</option>
+                    <option value="6 personnes">6 personnes</option>
+                    <option value="8 personnes">8 personnes</option>
+                    <option value="10 personnes">10 personnes</option>
+                    <option value="12 pièces">12 pièces</option>
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Temps</label>
-                  <input value={temps} onChange={e => setTemps(e.target.value)} required type="text" placeholder="Ex: 1h" className="w-full border border-gray-200 rounded-lg p-2.5 outline-none focus:border-[#DDA956]" />
+                  <select
+                    value={temps}
+                    onChange={e => setTemps(e.target.value)}
+                    required
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white outline-none focus:border-[#DDA956]"
+                  >
+                    <option value="">Sélectionner un temps</option>
+                    <option value="5 min">5 min</option>
+                    <option value="10 min">10 min</option>
+                    <option value="15 min">15 min</option>
+                    <option value="20 min">20 min</option>
+                    <option value="30 min">30 min</option>
+                    <option value="40 min">40 min</option>
+                    <option value="45 min">45 min</option>
+                    <option value="1h">1h</option>
+                    <option value="1h 30">1h 30</option>
+                    <option value="2h">2h</option>
+                    <option value="3h">3h</option>
+                    <option value="+3h">+3h</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Difficulté</label>

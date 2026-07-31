@@ -155,7 +155,7 @@ function ReviewAnalyzer() {
       
       <div className="space-y-4">
         <textarea
-          className="w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#DDA956] resize-none h-32"
+          className="w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#F4C75B] resize-none h-32"
           placeholder="Collez un avis client ici pour l'analyser avec l'IA..."
           value={review}
           onChange={(e) => setReview(e.target.value)}
@@ -326,7 +326,7 @@ function InventoryAlerts() {
                     <input 
                       type="number" 
                       defaultValue={Math.max((orderingItem.criticalThreshold * 3) - orderingItem.quantity, orderingItem.criticalThreshold * 2)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
                       min="1"
                     />
                   </div>
@@ -334,7 +334,7 @@ function InventoryAlerts() {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur (Optionnel)</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#DDA956] focus:border-transparent outline-none transition-all">
+                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all">
                     <option value="">Sélectionner un fournisseur régulier</option>
                     <option value="f1">Fournisseur Principal (Marché Central)</option>
                     <option value="f2">Grossiste Viande & Volaille</option>
@@ -353,7 +353,7 @@ function InventoryAlerts() {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-[#DDA956] hover:bg-[#c99a4e] transition-colors shadow-lg shadow-[#DDA956]/20 flex justify-center items-center gap-2"
+                  className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-[#F4C75B] hover:bg-[#c99a4e] transition-colors shadow-lg shadow-[#F4C75B]/20 flex justify-center items-center gap-2"
                 >
                   <Send size={18} />
                   Envoyer Commande
@@ -373,8 +373,8 @@ const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
       onClick={onClick}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
         isExpanded 
-          ? 'bg-[#DDA956] text-[#265C6D] shadow-lg shadow-[#DDA956]/20' 
-          : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+          ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20' 
+          : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
       }`}
     >
       <div className="flex items-center gap-3">
@@ -384,7 +384,7 @@ const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
     </button>
     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[400px] mt-2 opacity-100' : 'max-h-0 opacity-0'}`}>
-      <div className="flex flex-col space-y-1 pl-4 border-l-2 border-[#DDA956]/20 ml-6 py-1">
+      <div className="flex flex-col space-y-1 pl-4 border-l-2 border-[#F4C75B]/20 ml-6 py-1">
         {children}
       </div>
     </div>
@@ -400,7 +400,7 @@ const SubNavItem = ({ icon, label, active, onClick }: any) => (
         : 'text-gray-400 hover:bg-[#2A2A2A] hover:text-[#E8E6E1]'
     }`}
   >
-    <span className={`${active ? 'text-[#DDA956]' : 'text-gray-500'}`}>{icon}</span>
+    <span className={`${active ? 'text-[#F4C75B]' : 'text-gray-500'}`}>{icon}</span>
     {label}
   </button>
 );
@@ -469,7 +469,7 @@ export default function App() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center font-serif text-[#DDA956]">Chargement...</div>;
+    return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center font-serif text-[#F4C75B]">Chargement...</div>;
   }
 
   if (appMode === 'selection') {
@@ -558,10 +558,10 @@ export default function App() {
       <NotificationSystem />
       {/* Mobile Header */}
       {!isFullScreenView && (
-      <div className="print:hidden md:hidden flex items-center justify-between bg-[#265C6D] p-4 text-[#DDA956] z-40 sticky top-0">
+      <div className="print:hidden md:hidden flex items-center justify-between bg-[#265C6D] p-4 text-[#F4C75B] z-40 sticky top-0">
         <div className="flex items-center gap-4">
           <div 
-             className="h-10 w-12 bg-[#DDA956]" 
+             className="h-10 w-12 bg-[#F4C75B]" 
              style={{
               maskImage: 'url(/mouda-1.png)',
               maskSize: 'contain',
@@ -586,7 +586,7 @@ export default function App() {
       <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#265C6D] text-[#E8E6E1] p-6 flex-col border-r border-[#2F6B7F] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
-            className="h-24 w-32 mb-4 bg-[#DDA956]" 
+            className="h-24 w-32 mb-4 bg-[#F4C75B]" 
             style={{
               maskImage: 'url(/mouda-1.png)',
               maskSize: 'contain',
@@ -599,10 +599,10 @@ export default function App() {
             }}
             title="Mouda Palace Logo"
           />
-          <h1 className="text-xl font-serif text-[#DDA956] font-normal tracking-[0.15em] uppercase">
+          <h1 className="text-xl font-serif text-[#F4C75B] font-normal tracking-[0.15em] uppercase">
             Mouda Palace
           </h1>
-          <a href="https://moudapalace.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 mt-2 block uppercase tracking-widest hover:text-[#DDA956] transition-colors">
+          <a href="https://moudapalace.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 mt-2 block uppercase tracking-widest hover:text-[#F4C75B] transition-colors">
             moudapalace.com
           </a>
         </div>
@@ -614,7 +614,7 @@ export default function App() {
               placeholder="Rechercher..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#222] text-[#E8E6E1] placeholder-gray-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#DDA956] border border-[#2F6B7F]"
+              className="w-full bg-[#222] text-[#E8E6E1] placeholder-gray-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#F4C75B] border border-[#2F6B7F]"
             />
             <Search size={16} className="absolute left-3 top-2.5 text-gray-500" />
             {searchQuery && (
@@ -631,7 +631,7 @@ export default function App() {
                 <ul className="max-h-60 overflow-y-auto">
                   {filteredSearch.map((item, idx) => (
                     <li key={idx} className="px-4 py-3 hover:bg-[#2F6B7F] cursor-pointer transition-colors border-b border-[#2F6B7F] last:border-0" onClick={() => { setSearchQuery(''); handleTabChange(item.tab); setIsMobileMenuOpen(false); }}>
-                      <div className="text-xs text-[#DDA956] font-medium mb-1 uppercase tracking-wider">{item.type}</div>
+                      <div className="text-xs text-[#F4C75B] font-medium mb-1 uppercase tracking-wider">{item.type}</div>
                       <div className="text-sm text-[#E8E6E1]">{item.text}</div>
                     </li>
                   ))}
@@ -644,7 +644,7 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto pr-2 pb-8 scrollbar-thin scrollbar-thumb-[#2F6B7F] scrollbar-track-transparent">
-          <div className="mb-4 text-[#DDA956] font-serif text-lg tracking-wider font-semibold border-b border-[#2F6B7F] pb-2">
+          <div className="mb-4 text-[#F4C75B] font-serif text-lg tracking-wider font-semibold border-b border-[#2F6B7F] pb-2">
             Tableau de Bord
           </div>
           
@@ -652,8 +652,8 @@ export default function App() {
             onClick={() => handleTabChange('overview')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'overview'
-                ? 'bg-[#DDA956] text-[#265C6D] shadow-lg shadow-[#DDA956]/20'
-                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
+                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
             }`}
           >
             <TrendingUp size={18} />
@@ -664,8 +664,8 @@ export default function App() {
             onClick={() => handleTabChange('finance')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'finance'
-                ? 'bg-[#DDA956] text-[#265C6D] shadow-lg shadow-[#DDA956]/20'
-                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
+                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
             }`}
           >
             <Wallet size={18} />
@@ -676,8 +676,8 @@ export default function App() {
             onClick={() => handleTabChange('docs_devices')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'docs_devices'
-                ? 'bg-[#DDA956] text-[#265C6D] shadow-lg shadow-[#DDA956]/20'
-                : 'text-[#DDA956] border border-[#DDA956]/30 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
+                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
             }`}
           >
             <Monitor size={18} />
@@ -688,15 +688,15 @@ export default function App() {
             onClick={() => handleTabChange('menu')}
             className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-bold mb-6 border-2 shadow-sm ${
               activeTab === 'menu'
-                ? 'bg-[#DDA956] text-[#265C6D] border-[#DDA956] shadow-[#DDA956]/30'
-                : 'text-[#DDA956] border-[#DDA956]/50 hover:border-[#DDA956] hover:bg-[#DDA956]/10'
+                ? 'bg-[#F4C75B] text-[#265C6D] border-[#F4C75B] shadow-[#F4C75B]/30'
+                : 'text-[#F4C75B] border-[#F4C75B]/50 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
             }`}
           >
             <div className="flex items-center gap-3">
                <Printer size={18} />
                <span>Génération du Menu</span>
             </div>
-            <Sparkles size={16} className="text-[#DDA956] opacity-70" />
+            <Sparkles size={16} className="text-[#F4C75B] opacity-70" />
           </button>
 
           <NavCategory 
@@ -779,7 +779,7 @@ export default function App() {
             {user ? (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#DDA956] flex items-center justify-center text-[#265C6D] font-medium overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-[#F4C75B] flex items-center justify-center text-[#265C6D] font-medium overflow-hidden">
                     {user.photoURL ? <img src={user.photoURL} alt={user.displayName || 'User'} /> : (user.displayName?.charAt(0) || user.email?.charAt(0) || 'U').toUpperCase()}
                   </div>
                   <div className="text-sm">
@@ -792,7 +792,7 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 bg-[#DDA956] text-[#265C6D] py-2 px-4 rounded-lg font-medium text-sm hover:bg-[#c4954b] transition-colors">
+              <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-2 px-4 rounded-lg font-medium text-sm hover:bg-[#E5B745] transition-colors">
                 <LogIn size={16} />
                 <span>Connexion</span>
               </button>
@@ -882,8 +882,8 @@ function PerformanceAnalysis() {
             <AreaChart data={occupancyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorTaux" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#DDA956" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#DDA956" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#F4C75B" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#F4C75B" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -893,7 +893,7 @@ function PerformanceAnalysis() {
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 cursor={{ stroke: '#f3f4f6', strokeWidth: 2 }}
               />
-              <Area type="monotone" dataKey="taux" stroke="#DDA956" strokeWidth={3} fillOpacity={1} fill="url(#colorTaux)" />
+              <Area type="monotone" dataKey="taux" stroke="#F4C75B" strokeWidth={3} fillOpacity={1} fill="url(#colorTaux)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -980,7 +980,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
       metricsCache.current[cacheKey] = newMetrics;
       setMetrics(newMetrics);
       setIsLoadingMetrics(false);
-      showToast(`Nouvelles données ${cacheKey} récupérées depuis Firestore`);
+      // showToast(`Nouvelles données ${cacheKey} récupérées depuis Firestore`);
     }, 600);
 
     return () => clearTimeout(fetchTimeout);
@@ -1056,14 +1056,14 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                     type="date" 
                     value={customStartDate} 
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="border border-gray-200 rounded-md py-1 px-2 text-sm text-gray-700 outline-none focus:border-[#DDA956] bg-white"
+                    className="border border-gray-200 rounded-md py-1 px-2 text-sm text-gray-700 outline-none focus:border-[#F4C75B] bg-white"
                   />
                   <span className="text-gray-500 text-sm">-</span>
                   <input 
                     type="date" 
                     value={customEndDate} 
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="border border-gray-200 rounded-md py-1 px-2 text-sm text-gray-700 outline-none focus:border-[#DDA956] bg-white"
+                    className="border border-gray-200 rounded-md py-1 px-2 text-sm text-gray-700 outline-none focus:border-[#F4C75B] bg-white"
                   />
                 </div>
               )}
@@ -1089,28 +1089,28 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             title="Daily Active Users" 
             value={isLoadingMetrics ? "..." : metrics.users}
             subtitle="Utilisateurs uniques"
-            icon={<Users className="text-[#DDA956]" size={24} />}
+            icon={<Users className="text-[#F4C75B]" size={24} />}
             delay={0.1}
           />
           <DashboardCard 
             title="Average Order Value" 
             value={isLoadingMetrics ? "..." : metrics.aov}
             subtitle="Panier moyen par table"
-            icon={<CreditCard className="text-[#DDA956]" size={24} />}
+            icon={<CreditCard className="text-[#F4C75B]" size={24} />}
             delay={0.2}
           />
           <DashboardCard 
             title="Réservations" 
             value={isLoadingMetrics ? "..." : metrics.reservations}
             subtitle="+12 via WhatsApp IA, 4 via Riads B2B"
-            icon={<CalendarCheck className="text-[#DDA956]" size={24} />}
+            icon={<CalendarCheck className="text-[#F4C75B]" size={24} />}
             delay={0.3}
           />
           <DashboardCard 
             title="Chiffre d'Affaires Prév." 
             value={isLoadingMetrics ? "..." : metrics.revenue}
             subtitle="Basé sur les réservations"
-            icon={<Banknote className="text-[#DDA956]" size={24} />}
+            icon={<Banknote className="text-[#F4C75B]" size={24} />}
             delay={0.4}
           />
         </div>
@@ -1121,21 +1121,21 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             title="Point de Vente (POS)" 
             value={isLoadingMetrics ? "..." : metrics.pos}
             subtitle="Synchronisation des tables en temps réel"
-            icon={<Store className="text-[#DDA956]" size={24} />}
+            icon={<Store className="text-[#F4C75B]" size={24} />}
             delay={0.3}
           />
           <DashboardCard 
             title="Clients Actifs (CRM)" 
             value={isLoadingMetrics ? "..." : metrics.crm}
             subtitle="Base Firestore synchronisée en temps réel"
-            icon={<Users className="text-[#DDA956]" size={24} />}
+            icon={<Users className="text-[#F4C75B]" size={24} />}
             delay={0.4}
           />
           <DashboardCard 
             title="Commissions Riads" 
             value={isLoadingMetrics ? "..." : metrics.commissions}
             subtitle="À régler pour la période"
-            icon={<MapPin className="text-[#DDA956]" size={24} />}
+            icon={<MapPin className="text-[#F4C75B]" size={24} />}
             delay={0.5}
           />
         </div>
@@ -1148,14 +1148,14 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             title="Facebook (Abonnés)" 
             value="12.4K"
             subtitle="+24 cette semaine • Portée: 4.2K"
-            icon={<Facebook className="text-[#DDA956]" size={24} />}
+            icon={<Facebook className="text-[#F4C75B]" size={24} />}
             delay={0.6}
           />
           <DashboardCard 
             title="Instagram (Abonnés)" 
             value="8.2K"
             subtitle="+52 cette semaine • Portée: 6.8K"
-            icon={<Instagram className="text-[#DDA956]" size={24} />}
+            icon={<Instagram className="text-[#F4C75B]" size={24} />}
             delay={0.7}
           />
         </div>
@@ -1176,7 +1176,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             }}
             className="bg-[#265C6D] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#2F6B7F] flex items-center gap-4 transition-all"
           >
-            <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-lg">
+            <div className="p-3 bg-[#F4C75B]/20 text-[#F4C75B] rounded-lg">
               <CalendarCheck size={20} />
             </div>
             <div className="text-left">
@@ -1257,7 +1257,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                   />
                   <Legend />
                   <Bar yAxisId="left" name="Budget Ads (MAD)" dataKey="spend" fill="#265C6D" radius={[4, 4, 0, 0]} />
-                  <Bar yAxisId="right" name="Revenu Généré (MAD)" dataKey="revenu" fill="#DDA956" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" name="Revenu Généré (MAD)" dataKey="revenu" fill="#F4C75B" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -1273,7 +1273,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               onClick={() => showToast('Lancement Nouvelle Campagne Meta...')}
               className="w-full bg-[#265C6D] hover:bg-[#222] text-white p-6 rounded-2xl shadow-xl border border-[#2F6B7F] flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-1"
             >
-              <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-full">
+              <div className="p-3 bg-[#F4C75B]/20 text-[#F4C75B] rounded-full">
                 <Megaphone size={28} />
               </div>
               <span className="font-serif text-lg tracking-wide font-medium">Nouvelle Campagne Ads</span>
@@ -1342,7 +1342,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-serif font-medium text-gray-900 flex items-center gap-2">
-                <TrendingUp className="text-[#DDA956]" size={24} />
+                <TrendingUp className="text-[#F4C75B]" size={24} />
                 Résumé des Métriques
               </h3>
               <button onClick={() => setIsSummaryModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
@@ -1398,7 +1398,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                         <span className="text-sm text-green-600 font-medium mb-1">+5% vs hier</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-[#DDA956] h-2 rounded-full" style={{ width: '85%' }}></div>
+                        <div className="bg-[#F4C75B] h-2 rounded-full" style={{ width: '85%' }}></div>
                       </div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -1441,7 +1441,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                   showToast("Impression du résumé en cours...");
                   setTimeout(() => { try { window.print(); } catch(e) { showToast("Erreur d'impression", "error"); } }, 500);
                 }}
-                className="px-6 py-2 bg-[#DDA956] text-[#265C6D] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2 shadow-sm"
+                className="px-6 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2 shadow-sm"
               >
                 <Download size={18} /> Imprimer / Exporter PDF
               </button>
@@ -1630,7 +1630,7 @@ function Reservations() {
           </button>
           <button 
             onClick={() => setIsNewResOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Nouvelle Réservation
@@ -1686,7 +1686,7 @@ function Reservations() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'upcoming' && 'À venir (3)'}
               {tab === 'floorplan' && 'Plan de Salle'}
@@ -1711,7 +1711,7 @@ function Reservations() {
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-medium text-gray-900">{res.name}</h4>
                         {res.tag && (
-                          <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-md ${res.tag === 'VIP' ? 'bg-[#DDA956]/20 text-[#DDA956]' : res.tag === 'Allergies' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                          <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-md ${res.tag === 'VIP' ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : res.tag === 'Allergies' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                             {res.tag}
                           </span>
                         )}
@@ -1720,7 +1720,7 @@ function Reservations() {
                         <span className="flex items-center gap-1"><Clock size={14} /> {res.date}</span>
                         <span className="flex items-center gap-1"><Users size={14} /> {res.pax} pax</span>
                         {res.table && (
-                          <span className="flex items-center gap-1 text-[#DDA956] font-medium bg-[#DDA956]/10 px-2 py-0.5 rounded-md">
+                          <span className="flex items-center gap-1 text-[#F4C75B] font-medium bg-[#F4C75B]/10 px-2 py-0.5 rounded-md">
                             Table {res.table}
                           </span>
                         )}
@@ -1797,7 +1797,7 @@ function Reservations() {
                    <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">Plan de Salle Interactif</h3>
                    <p className="text-sm text-gray-500">Gérez les tables et les affectations en temps réel.</p>
                  </div>
-                 <button onClick={autoAssignTables} className="px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm flex items-center gap-2">
+                 <button onClick={autoAssignTables} className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm flex items-center gap-2">
                    <Wand2 size={16} /> Attribution Auto
                  </button>
                </div>
@@ -1814,7 +1814,7 @@ function Reservations() {
                    {tables.map(table => (
                      <div 
                        key={table.id}
-                       className={`absolute flex flex-col items-center justify-center font-bold text-sm shadow-sm transition-all cursor-pointer hover:ring-2 hover:ring-[#DDA956]/80
+                       className={`absolute flex flex-col items-center justify-center font-bold text-sm shadow-sm transition-all cursor-pointer hover:ring-2 hover:ring-[#F4C75B]/80
                          ${table.type === 'round' ? 'rounded-full w-20 h-20' : table.type === 'square' ? 'rounded-xl w-20 h-20' : 'rounded-xl w-32 h-20'}
                          ${table.status === 'available' ? 'bg-green-50 border border-green-200 text-green-700' : table.status === 'reserved' ? 'bg-amber-50 border border-amber-200 text-amber-700' : 'bg-red-50 border border-red-200 text-red-700'}
                        `}
@@ -1881,7 +1881,7 @@ function Reservations() {
 
           {activeTab === 'reviews' && (
              <div className="p-8">
-               <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2"><Star size={18} className="text-[#DDA956]" /> Derniers avis TripAdvisor</h4>
+               <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2"><Star size={18} className="text-[#F4C75B]" /> Derniers avis TripAdvisor</h4>
                <div className="space-y-4">
                  {[1,2].map(i => (
                     <div key={i} className="p-5 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
@@ -1941,7 +1941,7 @@ function Reservations() {
                     <div key={i} className={`min-h-[100px] p-2 border-r border-b border-gray-100 ${!isValidDay ? 'bg-gray-50/50' : 'bg-white'}`}>
                       {isValidDay && (
                         <>
-                          <div className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isTodayHighlight ? 'bg-[#DDA956] text-white' : 'text-gray-700'}`}>
+                          <div className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isTodayHighlight ? 'bg-[#F4C75B] text-white' : 'text-gray-700'}`}>
                             {day}
                           </div>
                           {hasReservation && (
@@ -2014,31 +2014,31 @@ function Reservations() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du client</label>
-                <input name="nom" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: M. Dubois" />
+                <input name="nom" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: M. Dubois" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Heure</label>
-                  <input name="time" required type="time" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="time" required type="time" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Personnes (Pax)</label>
-                  <input name="pax" required type="number" defaultValue={2} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="pax" required type="number" defaultValue={2} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input name="phone" required type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="+212..." />
+                  <input name="phone" required type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="+212..." />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Source / Canal</label>
-                <select name="source" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                <select name="source" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                   <option>Téléphone</option>
                   <option>Passage (Walk-in)</option>
                   <option>WhatsApp / Instagram</option>
@@ -2047,7 +2047,7 @@ function Reservations() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes / Tags spéciaux (ajoutez "VIP" pour tag VIP)</label>
-                <textarea name="notes" rows={2} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" placeholder="Allergies, anniversaire, VIP..."></textarea>
+                <textarea name="notes" rows={2} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" placeholder="Allergies, anniversaire, VIP..."></textarea>
               </div>
               <button 
                 type="submit"
@@ -2075,7 +2075,7 @@ function Reservations() {
                   type="text" 
                   value={newWaitlistName}
                   onChange={(e) => setNewWaitlistName(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#DDA956]/50 focus:border-[#DDA956] outline-none transition-all"
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B]/50 focus:border-[#F4C75B] outline-none transition-all"
                   placeholder="Ex: M. Martin"
                 />
               </div>
@@ -2105,7 +2105,7 @@ function Reservations() {
                     showToast('Veuillez entrer un nom');
                   }
                 }}
-                className="w-full bg-[#DDA956] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
                 Ajouter
               </button>
@@ -2178,7 +2178,7 @@ function Reservations() {
                 <input 
                   type="number" 
                   defaultValue={200 * selectedActionRes.pax}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#DDA956]/50 focus:border-[#DDA956] outline-none transition-all"
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B]/50 focus:border-[#F4C75B] outline-none transition-all"
                 />
                 <p className="text-xs text-gray-500 mt-1">Suggestion basée sur {selectedActionRes.pax} pax x 200 MAD</p>
               </div>
@@ -2326,7 +2326,7 @@ Clients apportés: ${partner.clients}
         </div>
         <button 
           onClick={() => setIsAddPartnerModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm"
         >
           <Plus size={16} />
           Ajouter un Partenaire
@@ -2376,7 +2376,7 @@ Clients apportés: ${partner.clients}
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'partners' && 'Liste des Partenaires'}
               {tab === 'commissions' && 'Commissions & Versements'}
@@ -2404,7 +2404,7 @@ Clients apportés: ${partner.clients}
                     <tr key={partner.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${partner.active ? 'bg-[#DDA956]/10 text-[#DDA956]' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${partner.active ? 'bg-[#F4C75B]/10 text-[#F4C75B]' : 'bg-gray-100 text-gray-400'}`}>
                             {getIconForType(partner.type)}
                           </div>
                           <div>
@@ -2438,7 +2438,7 @@ Clients apportés: ${partner.clients}
                           </button>
                           <button 
                             onClick={() => handleDownloadPartner(partner)}  
-                            className="p-2 text-gray-400 hover:text-[#DDA956] transition-colors rounded-lg hover:bg-amber-50"
+                            className="p-2 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-amber-50"
                             title="Télécharger Fiche Partenaire"
                           >
                             <Download size={18} />
@@ -2494,7 +2494,7 @@ Clients apportés: ${partner.clients}
                       <tr key={idx} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 font-medium text-gray-900">{tx.name}</td>
                         <td className="px-6 py-4 text-gray-600">{tx.date}</td>
-                        <td className="px-6 py-4 font-medium text-[#DDA956]">{tx.amount}</td>
+                        <td className="px-6 py-4 font-medium text-[#F4C75B]">{tx.amount}</td>
                         <td className="px-6 py-4 text-gray-600">{tx.method}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">
@@ -2567,7 +2567,7 @@ Clients apportés: ${partner.clients}
                               .qr-wrapper { display: inline-block; padding: 2rem; border: 4px solid #265C6D; border-radius: 2rem; margin-bottom: 3rem; }
                               .qr-placeholder { width: 400px; height: 400px; background-image: url('https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=https://moudapalace.com/reserve/${selectedPartner.id}'); background-size: cover; background-position: center; }
                               .controls { margin-top: 2rem; }
-                              button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #DDA956; color: #265C6D; border: none; border-radius: 8px; font-weight: bold; margin: 0 10px; }
+                              button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; background: #F4C75B; color: #265C6D; border: none; border-radius: 8px; font-weight: bold; margin: 0 10px; }
                               button.secondary { background: #265C6D; color: #fff; }
                               @media print { .controls { display: none !important; } }
                             </style>
@@ -2591,7 +2591,7 @@ Clients apportés: ${partner.clients}
                     showToast("Page d'impression HD ouverte dans un nouvel onglet");
                     setIsQRModalOpen(false);
                   }}
-                  className="flex-1 bg-[#265C6D] text-[#DDA956] py-2.5 rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#265C6D] text-[#F4C75B] py-2.5 rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors flex items-center justify-center gap-2"
                 >
                   <Printer size={18} />
                   Ouvrir HD / Imprimer
@@ -2639,7 +2639,7 @@ Clients apportés: ${partner.clients}
                   type="text" 
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                   placeholder="Ex: Riad Dar Salam" 
                 />
               </div>
@@ -2649,7 +2649,7 @@ Clients apportés: ${partner.clients}
                   <select 
                     value={newPartnerType} 
                     onChange={(e) => setNewPartnerType(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
                   >
                     <option value="Riad">Riad</option>
                     <option value="Hôtel">Hôtel</option>
@@ -2663,7 +2663,7 @@ Clients apportés: ${partner.clients}
                     type="number" 
                     value={newPartnerCommission}
                     onChange={(e) => setNewPartnerCommission(Number(e.target.value))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                   />
                 </div>
               </div>
@@ -2674,7 +2674,7 @@ Clients apportés: ${partner.clients}
                     type="email" 
                     value={newPartnerEmail}
                     onChange={(e) => setNewPartnerEmail(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="contact@riad.com" 
                   />
                 </div>
@@ -2684,7 +2684,7 @@ Clients apportés: ${partner.clients}
                     type="text" 
                     value={newPartnerAccessCode}
                     onChange={(e) => setNewPartnerAccessCode(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="Ex: RIAD2026" 
                   />
                 </div>
@@ -2746,7 +2746,7 @@ Clients apportés: ${partner.clients}
                   type="text" 
                   value={newPartnerName}
                   onChange={(e) => setNewPartnerName(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                   placeholder="Ex: Riad Dar Salam" 
                 />
               </div>
@@ -2756,7 +2756,7 @@ Clients apportés: ${partner.clients}
                   <select 
                     value={newPartnerType} 
                     onChange={(e) => setNewPartnerType(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
                   >
                     <option value="Riad">Riad</option>
                     <option value="Hôtel">Hôtel</option>
@@ -2770,7 +2770,7 @@ Clients apportés: ${partner.clients}
                     type="number" 
                     value={newPartnerCommission}
                     onChange={(e) => setNewPartnerCommission(Number(e.target.value))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="5" 
                   />
                 </div>
@@ -2782,7 +2782,7 @@ Clients apportés: ${partner.clients}
                     type="email" 
                     value={newPartnerEmail}
                     onChange={(e) => setNewPartnerEmail(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="contact@riad.com" 
                   />
                 </div>
@@ -2792,7 +2792,7 @@ Clients apportés: ${partner.clients}
                     type="text" 
                     value={newPartnerAccessCode}
                     onChange={(e) => setNewPartnerAccessCode(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="Ex: RIAD2026" 
                   />
                 </div>
@@ -2897,14 +2897,14 @@ function WhatsAppAI() {
                   rows={6}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:border-[#DDA956] resize-none"
+                  className="w-full border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:border-[#F4C75B] resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Langue par défaut</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#DDA956]">
+                  <select className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]">
                     <option>Français (par défaut)</option>
                     <option>Anglais</option>
                     <option>Arabe</option>
@@ -2912,7 +2912,7 @@ function WhatsAppAI() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Délai de réponse (secondes)</label>
-                  <input type="number" defaultValue={2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#DDA956]" />
+                  <input type="number" defaultValue={2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               
@@ -2987,35 +2987,35 @@ function WhatsAppAI() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du restaurant</label>
-                <input type="text" defaultValue="Mouda Palace" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input type="text" defaultValue="Mouda Palace" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Adresse complète</label>
-                <textarea rows={2} defaultValue="Derb El Hammam, Medina, Fès, Maroc" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" />
+                <textarea rows={2} defaultValue="Derb El Hammam, Medina, Fès, Maroc" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Horaires (Ouverture)</label>
-                  <input type="time" defaultValue="12:00" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input type="time" defaultValue="12:00" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Horaires (Fermeture)</label>
-                  <input type="time" defaultValue="23:30" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input type="time" defaultValue="23:30" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Indications d'accès (Parking, repères)</label>
-                <textarea rows={3} defaultValue="Parking sécurisé à Bab Boujloud (à 5min à pied). Le restaurant est situé juste derrière la fontaine bleue." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" />
+                <textarea rows={3} defaultValue="Parking sécurisé à Bab Boujloud (à 5min à pied). Le restaurant est situé juste derrière la fontaine bleue." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Informations supplémentaires</label>
                 <textarea rows={3} defaultValue="- Option végétarienne et vegan disponibles.
 - Animation musicale (Luth/Oud) tous les vendredis et samedis soirs.
-- Accessible aux fauteuils roulants au rez-de-chaussée uniquement." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" />
+- Accessible aux fauteuils roulants au rez-de-chaussée uniquement." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
               </div>
 
               <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-gray-100">
@@ -3220,7 +3220,7 @@ function DigitalMenu() {
           </button>
           <button 
             onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Ajouter un plat
@@ -3231,7 +3231,7 @@ function DigitalMenu() {
       {/* AI Translation Banner */}
       <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-4 text-white">
-          <div className="p-3 bg-[#DDA956]/20 text-[#DDA956] rounded-xl">
+          <div className="p-3 bg-[#F4C75B]/20 text-[#F4C75B] rounded-xl">
             <Globe size={24} />
           </div>
           <div>
@@ -3244,7 +3244,7 @@ function DigitalMenu() {
           disabled={isTranslating || menuItems.filter(i => !i.translated).length === 0}
           className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#265C6D] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${(isTranslating || menuItems.filter(i => !i.translated).length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
         >
-          {isTranslating ? <Loader2 size={16} className="text-[#DDA956] animate-spin" /> : <Sparkles size={16} className={menuItems.filter(i => !i.translated).length === 0 ? "text-gray-400" : "text-[#DDA956]"} />}
+          {isTranslating ? <Loader2 size={16} className="text-[#F4C75B] animate-spin" /> : <Sparkles size={16} className={menuItems.filter(i => !i.translated).length === 0 ? "text-gray-400" : "text-[#F4C75B]"} />}
           {isTranslating ? 'Traduction en cours...' : menuItems.filter(i => !i.translated).length === 0 ? 'Tous les plats sont traduits' : `Traduire ${menuItems.filter(i => !i.translated).length} plat(s) non traduit(s)`}
         </button>
       </div>
@@ -3258,7 +3258,7 @@ function DigitalMenu() {
               id="category-filter"
               value={activeCategory}
               onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-[#265C6D] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#DDA956]"
+              className="bg-[#265C6D] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F4C75B]"
             >
               <option value="Tous">Toutes les catégories</option>
               <option value="Favoris">Favoris ❤️</option>
@@ -3567,7 +3567,7 @@ function DigitalMenu() {
                   type="text" 
                   value={newDishForm.name}
                   onChange={(e) => setNewDishForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                   placeholder="Ex: Pastilla au Poulet" 
                 />
               </div>
@@ -3577,7 +3577,7 @@ function DigitalMenu() {
                   <select 
                     value={newDishForm.category}
                     onChange={(e) => setNewDishForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -3588,7 +3588,7 @@ function DigitalMenu() {
                     type="number" 
                     value={newDishForm.price}
                     onChange={(e) => setNewDishForm(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="0" 
                   />
                 </div>
@@ -3599,12 +3599,12 @@ function DigitalMenu() {
                   rows={3} 
                   value={newDishForm.desc}
                   onChange={(e) => setNewDishForm(prev => ({ ...prev, desc: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none" 
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" 
                   placeholder="Description du plat..."
                 ></textarea>
               </div>
               <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div className="p-2 bg-[#DDA956]/20 text-[#DDA956] rounded-md">
+                <div className="p-2 bg-[#F4C75B]/20 text-[#F4C75B] rounded-md">
                   <Sparkles size={16} />
                 </div>
                 <div className="flex-1">
@@ -3682,7 +3682,7 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', "Produits d'entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien"];
     const dbCats = stockItemsData.map(item => item.category?.trim()).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats])).sort();
   }, [stockItemsData]);
@@ -3719,7 +3719,7 @@ function Inventory() {
             <title>État de l'Inventaire - Mouda Palace</title>
             <style>
               body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
-              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #DDA956; padding-bottom: 20px; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
               .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
               .logo-sub { font-size: 14px; color: #666; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
               .title { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; }
@@ -3812,7 +3812,7 @@ function Inventory() {
           </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm"
           >
             <Plus size={16} />
             Ajouter un produit
@@ -3860,7 +3860,7 @@ function Inventory() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#DDA956]/20 text-[#DDA956]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'requirements' && 'Besoins & Seuils'}
@@ -3886,14 +3886,14 @@ function Inventory() {
                   placeholder="Rechercher un produit..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
                 />
               </div>
               <div className="w-full sm:w-64">
                 <select 
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
                 >
                   <option value="Tous">Toutes les catégories</option>
                   {categories.map(c => (
@@ -3904,7 +3904,7 @@ function Inventory() {
               <div className="w-full sm:w-auto">
                 <button 
                   onClick={handleExportPDF}
-                  className="w-full px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2 font-medium"
+                  className="w-full px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2 font-medium"
                 >
                   <Printer size={16} />
                   Exporter PDF
@@ -3966,6 +3966,24 @@ function Inventory() {
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Boissons Alcoolisées' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
               >
                 Boissons Alcoolisées 🍷
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Sauces')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Sauces' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Sauces 🍯
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Conserves')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Conserves' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Conserves 🥫
+              </button>
+              <button
+                onClick={() => setSelectedCategory('Sirops')}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Sirops' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+              >
+                Sirops 🍁
               </button>
               <button
                 onClick={() => setSelectedCategory("Produits d'entretien")}
@@ -4107,7 +4125,7 @@ function Inventory() {
                       <td className="px-6 py-4">
                         <input 
                           type="number"
-                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956] text-gray-900 font-medium"
+                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] text-gray-900 font-medium"
                           value={item.requiredQty || 0}
                           onChange={(e) => {
                             const newItems = [...stockItemsData];
@@ -4119,7 +4137,7 @@ function Inventory() {
                       <td className="px-6 py-4">
                         <input 
                           type="number"
-                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956] text-gray-900 font-medium"
+                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] text-gray-900 font-medium"
                           value={item.minStock || 0}
                           onChange={(e) => {
                             const newItems = [...stockItemsData];
@@ -4141,7 +4159,7 @@ function Inventory() {
                 <h3 className="text-lg font-medium text-gray-900">Fiches Techniques & Food Cost</h3>
                 <button 
                   onClick={() => setIsNewRecipeModalOpen(true)}
-                  className="px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >
                   <Plus size={16} /> Nouvelle Fiche
                 </button>
@@ -4222,7 +4240,7 @@ function Inventory() {
                                 await updateDoc(doc(db, 'productionTasks', task.id), { priority: e.target.value });
                               }
                             }}
-                            className={`border rounded-lg text-sm p-1.5 focus:outline-none focus:ring-1 focus:ring-[#DDA956] ${
+                            className={`border rounded-lg text-sm p-1.5 focus:outline-none focus:ring-1 focus:ring-[#F4C75B] ${
                               task.priority === 'Haute' ? 'bg-red-50 text-red-700 border-red-200' : 
                               task.priority === 'Moyenne' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
                               'bg-green-50 text-green-700 border-green-200'
@@ -4345,7 +4363,7 @@ function Inventory() {
                   <button onClick={() => setIsNewOrderModalOpen(true)}  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
                     <Truck size={16} /> Nouvelle Commande
                   </button>
-                  <button onClick={() => setIsNewSupplierModalOpen(true)}  className="px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors flex items-center gap-2">
+                  <button onClick={() => setIsNewSupplierModalOpen(true)}  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2">
                     <Plus size={16} /> Nouveau Fournisseur
                   </button>
                 </div>
@@ -4355,7 +4373,7 @@ function Inventory() {
                 {/* Pending Orders Summary / List */}
                 <div className="lg:col-span-1 border border-gray-200 rounded-xl bg-gray-50/50 p-5">
                   <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                    <ShoppingCart size={18} className="text-[#DDA956]" /> Commandes en cours
+                    <ShoppingCart size={18} className="text-[#F4C75B]" /> Commandes en cours
                   </h4>
                   <div className="space-y-3">
                     {[
@@ -4408,10 +4426,10 @@ function Inventory() {
                             <td className="px-6 py-4">
                               <div className="text-gray-900">{supplier.contact}</div>
                               <div className="flex flex-col gap-1 mt-1">
-                                <a href={`tel:${supplier.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#DDA956] transition-colors">
+                                <a href={`tel:${supplier.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F4C75B] transition-colors">
                                   <Phone size={12} /> {supplier.phone}
                                 </a>
-                                <a href={`mailto:${supplier.email}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#DDA956] transition-colors">
+                                <a href={`mailto:${supplier.email}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F4C75B] transition-colors">
                                   <Mail size={12} /> {supplier.email}
                                 </a>
                               </div>
@@ -4464,9 +4482,9 @@ function Inventory() {
                       <Area 
                         type="monotone" 
                         dataKey="prix" 
-                        stroke="#DDA956" 
+                        stroke="#F4C75B" 
                         strokeWidth={2}
-                        fill="#DDA956" 
+                        fill="#F4C75B" 
                         fillOpacity={0.1}
                       />
                     </AreaChart>
@@ -4503,7 +4521,7 @@ function Inventory() {
                           <td className="px-6 py-4 text-right font-medium">
                             {tx.unitPrice ? `${tx.unitPrice.toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
-                          <td className="px-6 py-4 text-right font-medium text-[#DDA956]">
+                          <td className="px-6 py-4 text-right font-medium text-[#F4C75B]">
                             {tx.unitPrice ? `${(tx.unitPrice * (tx.amount || tx.quantity)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
                         </tr>
@@ -4671,7 +4689,7 @@ function Inventory() {
                     }}
                     className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium hover:bg-[#2F6B7F] transition-colors flex items-center justify-center gap-2"
                   >
-                    <Sparkles size={16} className="text-[#DDA956]" />
+                    <Sparkles size={16} className="text-[#F4C75B]" />
                     Simuler scan (Nouveau Produit)
                   </button>
                 </div>
@@ -4731,7 +4749,7 @@ function Inventory() {
               <div className="pt-2 border-t border-gray-100 mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Seuil d'alerte suggéré (Min. Stock)</label>
                 <div className="flex items-center gap-2">
-                  <input type="number" defaultValue={5} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input type="number" defaultValue={5} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   <span className="text-gray-500 text-sm">kg</span>
                 </div>
               </div>
@@ -4772,7 +4790,7 @@ function Inventory() {
                     showToast("Erreur lors de la création", "error");
                   }
                 }}
-                className="w-full bg-[#DDA956] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 Valider la création automatique
               </button>
@@ -4799,7 +4817,7 @@ function Inventory() {
                     type="text" 
                     value={newRecipeForm.name}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, name: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="Ex: Tagine de poulet" 
                   />
                 </div>
@@ -4808,7 +4826,7 @@ function Inventory() {
                   <select
                     value={newRecipeForm.category}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner une catégorie</option>
                     <option value="Amuse-bouche">Amuse-bouche</option>
@@ -4841,7 +4859,7 @@ function Inventory() {
                   <select 
                     value={selectedIngredient}
                     onChange={(e) => setSelectedIngredient(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]"
+                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner un produit...</option>
                     {stockItemsData.map(item => (
@@ -4852,7 +4870,7 @@ function Inventory() {
                     type="number" 
                     value={ingredientQty}
                     onChange={(e) => setIngredientQty(e.target.value)}
-                    className="w-24 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#DDA956]" 
+                    className="w-24 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
                     placeholder="Qté" 
                   />
                   <button 
@@ -4874,7 +4892,7 @@ function Inventory() {
                         setIngredientQty('');
                       }
                     }}
-                    className="px-4 py-2 bg-[#DDA956] text-[#265C6D] font-medium rounded-lg hover:bg-[#c4954b]"
+                    className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745]"
                   >
                     Ajouter
                   </button>
@@ -4974,7 +4992,7 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-                <input name="name" list="product-names-list" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Miel pur" />
+                <input name="name" list="product-names-list" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Miel pur" />
                 <datalist id="product-names-list">
                   {[
                     "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
@@ -5001,7 +5019,7 @@ function Inventory() {
                   <select
                     name="category"
                     required
-                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#DDA956]"
+                    className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]"
                   >
                     <option value="">Sélectionner une catégorie</option>
                     {categories.map((cat, idx) => (
@@ -5011,7 +5029,7 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select name="unit" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <select name="unit" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     <option value="kg">Kg</option>
                     <option value="g">G</option>
                     <option value="L">L</option>
@@ -5031,7 +5049,7 @@ function Inventory() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Initiale</label>
-                <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: 50" />
+                <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 50" />
               </div>
               <button 
                 type="submit"
@@ -5064,31 +5082,31 @@ function Inventory() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantité ({selectedProduct.unit})</label>
-                <input id="tx-qty" type="number" min="0" step="0.1" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0" />
+                <input id="tx-qty" type="number" min="0" step="0.1" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {txType === 'out' ? 'Destinataire' : 'Raison / Commentaire'}
                 </label>
                 {txType === 'out' ? (
-                  <select id="tx-reason" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] bg-white">
+                  <select id="tx-reason" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
                     <option value="">Sélectionner une destination</option>
                     <option value="Cuisine">Cuisine</option>
                     <option value="Bar">Bar</option>
                   </select>
                 ) : (
-                  <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Achat du jour" />
+                  <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Achat du jour" />
                 )}
               </div>
               {txType === 'in' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                    <input id="tx-supplier" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="Ex: Marché Central" />
+                    <input id="tx-supplier" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
-                    <input id="tx-price" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="0.00" />
+                    <input id="tx-price" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
                   </div>
                 </div>
               )}
@@ -5174,11 +5192,11 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input id="edit-cat" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input id="edit-cat" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select id="edit-unit" defaultValue={selectedProduct.unit} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                  <select id="edit-unit" defaultValue={selectedProduct.unit} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     <option value="kg">Kg</option>
                     <option value="g">G</option>
                     <option value="L">L</option>
@@ -5200,19 +5218,19 @@ function Inventory() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
                   <div className="flex items-center gap-2">
-                    <input id="edit-qty" type="number" step="0.01" defaultValue={selectedProduct.quantity} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                    <input id="edit-qty" type="number" step="0.01" defaultValue={selectedProduct.quantity} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Seuil d'alerte</label>
                   <div className="flex items-center gap-2">
-                    <input id="edit-min" type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                    <input id="edit-min" type="number" defaultValue={selectedProduct.minStock} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   </div>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
-                <input id="edit-sup" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input id="edit-sup" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <button 
                 onClick={async () => {
@@ -5307,7 +5325,7 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]">
+                <select name="supplier" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                   <option>Coopérative Taliouine</option>
                   <option>Ferme Atlas</option>
                   <option>Boucherie Centrale</option>
@@ -5315,15 +5333,15 @@ function Inventory() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
-                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
-                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956] resize-none"></textarea>
+                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none"></textarea>
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
                 Valider la Commande
               </button>
@@ -5375,35 +5393,35 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input name="name" type="text" required placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="name" type="text" required placeholder="Ex: Grossiste Bio Plus" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="category" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
-                  <input name="city" type="text" required placeholder="Ex: Fès" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="city" type="text" required placeholder="Ex: Fès" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Personne à contacter</label>
-                <input name="contact" type="text" required placeholder="Ex: Ahmed" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="contact" type="text" required placeholder="Ex: Ahmed" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input name="phone" type="text" required placeholder="Ex: +212..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="phone" type="text" required placeholder="Ex: +212..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input name="email" type="email" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="email" type="email" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <button 
                 type="submit"
-                className="w-full bg-[#DDA956] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#c4954b] transition-colors"
+                className="w-full bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
                 Ajouter le Fournisseur
               </button>
@@ -5456,36 +5474,36 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input name="name" type="text" required defaultValue={selectedSupplier.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="name" type="text" required defaultValue={selectedSupplier.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="category" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
-                  <input name="city" type="text" required defaultValue={selectedSupplier.city} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="city" type="text" required defaultValue={selectedSupplier.city} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Personne à contacter</label>
-                <input name="contact" type="text" required defaultValue={selectedSupplier.contact} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                <input name="contact" type="text" required defaultValue={selectedSupplier.contact} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input name="phone" type="text" required defaultValue={selectedSupplier.phone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="phone" type="text" required defaultValue={selectedSupplier.phone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input name="email" type="email" defaultValue={selectedSupplier.email} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" />
+                  <input name="email" type="email" defaultValue={selectedSupplier.email} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
                 <button 
                   type="submit"
-                  className="flex-1 bg-[#DDA956] text-[#265C6D] py-3 rounded-xl font-medium hover:bg-[#c4954b] transition-colors"
+                  className="flex-1 bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors"
                 >
                   Mettre à jour
                 </button>
@@ -5594,7 +5612,7 @@ function Configuration() {
               <div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-4 mb-6">
                   <h3 className="text-xl font-serif font-medium text-[#265C6D] mb-0 border-0 pb-0">Informations de l'Établissement</h3>
-                  <a href="/DOCUMENTATION.pdf" target="_blank" download className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-white rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm">
+                  <a href="/DOCUMENTATION.pdf" target="_blank" download className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-white rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm">
                     <Download size={16} />
                     Documentation (PDF)
                   </a>
@@ -5603,11 +5621,11 @@ function Configuration() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'établissement</label>
-                    <input type="text" defaultValue="Mouda Palace" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="text" defaultValue="Mouda Palace" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                    <select defaultValue="Restaurant" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors bg-white">
+                    <select defaultValue="Restaurant" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
                       <option>Restaurant</option>
                       <option>Restaurant Gastronomique</option>
                       <option>Café / Lounge</option>
@@ -5618,15 +5636,15 @@ function Configuration() {
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                    <input type="text" defaultValue="Fès, Maroc" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="text" defaultValue="Fès, Maroc" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
-                    <input type="email" defaultValue="contact@moudapalace.com" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="email" defaultValue="contact@moudapalace.com" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                    <input type="text" defaultValue="+212 524 00 00 00" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="text" defaultValue="+212 524 00 00 00" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                 </div>
               </div>
@@ -5637,7 +5655,7 @@ function Configuration() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Devise principale</label>
-                    <select className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors bg-white">
+                    <select className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
                       <option>MAD (Dirham)</option>
                       <option>EUR (€)</option>
                       <option>USD ($)</option>
@@ -5645,7 +5663,7 @@ function Configuration() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fuseau horaire</label>
-                    <select className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors bg-white">
+                    <select className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
                       <option>UTC+1 (Casablanca)</option>
                       <option>UTC+0 (Londres)</option>
                       <option>UTC+2 (Paris)</option>
@@ -5686,7 +5704,7 @@ function Configuration() {
                     </div>
                     <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full border border-yellow-200">Configuration requise</span>
                   </div>
-                  <input type="text" placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors bg-white" />
+                  <input type="text" placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
                 </div>
               </div>
             </motion.div>
@@ -5722,7 +5740,7 @@ function Configuration() {
                     value={websiteConfig.url} 
                     onChange={e => setWebsiteConfig({...websiteConfig, url: e.target.value})} 
                     placeholder="https://moudapalace.com" 
-                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" 
                   />
                 </div>
                 
@@ -5734,7 +5752,7 @@ function Configuration() {
                       value={websiteConfig.username} 
                       onChange={e => setWebsiteConfig({...websiteConfig, username: e.target.value})} 
                       placeholder="admin" 
-                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" 
                     />
                   </div>
                   <div>
@@ -5744,7 +5762,7 @@ function Configuration() {
                       value={websiteConfig.password} 
                       onChange={e => setWebsiteConfig({...websiteConfig, password: e.target.value})} 
                       placeholder="xxxx xxxx xxxx xxxx" 
-                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" 
                     />
                     <p className="text-xs text-gray-400 mt-1">Générez ce mot de passe dans votre profil WordPress.</p>
                   </div>
@@ -5759,7 +5777,7 @@ function Configuration() {
                       value={websiteConfig.webhookUrl} 
                       onChange={e => setWebsiteConfig({...websiteConfig, webhookUrl: e.target.value})} 
                       placeholder="https://hook.eu1.make.com/..." 
-                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" 
+                      className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" 
                     />
                     <p className="text-xs text-gray-400 mt-1">Cette URL est utilisée par le module de rédaction IA pour publier directement sur votre site.</p>
                   </div>
@@ -5780,7 +5798,7 @@ function Configuration() {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-between p-5 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-colors">
@@ -5790,7 +5808,7 @@ function Configuration() {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
                 <div className="flex items-center justify-between p-5 border border-gray-100 rounded-xl hover:bg-gray-50/50 transition-colors">
@@ -5800,7 +5818,7 @@ function Configuration() {
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
               </div>
@@ -5823,7 +5841,7 @@ function Configuration() {
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" defaultChecked className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
                   
@@ -5837,7 +5855,7 @@ function Configuration() {
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" defaultChecked className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
 
@@ -5851,7 +5869,7 @@ function Configuration() {
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" defaultChecked className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#DDA956]"></div>
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
                 </div>
@@ -5862,11 +5880,11 @@ function Configuration() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clé publique (Publishable key)</label>
-                    <input type="text" defaultValue="pk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="text" defaultValue="pk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clé secrète (Secret key)</label>
-                    <input type="password" defaultValue="sk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-colors" />
+                    <input type="password" defaultValue="sk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                 </div>
               </div>
@@ -5894,7 +5912,7 @@ function SettingsTab({ active, onClick, icon, label }: { active: boolean, onClic
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${
         active 
-          ? 'bg-white text-[#DDA956] shadow-sm border border-gray-100' 
+          ? 'bg-white text-[#F4C75B] shadow-sm border border-gray-100' 
           : 'text-gray-500 hover:bg-white/60 hover:text-gray-900 border border-transparent'
       }`}
     >
@@ -5967,7 +5985,7 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
         className="w-full max-w-4xl relative z-10"
       >
         <div className="text-center mb-12">
-          <div className="mx-auto h-20 w-24 bg-[#DDA956] mb-6" style={{
+          <div className="mx-auto h-20 w-24 bg-[#F4C75B] mb-6" style={{
             maskImage: 'url(/mouda-1.png)',
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
@@ -5978,15 +5996,15 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
             WebkitMaskPosition: 'center'
           }} />
           <h1 className="text-4xl md:text-5xl font-serif text-white tracking-wide mb-4">MOUDA PALACE</h1>
-          <p className="text-[#DDA956] tracking-[0.2em] uppercase text-sm font-medium">Système de Gestion Centralisé</p>
+          <p className="text-[#F4C75B] tracking-[0.2em] uppercase text-sm font-medium">Système de Gestion Centralisé</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <button 
             onClick={() => onSelect('admin')}
-            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#DDA956]/50 transition-all text-left flex flex-col items-center text-center gap-6"
+            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#F4C75B]/50 transition-all text-left flex flex-col items-center text-center gap-6"
           >
-            <div className="p-4 bg-[#DDA956]/20 text-[#DDA956] rounded-2xl group-hover:scale-110 transition-transform">
+            <div className="p-4 bg-[#F4C75B]/20 text-[#F4C75B] rounded-2xl group-hover:scale-110 transition-transform">
               <Settings size={40} />
             </div>
             <div>
@@ -5997,7 +6015,7 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
 
           <button 
             onClick={() => onSelect('partner')}
-            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#DDA956]/50 transition-all text-left flex flex-col items-center text-center gap-6"
+            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#F4C75B]/50 transition-all text-left flex flex-col items-center text-center gap-6"
           >
             <div className="p-4 bg-blue-500/20 text-blue-400 rounded-2xl group-hover:scale-110 transition-transform">
               <Briefcase size={40} />
@@ -6048,7 +6066,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
                   type="password"
                   value={accessCode}
                   onChange={(e) => { setAccessCode(e.target.value); setError(''); }}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#DDA956] focus:ring-1 focus:ring-[#DDA956] transition-all text-center text-lg tracking-[0.2em]"
+                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-all text-center text-lg tracking-[0.2em]"
                   placeholder="••••••••"
                 />
                 {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
@@ -6234,7 +6252,7 @@ function TacSystemsPOS() {
           <button 
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm disabled:opacity-50"
           >
             {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             {isSyncing ? 'Synchronisation API' : 'Synchroniser API'}
@@ -6267,7 +6285,7 @@ function TacSystemsPOS() {
               En Production
             </span>
           )}
-          <button onClick={() => setIsApiModalOpen(true)} className="text-[#DDA956] text-sm hover:underline font-medium">
+          <button onClick={() => setIsApiModalOpen(true)} className="text-[#F4C75B] text-sm hover:underline font-medium">
             Configurer les clés API &rarr;
           </button>
         </div>
@@ -6360,7 +6378,7 @@ function TacSystemsPOS() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-serif text-lg font-medium text-gray-900">Derniers Mouvements de Caisse</h3>
-          <button onClick={() => setIsJournalOpen(true)} className="text-sm text-[#DDA956] hover:text-[#c4954b] font-medium">Voir le journal complet</button>
+          <button onClick={() => setIsJournalOpen(true)} className="text-sm text-[#F4C75B] hover:text-[#E5B745] font-medium">Voir le journal complet</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -6424,7 +6442,7 @@ function TacSystemsPOS() {
                 <input 
                   type="text" 
                   placeholder="Rechercher par ID, Opérateur ou Type..." 
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956]"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
                   value={journalSearch}
                   onChange={(e) => { setJournalSearch(e.target.value); setJournalCurrentPage(1); }}
                 />
@@ -6432,7 +6450,7 @@ function TacSystemsPOS() {
               </div>
               <div className="w-full md:w-64">
                 <select 
-                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#DDA956] bg-white text-gray-700"
+                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] bg-white text-gray-700"
                   value={journalOperatorFilter}
                   onChange={(e) => { setJournalOperatorFilter(e.target.value); setJournalCurrentPage(1); }}
                 >
@@ -6548,7 +6566,7 @@ function TacSystemsPOS() {
                 <p className="text-sm text-gray-500 mb-4">
                   Importez un export de journal de caisse depuis le backoffice de TacSystems si vous n'êtes pas connecté par API.
                 </p>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#DDA956] transition-colors bg-gray-50 cursor-pointer">
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#F4C75B] transition-colors bg-gray-50 cursor-pointer">
                   <div className="flex justify-center mb-2 text-gray-400">
                     <Upload size={32} />
                   </div>
@@ -6569,7 +6587,7 @@ function TacSystemsPOS() {
                     showToast("Importation du journal de caisse démarrée...");
                     setIsImportTacModalOpen(false);
                   }}
-                  className="px-4 py-2 bg-[#DDA956] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#c4954b] transition-colors"
+                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors"
                 >
                   Sélectionner un fichier
                 </button>
@@ -6597,15 +6615,15 @@ function TacSystemsPOS() {
               <div className="space-y-4 mb-8">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">API Endpoint URL</label>
-                  <input required type="url" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="https://api.tacsystems.com/v1/" defaultValue="https://api.tacsystems.com/v1/" />
+                  <input required type="url" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="https://api.tacsystems.com/v1/" defaultValue="https://api.tacsystems.com/v1/" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Store ID</label>
-                  <input required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="ST-10045" />
+                  <input required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="ST-10045" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
-                  <input required type="password" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#DDA956]" placeholder="••••••••••••••••••••••••••••••••" />
+                  <input required type="password" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="••••••••••••••••••••••••••••••••" />
                 </div>
               </div>
               
@@ -6619,7 +6637,7 @@ function TacSystemsPOS() {
                 </button>
                 <button 
                   type="submit" 
-                  className="px-5 py-2 bg-[#DDA956] text-[#265C6D] font-medium rounded-lg hover:bg-[#c4954b] transition-colors flex items-center gap-2"
+                  className="px-5 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >
                   <Save size={16} /> Enregistrer
                 </button>

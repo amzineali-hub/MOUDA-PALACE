@@ -19,7 +19,7 @@
     "d3": "^7.9.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^12.16.0",
+    "firebase": "^12.17.0",
     "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",

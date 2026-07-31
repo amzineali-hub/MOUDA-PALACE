@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import firebaseConfig from "../firebase-applet-config.json";
 
@@ -26,4 +27,5 @@ try {
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-export { app, db, auth, googleProvider, signInWithPopup, signOut };
+const storage = getStorage(app);
+export { app, db, auth, storage, googleProvider, signInWithPopup, signOut };

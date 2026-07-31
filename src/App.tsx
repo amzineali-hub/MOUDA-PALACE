@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -116,6 +116,7 @@ import SystemMonitoring from "./SystemMonitoring";
 import ChatBot from './components/ChatBot';
 import RH from './RH';
 import NotificationSystem from './NotificationSystem';
+import DocumentsRestaurant from "./DocumentsRestaurant";
 
 function ReviewAnalyzer() {
   const [review, setReview] = useState("");
@@ -527,6 +528,8 @@ export default function App() {
         return <POSTactile />;
       case 'accounting':
         return <Accounting />;
+      case 'documents':
+        return <DocumentsRestaurant />;
       case 'device_simulator':
         return <DeviceSimulator setActiveTab={handleTabChange} />;
       case 'docs_devices':
@@ -728,6 +731,15 @@ export default function App() {
           >
             <SubNavItem icon={<Receipt size={16} />} label="Comptabilité" active={activeTab === 'accounting'} onClick={() => handleTabChange('accounting')} />
                         <SubNavItem icon={<Users size={16} />} label="RH personnel" active={activeTab === 'staff'} onClick={() => handleTabChange('staff')} />
+                    </NavCategory>
+
+          <NavCategory 
+            title="Documents restaurant" 
+            icon={<FileText size={18} />} 
+            isExpanded={expandedCategory === 'documents_cat'} 
+            onClick={() => setExpandedCategory(expandedCategory === 'documents_cat' ? null : 'documents_cat')}
+          >
+            <SubNavItem icon={<File size={16} />} label="Fichiers & Modèles" active={activeTab === 'documents'} onClick={() => handleTabChange('documents')} />
           </NavCategory>
 
           <NavCategory 

@@ -508,18 +508,23 @@ const getCategoryImageUrl = (category: string) => {
     'Boissons': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
     'Produits Laitiers': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=150&q=80',
     'Boulangerie': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=150&q=80',
-    'Herbes': 'https://images.unsplash.com/photo-1601002931481-80a153dce169?auto=format&fit=crop&w=150&q=80',
-    'Fruits Secs': 'https://images.unsplash.com/photo-1599908611136-1e0e85a676c1?auto=format&fit=crop&w=150&q=80',
-    'Épicerie': 'https://images.unsplash.com/photo-1588964895597-cfccd6e2a0d9?auto=format&fit=crop&w=150&q=80',
-    'Boissons Alcoolisées': 'https://images.unsplash.com/photo-1569529465841-dfecdab7503a?auto=format&fit=crop&w=150&q=80',
+    'Herbes': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=150&q=80',
+    'Fruits Secs': 'https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=150&q=80',
+    'Épicerie': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80',
+    'Boissons Alcoolisées': 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=150&q=80',
     'Sauces': 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?auto=format&fit=crop&w=150&q=80',
-    'Conserves': 'https://images.unsplash.com/photo-1557999827-02055ff9900c?auto=format&fit=crop&w=150&q=80',
-    'Sirops': 'https://images.unsplash.com/photo-1626071465223-28f09205b38d?auto=format&fit=crop&w=150&q=80',
-    "Produits d'entretien": 'https://images.unsplash.com/photo-1585833446067-17ed3c4daeeb?auto=format&fit=crop&w=150&q=80',
-    "Matériel": 'https://images.unsplash.com/photo-1556910103-1c02745a872f?auto=format&fit=crop&w=150&q=80',
-    "Hygiène & Entretien": 'https://images.unsplash.com/photo-1584820927498-cafe3c157921?auto=format&fit=crop&w=150&q=80',
+    'Conserves': 'https://images.unsplash.com/photo-1564834724105-918b73d1b9e0?auto=format&fit=crop&w=150&q=80',
+    'Sirops': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
+    "Produits d'entretien": 'https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=150&q=80',
+    "Matériel": 'https://images.unsplash.com/photo-1550159930-40066082a4fc?auto=format&fit=crop&w=150&q=80',
+    "Matériel Cuisine": 'https://images.unsplash.com/photo-1550159930-40066082a4fc?auto=format&fit=crop&w=150&q=80',
+    "Services": 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=150&q=80',
+    "Hygiène & Entretien": 'https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=150&q=80',
+    "Fruits": 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=150&q=80',
+    "Légumes": 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&w=150&q=80',
+    "Poissons": 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80'
   };
-  return images[category] || 'https://images.unsplash.com/photo-1615486511484-92e172054b04?auto=format&fit=crop&w=150&q=80'; // generic box/inventory placeholder
+  return images[category] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80';
 };
 
 function App() {

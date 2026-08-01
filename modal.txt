@@ -1,0 +1,88 @@
+      {isProdTaskModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                {editingProdTask ? "Modifier la tâche" : "Nouvelle Tâche de Production"}
+              </h3>
+              <button onClick={() => setIsProdTaskModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Article à préparer</label>
+                <input 
+                  type="text" 
+                  value={prodTaskForm.item}
+                  onChange={e => setProdTaskForm({...prodTaskForm, item: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Ex: Pigeons (Désossage)"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité requise</label>
+                <input 
+                  type="text" 
+                  value={prodTaskForm.qty}
+                  onChange={e => setProdTaskForm({...prodTaskForm, qty: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Ex: 10 pièces"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                  <select 
+                    value={prodTaskForm.priority}
+                    onChange={e => setProdTaskForm({...prodTaskForm, priority: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="Basse">Basse</option>
+                    <option value="Moyenne">Moyenne</option>
+                    <option value="Haute">Haute</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select 
+                    value={prodTaskForm.status}
+                    onChange={e => setProdTaskForm({...prodTaskForm, status: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="À faire">À faire</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Terminé">Terminé</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Progression: {prodTaskForm.progress}%</label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={prodTaskForm.progress}
+                  onChange={e => setProdTaskForm({...prodTaskForm, progress: parseInt(e.target.value)})}
+                  className="w-full accent-[#F4C75B]"
+                />
+              </div>
+              
+              <div className="pt-4 mt-6 border-t border-gray-100 flex gap-3">
+                <button 
+                  onClick={() => setIsProdTaskModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!prodTaskForm.item) {
+                      showToast("Veuillez entrer le nom de l'article", "error");
+                      return;
+                    }

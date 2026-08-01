@@ -211,6 +211,7 @@ function ReviewAnalyzer() {
           </div>
         </motion.div>
       )}
+
     </div>
   );
 }
@@ -1020,13 +1021,16 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   };
 
   return (
-    <>
+    <div className="group relative min-h-screen">
       {/* Background Hero */}
       <div 
-        className="absolute top-0 left-0 w-full h-[42rem] bg-cover bg-center z-0 print:hidden"
-        style={{ backgroundImage: "url('/img1.png')" }}
+        className="absolute top-0 left-0 w-full h-[42rem] z-0 print:hidden overflow-hidden"
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7]"></div>
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-[3000ms] ease-out group-hover:scale-105"
+          style={{ backgroundImage: "url('/img1.png')" }}
+        ></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7] pointer-events-none"></div>
       </div>
 
       <div className="relative z-10 p-4 md:p-12 pt-20 md:pt-20 print:hidden">
@@ -1451,7 +1455,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           </motion.div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -3645,6 +3649,18 @@ function Inventory() {
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
+  const [isProdTaskModalOpen, setIsProdTaskModalOpen] = useState(false);
+  const [editingProdTask, setEditingProdTask] = useState<any>(null);
+  const [prodTaskForm, setProdTaskForm] = useState({ item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
+  const [recipes, setRecipes] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'recipes'), (snapshot) => {
+      setRecipes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
+
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
 
   useEffect(() => {
@@ -3671,6 +3687,17 @@ function Inventory() {
   };
   
   const [productionTasks, setProductionTasks] = useState<any[]>([]);
+  const [wasteRecords, setWasteRecords] = useState<any[]>([]);
+  const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
+  const [editingWaste, setEditingWaste] = useState<any>(null);
+  const [wasteForm, setWasteForm] = useState({ item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setWasteRecords(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -4184,11 +4211,7 @@ function Inventory() {
                 </button>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {[
-                  { name: "Tagine d'Agneau aux Amandes", cost: 45, price: 180, margin: 75, category: "Plat Principal" },
-                  { name: "Pastilla au Pigeon", cost: 38, price: 150, margin: 74, category: "Entrée" },
-                  { name: "Salade Marocaine", cost: 12, price: 65, margin: 81, category: "Entrée" }
-                ].map((recipe, idx) => (
+                {recipes.length > 0 ? recipes.map((recipe, idx) => (
                   <div key={idx} className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
                     <div>
                       <div className="flex justify-between items-start mb-2">
@@ -4211,7 +4234,11 @@ function Inventory() {
                       <span className="text-sm font-bold text-green-600">{recipe.margin}%</span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-full py-8 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    Aucune fiche technique créée.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -4220,20 +4247,32 @@ function Inventory() {
             <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Plan de Production Journalier</h3>
-                <button 
-                  onClick={() => {
-                    showToast("Plan de production généré avec succès d'après 45 pax aujourd'hui");
-                    const tasks = [
-                      { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute", createdAt: serverTimestamp() },
-                      { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne", createdAt: serverTimestamp() },
-                      { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse", createdAt: serverTimestamp() }
-                    ];
-                    tasks.forEach(async (t) => await addDoc(collection(db, 'productionTasks'), t));
-                  }}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                >
-                  <ClipboardList size={16} /> Générer depuis Réservations
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      showToast("Plan de production généré avec succès d'après 45 pax aujourd'hui");
+                      const tasks = [
+                        { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute", createdAt: serverTimestamp() },
+                        { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne", createdAt: serverTimestamp() },
+                        { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse", createdAt: serverTimestamp() }
+                      ];
+                      tasks.forEach(async (t) => await addDoc(collection(db, 'productionTasks'), t));
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  >
+                    <ClipboardList size={16} /> Auto-générer
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setEditingProdTask(null);
+                      setProdTaskForm({ item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
+                      setIsProdTaskModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Nouvelle Tâche
+                  </button>
+                </div>
               </div>
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-sm whitespace-nowrap">
@@ -4248,7 +4287,7 @@ function Inventory() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {productionTasks.map((task, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
+                      <tr key={idx} className="hover:bg-gray-50 group">
                         <td className="px-6 py-4 font-medium text-gray-900">{task.item}</td>
                         <td className="px-6 py-4 text-gray-500">{task.qty}</td>
                         <td className="px-6 py-4">
@@ -4281,17 +4320,32 @@ function Inventory() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button onClick={async () => {
-                            if (window.confirm('Voulez-vous vraiment supprimer cette tâche ?')) {
-                              try {
-                                if (task.id) await deleteDoc(doc(db, 'productionTasks', task.id));
-                              } catch (e) {
-                                console.error(e);
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => {
+                              setEditingProdTask(task);
+                              setProdTaskForm({
+                                item: task.item || '',
+                                qty: task.qty || '',
+                                priority: task.priority || 'Moyenne',
+                                progress: task.progress || 0,
+                                status: task.status || 'À faire'
+                              });
+                              setIsProdTaskModalOpen(true);
+                            }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Modifier">
+                              <Edit2 size={16} />
+                            </button>
+                            <button onClick={async () => {
+                              if (window.confirm('Voulez-vous vraiment supprimer cette tâche ?')) {
+                                try {
+                                  if (task.id) await deleteDoc(doc(db, 'productionTasks', task.id));
+                                } catch (e) {
+                                  console.error(e);
+                                }
                               }
-                            }
-                          }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
-                            <Trash2 size={16} />
-                          </button>
+                            }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -4305,38 +4359,80 @@ function Inventory() {
              <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Déclarations de Pertes & Gaspillage</h3>
-                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
+                <button 
+                  onClick={() => {
+                    setEditingWaste(null);
+                    setWasteForm({ item: '', qty: '', unit: 'kg', reason: '', cost: '', user: 'Chef', date: new Date().toISOString().split('T')[0] });
+                    setIsWasteModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} /> Nouvelle Déclaration
+                </button>
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="p-5 border border-red-100 bg-red-50/30 rounded-xl">
                   <p className="text-sm text-red-600 font-medium mb-1">Coût total des pertes (Ce mois)</p>
-                  <p className="text-2xl font-bold text-red-700">1 450 MAD</p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {wasteRecords.reduce((sum, w) => sum + (Number(w.cost) || 0), 0).toFixed(2)} MAD
+                  </p>
                 </div>
                 <div className="p-5 border border-gray-200 rounded-xl">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Article le plus gaspillé</p>
-                  <p className="text-lg font-bold text-gray-900">Menthe Fraîche (350 MAD)</p>
+                  <p className="text-sm text-gray-500 font-medium mb-1">Total déclarations</p>
+                  <p className="text-lg font-bold text-gray-900">{wasteRecords.length}</p>
                 </div>
                 <div className="p-5 border border-gray-200 rounded-xl">
-                  <p className="text-sm text-gray-500 font-medium mb-1">Ratio de perte moyen</p>
+                  <p className="text-sm text-gray-500 font-medium mb-1">Ratio de perte estimé</p>
                   <p className="text-lg font-bold text-gray-900">2.4% <span className="text-sm font-normal text-green-600 ml-1">↓ 0.5%</span></p>
                 </div>
               </div>
+
               <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
-                {[
-                  { date: "Hier, 22:30", item: "Menthe Fraîche", qty: "0.5 kg", reason: "Oxydée", cost: "15 MAD", user: "Chef Hassan" },
-                  { date: "15 Juil, 14:00", item: "Tomates", qty: "2 kg", reason: "Abîmées à la livraison", cost: "30 MAD", user: "Réception" }
-                ].map((waste, idx) => (
-                  <div key={idx} className="p-4 flex flex-col sm:flex-row justify-between sm:items-center bg-white hover:bg-gray-50 gap-2">
+                {wasteRecords.length > 0 ? wasteRecords.map((waste) => (
+                  <div key={waste.id} className="p-4 flex flex-col sm:flex-row justify-between sm:items-center bg-white hover:bg-gray-50 gap-2 group">
                     <div>
-                      <h4 className="font-medium text-gray-900">{waste.item} <span className="text-gray-500 font-normal">({waste.qty})</span></h4>
+                      <h4 className="font-medium text-gray-900">{waste.item} <span className="text-gray-500 font-normal">({waste.qty} {waste.unit})</span></h4>
                       <p className="text-sm text-gray-500 mt-1">Cause : {waste.reason} • {waste.date}</p>
                     </div>
-                    <div className="text-left sm:text-right">
-                      <p className="font-medium text-red-600">-{waste.cost}</p>
-                      <p className="text-xs text-gray-400 mt-1">{waste.user}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-left sm:text-right">
+                      <div>
+                        <p className="font-medium text-red-600">-{waste.cost} MAD</p>
+                        <p className="text-xs text-gray-400 mt-1">{waste.user}</p>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => {
+                          setEditingWaste(waste);
+                          setWasteForm({
+                            item: waste.item || '',
+                            qty: waste.qty || '',
+                            unit: waste.unit || 'kg',
+                            reason: waste.reason || '',
+                            cost: waste.cost || '',
+                            user: waste.user || '',
+                            date: waste.date || ''
+                          });
+                          setIsWasteModalOpen(true);
+                        }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Modifier">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={async () => {
+                          if (window.confirm('Voulez-vous vraiment supprimer cette déclaration ?')) {
+                            try {
+                              await deleteDoc(doc(db, 'wasteRecords', waste.id));
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }
+                        }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="p-8 text-center text-gray-500">Aucune déclaration de perte enregistrée.</div>
+                )}
               </div>
             </div>
           )}
@@ -4832,28 +4928,46 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                  <input 
-                    type="text" 
+                  <select
                     value={newRecipeForm.name}
-                    onChange={(e) => setNewRecipeForm({...newRecipeForm, name: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                    placeholder="Ex: Tagine de poulet" 
-                  />
+                    onChange={(e) => {
+                      const dishName = e.target.value;
+                      let category = newRecipeForm.category;
+                      if (['Briouates au Fromage', 'Salade Zaalouk'].includes(dishName)) {
+                        category = 'Entrées';
+                      } else if (['Tagine d\'Agneau aux Pruneaux', 'Pastilla au Pigeon'].includes(dishName)) {
+                        category = 'Plats Principaux';
+                      } else if (['Orange à la Cannelle'].includes(dishName)) {
+                        category = 'Desserts';
+                      } else if (['Thé à la Menthe Royal'].includes(dishName)) {
+                        category = 'Boissons';
+                      }
+                      setNewRecipeForm({...newRecipeForm, name: dishName, category});
+                    }}
+                    className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="">Sélectionner un plat...</option>
+                    <option value="Briouates au Fromage">Briouates au Fromage</option>
+                    <option value="Salade Zaalouk">Salade Zaalouk</option>
+                    <option value="Tagine d'Agneau aux Pruneaux">Tagine d'Agneau aux Pruneaux</option>
+                    <option value="Pastilla au Pigeon">Pastilla au Pigeon</option>
+                    <option value="Orange à la Cannelle">Orange à la Cannelle</option>
+                    <option value="Thé à la Menthe Royal">Thé à la Menthe Royal</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input
-                    list="dl-recipe-cat-form"
+                  <select
                     value={newRecipeForm.category}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
-                    placeholder="Ex: Entrées Froides"
                     className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
-                  />
-                  <datalist id="dl-recipe-cat-form">
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
-                    ))}
-                  </datalist>
+                  >
+                    <option value="">Sélectionner une catégorie...</option>
+                    <option value="Entrées">Entrées</option>
+                    <option value="Plats Principaux">Plats Principaux</option>
+                    <option value="Desserts">Desserts</option>
+                    <option value="Boissons">Boissons</option>
+                  </select>
                 </div>
               </div>
               
@@ -4861,17 +4975,19 @@ function Inventory() {
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-medium text-gray-900">Ingrédients depuis l'inventaire</h4>
                 </div>
-                <div className="flex gap-2 mb-4">
-                  <select 
+                <div className="flex gap-2 mb-4 relative">
+                  <input
+                    list="dl-ingredients"
                     value={selectedIngredient}
                     onChange={(e) => setSelectedIngredient(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="">Sélectionner un produit...</option>
+                    placeholder="Rechercher un produit..."
+                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
+                  />
+                  <datalist id="dl-ingredients">
                     {stockItemsData.map(item => (
-                      <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                      <option key={item.id} value={item.name}>{item.category} - {item.unit}</option>
                     ))}
-                  </select>
+                  </datalist>
                   <input 
                     type="number" 
                     value={ingredientQty}
@@ -4885,7 +5001,7 @@ function Inventory() {
                         showToast("Veuillez sélectionner un ingrédient et une quantité", "error");
                         return;
                       }
-                      const item = stockItemsData.find(i => i.id === selectedIngredient);
+                      const item = stockItemsData.find(i => i.name === selectedIngredient);
                       if (item) {
                         setNewRecipeIngredients([...newRecipeIngredients, {
                           id: item.id,
@@ -4896,6 +5012,8 @@ function Inventory() {
                         }]);
                         setSelectedIngredient('');
                         setIngredientQty('');
+                      } else {
+                        showToast("Ingrédient introuvable dans l'inventaire", "error");
                       }
                     }}
                     className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745]"
@@ -4929,7 +5047,7 @@ function Inventory() {
               </div>
               
               <button 
-                onClick={() => {
+                onClick={async () => {
                   if (!newRecipeForm.name) {
                     showToast("Veuillez entrer le nom du plat", "error");
                     return;
@@ -4938,10 +5056,31 @@ function Inventory() {
                     showToast("Veuillez ajouter au moins un ingrédient", "error");
                     return;
                   }
-                  showToast("Fiche technique créée avec succès");
-                  setNewRecipeForm({ name: '', category: 'Entrée' });
-                  setNewRecipeIngredients([]);
-                  setIsNewRecipeModalOpen(false);
+                  
+                  try {
+                    const cost = newRecipeIngredients.reduce((sum, ing) => sum + (ing.quantity * ing.costPerUnit), 0);
+                    // Standard margin logic: Price = Cost / 0.25 (targeting 75% margin)
+                    const recommendedPrice = cost * 4;
+                    const margin = 75; // simplified
+                    
+                    await addDoc(collection(db, 'recipes'), {
+                      name: newRecipeForm.name,
+                      category: newRecipeForm.category,
+                      ingredients: newRecipeIngredients,
+                      cost: cost,
+                      price: recommendedPrice,
+                      margin: margin,
+                      createdAt: new Date().toISOString()
+                    });
+                    
+                    showToast("Fiche technique créée avec succès");
+                    setNewRecipeForm({ name: '', category: 'Entrée' });
+                    setNewRecipeIngredients([]);
+                    setIsNewRecipeModalOpen(false);
+                  } catch (e) {
+                    showToast("Erreur lors de la création", "error");
+                    console.error(e);
+                  }
                 }}
                 className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#2F6B7F] transition-colors"
               >
@@ -5582,6 +5721,277 @@ function Inventory() {
           </div>
         </div>
       )}
+
+      {/* Waste Declaration Modal */}
+      {isWasteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                {editingWaste ? "Modifier la déclaration" : "Nouvelle Déclaration de Perte"}
+              </h3>
+              <button onClick={() => setIsWasteModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Article</label>
+                <input
+                  list="dl-waste-items"
+                  value={wasteForm.item}
+                  onChange={e => setWasteForm({...wasteForm, item: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Rechercher un produit..."
+                />
+                <datalist id="dl-waste-items">
+                  {stockItemsData.map(item => (
+                    <option key={item.id} value={item.name} />
+                  ))}
+                </datalist>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
+                  <input 
+                    type="number" 
+                    value={wasteForm.qty}
+                    onChange={e => setWasteForm({...wasteForm, qty: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                    placeholder="Ex: 2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select 
+                    value={wasteForm.unit}
+                    onChange={e => setWasteForm({...wasteForm, unit: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="cl">cl</option>
+                    <option value="pièce(s)">pièce(s)</option>
+                    <option value="bouteille(s)">bouteille(s)</option>
+                    <option value="boîte(s)">boîte(s)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Coût estimé (MAD)</label>
+                <input 
+                  type="number" 
+                  value={wasteForm.cost}
+                  onChange={e => setWasteForm({...wasteForm, cost: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Ex: 50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cause du gaspillage</label>
+                <select 
+                  value={wasteForm.reason}
+                  onChange={e => setWasteForm({...wasteForm, reason: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                >
+                  <option value="">Sélectionner une cause...</option>
+                  <option value="Date d'expiration dépassée">Date d'expiration dépassée</option>
+                  <option value="Produit abîmé/oxydé">Produit abîmé/oxydé</option>
+                  <option value="Erreur de préparation">Erreur de préparation</option>
+                  <option value="Retour client">Retour client</option>
+                  <option value="Problème de stockage/froid">Problème de stockage/froid</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input 
+                    type="date" 
+                    value={wasteForm.date}
+                    onChange={e => setWasteForm({...wasteForm, date: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
+                  <input 
+                    type="text" 
+                    value={wasteForm.user}
+                    onChange={e => setWasteForm({...wasteForm, user: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                    placeholder="Ex: Chef Hassan"
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-4 mt-6 border-t border-gray-100 flex gap-3">
+                <button 
+                  onClick={() => setIsWasteModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!wasteForm.item || !wasteForm.qty || !wasteForm.reason) {
+                      showToast("Veuillez remplir l'article, la quantité et la cause", "error");
+                      return;
+                    }
+                    try {
+                      if (editingWaste) {
+                        await updateDoc(doc(db, 'wasteRecords', editingWaste.id), {
+                          ...wasteForm,
+                          updatedAt: serverTimestamp()
+                        });
+                        showToast("Déclaration modifiée avec succès");
+                      } else {
+                        await addDoc(collection(db, 'wasteRecords'), {
+                          ...wasteForm,
+                          createdAt: serverTimestamp()
+                        });
+                        showToast("Déclaration ajoutée avec succès");
+                      }
+                      setIsWasteModalOpen(false);
+                    } catch (e) {
+                      showToast("Erreur lors de la sauvegarde", "error");
+                      console.error(e);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors"
+                >
+                  {editingWaste ? 'Mettre à jour' : 'Sauvegarder'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Production Task Modal */}
+      {isProdTaskModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                {editingProdTask ? "Modifier la tâche" : "Nouvelle Tâche de Production"}
+              </h3>
+              <button onClick={() => setIsProdTaskModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Article à préparer</label>
+                <input 
+                  type="text" 
+                  value={prodTaskForm.item}
+                  onChange={e => setProdTaskForm({...prodTaskForm, item: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Ex: Pigeons (Désossage)"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité requise</label>
+                <input 
+                  type="text" 
+                  value={prodTaskForm.qty}
+                  onChange={e => setProdTaskForm({...prodTaskForm, qty: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Ex: 10 pièces"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+                  <select 
+                    value={prodTaskForm.priority}
+                    onChange={e => setProdTaskForm({...prodTaskForm, priority: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="Basse">Basse</option>
+                    <option value="Moyenne">Moyenne</option>
+                    <option value="Haute">Haute</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select 
+                    value={prodTaskForm.status}
+                    onChange={e => setProdTaskForm({...prodTaskForm, status: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="À faire">À faire</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Terminé">Terminé</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Progression: {prodTaskForm.progress}%</label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  value={prodTaskForm.progress}
+                  onChange={e => setProdTaskForm({...prodTaskForm, progress: parseInt(e.target.value)})}
+                  className="w-full accent-[#F4C75B]"
+                />
+              </div>
+              
+              <div className="pt-4 mt-6 border-t border-gray-100 flex gap-3">
+                <button 
+                  onClick={() => setIsProdTaskModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!prodTaskForm.item) {
+                      showToast("Veuillez entrer le nom de l'article", "error");
+                      return;
+                    }
+                    try {
+                      if (editingProdTask) {
+                        await updateDoc(doc(db, 'productionTasks', editingProdTask.id), {
+                          ...prodTaskForm,
+                          updatedAt: serverTimestamp()
+                        });
+                        showToast("Tâche modifiée avec succès");
+                      } else {
+                        await addDoc(collection(db, 'productionTasks'), {
+                          ...prodTaskForm,
+                          createdAt: serverTimestamp()
+                        });
+                        showToast("Tâche ajoutée avec succès");
+                      }
+                      setIsProdTaskModalOpen(false);
+                    } catch (e) {
+                      showToast("Erreur lors de la sauvegarde", "error");
+                      console.error(e);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors"
+                >
+                  {editingProdTask ? 'Mettre à jour' : 'Sauvegarder'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6026,8 +6436,8 @@ function IntegrationRow({ name, status, desc }: { name: string, status: string, 
 
 function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') => void }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+    <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -6088,8 +6498,8 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+      <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

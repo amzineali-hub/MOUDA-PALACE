@@ -82,14 +82,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     }, 2500);
   };
 
-  const handleGenericSubmit = (e) => {
+  const handleGenericSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const empId = formData.get('employeeId');
-    const date = formData.get('date');
-    const startTime = formData.get('startTime');
-    const endTime = formData.get('endTime');
-    const colorType = formData.get('colorType');
+    const empId = formData.get('employeeId') as string;
+    const date = formData.get('date') as string;
+    const startTime = formData.get('startTime') as string;
+    const endTime = formData.get('endTime') as string;
+    const colorType = formData.get('colorType') as 'blue' | 'green' | 'orange' | 'pink' | 'purple';
 
     const [startH] = startTime.split(':').map(Number);
     const [endH] = endTime.split(':').map(Number);

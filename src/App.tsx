@@ -495,6 +495,7 @@ const normalizeCategory = (cat: string) => {
   const c = cat.trim();
   if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes') return 'Fruits & Légumes';
   if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
+  if (c === 'Viandes') return 'Viandes';
   return c;
 };
 
@@ -504,7 +505,7 @@ const getCategoryImageUrl = (category: string) => {
     'Fruits & Légumes': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=150&q=80',
     'Poissons & Fruits de mer': 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80',
     'Viandes': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=150&q=80',
-    'Volailles': 'https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=150&q=80',
+    'Volailles': 'https://images.unsplash.com/photo-1587595431973-160d0d94add1?auto=format&fit=crop&w=150&q=80',
     'Épices': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=150&q=80',
     'Boissons': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
     'Produits Laitiers': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=150&q=80',
@@ -3837,7 +3838,7 @@ function Inventory() {
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
-      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec')
+      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec' && c !== 'Viandes & Volailles')
       .sort();
   }, [stockItemsData, fournisseurs]);
 

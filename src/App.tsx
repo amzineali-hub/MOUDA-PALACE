@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers} from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -488,6 +488,39 @@ function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
     </div>
   );
 }
+
+
+const normalizeCategory = (cat: string) => {
+  if (!cat) return cat;
+  const c = cat.trim();
+  if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes') return 'Fruits & Légumes';
+  if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
+  return c;
+};
+
+
+const getCategoryImageUrl = (category: string) => {
+  const images: Record<string, string> = {
+    'Fruits & Légumes': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=150&q=80',
+    'Poissons & Fruits de mer': 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80',
+    'Viandes': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=150&q=80',
+    'Épices': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=150&q=80',
+    'Boissons': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
+    'Produits Laitiers': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=150&q=80',
+    'Boulangerie': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=150&q=80',
+    'Herbes': 'https://images.unsplash.com/photo-1601002931481-80a153dce169?auto=format&fit=crop&w=150&q=80',
+    'Fruits Secs': 'https://images.unsplash.com/photo-1599908611136-1e0e85a676c1?auto=format&fit=crop&w=150&q=80',
+    'Épicerie': 'https://images.unsplash.com/photo-1588964895597-cfccd6e2a0d9?auto=format&fit=crop&w=150&q=80',
+    'Boissons Alcoolisées': 'https://images.unsplash.com/photo-1569529465841-dfecdab7503a?auto=format&fit=crop&w=150&q=80',
+    'Sauces': 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?auto=format&fit=crop&w=150&q=80',
+    'Conserves': 'https://images.unsplash.com/photo-1557999827-02055ff9900c?auto=format&fit=crop&w=150&q=80',
+    'Sirops': 'https://images.unsplash.com/photo-1626071465223-28f09205b38d?auto=format&fit=crop&w=150&q=80',
+    "Produits d'entretien": 'https://images.unsplash.com/photo-1585833446067-17ed3c4daeeb?auto=format&fit=crop&w=150&q=80',
+    "Matériel": 'https://images.unsplash.com/photo-1556910103-1c02745a872f?auto=format&fit=crop&w=150&q=80',
+    "Hygiène & Entretien": 'https://images.unsplash.com/photo-1584820927498-cafe3c157921?auto=format&fit=crop&w=150&q=80',
+  };
+  return images[category] || 'https://images.unsplash.com/photo-1615486511484-92e172054b04?auto=format&fit=crop&w=150&q=80'; // generic box/inventory placeholder
+};
 
 function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
@@ -3794,9 +3827,9 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
-    const dbCats = stockItemsData.map(item => item.category?.trim()).filter(Boolean);
-    const dbFournisseurCats = fournisseurs.map(f => (f.category || f.categorie)?.trim()).filter(Boolean);
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
+    const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
+    const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
   }, [stockItemsData, fournisseurs]);
 
@@ -3815,7 +3848,7 @@ function Inventory() {
     return () => unsub();
   }, []);
 
-  const stockItems = stockItemsData.map(item => ({ ...item, status: calculateStockStatus(item.quantity, item.minStock) }));
+  const stockItems = stockItemsData.map(item => ({ ...item, category: normalizeCategory(item.category), status: calculateStockStatus(item.quantity, item.minStock) }));
   
   const filteredStockItems = stockItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -4039,19 +4072,23 @@ function Inventory() {
               </div>
             </div>
             
-            <div className="mb-6 flex overflow-x-auto hide-scrollbar gap-2 pb-2">
+            <div className="mb-6 flex overflow-x-auto hide-scrollbar gap-3 pb-2">
               <button
                 onClick={() => setSelectedCategory('Tous')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Tous' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+                className={`pr-4 pl-1.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${selectedCategory === 'Tous' ? 'bg-[#265C6D] text-white border-transparent shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 shadow-sm'}`}
               >
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${selectedCategory === 'Tous' ? 'bg-white/20' : 'bg-gray-100'}`}>
+                  <Layers size={14} className={selectedCategory === 'Tous' ? 'text-white' : 'text-gray-500'} />
+                </div>
                 Tous
               </button>
               {categories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+                  className={`pr-4 pl-1.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${selectedCategory === cat ? 'bg-[#265C6D] text-white border-transparent shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 shadow-sm'}`}
                 >
+                  <img src={getCategoryImageUrl(cat)} alt={cat} className="w-7 h-7 rounded-full object-cover shadow-sm flex-shrink-0 bg-gray-100" referrerPolicy="no-referrer" />
                   {cat}
                 </button>
               ))}
@@ -4084,6 +4121,7 @@ function Inventory() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-2 rounded-full ${item.status === 'ok' ? 'bg-green-500' : item.status === 'alert' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                          <img src={getCategoryImageUrl(item.category)} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 bg-gray-50 flex-shrink-0" referrerPolicy="no-referrer" />
                           <span className="font-medium text-gray-900">{item.name}</span>
                         </div>
                       </td>
@@ -5170,7 +5208,7 @@ function Inventory() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
-              const category = formData.get('category') as string;
+              const category = normalizeCategory(formData.get('category') as string);
               const unit = formData.get('unit') as string;
               const quantity = Number(formData.get('quantity') || 0);
               
@@ -5590,7 +5628,7 @@ function Inventory() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
-              const category = formData.get('category') as string;
+              const category = normalizeCategory(formData.get('category') as string);
               const contact = formData.get('contact') as string;
               const phone = formData.get('phone') as string;
               const email = formData.get('email') as string;
@@ -5683,7 +5721,7 @@ function Inventory() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
-              const category = formData.get('category') as string;
+              const category = normalizeCategory(formData.get('category') as string);
               const contact = formData.get('contact') as string;
               const phone = formData.get('phone') as string;
               const email = formData.get('email') as string;

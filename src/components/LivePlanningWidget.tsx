@@ -11,10 +11,10 @@ export default function LivePlanningWidget() {
   }, []);
 
   const activeStaff = [
-    { id: 1, name: "Amine K.", role: "Chef de Rang", area: "Terrasse", status: "actif", time: "14:00 - 22:00", avatar: "AK" },
-    { id: 2, name: "Sarah M.", role: "Manager", area: "Salle Principale", status: "actif", time: "16:00 - 00:00", avatar: "SM" },
-    { id: 3, name: "Youssef T.", role: "Chef de Cuisine", area: "Cuisine", status: "actif", time: "15:00 - 23:00", avatar: "YT" },
-    { id: 4, name: "Sofia B.", role: "Serveuse", area: "Terrasse", status: "pause", time: "12:00 - 20:00", avatar: "SB" }
+    { id: 1, name: "Amine K.", role: "Chef de Rang", area: "Terrasse", status: "actif", time: "14:00 - 22:00", photo: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100" },
+    { id: 2, name: "Sarah M.", role: "Manager", area: "Salle Principale", status: "actif", time: "16:00 - 00:00", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100" },
+    { id: 3, name: "Youssef T.", role: "Chef de Cuisine", area: "Cuisine", status: "actif", time: "15:00 - 23:00", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100" },
+    { id: 4, name: "Sofia B.", role: "Serveuse", area: "Terrasse", status: "pause", time: "12:00 - 20:00", photo: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100" }
   ];
 
   return (
@@ -41,26 +41,62 @@ export default function LivePlanningWidget() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        variants={{
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.1
+            }
+          }
+        }}
+        initial="hidden"
+        animate="show"
+      >
         {activeStaff.map((staff, idx) => (
-          <div key={staff.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 flex items-start gap-4">
-            <div className="w-10 h-10 rounded-full bg-[#265C6D] text-white flex items-center justify-center font-bold text-sm shrink-0">
-              {staff.avatar}
+          <motion.div 
+            key={staff.id} 
+            variants={{
+              hidden: { opacity: 0, scale: 0.95, y: 10 },
+              show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+            }}
+            whileHover={{ scale: 1.03, y: -2 }}
+            className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white shadow-sm hover:shadow-md flex items-start gap-4 transition-colors cursor-pointer relative overflow-hidden"
+          >
+            {staff.status === 'actif' && (
+              <span className="absolute top-4 right-4 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+            )}
+            {staff.status === 'pause' && (
+              <span className="absolute top-4 right-4 flex h-3 w-3">
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#F4C75B]"></span>
+              </span>
+            )}
+
+            <div className="relative w-16 h-16 shrink-0">
+              <img 
+                src={staff.photo} 
+                alt={staff.name} 
+                className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-start mb-1">
-                <p className="font-semibold text-gray-900 truncate">{staff.name}</p>
-                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${staff.status === 'actif' ? 'bg-emerald-500' : 'bg-[#F4C75B]'}`} />
-              </div>
-              <p className="text-xs text-[#265C6D] font-medium mb-1">{staff.role}</p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{staff.area}</span>
-                <span className="font-medium text-gray-700">{staff.time}</span>
+            
+            <div className="flex-1 min-w-0 pr-4">
+              <p className="font-bold text-gray-900 truncate mb-0.5">{staff.name}</p>
+              <p className="text-xs font-semibold text-[#265C6D] mb-2">{staff.role}</p>
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                <span className="bg-white border border-gray-200 px-2 py-1 rounded-md shadow-sm">{staff.area}</span>
+                <span className="font-medium text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{staff.time}</span>
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

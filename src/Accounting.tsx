@@ -31,6 +31,12 @@ export default function Accounting() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isNewExpenseModalOpen, setIsNewExpenseModalOpen] = useState(false);
   const [isNewReceiptModalOpen, setIsNewReceiptModalOpen] = useState(false);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<any>(null);
+  const [isViewReportModalOpen, setIsViewReportModalOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   
@@ -69,12 +75,33 @@ export default function Accounting() {
       finalFormat = 'CSV';
     }
     
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Rapport:,${type}\n`;
-    csvContent += `Mois,Revenus,Depenses\n`;
-    monthlyRevenueData.forEach(data => {
-      csvContent += `${data.name},${data.revenus},${data.depenses}\n`;
-    });
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += `Rapport:;${type}\n`;
+    
+    if (type === 'Bilan Comptable') {
+      csvContent += "\n";
+      csvContent += "ACTIF;;PASSIF;\n";
+      csvContent += "Rubrique;Montant;Rubrique;Montant\n";
+      csvContent += "Actif Immobilisé;895000.00;Financement Permanent;1245400.00\n";
+      csvContent += "Actif Circulant;165700.00;Passif Circulant;151500.00\n";
+      csvContent += "Trésorerie Actif;336200.00;Trésorerie Passif;0.00\n";
+      csvContent += "\n";
+      csvContent += "TOTAL ACTIF;1396900.00;TOTAL PASSIF;1396900.00\n";
+    } else if (type === 'Livre Journal') {
+      csvContent += "\n";
+      csvContent += "Date;Compte;Libellé;Débit;Crédit\n";
+      csvContent += "01/11/2026;5141;Banque (Solde initial);320400.00;\n";
+      csvContent += "02/11/2026;7111;Ventes de marchandises;45200.00;\n";
+      csvContent += "02/11/2026;4455;TVA facturée;;9040.00\n";
+      csvContent += "03/11/2026;6111;Achats de marchandises;;15000.00\n";
+      csvContent += "03/11/2026;3455;TVA récupérable;3000.00;\n";
+      csvContent += "04/11/2026;5161;Caisse (Recettes du jour);15800.00;\n";
+    } else {
+      csvContent += `Mois;Revenus;Depenses\n`;
+      monthlyRevenueData.forEach(data => {
+        csvContent += `${data.name};${data.revenus};${data.depenses}\n`;
+      });
+    }
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -87,21 +114,21 @@ export default function Accounting() {
   };
 
   const handleExport = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     if (activeTab === 'invoices') {
-      csvContent += "ID,Client,ICE,Date,Montant,Statut\n";
+      csvContent += "ID;Client;ICE;Date;Montant;Statut\n";
       invoices.forEach(inv => {
-        csvContent += `${inv.id},${inv.client},${inv.ice},${inv.date},${inv.amount.replace(/ /g, '')},${inv.status}\n`;
+        csvContent += `${inv.id};${inv.client};${inv.ice};${inv.date};${inv.amount.replace(/ /g, '')};${inv.status}\n`;
       });
     } else if (activeTab === 'expenses') {
-      csvContent += "ID,Categorie,Beneficiaire,Date,Methode,Montant\n";
+      csvContent += "ID;Categorie;Beneficiaire;Date;Methode;Montant\n";
       expenses.forEach(exp => {
-        csvContent += `${exp.id},${exp.category},${exp.supplier},${exp.date},${exp.method},${exp.amount.replace(/ /g, '')}\n`;
+        csvContent += `${exp.id};${exp.category};${exp.supplier};${exp.date};${exp.method};${exp.amount.replace(/ /g, '')}\n`;
       });
     } else if (activeTab === 'receipts') {
-      csvContent += "ID,Date,Methode,Montant\n";
+      csvContent += "ID;Date;Methode;Montant\n";
       receipts.forEach(rec => {
-        csvContent += `${rec.id},${rec.date},${rec.method},${rec.amount}\n`;
+        csvContent += `${rec.displayId || 'TKT-' + rec.id.substring(0, 6).toUpperCase()};${rec.createdAt?.toDate ? rec.createdAt.toDate().toLocaleString('fr-FR') : rec.date};${rec.method};${rec.amount}\n`;
       });
     } else {
       showToast("Rien à exporter pour cette section");
@@ -351,10 +378,86 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900 text-right">{invoice.amount}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
+                        <button onClick={() => { setSelectedInvoice(invoice); setIsInvoiceModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
                           <Eye size={16} />
                         </button>
-                        <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                        <button onClick={() => {
+                          let printWindow = window.open('', '', 'width=800,height=900');
+                          if (printWindow) {
+                            printWindow.document.write(`
+                              <html>
+                                <head>
+                                  <title>Facture ${invoice.id}</title>
+                                  <style>
+                                    body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+                                    .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
+                                    .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+                                    .sub-text { color: #666; font-size: 14px; margin-top: 5px; }
+                                    .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
+                                    .client-info { text-align: right; }
+                                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                                    th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+                                    td { border-bottom: 1px solid #eee; padding: 10px; }
+                                    .totals { width: 50%; float: right; }
+                                    .totals table { border: none; }
+                                    .totals th, .totals td { padding: 5px 10px; }
+                                    .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+                                  </style>
+                                </head>
+                                <body>
+                                  <div class="header">
+                                    <div class="logo-text">MOUDA PALACE</div>
+                                    <div class="sub-text">Restaurant Traditionnel Marocain</div>
+                                    <div class="sub-text">Fès, Maroc</div>
+                                  </div>
+                                  <div class="invoice-info">
+                                    <div>
+                                      <h2>FACTURE</h2>
+                                      <p><strong>N°:</strong> ${invoice.id}</p>
+                                      <p><strong>Date:</strong> ${invoice.date}</p>
+                                      <p><strong>Statut:</strong> ${invoice.status}</p>
+                                    </div>
+                                    <div class="client-info">
+                                      <h3>Client</h3>
+                                      <p><strong>${invoice.client}</strong></p>
+                                      ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
+                                    </div>
+                                  </div>
+                                  <table>
+                                    <thead>
+                                      <tr>
+                                        <th>Description</th>
+                                        <th style="text-align: right;">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td>Prestation de services de restauration</td>
+                                        <td style="text-align: right;">${invoice.amount}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                  <div class="totals">
+                                    <table>
+                                      <tr class="grand-total">
+                                        <th style="text-align: left;">NET A PAYER</th>
+                                        <td style="text-align: right;">${invoice.amount}</td>
+                                      </tr>
+                                    </table>
+                                  </div>
+                                  <div style="clear: both; margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px dashed #ccc; padding-top: 20px;">
+                                    Merci pour votre confiance.<br/>
+                                    Mouda Palace - RC: XXXXX - Patente: XXXXX - IF: XXXXX
+                                  </div>
+                                  <script>
+                                    window.onload = () => { window.print(); };
+                                  </script>
+                                </body>
+                              </html>
+                            `);
+                            printWindow.document.close();
+                          }
+                        }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
                           <Download size={16} />
                         </button>
                       </div>
@@ -419,6 +522,7 @@ export default function Accounting() {
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Méthode</th>
                   <th className="px-6 py-4 text-right">Montant</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -430,6 +534,13 @@ export default function Accounting() {
                     <td className="px-6 py-4 text-gray-500">{expense.date}</td>
                     <td className="px-6 py-4 text-gray-500">{expense.method}</td>
                     <td className="px-6 py-4 font-medium text-red-600 text-right">-{expense.amount}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => { setSelectedExpense(expense); setIsExpenseModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le justificatif">
+                          <Eye size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -951,9 +1062,9 @@ export default function Accounting() {
                     {selectedReceipt.items && selectedReceipt.items.length > 0 ? (
                       selectedReceipt.items.map((item: any, i: number) => (
                         <tr key={i}>
-                          <td className="py-1 align-top">{item.quantity || 1}x</td>
+                          <td className="py-1 align-top">{item.quantity || item.qty || 1}x</td>
                           <td className="py-1">{item.name}</td>
-                          <td className="py-1 text-right align-top">{((item.price || 0) * (item.quantity || 1)).toFixed(2)}</td>
+                          <td className="py-1 text-right align-top">{((Number(item.price) || 0) * (Number(item.quantity || item.qty) || 1)).toFixed(2)}</td>
                         </tr>
                       ))
                     ) : (
@@ -991,8 +1102,72 @@ export default function Accounting() {
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
               <button 
                 onClick={() => {
-                  showToast("Impression du ticket...");
-                  setTimeout(() => setIsReceiptModalOpen(false), 500);
+                  let printWindow = window.open('', '', 'width=400,height=800');
+                  if (printWindow) {
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Ticket ${selectedReceipt.displayId || 'TKT-' + selectedReceipt.id.substring(0, 6).toUpperCase()}</title>
+                          <style>
+                            body { font-family: monospace; padding: 20px; color: #000; width: 300px; margin: 0 auto; }
+                            .header { text-align: center; margin-bottom: 20px; }
+                            .logo-text { font-size: 24px; font-weight: bold; }
+                            .sub-text { font-size: 12px; margin-top: 5px; }
+                            .info { margin-bottom: 15px; font-size: 12px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 10px 0; }
+                            .info div { display: flex; justify-content: space-between; margin-bottom: 3px; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 12px; }
+                            th { border-bottom: 1px dashed #000; padding: 5px 0; text-align: left; }
+                            td { padding: 5px 0; vertical-align: top; }
+                            .totals { border-top: 1px dashed #000; padding-top: 10px; margin-bottom: 20px; }
+                            .totals div { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
+                            .totals .method { font-size: 12px; font-weight: normal; margin-top: 5px; }
+                            .footer { text-align: center; font-size: 12px; }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="header">
+                            <div class="logo-text">MOUDA PALACE</div>
+                            <div class="sub-text">Restaurant Traditionnel Marocain<br/>Fès, Maroc<br/>Tel: +212 5 35 XX XX XX</div>
+                          </div>
+                          <div class="info">
+                            <div><span>Ticket N°:</span><span>${selectedReceipt.displayId || 'TKT-' + selectedReceipt.id.substring(0, 6).toUpperCase()}</span></div>
+                            <div><span>Date:</span><span>${selectedReceipt.createdAt?.toDate ? selectedReceipt.createdAt.toDate().toLocaleString('fr-FR') : selectedReceipt.date}</span></div>
+                            <div><span>Serveur:</span><span>${selectedReceipt.server || 'Caisse Principale'}</span></div>
+                          </div>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Qte</th>
+                                <th>Désignation</th>
+                                <th style="text-align: right;">Prix</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${selectedReceipt.items && selectedReceipt.items.length > 0 ? selectedReceipt.items.map((item) => `
+                                <tr>
+                                  <td>${item.quantity || item.qty || 1}x</td>
+                                  <td>${item.name}</td>
+                                  <td style="text-align: right;">${((Number(item.price) || 0) * (Number(item.quantity || item.qty) || 1)).toFixed(2)}</td>
+                                </tr>
+                              `).join('') : `<tr><td colspan="3" style="text-align: center; font-style: italic;">Détails non disponibles</td></tr>`}
+                            </tbody>
+                          </table>
+                          <div class="totals">
+                            <div><span>TOTAL NET</span><span>${Number(selectedReceipt.amount).toFixed(2)} MAD</span></div>
+                            <div class="method"><span>Paiement:</span><span>${(selectedReceipt.method || '').toUpperCase()}</span></div>
+                          </div>
+                          <div class="footer">
+                            <p>Merci de votre visite !</p>
+                            <p>À bientôt au Mouda Palace</p>
+                          </div>
+                          <script>
+                            window.onload = () => { window.print(); };
+                          </script>
+                        </body>
+                      </html>
+                    `);
+                    printWindow.document.close();
+                  }
                 }}
                 className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2.5 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
@@ -1003,6 +1178,328 @@ export default function Accounting() {
         </div>
       )}
 
+      {/* Invoice Modal */}
+      {isInvoiceModalOpen && selectedInvoice && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Détails de la Facture</h3>
+              <button onClick={() => setIsInvoiceModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="flex justify-between mb-6">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Numéro</p>
+                  <p className="font-mono text-lg">{selectedInvoice.id}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 font-medium">Date</p>
+                  <p className="text-gray-900">{selectedInvoice.date}</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Informations Client</h4>
+                <p className="font-medium text-gray-900">{selectedInvoice.client}</p>
+                {selectedInvoice.ice && <p className="text-sm text-gray-500 font-mono mt-1">ICE: {selectedInvoice.ice}</p>}
+              </div>
+              <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="py-3 px-4 text-left font-medium text-gray-600">Désignation</th>
+                      <th className="py-3 px-4 text-right font-medium text-gray-600">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="py-3 px-4 text-gray-900">Prestation de services</td>
+                      <td className="py-3 px-4 text-right font-medium">{selectedInvoice.amount}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                <span className="font-medium text-gray-700">Total TTC</span>
+                <span className="text-xl font-bold text-[#265C6D]">{selectedInvoice.amount}</span>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button 
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Fermer
+              </button>
+              <button 
+                onClick={() => {
+                  let printWindow = window.open('', '', 'width=800,height=900');
+                  if (printWindow) {
+                    printWindow.document.write(`
+                      <html>
+                        <head>
+                          <title>Facture ${selectedInvoice.id}</title>
+                          <style>
+                            body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+                            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
+                            .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+                            .sub-text { color: #666; font-size: 14px; margin-top: 5px; }
+                            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
+                            .client-info { text-align: right; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                            th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+                            td { border-bottom: 1px solid #eee; padding: 10px; }
+                            .totals { width: 50%; float: right; }
+                            .totals table { border: none; }
+                            .totals th, .totals td { padding: 5px 10px; }
+                            .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="header">
+                            <div class="logo-text">MOUDA PALACE</div>
+                            <div class="sub-text">Restaurant Traditionnel Marocain</div>
+                            <div class="sub-text">Fès, Maroc</div>
+                          </div>
+                          <div class="invoice-info">
+                            <div>
+                              <h2>FACTURE</h2>
+                              <p><strong>N°:</strong> ${selectedInvoice.id}</p>
+                              <p><strong>Date:</strong> ${selectedInvoice.date}</p>
+                            </div>
+                            <div class="client-info">
+                              <h3>Client</h3>
+                              <p><strong>${selectedInvoice.client}</strong></p>
+                              ${selectedInvoice.ice ? `<p>ICE: ${selectedInvoice.ice}</p>` : ''}
+                            </div>
+                          </div>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Description</th>
+                                <th style="text-align: right;">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>Prestation de services de restauration</td>
+                                <td style="text-align: right;">${selectedInvoice.amount}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <div class="totals">
+                            <table>
+                              <tr class="grand-total">
+                                <th style="text-align: left;">NET A PAYER</th>
+                                <td style="text-align: right;">${selectedInvoice.amount}</td>
+                              </tr>
+                            </table>
+                          </div>
+                        </body>
+                      </html>
+                    `);
+                    printWindow.document.close();
+                    printWindow.onload = () => { printWindow.print(); };
+                  }
+                }}
+                className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer size={16} /> Imprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense Modal */}
+      {isExpenseModalOpen && selectedExpense && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-semibold text-gray-900 flex items-center gap-2">
+                <FileText size={20} className="text-[#F4C75B]" />
+                Détails de la Dépense
+              </h3>
+              <button onClick={() => setIsExpenseModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="bg-red-50 text-red-700 p-4 rounded-xl text-center mb-6">
+                <p className="text-sm font-medium mb-1">Montant Décaissé</p>
+                <p className="text-3xl font-bold">{selectedExpense.amount} MAD</p>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-500 text-sm">Bénéficiaire</span>
+                  <span className="font-medium text-gray-900">{selectedExpense.supplier}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-500 text-sm">Catégorie</span>
+                  <span className="font-medium text-gray-900">{selectedExpense.category}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-500 text-sm">Date</span>
+                  <span className="font-medium text-gray-900">{selectedExpense.date}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-500 text-sm">Méthode de paiement</span>
+                  <span className="font-medium text-gray-900">{selectedExpense.method}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-500 text-sm">Référence interne</span>
+                  <span className="font-mono text-gray-900 text-sm">{selectedExpense.id}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Report Modal */}
+      {isViewReportModalOpen && selectedReport && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-4xl overflow-hidden relative shadow-2xl flex flex-col max-h-[95vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-semibold text-gray-900 flex items-center gap-2">
+                <FileText size={20} className="text-[#F4C75B]" />
+                {selectedReport.type} - {selectedReport.date}
+              </h3>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDownloadReport(selectedReport.type, selectedReport.format)}
+                  className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
+                >
+                  <Download size={16} /> Exporter
+                </button>
+                <button onClick={() => setIsViewReportModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-2 rounded-md hover:bg-gray-100 ml-2">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-8 overflow-y-auto bg-gray-50 flex-1">
+              {selectedReport.type === 'Bilan Comptable' ? (
+                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm max-w-3xl mx-auto">
+                  <div className="text-center mb-8 pb-6 border-b border-gray-200">
+                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">Bilan Comptable</h2>
+                    <p className="text-gray-500 mt-2 font-medium">MOUDA PALACE - FÈS</p>
+                    <p className="text-gray-500 mt-1">Arrêté au {selectedReport.date}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    {/* ACTIF */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-900 pb-2 mb-4">ACTIF (Emplois)</h3>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">ACTIF IMMOBILISÉ</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Immobilisations Incorporelles</span><span>45 000.00</span></div>
+                            <div className="flex justify-between"><span>Immobilisations Corporelles</span><span>850 000.00</span></div>
+                            <div className="flex justify-between text-gray-500 italic pl-4"><span>- Aménagements divers</span><span>350 000.00</span></div>
+                            <div className="flex justify-between text-gray-500 italic pl-4"><span>- Matériel de cuisine</span><span>500 000.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Actif Immobilisé</span><span>895 000.00</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">ACTIF CIRCULANT (Hors Trésorerie)</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Stocks (Marchandises)</span><span>120 500.00</span></div>
+                            <div className="flex justify-between"><span>Créances Clients</span><span>45 200.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Actif Circulant</span><span>165 700.00</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">TRÉSORERIE - ACTIF</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Banques, TG, CCP</span><span>320 400.00</span></div>
+                            <div className="flex justify-between"><span>Caisse</span><span>15 800.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Trésorerie</span><span>336 200.00</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* PASSIF */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-900 pb-2 mb-4">PASSIF (Ressources)</h3>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">FINANCEMENT PERMANENT</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Capital Social</span><span>500 000.00</span></div>
+                            <div className="flex justify-between"><span>Réserves</span><span>150 000.00</span></div>
+                            <div className="flex justify-between"><span>Résultat net de l'exercice</span><span>245 400.00</span></div>
+                            <div className="flex justify-between"><span>Dettes de financement (Prêt)</span><span>350 000.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Financement Permanent</span><span>1 245 400.00</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">PASSIF CIRCULANT (Hors Trésorerie)</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Dettes Fournisseurs</span><span>85 600.00</span></div>
+                            <div className="flex justify-between"><span>Organismes Sociaux (CNSS)</span><span>22 400.00</span></div>
+                            <div className="flex justify-between"><span>État (TVA, IS)</span><span>43 500.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Passif Circulant</span><span>151 500.00</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-semibold text-[#265C6D] mb-2">TRÉSORERIE - PASSIF</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span>Découvert bancaire</span><span>0.00</span></div>
+                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
+                              <span>Total Trésorerie Passif</span><span>0.00</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-12 pt-6 border-t-2 border-gray-900 grid grid-cols-1 md:grid-cols-2 gap-12 text-lg font-bold">
+                    <div className="flex justify-between text-[#265C6D]">
+                      <span>TOTAL GÉNÉRAL ACTIF</span>
+                      <span>1 396 900.00</span>
+                    </div>
+                    <div className="flex justify-between text-[#265C6D]">
+                      <span>TOTAL GÉNÉRAL PASSIF</span>
+                      <span>1 396 900.00</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-16 text-xs text-gray-400 text-center uppercase tracking-wider">
+                    - Document à titre indicatif généré électroniquement -
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                  <FileText size={48} className="mb-4 text-gray-300" />
+                  <p>Aperçu du format "{selectedReport.type}" en cours de développement.</p>
+                  <p className="text-sm mt-2">Veuillez utiliser le bouton Exporter pour télécharger les données.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

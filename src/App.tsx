@@ -113,6 +113,7 @@ import EcranCuisine from "./EcranCuisine";
 import DeviceManagement from "./DeviceManagement";
 import DeviceSimulator from "./DeviceSimulator";
 import SystemMonitoring from "./SystemMonitoring";
+import LivePlanningWidget from "./components/LivePlanningWidget";
 import ChatBot from './components/ChatBot';
 import RH from './RH';
 import NotificationSystem from './NotificationSystem';
@@ -1082,6 +1083,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </header>
 
         <SystemMonitoring />
+        <LivePlanningWidget />
 
         {/* Dashboard Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">

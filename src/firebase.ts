@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore, enableMultiTabIndexedDbPersistence, initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import firebaseConfig from "../firebase-applet-config.json";
@@ -8,7 +8,7 @@ import firebaseConfig from "../firebase-applet-config.json";
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore using the specific databaseId from config if present
-const db = initializeFirestore(app, { experimentalForceLongPolling: true }, (firebaseConfig as any).firestoreDatabaseId || "(default)");
+const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || "(default)");
 
 try {
   enableMultiTabIndexedDbPersistence(db).catch((err) => {

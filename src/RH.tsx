@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter, Upload, Timer, CalendarRange, Banknote, Shield, UserCheck, Printer, Trash2 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebase';import PlanningScheduler from './components/PlanningScheduler';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -423,13 +423,7 @@ export default function RH() {
         </div>
       )}
       
-      {activeTab === 'schedule' && (
-        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm text-center">
-           <Timer size={48} className="mx-auto text-gray-300 mb-4" />
-           <h3 className="text-xl font-bold text-gray-900 mb-2">Module Planning</h3>
-           <p className="text-gray-500 mb-6">Le gestionnaire de planning est en cours de maintenance.</p>
-        </div>
-      )}
+      {activeTab === 'schedule' && ( <div className='mt-6'><PlanningScheduler staffData={staffData} /></div> )}
 
       {/* Payslip Document Modal */}
       {isPayslipDocOpen && selectedPayslip && (

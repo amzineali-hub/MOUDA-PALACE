@@ -106,7 +106,7 @@ import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
 import Documentation from "./Documentation";
 import GuideEcrans from "./GuideEcrans";
 import AchatsFournisseurs from "./AchatsFournisseurs";
-import Recettes from "./Recettes";
+import FichesTechniques from "./FichesTechniques";
 import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
 import EcranCuisine from "./EcranCuisine";
@@ -542,7 +542,7 @@ function App() {
     { type: 'Navigation', text: 'Vue d\'ensemble', tab: 'overview', keywords: ['dashboard', 'accueil', 'home', 'statistiques'] },
     { type: 'Production', text: 'Production cuisine', tab: 'inventory', keywords: ['inventaire', 'produits', 'ingrédients', 'marchandise', 'stock'] },
     { type: 'Production', text: 'Achats fournisseurs', tab: 'achats', keywords: ['commandes', 'dépenses', 'fournitures', 'achats'] },
-    { type: 'Production', text: 'Recettes et stocks', tab: 'recettes', keywords: ['cuisine', 'préparation', 'ingrédients', 'tajine', 'couscous', 'recette', 'fiche technique'] },
+    { type: 'Production', text: 'Fiches Techniques', tab: 'recettes', keywords: ['cuisine', 'préparation', 'ingrédients', 'recette', 'fiche technique', 'marge', 'food cost'] },
     { type: 'Clientèle', text: 'Réservations', tab: 'reservations', keywords: ['clients', 'table', 'dîner', 'déjeuner', 'réserver'] },
     { type: 'Clientèle', text: 'Menus digitaux', tab: 'menu', keywords: ['carte', 'plats', 'boissons', 'desserts', 'tajine', 'couscous', 'pastilla', 'menu'] },
     { type: 'Clientèle', text: 'Tables', tab: 'tables', keywords: ['plan', 'salle', 'service', 'placement'] },
@@ -669,7 +669,7 @@ function App() {
       case 'achats':
         return <AchatsFournisseurs />;
       case 'recettes':
-        return <Recettes />;
+        return <FichesTechniques />;
       case 'tables':
         return <GestionTables setActiveTab={handleTabChange} />;
       default:
@@ -832,7 +832,7 @@ function App() {
             <SubNavItem icon={<ChefHat size={16} />} label="Production cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
             <SubNavItem icon={<AlertCircle size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
-            <SubNavItem icon={<UtensilsCrossed size={16} />} label="Recettes et stocks" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
+            <SubNavItem icon={<UtensilsCrossed size={16} />} label="Fiches Techniques" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
           </NavCategory>
 
           <NavCategory 
@@ -967,6 +967,33 @@ function App() {
 }
 
 function PerformanceAnalysis() {
+  const [averageMargin, setAverageMargin] = useState(0);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
+      let totalMargin = 0;
+      let count = 0;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.prixVente && data.coutMatiere) {
+          const pv = Number(data.prixVente);
+          const cm = Number(data.coutMatiere);
+          if (pv > 0) {
+            const margin = ((pv - cm) / pv) * 100;
+            totalMargin += margin;
+            count++;
+          }
+        }
+      });
+      if (count > 0) {
+        setAverageMargin(totalMargin / count);
+      } else {
+        setAverageMargin(0);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   const occupancyData = [
     { name: 'Lun', taux: 45 },
     { name: 'Mar', taux: 52 },
@@ -984,7 +1011,28 @@ function PerformanceAnalysis() {
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div className="mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between"
+        >
+          <div>
+            <p className="text-sm font-medium text-gray-500 mb-1">Marge Bénéficiaire Moyenne</p>
+            <h3 className="text-2xl font-bold text-gray-900">{averageMargin.toFixed(1)}%</h3>
+            <p className="text-xs text-green-600 flex items-center mt-1">
+              <TrendingUp size={12} className="mr-1" /> Basé sur les fiches techniques
+            </p>
+          </div>
+          <div className="p-3 bg-green-50 text-green-600 rounded-xl">
+            <TrendingUp size={24} />
+          </div>
+        </motion.div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Chart 1: Taux de Remplissage (AreaChart) */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -1049,6 +1097,7 @@ function PerformanceAnalysis() {
           </ResponsiveContainer>
         </div>
       </motion.div>
+      </div>
     </div>
   );
 }
@@ -3792,10 +3841,11 @@ function Inventory() {
     return () => unsub();
   }, []);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
-  const [newRecipeForm, setNewRecipeForm] = useState({ name: '', category: 'Entrée' });
+  const [newRecipeForm, setNewRecipeForm] = useState({ name: '', category: 'Entrée', portions: 1 });
   const [newRecipeIngredients, setNewRecipeIngredients] = useState<any[]>([]);
   const [selectedIngredient, setSelectedIngredient] = useState('');
   const [ingredientQty, setIngredientQty] = useState('');
+  const [ingredientUnit, setIngredientUnit] = useState('kg');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -5038,47 +5088,42 @@ function Inventory() {
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                  <select
+                  <input
+                    type="text"
                     value={newRecipeForm.name}
-                    onChange={(e) => {
-                      const dishName = e.target.value;
-                      let category = newRecipeForm.category;
-                      if (['Briouates au Fromage', 'Salade Zaalouk'].includes(dishName)) {
-                        category = 'Entrées';
-                      } else if (['Tagine d\'Agneau aux Pruneaux', 'Pastilla au Pigeon'].includes(dishName)) {
-                        category = 'Plats Principaux';
-                      } else if (['Orange à la Cannelle'].includes(dishName)) {
-                        category = 'Desserts';
-                      } else if (['Thé à la Menthe Royal'].includes(dishName)) {
-                        category = 'Boissons';
-                      }
-                      setNewRecipeForm({...newRecipeForm, name: dishName, category});
-                    }}
+                    onChange={(e) => setNewRecipeForm({...newRecipeForm, name: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="">Sélectionner un plat...</option>
-                    <option value="Briouates au Fromage">Briouates au Fromage</option>
-                    <option value="Salade Zaalouk">Salade Zaalouk</option>
-                    <option value="Tagine d'Agneau aux Pruneaux">Tagine d'Agneau aux Pruneaux</option>
-                    <option value="Pastilla au Pigeon">Pastilla au Pigeon</option>
-                    <option value="Orange à la Cannelle">Orange à la Cannelle</option>
-                    <option value="Thé à la Menthe Royal">Thé à la Menthe Royal</option>
-                  </select>
+                    placeholder="Ex: Tajine de Poulet"
+                  />
                 </div>
-                <div>
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
+                  <input
+                    list="dl-recipe-cats"
                     value={newRecipeForm.category}
                     onChange={(e) => setNewRecipeForm({...newRecipeForm, category: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
+                    placeholder="Ex: Plats Principaux"
+                  />
+                  <datalist id="dl-recipe-cats">
+                    <option value="Entrées" />
+                    <option value="Plats Principaux" />
+                    <option value="Desserts" />
+                    <option value="Boissons" />
+                  </datalist>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Portions (Rendement)</label>
+                  <select
+                    value={newRecipeForm.portions || 1}
+                    onChange={(e) => setNewRecipeForm({...newRecipeForm, portions: Number(e.target.value)})}
+                    className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
                   >
-                    <option value="">Sélectionner une catégorie...</option>
-                    <option value="Entrées">Entrées</option>
-                    <option value="Plats Principaux">Plats Principaux</option>
-                    <option value="Desserts">Desserts</option>
-                    <option value="Boissons">Boissons</option>
+                    {[1, 2, 4, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 100].map(p => (
+                      <option key={p} value={p}>{p} {p > 1 ? 'portions' : 'portion'}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -5087,26 +5132,51 @@ function Inventory() {
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="font-medium text-gray-900">Ingrédients depuis l'inventaire</h4>
                 </div>
-                <div className="flex gap-2 mb-4 relative">
-                  <input
-                    list="dl-ingredients"
-                    value={selectedIngredient}
-                    onChange={(e) => setSelectedIngredient(e.target.value)}
-                    placeholder="Rechercher un produit..."
-                    className="flex-1 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
-                  />
-                  <datalist id="dl-ingredients">
-                    {stockItemsData.map(item => (
-                      <option key={item.id} value={item.name}>{item.category} - {item.unit}</option>
-                    ))}
-                  </datalist>
-                  <input 
-                    type="number" 
-                    value={ingredientQty}
-                    onChange={(e) => setIngredientQty(e.target.value)}
-                    className="w-24 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                    placeholder="Qté" 
-                  />
+                <div className="flex flex-wrap gap-2 mb-4 relative items-start">
+                  <div className="flex-1 min-w-[200px]">
+                    <input
+                      list="dl-ingredients"
+                      value={selectedIngredient}
+                      onChange={(e) => setSelectedIngredient(e.target.value)}
+                      placeholder="Nom de l'ingrédient (existant ou nouveau)..."
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
+                    />
+                    <datalist id="dl-ingredients">
+                      {stockItemsData.map(item => (
+                        <option key={item.id} value={item.name}>{item.category} - {item.unit}</option>
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="w-28">
+                    <input 
+                      type="number" 
+                      value={ingredientQty}
+                      onChange={(e) => setIngredientQty(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                      placeholder="Qté" 
+                    />
+                  </div>
+                  <div className="w-32">
+                    <select
+                      value={ingredientUnit}
+                      onChange={(e) => setIngredientUnit(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
+                    >
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="L">L</option>
+                      <option value="cl">cl</option>
+                      <option value="ml">ml</option>
+                      <option value="pièce">pièce</option>
+                      <option value="portion">portion</option>
+                      <option value="bouteille">bouteille</option>
+                      <option value="boîte">boîte</option>
+                      <option value="paquet">paquet</option>
+                      <option value="botte">botte</option>
+                      <option value="c.à.s">c.à.s</option>
+                      <option value="c.à.c">c.à.c</option>
+                    </select>
+                  </div>
                   <button 
                     onClick={() => {
                       if (!selectedIngredient || !ingredientQty) {
@@ -5118,15 +5188,23 @@ function Inventory() {
                         setNewRecipeIngredients([...newRecipeIngredients, {
                           id: item.id,
                           name: item.name,
-                          unit: item.unit,
+                          unit: item.unit, // Use inventory unit
                           quantity: Number(ingredientQty),
                           costPerUnit: item.price || 0
                         }]);
-                        setSelectedIngredient('');
-                        setIngredientQty('');
                       } else {
-                        showToast("Ingrédient introuvable dans l'inventaire", "error");
+                        // Allow adding a custom ingredient that is not in inventory
+                        setNewRecipeIngredients([...newRecipeIngredients, {
+                          id: `custom-${Date.now()}`,
+                          name: selectedIngredient,
+                          unit: ingredientUnit,
+                          quantity: Number(ingredientQty),
+                          costPerUnit: 0 // Cannot determine cost for non-inventory item
+                        }]);
                       }
+                      setSelectedIngredient('');
+                      setIngredientQty('');
+                      setIngredientUnit('kg');
                     }}
                     className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745]"
                   >
@@ -5178,6 +5256,7 @@ function Inventory() {
                     await addDoc(collection(db, 'recipes'), {
                       name: newRecipeForm.name,
                       category: newRecipeForm.category,
+                      portions: newRecipeForm.portions || 1,
                       ingredients: newRecipeIngredients,
                       cost: cost,
                       price: recommendedPrice,
@@ -5186,7 +5265,7 @@ function Inventory() {
                     });
                     
                     showToast("Fiche technique créée avec succès");
-                    setNewRecipeForm({ name: '', category: 'Entrée' });
+                    setNewRecipeForm({ name: '', category: 'Entrée', portions: 1 });
                     setNewRecipeIngredients([]);
                     setIsNewRecipeModalOpen(false);
                   } catch (e) {

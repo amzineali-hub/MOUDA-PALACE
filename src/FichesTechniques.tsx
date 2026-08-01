@@ -6,8 +6,21 @@ import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, Chef
 import { query, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 
+// Define calculateCost outside so it can be reused
+const calculateCost = (qty: number, unit: string, price: number, priceUnit: string, forceCost?: number) => {
+  if (forceCost !== undefined && forceCost !== null && !price) return forceCost;
+  if (!qty || !price) return 0;
+  let adjustedQty = qty;
+  if (unit === 'g' && priceUnit === 'kg') adjustedQty = qty / 1000;
+  if (unit === 'kg' && priceUnit === 'g') adjustedQty = qty * 1000;
+  if (unit === 'ml' && priceUnit === 'L') adjustedQty = qty / 1000;
+  if (unit === 'L' && priceUnit === 'ml') adjustedQty = qty * 1000;
+  return adjustedQty * price;
+};
+
 export default function FichesTechniques() {
   const [recipes, setRecipes] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<any>(null);
   const [search, setSearch] = useState('');
@@ -17,7 +30,10 @@ export default function FichesTechniques() {
     const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
       setRecipes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
-    return () => unsub();
+    const unsubInv = onSnapshot(collection(db, 'inventoryItems'), (snapshot) => {
+      setInventoryItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => { unsub(); unsubInv(); };
   }, []);
 
   const openNew = () => {
@@ -95,7 +111,24 @@ export default function FichesTechniques() {
                     Aucune fiche technique trouvée
                   </td>
                 </tr>
-              ) : filteredRecipes.map(recipe => (
+              ) : filteredRecipes.map(recipe => {
+                let dynamicCoutMatiere = recipe.coutMatiere || 0;
+                if (recipe.ingredients && recipe.ingredients.length > 0) {
+                  dynamicCoutMatiere = recipe.ingredients.reduce((sum: number, ing: any) => {
+                    const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
+                    const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
+                    const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
+                    return sum + calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
+                  }, 0);
+                } else if (recipe.coutMatiere) {
+                  dynamicCoutMatiere = recipe.coutMatiere;
+                }
+
+                const pv = Number(recipe.prixVente) || 0;
+                const dynamicFoodCost = pv > 0 ? (dynamicCoutMatiere / pv) * 100 : 0;
+                const dynamicMarge = pv > 0 ? pv - dynamicCoutMatiere : 0;
+
+                return (
                 <tr key={recipe.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4 font-medium text-gray-900">{recipe.nom}</td>
                   <td className="px-6 py-4 text-gray-600">
@@ -103,23 +136,24 @@ export default function FichesTechniques() {
                       {recipe.categorie || 'Non classé'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-medium text-red-600">{Number(recipe.coutMatiere || 0).toFixed(2)} DH</td>
-                  <td className="px-6 py-4 font-medium text-green-600">{Number(recipe.prixVente || 0).toFixed(2)} DH</td>
+                  <td className="px-6 py-4 font-medium text-red-600">{Number(dynamicCoutMatiere).toFixed(2)} DH</td>
+                  <td className="px-6 py-4 font-medium text-green-600">{Number(pv).toFixed(2)} DH</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
-                      (recipe.foodCost || 0) <= 25 ? 'bg-green-50 text-green-700' : 
-                      (recipe.foodCost || 0) <= 35 ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
+                      dynamicFoodCost <= 25 ? 'bg-green-50 text-green-700' : 
+                      dynamicFoodCost <= 35 ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
                     }`}>
-                      {Number(recipe.foodCost || 0).toFixed(1)}%
+                      {Number(dynamicFoodCost).toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-medium text-[#265C6D]">{Number(recipe.margeBrute || 0).toFixed(2)} DH</td>
+                  <td className="px-6 py-4 font-medium text-[#265C6D]">{Number(dynamicMarge).toFixed(2)} DH</td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => openEdit(recipe)} className="text-gray-400 hover:text-blue-500 p-2"><Edit3 size={18} /></button>
                     <button onClick={() => handleDelete(recipe.id)} className="text-gray-400 hover:text-red-500 p-2"><Trash2 size={18} /></button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -168,22 +202,13 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     unitePrix: 'kg'
   });
 
-  const calculateCost = (qty: number, unit: string, price: number, priceUnit: string, forceCost?: number) => {
-    if (forceCost !== undefined && forceCost !== null && !price) return forceCost;
-    if (!qty || !price) return 0;
-    
-    // Convert qty to match priceUnit if possible
-    let adjustedQty = qty;
-    if (unit === 'g' && priceUnit === 'kg') adjustedQty = qty / 1000;
-    if (unit === 'kg' && priceUnit === 'g') adjustedQty = qty * 1000;
-    if (unit === 'ml' && priceUnit === 'L') adjustedQty = qty / 1000;
-    if (unit === 'L' && priceUnit === 'ml') adjustedQty = qty * 1000;
 
-    return adjustedQty * price;
-  };
 
   const calculatedCoutMatiere = ingredients.reduce((sum, ing) => {
-    return sum + (ing.coutCalculated || calculateCost(ing.quantite, ing.unite, ing.prixUnitaire, ing.unitePrix, ing.forceCost));
+    const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
+    const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
+    const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
+    return sum + calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
   }, 0);
   
   const coutMatiere = ingredients.length > 0 ? calculatedCoutMatiere : (Number(manualCoutMatiere) || 0);
@@ -398,16 +423,25 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {ingredients.map((ing) => (
+                {ingredients.map((ing) => {
+                  const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
+                  const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
+                  const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
+                  const currentCost = calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
+
+                  return (
                   <tr key={ing.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{ing.nom}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {ing.nom}
+                      {matchedItem && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{ing.quantite}</td>
                     <td className="px-4 py-3 text-gray-600">{ing.unite}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      {ing.prixUnitaire ? `${ing.prixUnitaire} DH / ${ing.unitePrix}` : '-'}
+                      {currentPrice ? `${Number(currentPrice).toFixed(2)} DH / ${currentPriceUnit}` : '-'}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-800">
-                      {ing.coutCalculated.toFixed(2)} DH
+                      {currentCost.toFixed(2)} DH
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => removeIngredient(ing.id)} className="text-gray-400 hover:text-red-500">
@@ -415,7 +449,8 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                       </button>
                     </td>
                   </tr>
-                ))}
+                )
+                })}
                 
                 {/* Add new row */}
                 <tr className="bg-gray-50/30">

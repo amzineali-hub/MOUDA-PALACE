@@ -407,7 +407,89 @@ const SubNavItem = ({ icon, label, active, onClick }: any) => (
   </button>
 );
 
-export default function App() {
+function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
+  const [articles, setArticles] = useState<{name: string, qty: string}[]>([]);
+  const [currentArticle, setCurrentArticle] = useState('');
+  const [currentQty, setCurrentQty] = useState('');
+
+  const addArticle = () => {
+    if (currentArticle && currentQty) {
+      setArticles([...articles, { name: currentArticle, qty: currentQty }]);
+      setCurrentArticle('');
+      setCurrentQty('');
+    }
+  };
+
+  const removeArticle = (idx: number) => {
+    setArticles(articles.filter((_, i) => i !== idx));
+  };
+
+  const allItems = Array.from(new Set((stockItemsData || []).map((item: any) => item.name))).sort();
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-700">Articles</label>
+      
+      {articles.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-100">
+          {articles.map((art, idx) => (
+            <div key={idx} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100 text-sm">
+              <span className="font-medium">{art.name}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500">{art.qty}</span>
+                <button type="button" onClick={() => removeArticle(idx)} className="text-red-500 hover:text-red-700">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <input 
+            list="dl-order-articles" 
+            value={currentArticle}
+            onChange={e => setCurrentArticle(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]" 
+            placeholder="Nom de l'article" 
+          />
+          <datalist id="dl-order-articles">
+            {allItems.map((name: any, idx) => (
+              <option key={idx} value={name} />
+            ))}
+          </datalist>
+        </div>
+        <div className="w-24">
+          <input 
+            type="text"
+            value={currentQty}
+            onChange={e => setCurrentQty(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]" 
+            placeholder="Qté" 
+          />
+        </div>
+        <button 
+          type="button" 
+          onClick={addArticle}
+          disabled={!currentArticle || !currentQty}
+          className="px-3 bg-[#265C6D] text-white rounded-lg hover:bg-[#2F6B7F] disabled:opacity-50 transition-colors flex items-center justify-center"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      <input 
+        type="hidden" 
+        name="articles" 
+        value={articles.map(a => `${a.name} (${a.qty})`).join('\n')} 
+      />
+    </div>
+  );
+}
+
+function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -1793,7 +1875,7 @@ function Reservations() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
           )}
 
           {activeTab === 'floorplan' && (
@@ -3691,6 +3773,7 @@ function Inventory() {
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
   const [wasteForm, setWasteForm] = useState({ item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
+  const [txForm, setTxForm] = useState({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -3745,6 +3828,14 @@ function Inventory() {
   });
 
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [txSearchQuery, setTxSearchQuery] = useState('');
+  const [txFilterType, setTxFilterType] = useState('all');
+
+  const filteredTransactions = recentTransactions.filter(tx => {
+    const matchesSearch = (tx.item || '').toLowerCase().includes(txSearchQuery.toLowerCase()) || (tx.id || '').toLowerCase().includes(txSearchQuery.toLowerCase());
+    const matchesType = txFilterType === 'all' || tx.type === txFilterType;
+    return matchesSearch && matchesType;
+  });
 
   const handleExportPDF = () => {
     let printWindow = window.open('', '', 'width=800,height=900');
@@ -3955,78 +4046,15 @@ function Inventory() {
               >
                 Tous
               </button>
-              <button
-                onClick={() => setSelectedCategory('Fruits')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Fruits' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Fruits 🍎
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Légumes')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Légumes' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Légumes 🥦
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Viandes')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Viandes' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Viandes 🥩
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Poissons')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Poissons' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Poissons 🐟
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Produits Laitiers')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Produits Laitiers' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Produits Laitiers 🥛
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Épices')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Épices' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Épices 🌶️
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Boissons')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Boissons' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Boissons 🥤
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Boissons Alcoolisées')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Boissons Alcoolisées' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Boissons Alcoolisées 🍷
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Sauces')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Sauces' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Sauces 🍯
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Conserves')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Conserves' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Conserves 🥫
-              </button>
-              <button
-                onClick={() => setSelectedCategory('Sirops')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === 'Sirops' ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Sirops 🍁
-              </button>
-              <button
-                onClick={() => setSelectedCategory("Produits d'entretien")}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === "Produits d'entretien" ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
-              >
-                Entretien ✨
-              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-[#265C6D] text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
             </>
           )}
@@ -4438,8 +4466,44 @@ function Inventory() {
           )}
 
           {activeTab === 'transactions' && (
-            <div className="divide-y divide-gray-100">
-              {recentTransactions.map(tx => (
+            <div className="p-0">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 p-6 pb-0 gap-4">
+                <h3 className="text-lg font-medium text-gray-900">Historique des Mouvements</h3>
+                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                  <div className="relative flex-1 sm:w-64">
+                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Rechercher un article ou réf..." 
+                      value={txSearchQuery}
+                      onChange={(e) => setTxSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] text-sm"
+                    />
+                  </div>
+                  <select 
+                    value={txFilterType}
+                    onChange={(e) => setTxFilterType(e.target.value)}
+                    className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] text-sm bg-white"
+                  >
+                    <option value="all">Tous les mouvements</option>
+                    <option value="in">Entrées seulement</option>
+                    <option value="out">Sorties seulement</option>
+                  </select>
+                  <button 
+                    onClick={() => {
+                      setTxForm({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
+                      setIsTxModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <Plus size={16} /> Nouveau
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100 border-t border-gray-100">
+                {filteredTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">Aucun mouvement trouvé.</div>
+                ) : filteredTransactions.map(tx => (
                 <div key={tx.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
                   <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${tx.type === 'in' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -4467,6 +4531,7 @@ function Inventory() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
 
@@ -5161,12 +5226,12 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" list="dl-o04gf1-3" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Viandes" />
-                  <datalist id="dl-o04gf1-3">
+                  <select name="category" required className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]">
+                    <option value="">Sélectionner une catégorie...</option>
                     {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
+                      <option key={idx} value={cat}>{cat}</option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -5498,10 +5563,7 @@ function Inventory() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
                 <input name="deliveryDate" type="date" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Articles</label>
-                <textarea name="articles" required rows={3} placeholder="Ex: Safran 500g, Huile d'olive 20L..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none"></textarea>
-              </div>
+              <OrderArticlesField stockItemsData={stockItemsData} />
               <button 
                 type="submit"
                 className="w-full bg-[#F4C75B] text-[#265C6D] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
@@ -5718,6 +5780,204 @@ function Inventory() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* Transaction Modal */}
+      {isTxModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Nouveau Mouvement</h3>
+              <button onClick={() => setIsTxModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex gap-4 p-1 bg-gray-100 rounded-lg">
+                <button 
+                  onClick={() => setTxForm({...txForm, type: 'in', reason: 'Achat'})} 
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${txForm.type === 'in' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500'}`}
+                >
+                  Entrée (+)
+                </button>
+                <button 
+                  onClick={() => setTxForm({...txForm, type: 'out', reason: 'Consommation'})} 
+                  className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${txForm.type === 'out' ? 'bg-white text-red-700 shadow-sm' : 'text-gray-500'}`}
+                >
+                  Sortie (-)
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Article</label>
+                <input
+                  list="dl-tx-items"
+                  value={txForm.item}
+                  onChange={e => setTxForm({...txForm, item: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  placeholder="Rechercher un produit..."
+                />
+                <datalist id="dl-tx-items">
+                  {stockItemsData.map(item => (
+                    <option key={item.id} value={item.name} />
+                  ))}
+                </datalist>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
+                  <input 
+                    type="number" 
+                    value={txForm.amount}
+                    onChange={e => setTxForm({...txForm, amount: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                    placeholder="Ex: 5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select 
+                    value={txForm.unit}
+                    onChange={e => setTxForm({...txForm, unit: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="L">L</option>
+                    <option value="cl">cl</option>
+                    <option value="pièce(s)">pièce(s)</option>
+                    <option value="bouteille(s)">bouteille(s)</option>
+                    <option value="boîte(s)">boîte(s)</option>
+                  </select>
+                </div>
+              </div>
+
+              {txForm.type === 'in' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire (MAD)</label>
+                    <input 
+                      type="number" 
+                      value={txForm.unitPrice}
+                      onChange={e => setTxForm({...txForm, unitPrice: e.target.value})}
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                      placeholder="Ex: 45"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                    <input
+                      list="dl-tx-suppliers"
+                      value={txForm.supplier}
+                      onChange={e => setTxForm({...txForm, supplier: e.target.value})}
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                      placeholder="Ex: Marché Central"
+                    />
+                    <datalist id="dl-tx-suppliers">
+                      {fournisseurs.map(f => (
+                        <option key={f.id} value={f.name || f.nom} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
+                <select 
+                  value={txForm.reason}
+                  onChange={e => setTxForm({...txForm, reason: e.target.value})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                >
+                  {txForm.type === 'in' ? (
+                    <>
+                      <option value="Achat">Achat / Réception</option>
+                      <option value="Retour Client">Retour Client</option>
+                      <option value="Ajustement d'inventaire">Ajustement d'inventaire (+)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Consommation">Consommation / Production</option>
+                      <option value="Perte">Perte / Gaspillage</option>
+                      <option value="Ajustement d'inventaire">Ajustement d'inventaire (-)</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input 
+                    type="date" 
+                    value={txForm.date}
+                    onChange={e => setTxForm({...txForm, date: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Opérateur</label>
+                  <input 
+                    type="text" 
+                    value={txForm.user}
+                    onChange={e => setTxForm({...txForm, user: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-4 mt-6 border-t border-gray-100 flex gap-3">
+                <button 
+                  onClick={() => setIsTxModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!txForm.item || !txForm.amount) {
+                      showToast("Veuillez remplir l'article et la quantité", "error");
+                      return;
+                    }
+                    try {
+                      // Add transaction
+                      await addDoc(collection(db, 'inventoryTransactions'), {
+                        ...txForm,
+                        createdAt: serverTimestamp()
+                      });
+                      
+                      // Also update the stock quantity in inventoryItems if found
+                      const itemToUpdate = stockItemsData.find(item => item.name.toLowerCase() === txForm.item.toLowerCase());
+                      if (itemToUpdate && itemToUpdate.id) {
+                        const amount = parseFloat(txForm.amount);
+                        const newQuantity = txForm.type === 'in' ? 
+                          (parseFloat(itemToUpdate.quantity || 0) + amount) : 
+                          (parseFloat(itemToUpdate.quantity || 0) - amount);
+                        
+                        await updateDoc(doc(db, 'inventoryItems', itemToUpdate.id), {
+                          quantity: newQuantity,
+                          updatedAt: serverTimestamp()
+                        });
+                      }
+
+                      showToast("Mouvement enregistré avec succès");
+                      setIsTxModalOpen(false);
+                    } catch (e) {
+                      showToast("Erreur lors de la sauvegarde", "error");
+                      console.error(e);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -7109,3 +7369,5 @@ function TacSystemsPOS() {
     </div>
   );
 }
+
+export default App;

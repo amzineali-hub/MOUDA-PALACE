@@ -504,6 +504,7 @@ const getCategoryImageUrl = (category: string) => {
     'Fruits & Légumes': 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=150&q=80',
     'Poissons & Fruits de mer': 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80',
     'Viandes': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=150&q=80',
+    'Volailles': 'https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=150&q=80',
     'Épices': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=150&q=80',
     'Boissons': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
     'Produits Laitiers': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=150&q=80',
@@ -3832,10 +3833,12 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
-    return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
+    return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
+      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec')
+      .sort();
   }, [stockItemsData, fournisseurs]);
 
   const suppliersList = useMemo(() => {
@@ -5442,7 +5445,8 @@ function Inventory() {
               </button>
             </div>
             <div className="mb-4">
-              <p className="font-medium text-gray-900">{selectedProduct.name}</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
+              <input id="edit-name" type="text" defaultValue={selectedProduct.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] font-medium text-gray-900" />
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -5503,6 +5507,7 @@ function Inventory() {
                 onClick={async (e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  const newName = (document.getElementById('edit-name') as HTMLInputElement)?.value;
                   const newCat = (document.getElementById('edit-cat') as HTMLInputElement)?.value;
                   const newUnit = (document.getElementById('edit-unit') as HTMLSelectElement)?.value;
                   const newQty = Number((document.getElementById('edit-qty') as HTMLInputElement)?.value);
@@ -5512,6 +5517,7 @@ function Inventory() {
                   if (selectedProduct.id) {
                     try {
                       await updateDoc(doc(db, "inventoryItems", selectedProduct.id), {
+                        name: newName || selectedProduct.name,
                         category: newCat,
                         unit: newUnit,
                         quantity: newQty,
@@ -5669,7 +5675,8 @@ function Inventory() {
                   <input name="category" list="dl-elq0au-7" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   <datalist id="dl-elq0au-7">
                     <option value="Fruits & Légumes" />
-                    <option value="Viandes & Volailles" />
+                    <option value="Viandes" />
+                    <option value="Volailles" />
                     <option value="Poissons & Fruits de mer" />
                     <option value="Boulangerie & Pâtisserie" />
                     <option value="Produits Laitiers & Œufs" />
@@ -5763,7 +5770,8 @@ function Inventory() {
                   <input name="category" list="dl-7sr3pv-8" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   <datalist id="dl-7sr3pv-8">
                     <option value="Fruits & Légumes" />
-                    <option value="Viandes & Volailles" />
+                    <option value="Viandes" />
+                    <option value="Volailles" />
                     <option value="Poissons & Fruits de mer" />
                     <option value="Boulangerie & Pâtisserie" />
                     <option value="Produits Laitiers & Œufs" />

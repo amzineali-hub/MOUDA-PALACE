@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers} from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -1105,6 +1105,31 @@ function PerformanceAnalysis() {
 function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const { showToast } = useToast();
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'inventoryItems'), (snapshot) => {
+      setInventoryItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
+
+  const expiringItems = inventoryItems.filter(i => {
+    if (!i.expirationDate) return false;
+    const expDate = new Date(i.expirationDate);
+    const today = new Date();
+    const diffTime = expDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  });
+
+  const expiredItems = inventoryItems.filter(i => {
+    if (!i.expirationDate) return false;
+    const expDate = new Date(i.expirationDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expDate < today;
+  });
   const [dateRange, setDateRange] = useState('today');
   const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -1258,6 +1283,32 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </header>
 
         <SystemMonitoring />
+        
+        {(expiringItems.length > 0 || expiredItems.length > 0) && (
+          <div className="mb-8 p-6 bg-white rounded-2xl border-l-4 border-orange-500 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="p-3 bg-orange-50 text-orange-600 rounded-full flex-shrink-0">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Alerte Péremption</h3>
+              <p className="text-gray-600">
+                {expiredItems.length > 0 && <span className="text-red-600 font-medium mr-2">{expiredItems.length} produit(s) expiré(s).</span>}
+                {expiringItems.length > 0 && <span className="text-orange-600 font-medium">{expiringItems.length} produit(s) expirent dans les 7 prochains jours.</span>}
+              </p>
+              <div className="mt-2 text-sm text-gray-500">
+                {expiringItems.concat(expiredItems).map(item => item.name).join(', ')}
+              </div>
+            </div>
+            <div className="sm:ml-auto">
+              <button 
+                onClick={() => setActiveTab('inventory')}
+                className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-200 transition-colors whitespace-nowrap"
+              >
+                Voir l'inventaire
+              </button>
+            </div>
+          </div>
+        )}
         <LivePlanningWidget />
 
         {/* Dashboard Metrics */}
@@ -1293,7 +1344,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </div>
 
         {/* Operations Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <DashboardCard 
             title="Point de Vente (POS)" 
             value={isLoadingMetrics ? "..." : metrics.pos}
@@ -1344,7 +1395,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.8 }}
-          className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
         >
           <button 
             onClick={() => {
@@ -4051,7 +4102,7 @@ function Inventory() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
           <div className="p-4 bg-gray-50 text-gray-600 rounded-xl">
             <Package size={24} />
@@ -4079,6 +4130,24 @@ function Inventory() {
           <div>
             <p className="text-sm text-gray-500 font-medium">Fournisseurs Actifs</p>
             <h4 className="text-2xl font-bold text-gray-900 mt-1">{fournisseurs.length}</h4>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="p-4 bg-orange-50 text-orange-600 rounded-xl">
+            <CalendarClock size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Péremption Proche/Expiré</p>
+            <h4 className="text-2xl font-bold text-orange-600 mt-1">
+              {stockItemsData.filter(i => {
+                if (!i.expirationDate) return false;
+                const expDate = new Date(i.expirationDate);
+                const today = new Date();
+                const diffTime = expDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays <= 7;
+              }).length}
+            </h4>
           </div>
         </div>
       </div>
@@ -4182,6 +4251,9 @@ function Inventory() {
                     <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
                       <div className="flex items-center gap-1">Quantité {sortConfig.key === 'quantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
                     </th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('expirationDate')}>
+                      <div className="flex items-center gap-1">Expiration {sortConfig.key === 'expirationDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -4204,6 +4276,35 @@ function Inventory() {
                           </span>
                           <span className="text-xs text-gray-400">Min: {item.minStock} {item.unit}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          if (!item.expirationDate) return <span className="text-gray-400 text-xs">-</span>;
+                          const expDate = new Date(item.expirationDate);
+                          const today = new Date();
+                          const diffTime = expDate.getTime() - today.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          let textColor = "text-gray-600";
+                          let bgColor = "bg-gray-50";
+                          if (diffDays <= 0) {
+                            textColor = "text-red-700";
+                            bgColor = "bg-red-50";
+                          } else if (diffDays <= 7) {
+                            textColor = "text-orange-700";
+                            bgColor = "bg-orange-50";
+                          } else {
+                            textColor = "text-green-700";
+                            bgColor = "bg-green-50";
+                          }
+                          return (
+                            <span className={`px-2 py-1 rounded-lg text-xs font-medium ${textColor} ${bgColor}`}>
+                              {new Intl.DateTimeFormat('fr-FR').format(expDate)}
+                              {diffDays <= 7 && diffDays > 0 && <span className="ml-1 opacity-80">({diffDays} j)</span>}
+                              {diffDays <= 0 && <span className="ml-1 opacity-80 font-bold">(Expiré)</span>}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-4">
@@ -5003,6 +5104,10 @@ function Inventory() {
                   <span className="text-gray-500 text-sm">kg</span>
                 </div>
               </div>
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration suggérée (Optionnel)</label>
+                <input id="auto-exp-date" type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+              </div>
 
               <button 
                 onClick={async () => {
@@ -5013,7 +5118,8 @@ function Inventory() {
                       quantity: 15,
                       unit: "kg",
                       minStock: 5,
-                      barcode: scannedBarcode || 'SCANNED-' + Date.now(),
+                      expirationDate: (document.getElementById("auto-exp-date") as HTMLInputElement)?.value || null,
+                      barcode: scannedBarcode || "SCANNED-" + Date.now(),
                       createdAt: serverTimestamp()
                     };
                     const docRef = await addDoc(collection(db, 'inventoryItems'), newProduct);
@@ -5272,6 +5378,7 @@ function Inventory() {
               const category = normalizeCategory(formData.get('category') as string);
               const unit = formData.get('unit') as string;
               const quantity = Number(formData.get('quantity') || 0);
+              const expirationDate = formData.get('expirationDate') as string;
               
               if (!categories.includes(category)) {
                 try {
@@ -5288,6 +5395,7 @@ function Inventory() {
                 quantity: quantity,
                 unit,
                 minStock: 10,
+                expirationDate: expirationDate || null,
                 createdAt: serverTimestamp()
               };
               try {
@@ -5325,12 +5433,12 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select name="category" required className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]">
-                    <option value="">Sélectionner une catégorie...</option>
+                  <input name="category" list="dl-add-cat" required type="text" placeholder="Sélectionner ou taper..." className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]" />
+                  <datalist id="dl-add-cat">
                     {categories.map((cat, idx) => (
                       <option key={idx} value={cat}>{cat}</option>
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -5355,6 +5463,10 @@ function Inventory() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Initiale</label>
                 <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration (Optionnel)</label>
+                <input name="expirationDate" type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <button 
                 type="submit"
@@ -5555,6 +5667,10 @@ function Inventory() {
                   ))}
                 </datalist>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration</label>
+                <input id="edit-exp" type="date" defaultValue={selectedProduct.expirationDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+              </div>
               <button 
                 type="button"
                 onClick={async (e) => {
@@ -5566,6 +5682,7 @@ function Inventory() {
                   const newQty = Number((document.getElementById('edit-qty') as HTMLInputElement)?.value);
                   const newMin = Number((document.getElementById('edit-min') as HTMLInputElement)?.value);
                   const newSup = (document.getElementById('edit-sup') as HTMLInputElement)?.value;
+                  const newExp = (document.getElementById('edit-exp') as HTMLInputElement)?.value;
                   
                   if (selectedProduct.id) {
                     try {
@@ -5576,6 +5693,7 @@ function Inventory() {
                         quantity: newQty,
                         minStock: newMin,
                         supplier: newSup,
+                        expirationDate: newExp || null,
                         updatedAt: serverTimestamp()
                       });
                       showToast(`Paramètres mis à jour pour ${selectedProduct.name}`);

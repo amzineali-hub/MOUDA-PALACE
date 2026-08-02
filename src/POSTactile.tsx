@@ -28,6 +28,7 @@ export default function POSTactile() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [tables, setTables] = useState<any[]>([]);
   const [recettes, setRecettes] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -43,15 +44,12 @@ export default function POSTactile() {
     setNewItemName(val);
     const matchedRecette = recettes.find(r => r.nom === val);
     if (matchedRecette) {
-      if (matchedRecette.prix) {
+      if (matchedRecette.prixVente) {
+        setNewItemPrice(String(matchedRecette.prixVente));
+      } else if (matchedRecette.prix) {
         setNewItemPrice(String(matchedRecette.prix));
-      } else if (matchedRecette.cout) {
-        // Fallback for mock items that only have cout
-        const numPrice = parseFloat(String(matchedRecette.cout).replace(/[^0-9.]/g, ''));
-        if (!isNaN(numPrice)) {
-          // Add a default 30% margin for suggested price if it only has cost
-          setNewItemPrice(String(Math.round(numPrice * 1.3)));
-        }
+      } else if (matchedRecette.coutMatiere) {
+        setNewItemPrice(String(Math.round(matchedRecette.coutMatiere * 1.3)));
       }
     }
   };
@@ -159,16 +157,64 @@ export default function POSTactile() {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
       setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
     });
-    const unsubRecettes = onSnapshot(query(collection(db, 'recettes')), (snapshot) => {
+    const unsubRecettes = onSnapshot(query(collection(db, 'fiches_techniques')), (snapshot) => {
       setRecettes(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
     });
-    return () => { unsubTables(); unsubRecettes(); };
+    const unsubInventory = onSnapshot(query(collection(db, 'inventoryItems')), (snapshot) => {
+      setInventoryItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => { unsubTables(); unsubRecettes(); unsubInventory(); };
   }, []);
 
-  const filteredItems = menuItems.filter(item => {
-    if (searchQuery) return item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return item.category === activeCategory;
-  });
+  const normalizeString = (str: string) => {
+    return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
+
+  const filteredItems = (() => {
+    if (searchQuery) {
+      const q = normalizeString(searchQuery);
+      
+      const matchedMenu = menuItems.filter(item => normalizeString(item.name).includes(q));
+      
+      const menuNames = new Set(matchedMenu.map(m => normalizeString(m.name)));
+      
+      const matchedRecettes = recettes.filter(r => {
+        const nom = normalizeString(r.nom);
+        return nom.includes(q) && !menuNames.has(nom);
+      });
+      
+      const additionalItems = matchedRecettes.map(r => ({
+        id: 'recette-' + (r.id || r.fbId || Math.random().toString()),
+        name: r.nom,
+        category: r.categorie || 'Autres',
+        price: (r.prixVente || r.coutTotal || '0') + ' MAD',
+        numPrice: parseFloat((r.prixVente || r.coutTotal || '0').toString().replace(/[^0-9.]/g, '')),
+        imageUrl: r.photo || r.image || ''
+      }));
+      
+      const combinedNames = new Set([
+        ...matchedMenu.map(m => normalizeString(m.name)),
+        ...matchedRecettes.map(r => normalizeString(r.nom))
+      ]);
+      
+      const matchedInventory = inventoryItems.filter(i => {
+        const nom = normalizeString(i.name);
+        return nom.includes(q) && !combinedNames.has(nom);
+      });
+      
+      const additionalInventory = matchedInventory.map(i => ({
+        id: 'inv-' + (i.id || Math.random().toString()),
+        name: i.name,
+        category: i.category || 'Autres',
+        price: '0 MAD',
+        numPrice: 0,
+        imageUrl: ''
+      }));
+
+      return [...matchedMenu, ...additionalItems, ...additionalInventory];
+    }
+    return menuItems.filter(item => item.category === activeCategory);
+  })();
 
   const addToCart = (item: any) => {
     setCart(prev => {
@@ -582,79 +628,22 @@ export default function POSTactile() {
             <form onSubmit={handleAddItem} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'article</label>
-                {!isManualName ? (
-                  <div className="relative">
-                    <select
-                      value={newItemName}
-                      onChange={(e) => {
-                        if (e.target.value === 'manual') {
-                          setIsManualName(true);
-                          setNewItemName('');
-                        } else {
-                          handleNameChange(e.target.value);
-                        }
-                      }}
-                      required
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white appearance-none"
-                    >
-                      <option value="" disabled>Sélectionner un plat...</option>
-                      
-                      {(() => {
-                        const groups = [
-                          { label: 'Plats Principaux', keys: ['plats principaux', 'plats'] },
-                          { label: 'Entrées', keys: ['entrées', 'entree', 'entrée', 'entrees'] },
-                          { label: 'Desserts', keys: ['desserts', 'dessert'] },
-                          { label: 'Boissons', keys: ['boissons', 'boisson'] }
-                        ];
-                        
-                        return groups.map(group => {
-                          const items = recettes.filter(r => group.keys.includes((r.categorie || '').toLowerCase()));
-                          if (items.length === 0) return null;
-                          return (
-                            <optgroup key={group.label} label={group.label}>
-                              {items.map((r, idx) => (
-                                <option key={idx} value={r.nom}>{r.nom}</option>
-                              ))}
-                            </optgroup>
-                          );
-                        });
-                      })()}
-
-                      {(() => {
-                        const mainCats = ['plats principaux', 'plats', 'entrées', 'entree', 'entrée', 'entrees', 'desserts', 'dessert', 'boissons', 'boisson'];
-                        const otherItems = recettes.filter(r => !mainCats.includes((r.categorie || '').toLowerCase()));
-                        if (otherItems.length === 0) return null;
-                        return (
-                          <optgroup label="Autres">
-                            {otherItems.map((r, idx) => (
-                              <option key={idx} value={r.nom}>{r.nom}</option>
-                            ))}
-                          </optgroup>
-                        );
-                      })()}
-
-                      <option value="manual">+ Autre (Saisie manuelle)</option>
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={newItemName}
-                      onChange={(e) => handleNameChange(e.target.value)}
-                      placeholder="Nom de l'article" 
-                      required 
-                      autoFocus
-                      className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
-                    />
-                    <button type="button" onClick={() => { setIsManualName(false); setNewItemName(''); }} className="p-3 text-gray-500 hover:bg-gray-100 rounded-xl border border-gray-200">
-                      <X size={20} />
-                    </button>
-                  </div>
-                )}
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    value={newItemName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="Saisie libre ou sélectionner..." 
+                    required 
+                    list="recettes-list"
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
+                  />
+                  <datalist id="recettes-list">
+                    {recettes.map((r, idx) => (
+                      <option key={idx} value={r.nom} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
               
               <div>

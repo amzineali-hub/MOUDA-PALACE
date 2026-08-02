@@ -529,6 +529,69 @@ const getCategoryImageUrl = (category: string) => {
   return images[category] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80';
 };
 
+
+function useAutoSave<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+  const [state, setState] = useState<T>(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return typeof initialValue === 'function' ? initialValue() : initialValue;
+  });
+
+  useEffect(() => {
+    if (state !== undefined) {
+      localStorage.setItem(key, JSON.stringify(state));
+    }
+  }, [key, state]);
+
+  return [state, setState];
+}
+
+const AutoSaveForm = ({ formId, children, ...props }: any) => {
+  const formRef = useRef<HTMLFormElement>(null);
+  
+  useEffect(() => {
+    const saved = localStorage.getItem(`autosave_${formId}`);
+    if (saved && formRef.current) {
+      try {
+        const data = JSON.parse(saved);
+        Object.keys(data).forEach(key => {
+          const el = formRef.current?.elements.namedItem(key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+          if (el) el.value = data[key];
+        });
+      } catch(e) {}
+    }
+  }, [formId]);
+
+  const handleChange = () => {
+    if (formRef.current) {
+      const formData = new FormData(formRef.current);
+      const data = Object.fromEntries(formData.entries());
+      localStorage.setItem(`autosave_${formId}`, JSON.stringify(data));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (props.onSubmit) {
+      try {
+        await props.onSubmit(e);
+        localStorage.removeItem(`autosave_${formId}`);
+      } catch(err) {
+        console.error(err);
+      }
+    } else {
+       e.preventDefault();
+    }
+  };
+
+  return (
+    <form ref={formRef} onChange={handleChange} {...props} onSubmit={handleSubmit}>
+      {children}
+    </form>
+  );
+};
+
 function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
@@ -2212,7 +2275,7 @@ function Reservations() {
                 <X size={20} />
               </button>
             </div>
-            <form className="space-y-4" onSubmit={async (e) => {
+            <AutoSaveForm formId="add_reservation" className="space-y-4" onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const nom = formData.get('nom') as string;
@@ -2294,7 +2357,7 @@ function Reservations() {
               >
                 Confirmer la réservation
               </button>
-            </form>
+            </AutoSaveForm>
           </div>
         </div>
       )}
@@ -3282,7 +3345,7 @@ function DigitalMenu() {
   const [favorites, setFavorites] = useState<number[]>([]);
   const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<any>(null);
-  const [newDishForm, setNewDishForm] = useState({ name: '', category: 'Entrées', price: '', desc: '' });
+  const [newDishForm, setNewDishForm] = useAutoSave('form_newDishForm', { name: '', category: 'Entrées', price: '', desc: '' });
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [displayLanguage, setDisplayLanguage] = useState('fr');
@@ -3868,6 +3931,64 @@ function DigitalMenu() {
 function Inventory() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('stocks');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      
+      let importedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Split by semicolon or comma
+        const separator = line.includes(';') ? ';' : ',';
+        const cols = line.split(separator);
+        
+        if (cols.length >= 3) {
+          try {
+            const name = cols[0]?.trim();
+            const category = cols[1]?.trim() || 'Épicerie';
+            const supplier = cols[2]?.trim() || 'Non renseigné';
+            const quantity = Number(cols[3]?.trim()) || 0;
+            const unit = cols[4]?.trim() || 'kg';
+            const minStock = Number(cols[5]?.trim()) || 5;
+            const expirationDate = cols[6]?.trim() || null;
+
+            if (name) {
+              await addDoc(collection(db, 'inventoryItems'), {
+                name,
+                category,
+                supplier,
+                quantity,
+                unit,
+                minStock,
+                expirationDate,
+                createdAt: serverTimestamp()
+              });
+              importedCount++;
+            }
+          } catch (err) {
+            console.error('Import error row', i, err);
+            errorCount++;
+          }
+        }
+      }
+      
+      showToast(`Import terminé : ${importedCount} produits ajoutés. (${errorCount} erreurs)`, importedCount > 0 ? 'success' : 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -3884,7 +4005,7 @@ function Inventory() {
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [isProdTaskModalOpen, setIsProdTaskModalOpen] = useState(false);
   const [editingProdTask, setEditingProdTask] = useState<any>(null);
-  const [prodTaskForm, setProdTaskForm] = useState({ item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
+  const [prodTaskForm, setProdTaskForm] = useAutoSave('form_prodTaskForm', { item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
   const [recipes, setRecipes] = useState<any[]>([]);
 
   useEffect(() => {
@@ -3903,8 +4024,8 @@ function Inventory() {
     return () => unsub();
   }, []);
   const [txType, setTxType] = useState<'in' | 'out'>('in');
-  const [newRecipeForm, setNewRecipeForm] = useState({ name: '', category: 'Entrée', portions: 1 });
-  const [newRecipeIngredients, setNewRecipeIngredients] = useState<any[]>([]);
+  const [newRecipeForm, setNewRecipeForm] = useAutoSave('form_newRecipeForm', { name: '', category: 'Entrée', portions: 1 });
+  const [newRecipeIngredients, setNewRecipeIngredients] = useAutoSave<any[]>('form_newRecipeIngredients', []);
   const [selectedIngredient, setSelectedIngredient] = useState('');
   const [ingredientQty, setIngredientQty] = useState('');
   const [ingredientUnit, setIngredientUnit] = useState('kg');
@@ -3926,8 +4047,8 @@ function Inventory() {
   const [wasteRecords, setWasteRecords] = useState<any[]>([]);
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
-  const [wasteForm, setWasteForm] = useState({ item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
-  const [txForm, setTxForm] = useState({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
+  const [wasteForm, setWasteForm] = useAutoSave('form_wasteForm', { item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
+  const [txForm, setTxForm] = useAutoSave('form_txForm', { type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -4115,6 +4236,21 @@ function Inventory() {
           >
             <QrCode size={16} />
             Scanner Bon de Livraison
+          </button>
+          <input 
+            type="file" 
+            accept=".csv" 
+            ref={fileInputRef} 
+            onChange={handleImportCSV} 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+            title="Format CSV: Nom;Catégorie;Fournisseur;Quantité;Unité;Seuil;Expiration"
+          >
+            <Download size={16} className="rotate-180" />
+            Importer CSV
           </button>
           <button 
             onClick={() => setIsAddModalOpen(true)}
@@ -5476,7 +5612,7 @@ function Inventory() {
                 <X size={20} />
               </button>
             </div>
-            <form className="space-y-4" onSubmit={async (e) => {
+            <AutoSaveForm formId="add_product" className="space-y-4" onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
@@ -5579,7 +5715,7 @@ function Inventory() {
               >
                 Ajouter à l'inventaire
               </button>
-            </form>
+            </AutoSaveForm>
           </div>
         </div>
       )}
@@ -5849,7 +5985,7 @@ function Inventory() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouvelle Commande</h3>
-            <form className="space-y-4" onSubmit={(e) => {
+            <AutoSaveForm formId="add_order" className="space-y-4" onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const supplier = formData.get('supplier') as string;
@@ -5895,7 +6031,7 @@ function Inventory() {
               >
                 Valider la Commande
               </button>
-            </form>
+            </AutoSaveForm>
           </div>
         </div>
       )}
@@ -5911,7 +6047,7 @@ function Inventory() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Nouveau Fournisseur</h3>
-            <form className="space-y-4" onSubmit={async (e) => {
+            <AutoSaveForm formId="add_supplier" className="space-y-4" onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
@@ -5989,7 +6125,7 @@ function Inventory() {
               >
                 Ajouter le Fournisseur
               </button>
-            </form>
+            </AutoSaveForm>
           </div>
         </div>
       )}
@@ -6005,7 +6141,7 @@ function Inventory() {
               <X size={20} />
             </button>
             <h3 className="text-xl font-serif font-medium text-gray-900 mb-6">Modifier Fournisseur</h3>
-            <form className="space-y-4" onSubmit={async (e) => {
+            <AutoSaveForm formId="edit_supplier" className="space-y-4" onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const name = formData.get('name') as string;
@@ -6106,7 +6242,7 @@ function Inventory() {
                   <Trash2 size={20} />
                 </button>
               </div>
-            </form>
+            </AutoSaveForm>
           </div>
         </div>
       )}

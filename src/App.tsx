@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -3910,6 +3910,7 @@ function Inventory() {
   const [ingredientUnit, setIngredientUnit] = useState('kg');
   const [searchQuery, setSearchQuery] = useState('');
   const [expirationFilter, setExpirationFilter] = useState("Tous");
+  const [stockAlertFilter, setStockAlertFilter] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
@@ -3976,8 +3977,10 @@ function Inventory() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'Tous' || item.category === selectedCategory;
     
+    const matchesAlert = stockAlertFilter ? item.quantity <= item.minStock : true;
+    
     let matchesExpiration = true;
-    if (expirationFilter === 'Expirés' || expirationFilter === 'En attente') {
+    if (expirationFilter === 'Expirés' || expirationFilter === 'En attente' || expirationFilter === 'Proche/Expiré') {
       if (!item.expirationDate) {
         matchesExpiration = false;
       } else {
@@ -3990,11 +3993,13 @@ function Inventory() {
           matchesExpiration = diffDays <= 0;
         } else if (expirationFilter === 'En attente') {
           matchesExpiration = diffDays > 0 && diffDays <= 7;
+        } else if (expirationFilter === 'Proche/Expiré') {
+          matchesExpiration = diffDays <= 7;
         }
       }
     }
     
-    return matchesSearch && matchesCategory && matchesExpiration;
+    return matchesSearch && matchesCategory && matchesExpiration && matchesAlert;
   }).sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -4122,18 +4127,47 @@ function Inventory() {
       </header>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-4 bg-gray-50 text-gray-600 rounded-xl">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, staggerChildren: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+      >
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4 }}
+          onClick={() => {
+            setActiveTab('stocks');
+            setExpirationFilter('Tous');
+            setStockAlertFilter(false);
+            setSelectedCategory('Tous');
+            setSearchQuery('');
+          }}
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-[#F4C75B] hover:shadow-lg transition-all group"
+        >
+          <div className="p-4 bg-gray-50 text-gray-600 rounded-xl group-hover:bg-[#F4C75B]/10 group-hover:text-[#265C6D] transition-colors">
             <Package size={24} />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Total Références</p>
             <h4 className="text-2xl font-bold text-gray-900 mt-1">{stockItemsData.length}</h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-4 bg-red-50 text-red-600 rounded-xl">
+        </motion.div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4 }}
+          onClick={() => {
+            setActiveTab('stocks');
+            setStockAlertFilter(true);
+            setExpirationFilter('Tous');
+            setSelectedCategory('Tous');
+            setSearchQuery('');
+          }}
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-red-300 hover:shadow-lg transition-all group"
+        >
+          <div className="p-4 bg-red-50 text-red-600 rounded-xl group-hover:bg-red-100 transition-colors">
             <AlertTriangle size={24} />
           </div>
           <div>
@@ -4142,18 +4176,36 @@ function Inventory() {
               {stockItemsData.filter(i => i.quantity <= i.minStock).length}
             </h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-4 bg-green-50 text-green-600 rounded-xl">
+        </motion.div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4 }}
+          onClick={() => setActiveTab('suppliers')}
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-green-300 hover:shadow-lg transition-all group"
+        >
+          <div className="p-4 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-100 transition-colors">
             <ShoppingCart size={24} />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Fournisseurs Actifs</p>
             <h4 className="text-2xl font-bold text-gray-900 mt-1">{fournisseurs.length}</h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="p-4 bg-orange-50 text-orange-600 rounded-xl">
+        </motion.div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4 }}
+          onClick={() => {
+            setActiveTab('stocks');
+            setExpirationFilter('Proche/Expiré');
+            setStockAlertFilter(false);
+            setSelectedCategory('Tous');
+            setSearchQuery('');
+          }}
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4 cursor-pointer hover:border-orange-300 hover:shadow-lg transition-all group"
+        >
+          <div className="p-4 bg-orange-50 text-orange-600 rounded-xl group-hover:bg-orange-100 transition-colors">
             <CalendarClock size={24} />
           </div>
           <div>
@@ -4169,8 +4221,8 @@ function Inventory() {
               }).length}
             </h4>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
@@ -4221,7 +4273,17 @@ function Inventory() {
                 </select>
               </div>
               <div className="w-full sm:w-64">
-                <select 
+                
+              <div className="w-full sm:w-auto">
+                <button
+                  onClick={() => setStockAlertFilter(!stockAlertFilter)}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none transition-colors flex items-center justify-center gap-2 ${stockAlertFilter ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <AlertTriangle size={16} />
+                  <span>{stockAlertFilter ? 'Alertes actives' : 'Stock bas'}</span>
+                </button>
+              </div>
+              <select 
                   value={expirationFilter}
                   onChange={(e) => setExpirationFilter(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
@@ -4229,6 +4291,7 @@ function Inventory() {
                   <option value="Tous">Toutes les péremptions</option>
                   <option value="En attente">En attente d'expiration (&lt; 7j)</option>
                   <option value="Expirés">Expirés</option>
+                  <option value="Proche/Expiré">Proche / Expirés (≤ 7j)</option>
                 </select>
               </div>
               <div className="w-full sm:w-auto">
@@ -4781,54 +4844,65 @@ function Inventory() {
 
                 {/* Suppliers List */}
                 <div className="lg:col-span-2">
-                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
-                        <tr>
-                          <th className="px-6 py-4">Fournisseur</th>
-                          <th className="px-6 py-4">Catégorie</th>
-                          <th className="px-6 py-4">Contact</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {fournisseurs.length > 0 ? fournisseurs.map((supplier, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-6 py-4">
-                              <div className="font-medium text-gray-900">{supplier.name}</div>
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                                <MapPin size={12} /> {supplier.city}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {fournisseurs.length > 0 ? fournisseurs.map((supplier, idx) => {
+                      const suppName = supplier.name || supplier.nom;
+                      const suppCat = supplier.category || supplier.categorie;
+                      const suppPhone = supplier.phone || supplier.telephone;
+                      
+                      return (
+                        <div key={idx} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative group">
+                          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { setSelectedSupplier(supplier); setIsEditSupplierModalOpen(true); }} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-white hover:text-blue-600 shadow-sm border border-gray-100 transition-all">
+                              <Edit size={14} />
+                            </button>
+                          </div>
+                          <div className="flex items-start gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
+                              <span className="text-lg font-bold text-[#265C6D]">{suppName ? suppName.charAt(0).toUpperCase() : '?'}</span>
+                            </div>
+                            <div>
+                              <h5 className="font-semibold text-gray-900 text-lg leading-tight mb-1 pr-6">{suppName}</h5>
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <MapPin size={12} /> {supplier.city || 'Non spécifié'}
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs">
-                                {supplier.category}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-gray-900">{supplier.contact}</div>
-                              <div className="flex flex-col gap-1 mt-1">
-                                <a href={`tel:${supplier.phone}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F4C75B] transition-colors">
-                                  <Phone size={12} /> {supplier.phone}
-                                </a>
-                                <a href={`mailto:${supplier.email}`} className="flex items-center gap-1 text-xs text-gray-500 hover:text-[#F4C75B] transition-colors">
-                                  <Mail size={12} /> {supplier.email}
-                                </a>
+                            </div>
+                          </div>
+                          
+                          <div className="mb-4">
+                            <span className="inline-flex items-center gap-1 bg-[#265C6D]/5 text-[#265C6D] px-2.5 py-1 rounded-md text-xs font-medium border border-[#265C6D]/10">
+                              <Layers size={12} /> {suppCat || 'Général'}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2 pt-3 border-t border-gray-100">
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                                <User size={12} />
                               </div>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                          <button onClick={() => { setSelectedSupplier(supplier); setIsEditSupplierModalOpen(true); }} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
-                            </td>
-                          </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                              Aucun fournisseur enregistré.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                              <span className="text-gray-700">{supplier.contact || 'Non spécifié'}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                <Phone size={12} />
+                              </div>
+                              <a href={`tel:${suppPhone}`} className="text-gray-600 hover:text-blue-600 transition-colors">{suppPhone || 'N/A'}</a>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                                <Mail size={12} />
+                              </div>
+                              <a href={`mailto:${supplier.email}`} className="text-gray-600 hover:text-amber-600 truncate transition-colors">{supplier.email || 'N/A'}</a>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }) : (
+                      <div className="col-span-1 sm:col-span-2 bg-white border border-gray-200 border-dashed rounded-xl p-12 flex flex-col items-center justify-center text-gray-500">
+                        <Users size={32} className="mb-3 text-gray-300" />
+                        <p className="text-sm">Aucun fournisseur enregistré.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5964,12 +6038,12 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du fournisseur</label>
-                <input name="name" type="text" required defaultValue={selectedSupplier.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                <input name="name" type="text" required defaultValue={selectedSupplier.name || selectedSupplier.nom} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" list="dl-7sr3pv-8" type="text" required defaultValue={selectedSupplier.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <input name="category" list="dl-7sr3pv-8" type="text" required defaultValue={selectedSupplier.category || selectedSupplier.categorie} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   <datalist id="dl-7sr3pv-8">
                     <option value="Fruits & Légumes" />
                     <option value="Viandes" />
@@ -5997,7 +6071,7 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                  <input name="phone" type="text" required defaultValue={selectedSupplier.phone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <input name="phone" type="text" required defaultValue={selectedSupplier.phone || selectedSupplier.telephone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

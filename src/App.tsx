@@ -1722,17 +1722,28 @@ function Reservations() {
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
-      const fbTables = snapshot.docs.map(doc => {
+      const fbTables = snapshot.docs.map((doc, index) => {
         const data = doc.data();
+        
+        // Arrange tables in a clean grid if coordinates are missing
+        const cols = 5;
+        const spacingX = 200;
+        const spacingY = 160;
+        const startX = 40;
+        const startY = 80;
+        
+        const gridX = startX + (index % cols) * spacingX;
+        const gridY = startY + Math.floor(index / cols) * spacingY;
+
         return {
+          ...data,
           fbId: doc.id,
           id: data.id,
           capacity: data.capacity || 2,
           status: data.status === 'libre' ? 'available' : (data.status === 'reservee' ? 'reserved' : 'occupied'),
           type: data.shape === 'rond' ? 'round' : (data.shape === 'rectangle' ? 'rectangle' : 'square'),
-          x: data.x || Math.floor(Math.random() * 800),
-          y: data.y || Math.floor(Math.random() * 400),
-          ...data
+          x: gridX,
+          y: gridY,
         };
       });
       if (fbTables.length > 0) {
@@ -4325,46 +4336,8 @@ function Inventory() {
           )}
 
           {activeTab === 'recipes' && (
-            <div className="p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Fiches Techniques & Food Cost</h3>
-                <button 
-                  onClick={() => setIsNewRecipeModalOpen(true)}
-                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
-                >
-                  <Plus size={16} /> Nouvelle Fiche
-                </button>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {recipes.length > 0 ? recipes.map((recipe, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-xl p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-900">{recipe.name}</h4>
-                        <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md">{recipe.category}</span>
-                      </div>
-                      <div className="space-y-2 mt-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Food Cost (Coût Matière)</span>
-                          <span className="font-medium text-red-600">{recipe.cost} MAD</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Prix de Vente</span>
-                          <span className="font-medium text-gray-900">{recipe.price} MAD</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-700">Marge brute</span>
-                      <span className="text-sm font-bold text-green-600">{recipe.margin}%</span>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="col-span-full py-8 text-center text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    Aucune fiche technique créée.
-                  </div>
-                )}
-              </div>
+            <div className="p-0">
+              <FichesTechniques />
             </div>
           )}
 

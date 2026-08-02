@@ -63,7 +63,7 @@ export default function FichesTechniques() {
   );
 
   return (
-    <div className="p-8 w-full">
+    <div className="p-4 md:p-6 w-full">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="text-3xl font-serif text-[#265C6D]">Fiches Techniques & Marges</h2>

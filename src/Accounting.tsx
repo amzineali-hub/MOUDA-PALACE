@@ -16,10 +16,12 @@ import {
   Clock,
   X,
   Printer,
-  QrCode
+  QrCode,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 
@@ -31,6 +33,10 @@ export default function Accounting() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isNewExpenseModalOpen, setIsNewExpenseModalOpen] = useState(false);
   const [isNewReceiptModalOpen, setIsNewReceiptModalOpen] = useState(false);
+  const [isEditReceiptModalOpen, setIsEditReceiptModalOpen] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<any>(null);
+  const [editReceiptAmount, setEditReceiptAmount] = useState("");
+  const [editReceiptMethod, setEditReceiptMethod] = useState("");
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -143,6 +149,35 @@ export default function Accounting() {
     link.remove();
     showToast("Exportation réussie");
   };
+  const handleDeleteReceipt = async (id: string) => {
+    if (window.confirm("Voulez-vous vraiment supprimer cet encaissement ?")) {
+      try {
+        await deleteDoc(doc(db, "cash_receipts", id));
+        showToast("Encaissement supprimé avec succès");
+      } catch (error) {
+        console.error(error);
+        showToast("Erreur lors de la suppression", "error");
+      }
+    }
+  };
+
+  const handleUpdateReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReceipt || !editReceiptAmount || !editReceiptMethod) return;
+    try {
+      await updateDoc(doc(db, "cash_receipts", editingReceipt.id), {
+        amount: parseFloat(editReceiptAmount),
+        method: editReceiptMethod
+      });
+      showToast("Encaissement mis à jour");
+      setIsEditReceiptModalOpen(false);
+      setEditingReceipt(null);
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
+
 
   const [invoices, setInvoices] = useState<any[]>([
     { id: 'FAC-2026-001', client: 'Riad Al Andalous', ice: '001538629000041', date: '12 Nov 2026', amount: '1 250 MAD', status: 'Payée' },
@@ -478,7 +513,7 @@ export default function Accounting() {
                   <th className="px-6 py-4">Date & Heure</th>
                   <th className="px-6 py-4">Méthode</th>
                   <th className="px-6 py-4 text-right">Montant</th>
-                  <th className="px-6 py-4 text-center">Détails</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -494,6 +529,12 @@ export default function Accounting() {
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { setSelectedReceipt(receipt); setIsReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
                           <Eye size={16} />
+                        <button onClick={() => { setEditingReceipt(receipt); setEditReceiptAmount(receipt.amount.toString()); setEditReceiptMethod(receipt.method); setIsEditReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100" title="Modifier">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteReceipt(receipt.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                          <Trash2 size={16} />
+                        </button>
                         </button>
                       </div>
                     </td>
@@ -1500,6 +1541,70 @@ export default function Accounting() {
           </div>
         </div>
       )}
+      {/* Edit Receipt Modal */}
+      {isEditReceiptModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="text-xl font-serif text-[#1A1A1A]">Modifier l'encaissement</h2>
+              <button 
+                onClick={() => setIsEditReceiptModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateReceipt} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={editReceiptAmount}
+                  onChange={(e) => setEditReceiptAmount(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
+                  required 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Méthode de paiement</label>
+                <select 
+                  value={editReceiptMethod}
+                  onChange={(e) => setEditReceiptMethod(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
+                  required
+                >
+                  <option value="Espèces">Espèces</option>
+                  <option value="Carte Bancaire">Carte Bancaire</option>
+                  <option value="Chèque">Chèque</option>
+                  <option value="Virement">Virement</option>
+                </select>
+              </div>
+              <div className="pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditReceiptModalOpen(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-[#F4C75B] text-[#1A1A1A] rounded-xl font-bold hover:bg-[#cda25b] transition-colors"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
     </div>
   );
 }

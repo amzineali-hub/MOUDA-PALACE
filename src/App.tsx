@@ -493,7 +493,7 @@ function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
 const normalizeCategory = (cat: string) => {
   if (!cat) return cat;
   const c = cat.trim();
-  if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes') return 'Fruits & Légumes';
+  if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes' || c === 'Légumes & Fruits') return 'Fruits & Légumes';
   if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
   if (c === 'Viandes') return 'Viandes';
   return c;
@@ -3909,6 +3909,7 @@ function Inventory() {
   const [ingredientQty, setIngredientQty] = useState('');
   const [ingredientUnit, setIngredientUnit] = useState('kg');
   const [searchQuery, setSearchQuery] = useState('');
+  const [expirationFilter, setExpirationFilter] = useState("Tous");
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
@@ -3974,7 +3975,26 @@ function Inventory() {
   const filteredStockItems = stockItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'Tous' || item.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    
+    let matchesExpiration = true;
+    if (expirationFilter === 'Expirés' || expirationFilter === 'En attente') {
+      if (!item.expirationDate) {
+        matchesExpiration = false;
+      } else {
+        const expDate = new Date(item.expirationDate);
+        const today = new Date();
+        const diffTime = expDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (expirationFilter === 'Expirés') {
+          matchesExpiration = diffDays <= 0;
+        } else if (expirationFilter === 'En attente') {
+          matchesExpiration = diffDays > 0 && diffDays <= 7;
+        }
+      }
+    }
+    
+    return matchesSearch && matchesCategory && matchesExpiration;
   }).sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -4198,6 +4218,17 @@ function Inventory() {
                   {categories.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
+                </select>
+              </div>
+              <div className="w-full sm:w-64">
+                <select 
+                  value={expirationFilter}
+                  onChange={(e) => setExpirationFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
+                >
+                  <option value="Tous">Toutes les péremptions</option>
+                  <option value="En attente">En attente d'expiration (&lt; 7j)</option>
+                  <option value="Expirés">Expirés</option>
                 </select>
               </div>
               <div className="w-full sm:w-auto">

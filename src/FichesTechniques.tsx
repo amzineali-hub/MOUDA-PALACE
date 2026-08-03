@@ -424,7 +424,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                   <div className="relative w-24">
                     <input 
                       type="number" step="any" 
-                      value={ingredients.length > 0 ? coutMatiere.toFixed(2) : manualCoutMatiere}
+                      value={ingredients.length > 0 ? Number(coutMatiere || 0).toFixed(2) : manualCoutMatiere}
                       onChange={e => setManualCoutMatiere(e.target.value)}
                       disabled={ingredients.length > 0}
                       className="w-full border-b border-gray-300 text-right pr-6 focus:outline-none focus:border-[#F4C75B] font-semibold text-gray-900 bg-transparent disabled:opacity-70"
@@ -436,13 +436,13 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Food Cost</span>
                   <span className={`font-semibold ${foodCost <= 25 ? 'text-green-600' : foodCost <= 35 ? 'text-yellow-600' : 'text-red-600'}`}>
-                    {foodCost.toFixed(1)} %
+                    {Number(foodCost || 0).toFixed(1)} %
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                   <span className="text-gray-600 text-sm font-medium">Marge brute</span>
-                  <span className="font-bold text-[#265C6D]">{margeBrute.toFixed(2)} DH</span>
+                  <span className="font-bold text-[#265C6D]">{Number(margeBrute || 0).toFixed(2)} DH</span>
                 </div>
               </div>
             </div>
@@ -465,7 +465,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
               <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                 <ChefHat size={18} className="text-[#F4C75B]" /> Ingrédients
               </h4>
-              <span className="text-sm font-medium text-gray-500">Coût total: <span className="text-red-600 font-bold">{coutMatiere.toFixed(2)} DH</span></span>
+              <span className="text-sm font-medium text-gray-500">Coût total: <span className="text-red-600 font-bold">{Number(coutMatiere || 0).toFixed(2)} DH</span></span>
             </div>
             
             <table className="w-full text-left text-sm">
@@ -532,7 +532,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-800">
-                      {currentCost.toFixed(2)} DH
+                      {Number(currentCost || 0).toFixed(2)} DH
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => removeIngredient(ing.id)} className="text-gray-400 hover:text-red-500">

@@ -473,7 +473,7 @@ export default function RH() {
                     <tr>
                       <td className="border border-black py-1 h-6">{selectedPayslip.name}</td>
                       <td className="border border-black py-1 h-6">Employé</td>
-                      <td className="border border-black py-1 bg-yellow-300 font-bold">{selectedPayslip.base?.toFixed(2) || '0.00'}</td>
+                      <td className="border border-black py-1 bg-yellow-300 font-bold">{(Number(selectedPayslip.base) || 0).toFixed(2) || '0.00'}</td>
                       <td className="border border-black py-1">{selectedPayslip.id}</td>
                     </tr>
                   </tbody>
@@ -537,12 +537,12 @@ export default function RH() {
                       </td>
                       <td className="border-l border-r border-black p-1 text-right space-y-1">
                         <div className="bg-yellow-300 pr-1">191.00</div>
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -562,10 +562,10 @@ export default function RH() {
                         <div className="h-4"></div>
                       </td>
                       <td className="border-l border-r border-black p-1 text-right space-y-1 pr-2">
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div>-</div>
                         <div>-</div>
-                        <div>{selectedPayslip.base?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -579,10 +579,10 @@ export default function RH() {
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
-                        <div>{selectedPayslip.cnss?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.cnss) || 0).toFixed(2)}</div>
                         <div>-</div>
-                        <div>{selectedPayslip.amo?.toFixed(2)}</div>
-                        <div>{selectedPayslip.igr?.toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.amo) || 0).toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.igr) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>

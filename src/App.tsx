@@ -1084,7 +1084,7 @@ function PerformanceAnalysis() {
         >
           <div>
             <p className="text-sm font-medium text-gray-500 mb-1">Marge Bénéficiaire Moyenne</p>
-            <h3 className="text-2xl font-bold text-gray-900">{averageMargin.toFixed(1)}%</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{(Number(averageMargin) || 0).toFixed(1)}%</h3>
             <p className="text-xs text-green-600 flex items-center mt-1">
               <TrendingUp size={12} className="mr-1" /> Basé sur les fiches techniques
             </p>
@@ -5055,14 +5055,15 @@ function Inventory() {
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-6">
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
+                    <BarChart
                       data={recentTransactions.filter(tx => tx.type === 'in' && tx.unitPrice).map(tx => ({
                         date: tx.date,
-                        prix: tx.unitPrice,
+                        prix: Number(tx.unitPrice) || 0,
                         fournisseur: tx.supplier || 'Inconnu',
                         produit: tx.item || tx.itemName || 'Produit'
                       })).reverse()}
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                      barSize={40}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
@@ -5070,16 +5071,14 @@ function Inventory() {
                       <Tooltip 
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         formatter={(value, name, props) => [`${value} MAD`, `${props.payload.produit} (${props.payload.fournisseur})`]}
+                        cursor={{fill: '#f3f4f6'}}
                       />
-                      <Area 
-                        type="monotone" 
+                      <Bar 
                         dataKey="prix" 
-                        stroke="#F4C75B" 
-                        strokeWidth={2}
                         fill="#F4C75B" 
-                        fillOpacity={0.1}
+                        radius={[4, 4, 0, 0]}
                       />
-                    </AreaChart>
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -5111,10 +5110,10 @@ function Inventory() {
                           <td className="px-6 py-4 text-gray-900">{tx.supplier || <span className="text-gray-400 italic">Non spécifié</span>}</td>
                           <td className="px-6 py-4 text-right">{tx.amount || tx.quantity} {tx.unit}</td>
                           <td className="px-6 py-4 text-right font-medium">
-                            {tx.unitPrice ? `${tx.unitPrice.toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                            {tx.unitPrice ? `${Number(tx.unitPrice).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
                           <td className="px-6 py-4 text-right font-medium text-[#F4C75B]">
-                            {tx.unitPrice ? `${(tx.unitPrice * (tx.amount || tx.quantity)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                            {tx.unitPrice ? `${(Number(tx.unitPrice) * Number(tx.amount || tx.quantity || 0)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
                         </tr>
                       ))

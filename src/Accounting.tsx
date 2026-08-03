@@ -524,7 +524,7 @@ export default function Accounting() {
                       {receipt.createdAt?.toDate ? receipt.createdAt.toDate().toLocaleString('fr-FR') : receipt.date}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">{receipt.method}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{receipt.amount.toFixed(2)} MAD</td>
+                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{Number(receipt.amount || 0).toFixed(2)} MAD</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { setSelectedReceipt(receipt); setIsReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
@@ -1120,7 +1120,7 @@ export default function Accounting() {
               <div className="border-t border-dashed border-gray-300 pt-3 space-y-2 mb-6">
                 <div className="flex justify-between text-base font-bold">
                   <span>TOTAL NET</span>
-                  <span>{selectedReceipt.amount.toFixed(2)} MAD</span>
+                  <span>{Number(selectedReceipt.amount || 0).toFixed(2)} MAD</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-600">
                   <span>Paiement:</span>

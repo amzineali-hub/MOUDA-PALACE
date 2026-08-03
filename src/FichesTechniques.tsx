@@ -24,6 +24,7 @@ export default function FichesTechniques() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<any>(null);
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Toutes');
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -57,10 +58,17 @@ export default function FichesTechniques() {
     }
   };
 
-  const filteredRecipes = recipes.filter(r => 
-    r.nom?.toLowerCase().includes(search.toLowerCase()) || 
-    r.categorie?.toLowerCase().includes(search.toLowerCase())
-  );
+  const categories = ['Toutes', ...Array.from(new Set(recipes.map(r => r.categorie).filter(Boolean)))];
+  
+  const filteredRecipes = recipes.filter(r => {
+    const searchLower = search.toLowerCase();
+    const matchesSearch = !search || 
+                          (r.nom || '').toLowerCase().includes(searchLower) || 
+                          (r.categorie || '').toLowerCase().includes(searchLower) ||
+                          (r.ingredients && r.ingredients.some((ing: any) => (ing.nom || '').toLowerCase().includes(searchLower)));
+    const matchesCategory = selectedCategory === 'Toutes' || r.categorie === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="p-4 md:p-6 w-full">
@@ -79,16 +87,31 @@ export default function FichesTechniques() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <div className="relative w-96">
+        <div className="p-4 border-b border-gray-100 flex flex-col gap-4 bg-gray-50/50">
+          <div className="relative w-full max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input 
               type="text" 
-              placeholder="Rechercher une fiche (nom, catégorie)..."
+              placeholder="Rechercher une fiche (nom, ingrédient)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-[#265C6D] focus:ring-1 focus:ring-[#265C6D] transition-all bg-white"
             />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+            {categories.map((cat: any) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                  selectedCategory === cat 
+                    ? 'bg-[#265C6D] text-white border-[#265C6D]' 
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -193,7 +216,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     };
   }, []);
 
-  const UNITES = ['g', 'kg', 'ml', 'L', 'pièce', 'pincée', 'c.à.s', 'c.à.c'];
+  const UNITES = ['g', 'kg', 'ml', 'L', 'pièce', 'pincée', 'c.à.s', 'c.à.c', 'portion'];
   const [newIng, setNewIng] = useState({
     nom: '',
     quantite: '',
@@ -275,6 +298,10 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     setIngredients(ingredients.filter(i => i.id !== id));
   };
 
+  const updateIngredient = (id: string, field: string, value: any) => {
+    setIngredients(ingredients.map(ing => ing.id === id ? { ...ing, [field]: value } : ing));
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col relative">
@@ -294,43 +321,73 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
             <div className="col-span-1 md:col-span-2 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input 
-                  type="text" 
-                  list="menu-list"
-                  value={nom} 
+                <select
+                  value={menuItems.some(m => m.name === nom) ? nom : (nom ? 'autre' : '')}
                   onChange={e => {
                     const val = e.target.value;
-                    setNom(val);
-                    const matchedMenu = menuItems.find(m => m.name?.toLowerCase() === val.toLowerCase());
-                    if (matchedMenu) {
-                      if (!categorie) setCategorie(matchedMenu.category || '');
-                      if (!prixVente) setPrixVente(matchedMenu.price ? String(matchedMenu.price).replace(/[^0-9.]/g, '') : '');
+                    if (val === 'autre') {
+                      setNom('');
+                    } else if (val) {
+                      setNom(val);
+                      const matchedMenu = menuItems.find(m => m.name === val);
+                      if (matchedMenu) {
+                        setCategorie(matchedMenu.category || '');
+                        setPrixVente(matchedMenu.price ? String(matchedMenu.price).replace(/[^0-9.]/g, '') : '');
+                      }
+                    } else {
+                      setNom('');
                     }
-                  }} 
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                  placeholder="Ex: Tajine de Poulet aux Olives"
-                />
-                <datalist id="menu-list">
+                  }}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] mb-2 bg-gray-50"
+                >
+                  <option value="">-- Sélectionner depuis le menu --</option>
                   {menuItems.map((m, idx) => (
-                    <option key={idx} value={m.name} />
+                    <option key={idx} value={m.name}>{m.name} ({m.price} DH)</option>
                   ))}
-                </datalist>
+                  <option value="autre">+ Nouveau plat (hors menu)</option>
+                </select>
+                {(!menuItems.some(m => m.name === nom)) && (
+                  <input 
+                    type="text" 
+                    value={nom} 
+                    onChange={e => setNom(e.target.value)} 
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                    placeholder="Saisir le nom du plat..."
+                    autoFocus={nom === ''}
+                  />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input 
-                    list="cat-list"
-                    value={categorie} 
-                    onChange={e => setCategorie(e.target.value)} 
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                    placeholder="Ex: Plats Principaux"
-                  />
-                  <datalist id="cat-list">
-                    {Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons'])).map((cat: any, idx) => (
-                      <option key={idx} value={cat} />
+                  <select
+                    value={Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).includes(categorie) ? categorie : (categorie ? 'autre' : '')}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === 'autre') {
+                        setCategorie('');
+                      } else {
+                        setCategorie(val);
+                      }
+                    }}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white mb-2"
+                  >
+                    <option value="">Sélectionner une catégorie...</option>
+                    {Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).map((cat: any, idx) => (
+                      <option key={idx} value={cat}>{cat}</option>
                     ))}
-                  </datalist>
+                    <option value="autre">Autre catégorie...</option>
+                  </select>
+                  {(!Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).includes(categorie)) && (
+                    <input 
+                      type="text" 
+                      value={categorie} 
+                      onChange={e => setCategorie(e.target.value)} 
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                      placeholder="Saisir la catégorie..."
+                      autoFocus={categorie === ''}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portions</label>
@@ -435,10 +492,44 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                       {ing.nom}
                       {matchedItem && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{ing.quantite}</td>
-                    <td className="px-4 py-3 text-gray-600">{ing.unite}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      {currentPrice ? `${Number(currentPrice).toFixed(2)} DH / ${currentPriceUnit}` : '-'}
+                      <input 
+                        type="number" step="any"
+                        value={ing.quantite}
+                        onChange={e => updateIngredient(ing.id, 'quantite', e.target.value)}
+                        className="w-20 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <select 
+                        value={ing.unite}
+                        onChange={e => updateIngredient(ing.id, 'unite', e.target.value)}
+                        className="w-full border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B] bg-white"
+                      >
+                        {UNITES.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 flex items-center gap-1">
+                      {matchedItem ? (
+                        <span>{currentPrice ? `${Number(currentPrice).toFixed(2)} DH / ${currentPriceUnit}` : '-'}</span>
+                      ) : (
+                        <>
+                          <input 
+                            type="number" step="any"
+                            value={ing.prixUnitaire}
+                            onChange={e => updateIngredient(ing.id, 'prixUnitaire', e.target.value)}
+                            className="w-16 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
+                          />
+                          <span className="text-gray-500 text-xs">DH /</span>
+                          <select 
+                            value={ing.unitePrix}
+                            onChange={e => updateIngredient(ing.id, 'unitePrix', e.target.value)}
+                            className="w-16 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B] bg-white"
+                          >
+                            {UNITES.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-gray-800">
                       {currentCost.toFixed(2)} DH
@@ -455,33 +546,46 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 {/* Add new row */}
                 <tr className="bg-gray-50/30">
                   <td className="px-4 py-2">
-                    <input 
-                      type="text" 
-                      placeholder="Nom de l'ingrédient" 
-                      className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B]"
-                      value={newIng.nom}
-                      list="inv-list"
+                    <select
+                      className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50 mb-1"
+                      value={(newIng as any).isCustom ? 'autre' : (inventoryItems.some(i => i.name === newIng.nom) ? newIng.nom : (newIng.nom ? 'autre' : ''))}
                       onChange={e => {
                         const val = e.target.value;
-                        const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === val.toLowerCase());
-                        if (matchedItem) {
-                          setNewIng({
-                            ...newIng,
-                            nom: val,
-                            unite: matchedItem.unit || 'g',
-                            unitePrix: matchedItem.unit || 'kg',
-                            prixUnitaire: matchedItem.averageCost ? String(matchedItem.averageCost) : (matchedItem.price ? String(matchedItem.price) : '')
-                          });
+                        if (val === 'autre') {
+                          setNewIng({...newIng, nom: '', isCustom: true} as any);
+                        } else if (val) {
+                          const matchedItem = inventoryItems.find(i => i.name === val);
+                          if (matchedItem) {
+                            setNewIng({
+                              ...newIng,
+                              nom: val,
+                              unite: matchedItem.unit || 'g',
+                              unitePrix: matchedItem.unit || 'kg',
+                              prixUnitaire: matchedItem.averageCost ? String(matchedItem.averageCost) : (matchedItem.price ? String(matchedItem.price) : ''),
+                              isCustom: false
+                            } as any);
+                          }
                         } else {
-                          setNewIng({...newIng, nom: val});
+                          setNewIng({...newIng, nom: '', isCustom: false} as any);
                         }
                       }}
-                    />
-                    <datalist id="inv-list">
+                    >
+                      <option value="">-- Depuis l'inventaire --</option>
                       {inventoryItems.map((item, idx) => (
-                        <option key={idx} value={item.name} />
+                        <option key={idx} value={item.name}>{item.name} ({item.averageCost || item.price} DH/{item.unit})</option>
                       ))}
-                    </datalist>
+                      <option value="autre">+ Nouvel ingrédient</option>
+                    </select>
+                    {((newIng as any).isCustom || (!inventoryItems.some(i => i.name === newIng.nom) && newIng.nom !== '')) && (
+                      <input 
+                        type="text" 
+                        placeholder="Nom (ex: Sel)" 
+                        className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B]"
+                        value={newIng.nom}
+                        onChange={e => setNewIng({...newIng, nom: e.target.value})}
+                        autoFocus
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <input 

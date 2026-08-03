@@ -4048,7 +4048,7 @@ function Inventory() {
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
   const [wasteForm, setWasteForm] = useAutoSave('form_wasteForm', { item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
-  const [txForm, setTxForm] = useAutoSave('form_txForm', { type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
+  const [txForm, setTxForm] = useAutoSave('form_txForm', { type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -4363,7 +4363,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'requirements', 'recipes', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
+          {['stocks', 'requirements', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -4371,7 +4371,7 @@ function Inventory() {
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'requirements' && 'Besoins & Seuils'}
-              {tab === 'recipes' && 'Fiches Techniques & Marges'}
+              
               {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
@@ -4666,11 +4666,7 @@ function Inventory() {
             </div>
           )}
 
-          {activeTab === 'recipes' && (
-            <div className="p-0">
-              <FichesTechniques />
-            </div>
-          )}
+          
 
           {activeTab === 'production' && (
             <div className="p-6">
@@ -4892,7 +4888,7 @@ function Inventory() {
                   </select>
                   <button 
                     onClick={() => {
-                      setTxForm({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', date: new Date().toISOString().split('T')[0] });
+                      setTxForm({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
                       setIsTxModalOpen(true);
                     }}
                     className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2 whitespace-nowrap"
@@ -4917,7 +4913,11 @@ function Inventory() {
                           {tx.type === 'in' ? '+ Entrée' : '- Sortie'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{tx.reason}</p>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {tx.reason}
+                        {tx.type === 'in' && tx.supplier && <span className="ml-2 text-gray-500">• Frs: {tx.supplier}</span>}
+                        {tx.type === 'out' && tx.destination && <span className="ml-2 text-gray-500">• Dest: {tx.destination}</span>}
+                      </p>
                       <div className="text-xs text-gray-400 flex items-center gap-3">
                         <span className="flex items-center gap-1"><Clock size={12} /> {tx.date}</span>
                         <span className="flex items-center gap-1"><Users size={12} /> {tx.user}</span>
@@ -6372,6 +6372,25 @@ function Inventory() {
                   )}
                 </select>
               </div>
+
+              {txForm.type === 'out' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Destination de sortie</label>
+                  <input
+                    list="dl-tx-destinations"
+                    value={txForm.destination || ''}
+                    onChange={e => setTxForm({...txForm, destination: e.target.value})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                    placeholder="Ex: Cuisine, Bar, Événement..."
+                  />
+                  <datalist id="dl-tx-destinations">
+                    <option value="Cuisine Principale" />
+                    <option value="Bar" />
+                    <option value="Événement" />
+                    <option value="Pâtisserie" />
+                  </datalist>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

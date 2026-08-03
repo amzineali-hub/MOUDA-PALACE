@@ -19,6 +19,7 @@ export default function AchatsFournisseurs() {
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
   const [selectedCommande, setSelectedCommande] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isSupplierDetailsModalOpen, setIsSupplierDetailsModalOpen] = useState(false);
   const { showToast } = useToast();
 
   const handleGeneratePrevisions = () => {
@@ -450,101 +451,128 @@ Détails <ChevronRight size={16} />
           )}
 
           {activeTab === 'fournisseurs' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
-              {fournisseurs
-                .filter(f => {
-                  const q = searchQuery.toLowerCase();
-                  return (f.nom || f.name || '').toLowerCase().includes(q) ||
-                         (f.categorie || f.category || '').toLowerCase().includes(q) ||
-                         (f.contact || '').toLowerCase().includes(q);
-                })
-                .map((fournisseur) => (
-                <div key={fournisseur.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col relative group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 text-[#265C6D]">
-                        <span className="text-xl font-bold">{(fournisseur.nom || fournisseur.name || '?').charAt(0).toUpperCase()}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 text-lg leading-tight mb-1">{fournisseur.nom || fournisseur.name}</h4>
-                        <div className="flex items-center gap-1 text-yellow-500 text-sm font-medium">
-                          ★ {fournisseur.rating || 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => { setSelectedFournisseur(fournisseur); setIsEditSupplierModalOpen(true); }}
-                      className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-white hover:text-blue-600 shadow-sm border border-gray-100 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-                    </button>
-                  </div>
-                  
-                  <div className="mb-5">
-                    <span className="inline-flex items-center bg-[#265C6D]/5 text-[#265C6D] px-3 py-1 rounded-full text-xs font-medium border border-[#265C6D]/10">
-                      {fournisseur.categorie || fournisseur.category || 'Général'}
-                    </span>
-                  </div>
-                  
-                  <div className="mt-auto space-y-3 pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                      </div>
-                      <span className="text-gray-700 font-medium">{fournisseur.contact || 'Non renseigné'}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                      </div>
-                      <a href={`tel:${fournisseur.tel || fournisseur.phone}`} className="text-gray-600 hover:text-blue-600 transition-colors">
-                        {fournisseur.tel || fournisseur.phone || 'Non renseigné'}
-                      </a>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-                      </div>
-                      <a href={`mailto:${fournisseur.email}`} className="text-gray-600 hover:text-amber-600 truncate transition-colors">
-                        {fournisseur.email || 'Non renseigné'}
-                      </a>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-5 flex gap-2 w-full">
-                    <button 
-                      onClick={() => { setSelectedFournisseur(fournisseur); setIsEditSupplierModalOpen(true); }}
-                      className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-                    >
-                      Gérer
-                    </button>
-                    <button 
-                      onClick={() => window.open(`mailto:${fournisseur.email}`)}
-                      className="flex-1 bg-[#F4C75B]/10 hover:bg-[#F4C75B]/20 text-[#265C6D] py-2 rounded-lg text-sm font-medium transition-colors border border-[#F4C75B]/30"
-                    >
-                      Contacter
-                    </button>
-                  </div>
-                </div>
-              ))}
-              
-              {fournisseurs.length === 0 && (
-                <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-white border border-gray-200 rounded-2xl border-dashed">
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                  </div>
-                  <h4 className="text-gray-900 font-medium text-lg mb-2">Aucun fournisseur</h4>
-                  <p className="text-gray-500 max-w-sm mb-6">Vous n'avez pas encore de fournisseurs enregistrés ou aucun ne correspond à votre recherche.</p>
-                  <button onClick={() => setIsNewSupplierModalOpen(true)} className="bg-[#F4C75B] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-                    Ajouter un fournisseur
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-gray-600">
+                  <thead className="bg-gray-50 border-b border-gray-100 text-gray-700 font-medium">
+                    <tr>
+                      <th className="px-6 py-4 whitespace-nowrap">Fournisseur</th>
+                      <th className="px-6 py-4 whitespace-nowrap">Spécifications</th>
+                      <th className="px-6 py-4 whitespace-nowrap">Contact</th>
+                      <th className="px-6 py-4 whitespace-nowrap">Téléphone</th>
+                      <th className="px-6 py-4 whitespace-nowrap">Email</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {fournisseurs
+                      .filter(f => {
+                        const q = searchQuery.toLowerCase();
+                        return (f.nom || f.name || '').toLowerCase().includes(q) || 
+                               (f.categorie || f.category || '').toLowerCase().includes(q) || 
+                               (f.contact || '').toLowerCase().includes(q);
+                      })
+                      .map((fournisseur) => (
+                      <tr key={fournisseur.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3 min-w-[200px]">
+                            <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 text-[#265C6D]">
+                              <span className="text-lg font-bold">{(fournisseur.nom || fournisseur.name || '?').charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-900 leading-tight">{fournisseur.nom || fournisseur.name}</div>
+                              <div className="flex items-center gap-1 text-yellow-500 text-xs font-medium mt-1">
+                                ★ {fournisseur.rating || 'N/A'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center bg-[#265C6D]/5 text-[#265C6D] px-2.5 py-1 rounded-full text-xs font-medium border border-[#265C6D]/10 whitespace-nowrap">
+                            {fournisseur.categorie || fournisseur.category || 'Général'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </div>
+                            <span className="font-medium text-gray-700">{fournisseur.contact || 'Non renseigné'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 whitespace-nowrap">
+                            <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                            </div>
+                            <a href={"tel:" + (fournisseur.tel || fournisseur.phone)} className="hover:text-blue-600 transition-colors">
+                              {fournisseur.tel || fournisseur.phone || 'Non renseigné'}
+                            </a>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+                            </div>
+                            <a href={"mailto:" + fournisseur.email} className="hover:text-amber-600 transition-colors truncate max-w-[200px] inline-block align-bottom">
+                              {fournisseur.email || 'Non renseigné'}
+                            </a>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => { setSelectedFournisseur(fournisseur); setIsSupplierDetailsModalOpen(true); }}
+                              className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg border border-blue-200 transition-all shadow-sm"
+                              title="Visionner"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedFournisseur(fournisseur); setIsEditSupplierModalOpen(true); }}
+                              className="p-2 bg-gray-50 hover:bg-white text-gray-600 hover:text-blue-600 rounded-lg border border-gray-200 transition-all shadow-sm"
+                              title="Éditer"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                                  await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
+                                }
+                              }}
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200 transition-all shadow-sm"
+                              title="Supprimer"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      ))}
+                      
+                      {fournisseurs.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-16 text-center border-t border-gray-100">
+                            <div className="flex flex-col items-center justify-center">
+                              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                              </div>
+                              <h4 className="text-gray-900 font-medium text-lg mb-2">Aucun fournisseur</h4>
+                              <p className="text-gray-500 max-w-sm mb-6">Vous n'avez pas encore de fournisseurs enregistrés ou aucun ne correspond à votre recherche.</p>
+                              <button onClick={() => setIsNewSupplierModalOpen(true)} className="bg-[#F4C75B] text-[#1A1A1A] px-6 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"></line><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+                                Nouveau fournisseur
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            </div>)}
         </div>
       </div>
 
@@ -1014,6 +1042,105 @@ Détails <ChevronRight size={16} />
       )}
 
       {/* Modal Nouveau Fournisseur */}
+            {isSupplierDetailsModalOpen && selectedFournisseur && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-[#265C6D]">
+                  <span className="text-lg font-bold">{(selectedFournisseur.nom || selectedFournisseur.name || '?').charAt(0).toUpperCase()}</span>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-lg">Détails du fournisseur</h3>
+              </div>
+              <button 
+                onClick={() => setIsSupplierDetailsModalOpen(false)}
+                className="text-gray-400 hover:text-gray-900 transition-colors p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-1">Nom du fournisseur</h4>
+                  <p className="text-gray-900 font-medium">{selectedFournisseur.nom || selectedFournisseur.name}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Catégorie / Spécification</h4>
+                    <span className="inline-flex items-center bg-[#265C6D]/10 text-[#265C6D] px-2.5 py-1 rounded-md text-sm font-medium">
+                      {selectedFournisseur.categorie || selectedFournisseur.category || 'Non renseignée'}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Note (Évaluation)</h4>
+                    <p className="text-yellow-600 font-medium flex items-center gap-1">
+                      ★ {selectedFournisseur.rating || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="font-medium text-gray-900 mb-4">Coordonnées</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Contact principal</p>
+                        <p className="text-gray-900">{selectedFournisseur.contact || 'Non renseigné'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Téléphone</p>
+                        <a href={"tel:" + (selectedFournisseur.tel || selectedFournisseur.phone)} className="text-blue-600 hover:underline">
+                          {selectedFournisseur.tel || selectedFournisseur.phone || 'Non renseigné'}
+                        </a>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-500">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">Email</p>
+                        <a href={"mailto:" + selectedFournisseur.email} className="text-amber-600 hover:underline">
+                          {selectedFournisseur.email || 'Non renseigné'}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+              <button 
+                onClick={() => setIsSupplierDetailsModalOpen(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+              >
+                Fermer
+              </button>
+              <button 
+                onClick={() => { setIsSupplierDetailsModalOpen(false); setIsEditSupplierModalOpen(true); }}
+                className="px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#1f4a57] transition-colors"
+              >
+                Éditer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isNewSupplierModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">

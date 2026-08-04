@@ -4010,6 +4010,7 @@ function Inventory() {
   const [prodTaskForm, setProdTaskForm] = useAutoSave('form_prodTaskForm', { item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
   const [recipes, setRecipes] = useState<any[]>([]);
   const [fichesTechniques, setFichesTechniques] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
 
   const [semiFinished, setSemiFinished] = useState<any[]>([]);
   const [isSemiFinishedModalOpen, setIsSemiFinishedModalOpen] = useState(false);
@@ -4026,10 +4027,13 @@ function Inventory() {
     const unsubFiches = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
       setFichesTechniques(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
+    const unsubMenu = onSnapshot(collection(db, 'menu_items'), (snapshot) => {
+      setMenuItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
     const unsub = onSnapshot(collection(db, 'recipes'), (snapshot) => {
       setRecipes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
-    return () => { unsub(); unsubFiches(); };
+    return () => { unsub(); unsubFiches(); unsubMenu(); };
   }, []);
 
   useEffect(() => {
@@ -4396,7 +4400,7 @@ function Inventory() {
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'requirements' && 'Besoins & Seuils'}
               
-              {tab === 'semi_finished' && 'Produits Semi-finis'}
+              {tab === 'semi_finished' && 'Plats Semi-finis'}
               {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
@@ -4690,7 +4694,7 @@ function Inventory() {
           {activeTab === 'semi_finished' && (
             <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Produits Semi-finis</h3>
+                <h3 className="text-lg font-medium text-gray-900">Plats Semi-finis</h3>
                 <button 
                   onClick={() => {
                     setSemiFinishedForm({ name: '', unit: 'kg', cost: '', quantity: 0 });
@@ -4698,7 +4702,7 @@ function Inventory() {
                   }}
                   className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >
-                  <Plus size={16} /> Nouveau Produit
+                  <Plus size={16} /> Nouveau Plat
                 </button>
               </div>
               
@@ -4706,7 +4710,7 @@ function Inventory() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
                     <tr>
-                      <th className="px-6 py-4">Nom du produit</th>
+                      <th className="px-6 py-4">Nom du plat</th>
                       <th className="px-6 py-4 text-center">Quantité en stock</th>
                       <th className="px-6 py-4 text-center">Unité</th>
                       <th className="px-6 py-4 text-right">Coût Unitaire (MAD)</th>
@@ -4717,7 +4721,7 @@ function Inventory() {
                     {semiFinished.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                          Aucun produit semi-fini enregistré.
+                          Aucun plat semi-fini enregistré.
                         </td>
                       </tr>
                     ) : (
@@ -4809,7 +4813,7 @@ function Inventory() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
                     <tr>
-                      <th className="px-6 py-4">Article à préparer</th>
+                      <th className="px-6 py-4">Plats semi finis</th>
                       <th className="px-6 py-4">Quantité Requise</th>
                       <th className="px-6 py-4">Priorité</th>
                       <th className="px-6 py-4">Progression</th>
@@ -5754,7 +5758,7 @@ function Inventory() {
               }
             }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
                 <input name="name" list="dl-v9oy8w-2" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Miel pur" />
                 <datalist id="dl-v9oy8w-2">
                   {[
@@ -6865,7 +6869,7 @@ function Inventory() {
           >
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <h3 className="text-xl font-serif font-semibold text-gray-900">
-                {semiFinishedForm.id ? 'Éditer le Produit' : 'Nouveau Produit Semi-fini'}
+                {semiFinishedForm.id ? 'Éditer le Plat' : 'Nouveau Plat Semi-fini'}
               </h3>
               <button onClick={() => setIsSemiFinishedModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={24} />
@@ -6874,21 +6878,21 @@ function Inventory() {
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
                 <input
                   list="fiches-list"
                   type="text"
                   value={semiFinishedForm.name}
                   onChange={(e) => setSemiFinishedForm({...semiFinishedForm, name: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
-                  placeholder="Ex: Pâte à pizza"
+                  placeholder="Ex: Tajine, Pâte à pizza, etc."
                 />
                 <datalist id="fiches-list">
                   {Array.from(new Set([
                     "Pâte à pizza", "Sauce tomate", "Pâte brisée", "Pâte feuilletée", 
                     "Fond de veau", "Bouillon de volaille", "Crème pâtissière", "Sauce béchamel",
-                    ...recipes.map(r => r.name), ...fichesTechniques.map(f => f.name)
-                  ])).map((name: any, idx) => (
+                    ...recipes.map(r => r.name), ...fichesTechniques.map(f => f.nom || f.name), ...menuItems.map(m => m.name)
+                  ])).filter(Boolean).map((name: any, idx) => (
                     <option key={idx} value={name} />
                   ))}
                 </datalist>
@@ -6992,14 +6996,21 @@ function Inventory() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Article à préparer</label>
-                <input 
-                  type="text" 
+                <label className="block text-sm font-medium text-gray-700 mb-1">Plats semi finis</label>
+                <select 
                   value={prodTaskForm.item}
                   onChange={e => setProdTaskForm({...prodTaskForm, item: e.target.value})}
                   className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                  placeholder="Ex: Pigeons (Désossage)"
-                />
+                >
+                  <option value="">Sélectionner un plat</option>
+                  {Array.from(new Set([
+                    ...recipes.map(r => r.name),
+                    ...fichesTechniques.map(f => f.nom || f.name),
+                    ...semiFinished.map(s => s.name)
+                  ])).filter(Boolean).map((name: any, idx) => (
+                    <option key={idx} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
               
               <div>

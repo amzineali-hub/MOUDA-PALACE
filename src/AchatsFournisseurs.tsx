@@ -46,8 +46,8 @@ export default function AchatsFournisseurs() {
   
   const categories = useMemo(() => {
     const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Fruits Secs', 'Herbes', 'Poissons', 'Légumes', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien"];
-    const dbCats = inventoryItems.map((item: any) => item.category?.trim()).filter(Boolean);
-    const dbFournisseurCats = fournisseurs.map(f => (f.category || f.categorie)?.trim()).filter(Boolean);
+    const dbCats = inventoryItems.map((item: any) => { let c = item.category?.trim(); if (c === "Produits d\'entretien" || c === "Produits de maintenance") return "Hygiène & Entretien"; return c; }).filter(Boolean);
+    const dbFournisseurCats = fournisseurs.map(f => { let c = (f.category || f.categorie)?.trim(); if (c === "Produits d\'entretien" || c === "Produits de maintenance") return "Hygiène & Entretien"; return c; }).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats])).sort();
   }, [inventoryItems, fournisseurs]);
 

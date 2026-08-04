@@ -496,6 +496,7 @@ const normalizeCategory = (cat: string) => {
   if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes' || c === 'Légumes & Fruits') return 'Fruits & Légumes';
   if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
   if (c === 'Viandes') return 'Viandes';
+  if (c === 'Produits d\'entretien' || c === 'Produits de maintenance' || c === 'Hygiène & Entretien') return 'Hygiène & Entretien';
   return c;
 };
 
@@ -2371,7 +2372,7 @@ function Reservations() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du client</label>
                 <input 
@@ -3747,7 +3748,7 @@ function DigitalMenu() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-serif font-medium text-gray-900 flex items-center gap-2">
@@ -6887,9 +6888,17 @@ function Inventory() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   >
                     <option value="kg">kg</option>
+                    <option value="g">g</option>
                     <option value="L">L</option>
-                    <option value="portion">portion</option>
+                    <option value="cl">cl</option>
+                    <option value="ml">ml</option>
                     <option value="pièce">pièce</option>
+                    <option value="portion">portion</option>
+                    <option value="bouteille">bouteille</option>
+                    <option value="boîte">boîte</option>
+                    <option value="carton">carton</option>
+                    <option value="botte">botte</option>
+                    <option value="sachet">sachet</option>
                   </select>
                 </div>
                 <div>

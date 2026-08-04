@@ -38,6 +38,8 @@ export default function POSTactile() {
   const [newItemImage, setNewItemImage] = useState<string>('');
   const [isManualName, setIsManualName] = useState(false);
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
+  const [ticketToPrint, setTicketToPrint] = useState<any>(null);
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   
   
   const handleNameChange = (val: string) => {
@@ -310,34 +312,97 @@ export default function POSTactile() {
       const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
       for (const cartItem of cart) {
-        // Find matching inventory item (by name)
-        const matchingItem = inventoryItems.find((inv: any) => 
-          inv.name.toLowerCase() === cartItem.name.toLowerCase() ||
-          inv.name.toLowerCase().includes(cartItem.name.toLowerCase()) ||
-          cartItem.name.toLowerCase().includes(inv.name.toLowerCase())
-        );
+        // Find if this is a recipe (a dish)
+        const matchingRecipe = recettes.find(r => r.name.toLowerCase() === cartItem.name.toLowerCase());
+        
+        if (matchingRecipe && matchingRecipe.ingredients && matchingRecipe.ingredients.length > 0) {
+          // It's a recipe, deduct its ingredients
+          for (const ingredient of matchingRecipe.ingredients) {
+            let invItem = inventoryItems.find((inv: any) => inv.id === ingredient.id);
+            if (!invItem) {
+              invItem = inventoryItems.find((inv: any) => inv.name.toLowerCase() === ingredient.name.toLowerCase());
+            }
 
-        if (matchingItem && matchingItem.quantity !== undefined) {
-          const newQty = Math.max(0, matchingItem.quantity - cartItem.qty);
-          
-          await updateDoc(doc(db, 'inventoryItems', matchingItem.id), {
-            quantity: newQty,
-            updatedAt: now
-          });
+            const portions = matchingRecipe.portions || 1;
+            const qtyToDeduct = (ingredient.quantity / portions) * cartItem.qty;
 
-          // Log the transaction
-          await addDoc(collection(db, 'inventoryTransactions'), {
-            itemId: matchingItem.id,
-            itemName: matchingItem.name,
-            type: 'out',
-            quantity: cartItem.qty,
-            reason: `Vente POS (${displayId})`,
-            createdAt: now
-          });
+            if (invItem && invItem.quantity !== undefined) {
+              const newQty = Math.max(0, invItem.quantity - qtyToDeduct);
+              
+              await updateDoc(doc(db, 'inventoryItems', invItem.id), {
+                quantity: newQty,
+                updatedAt: now
+              });
+
+              await addDoc(collection(db, 'inventoryTransactions'), {
+                itemId: invItem.id,
+                itemName: invItem.name,
+                type: 'out',
+                quantity: qtyToDeduct,
+                reason: `Vente POS (${displayId}) - Plat: ${cartItem.name}`,
+                createdAt: now
+              });
+              
+              invItem.quantity = newQty;
+            } else {
+              // Might be a semi-finished product
+              const semiFinishedSnapshot = await getDocs(collection(db, 'semi_finished'));
+              const semiFinishedItems = semiFinishedSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+              
+              let semiItem = semiFinishedItems.find((semi: any) => semi.id === ingredient.id || semi.name.toLowerCase() === ingredient.name.toLowerCase());
+              
+              if (semiItem && semiItem.quantity !== undefined) {
+                const newQty = Math.max(0, semiItem.quantity - qtyToDeduct);
+                
+                await updateDoc(doc(db, 'semi_finished', semiItem.id), {
+                  quantity: newQty,
+                  updatedAt: now
+                });
+                
+                // Add to waste/usage records? We can just track it if needed
+              }
+            }
+          }
+        } else {
+          // Direct inventory item match (like a drink)
+          const matchingItem = inventoryItems.find((inv: any) => 
+            inv.name.toLowerCase() === cartItem.name.toLowerCase() ||
+            inv.name.toLowerCase().includes(cartItem.name.toLowerCase()) ||
+            cartItem.name.toLowerCase().includes(inv.name.toLowerCase())
+          );
+
+          if (matchingItem && matchingItem.quantity !== undefined) {
+            const newQty = Math.max(0, matchingItem.quantity - cartItem.qty);
+            
+            await updateDoc(doc(db, 'inventoryItems', matchingItem.id), {
+              quantity: newQty,
+              updatedAt: now
+            });
+
+            await addDoc(collection(db, 'inventoryTransactions'), {
+              itemId: matchingItem.id,
+              itemName: matchingItem.name,
+              type: 'out',
+              quantity: cartItem.qty,
+              reason: `Vente POS (${displayId})`,
+              createdAt: now
+            });
+            
+            matchingItem.quantity = newQty;
+          }
         }
       }
 
       showToast(`Paiement de ${total.toFixed(2)} MAD validé. Pièces comptables générées et stock mis à jour.`);
+      setTicketToPrint({
+        id: displayId,
+        date: today,
+        time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        items: [...cart],
+        total: total,
+        method: method
+      });
+      setIsTicketModalOpen(true);
       setCart([]);
     } catch (err) {
       console.error(err);
@@ -607,7 +672,87 @@ export default function POSTactile() {
         </div>
       </div>
 
-      {/* Add Item Modal */}
+      {/* Ticket Modal */}
+      {isTicketModalOpen && ticketToPrint && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-sm w-full flex flex-col max-h-[90vh]"
+          >
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800">Ticket de caisse</h3>
+              <button onClick={() => setIsTicketModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-white flex-1" id="printable-ticket">
+              <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
+                <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Restaurant & Salon de thé</p>
+                <div className="mt-4 text-sm text-gray-600 space-y-1">
+                  <p>Ticket: {ticketToPrint.id}</p>
+                  <p>{ticketToPrint.date} à {ticketToPrint.time}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3 mb-6">
+                {ticketToPrint.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <div>
+                      <span className="font-medium">{item.qty}x</span> {item.name}
+                    </div>
+                    <div className="text-gray-700">{(item.price * item.qty).toFixed(2)} MAD</div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="border-t border-dashed border-gray-300 pt-4 mb-6">
+                <div className="flex justify-between items-center text-lg font-bold">
+                  <span>TOTAL</span>
+                  <span>{ticketToPrint.total.toFixed(2)} MAD</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-500 mt-2">
+                  <span>Paiement</span>
+                  <span>{ticketToPrint.method}</span>
+                </div>
+              </div>
+              
+              <div className="text-center text-xs text-gray-400 mt-8">
+                <p>Merci de votre visite !</p>
+                <p>À très bientôt chez Mouda Palace</p>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button 
+                onClick={() => setIsTicketModalOpen(false)}
+                className="flex-1 py-2.5 text-gray-600 font-medium hover:bg-gray-200 bg-gray-100 rounded-lg transition-colors"
+              >
+                Fermer
+              </button>
+              <button 
+                onClick={() => {
+                  const printContent = document.getElementById('printable-ticket');
+                  if (printContent) {
+                    const originalContents = document.body.innerHTML;
+                    document.body.innerHTML = printContent.innerHTML;
+                    window.print();
+                    document.body.innerHTML = originalContents;
+                    window.location.reload();
+                  }
+                }}
+                className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <Receipt size={18} />
+                Imprimer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+\n            {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <motion.div 

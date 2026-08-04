@@ -4093,7 +4093,7 @@ function Inventory() {
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
-      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec' && c !== 'Viandes & Volailles')
+      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec' && c !== 'Viandes & Volailles' && c !== 'Boissons & Vins')
       .sort();
   }, [stockItemsData, fournisseurs]);
 
@@ -6232,7 +6232,7 @@ function Inventory() {
                     <option value="Boulangerie & Pâtisserie" />
                     <option value="Produits Laitiers & Œufs" />
                     <option value="Épicerie Sèche" />
-                    <option value="Boissons & Vins" />
+                    
                     <option value="Emballages & Consommables" />
                     <option value="Hygiène & Entretien" />
                     <option value="Équipement & Matériel" />
@@ -6327,7 +6327,7 @@ function Inventory() {
                     <option value="Boulangerie & Pâtisserie" />
                     <option value="Produits Laitiers & Œufs" />
                     <option value="Épicerie Sèche" />
-                    <option value="Boissons & Vins" />
+                    
                     <option value="Emballages & Consommables" />
                     <option value="Hygiène & Entretien" />
                     <option value="Équipement & Matériel" />

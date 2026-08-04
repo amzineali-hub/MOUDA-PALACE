@@ -1191,7 +1191,7 @@ Détails <ChevronRight size={16} />
                   <option value="Boulangerie & Pâtisserie" />
                   <option value="Produits Laitiers & Œufs" />
                   <option value="Épicerie Sèche" />
-                  <option value="Boissons & Vins" />
+                  
                   <option value="Emballages & Consommables" />
                   <option value="Hygiène & Entretien" />
                   <option value="Équipement & Matériel" />

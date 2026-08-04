@@ -278,7 +278,7 @@ export default function POSTactile() {
         method: "Envoi Cuisine"
       });
       setIsTicketModalOpen(true);
-      setCart([]);
+      
     } catch (e: any) {
       console.error(e);
       alert("Erreur cuisine: " + e.message);
@@ -342,6 +342,16 @@ export default function POSTactile() {
               if (invItem && typeof invItem.quantity !== 'undefined') {
                 const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
                 await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
+                await addDoc(collection(db, 'inventoryTransactions'), {
+                  item: invItem.name,
+                  type: 'out',
+                  amount: qtyToDeduct,
+                  unit: invItem.unit || 'kg',
+                  reason: `Vente POS: ${cartItem.name} (${displayId})`,
+                  user: 'POS',
+                  date: today,
+                  createdAt: now
+                });
               }
             }
           } else {
@@ -351,7 +361,18 @@ export default function POSTactile() {
 
             if (matchingItem && typeof matchingItem.quantity !== 'undefined') {
               const newQty = Math.max(0, Number(matchingItem.quantity) - (cartItem.qty || 1));
+              const deductedQty = cartItem.qty || 1;
               await updateDoc(doc(db, 'inventoryItems', matchingItem.id), { quantity: newQty, updatedAt: now });
+              await addDoc(collection(db, 'inventoryTransactions'), {
+                item: matchingItem.name,
+                type: 'out',
+                amount: deductedQty,
+                unit: matchingItem.unit || 'pièce',
+                reason: `Vente POS: ${cartItem.name} (${displayId})`,
+                user: 'POS',
+                date: today,
+                createdAt: now
+              });
             }
           }
         }

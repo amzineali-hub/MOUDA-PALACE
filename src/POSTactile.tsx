@@ -267,6 +267,17 @@ export default function POSTactile() {
         });
       }
       showToast("Commande envoyée en cuisine !", "success");
+      const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+      const now = new Date();
+      setTicketToPrint({
+        id: orderId,
+        date: today,
+        time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        items: [...cart],
+        total: total,
+        method: "Envoi Cuisine"
+      });
+      setIsTicketModalOpen(true);
       setCart([]);
     } catch (e: any) {
       console.error(e);

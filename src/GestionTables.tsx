@@ -3,7 +3,7 @@ import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, delete
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { motion } from 'framer-motion';
-import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal } from 'lucide-react';
+import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
 export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: string) => void }) {
@@ -11,7 +11,17 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [newTable, setNewTable] = useState({ id: '', capacity: 2, shape: 'carre' });
 
-  const [tables, setTables] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([
+    { id: 'T1', capacity: 2, status: 'occupee', shape: 'rond', zone: 'patio' },
+    { id: 'T2', capacity: 2, status: 'libre', shape: 'rond', zone: 'patio' },
+    { id: 'T3', capacity: 4, status: 'reservee', shape: 'carre', zone: 'patio' },
+    { id: 'T4', capacity: 4, status: 'libre', shape: 'carre', zone: 'patio' },
+    { id: 'T5', capacity: 6, status: 'libre', shape: 'rectangle', zone: 'patio' },
+    { id: 'T6', capacity: 2, status: 'libre', shape: 'rond', zone: 'terrasse' },
+    { id: 'T7', capacity: 8, status: 'libre', shape: 'rectangle', zone: 'terrasse' },
+    { id: 'T8', capacity: 4, status: 'libre', shape: 'carre', zone: 'salon' },
+    { id: 'T9', capacity: 4, status: 'occupee', shape: 'carre', zone: 'salon' }
+  ]);
   const [loading, setLoading] = useState(true);
 
   const zones = [
@@ -31,7 +41,10 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
   
   useEffect(() => {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
-      setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
+      const fbTables = snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id }));
+      if (fbTables.length > 0) {
+        setTables(fbTables);
+      }
       setLoading(false);
     }, (error) => {
       console.error("Error fetching tables", error);
@@ -39,8 +52,11 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
       setLoading(false);
     });
 
-  
-  
+    return () => {
+      unsubTables();
+    };
+  }, []);
+
   const handleAddTable = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTable.id) return showToast("Veuillez saisir un identifiant pour la table");
@@ -66,36 +82,6 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     }
   };
 
-  return (
-) => {
-      unsubTables();
-    };
-  }, []);
-  
-    const handleAddTable = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTable.id) return showToast("Veuillez saisir un identifiant pour la table");
-    
-    try {
-      await addDoc(collection(db, 'tables'), {
-        id: newTable.id,
-        zone: activeZone,
-        capacity: newTable.capacity,
-        shape: newTable.shape,
-        status: 'libre',
-        currentPax: 0,
-        time: null,
-        reservation: null,
-        createdAt: serverTimestamp()
-      });
-      showToast("Nouvelle table ajoutée avec succès");
-      setIsAddingTable(false);
-      setNewTable({ id: '', capacity: 2, shape: 'carre' });
-    } catch (err) {
-      console.error("Error adding table", err);
-      showToast("Erreur lors de l'ajout de la table");
-    }
-  };
 
   const handleUpdateStatus = async (fbId: string, newStatus: string) => {
     try {
@@ -206,8 +192,16 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                   {(!table.shape || table.shape === 'carre') && <Square size={18} className="text-current opacity-70" />}
                   <span className="text-lg font-bold">{table.id}</span>
                 </div>
-                <button className="text-current opacity-50 hover:opacity-100 transition-opacity">
-                  <MoreHorizontal size={20} />
+                <button 
+                  onClick={() => {
+                    if (window.confirm(`Voulez-vous vraiment supprimer la table ${table.id} ?`)) {
+                      deleteDoc(doc(db, 'tables', table.fbId)).then(() => showToast('Table supprimée')).catch(() => showToast('Erreur lors de la suppression', 'error'));
+                    }
+                  }}
+                  className="text-current opacity-50 hover:opacity-100 hover:text-red-600 transition-colors"
+                  title="Supprimer la table"
+                >
+                  <Trash2 size={18} />
                 </button>
               </div>
               

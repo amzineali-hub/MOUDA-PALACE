@@ -3377,12 +3377,12 @@ function DigitalMenu() {
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
   
   const [menuItems, setMenuItems] = useState([
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' }, de: { name: 'Käse-Briouates', desc: 'Knuspriges Gebäck gefüllt mit Ziegenkäse und frischen Kräutern.' }, zh: { name: '奶酪薄饼', desc: '脆皮糕点塞满了山羊奶酪和新鲜香草。' }, ko: { name: '치즈 브리오와트', desc: '염소 치즈와 신선한 허브로 속을 채운 바삭한 페이스트리.' }, pt: { name: 'Briouates de Queijo', desc: 'Pastéis crocantes recheados com queijo de cabra e ervas frescas.' } } },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' }, de: { name: 'Zaalouk-Salat', desc: 'Gegrillter Auberginenkaviar mit Tomaten, Knoblauch und Gewürzen.' }, zh: { name: '扎卢克沙拉', desc: '烤茄子鱼子酱加番茄、大蒜和香料。' }, ko: { name: '잘룩 샐러드', desc: '토마토, 마늘, 향신료를 곁들인 구운 가지 캐비어.' }, pt: { name: 'Salada Zaalouk', desc: 'Caviar de berinjela grelhada com tomate, alho e especiarias.' } } },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' }, de: { name: 'Lamm-Tajine mit Pflaumen', desc: 'Lamm geschmort mit süßen Gewürzen, karamellisierten Pflaumen und Mandeln.' }, zh: { name: '羊肉塔吉锅配梅子', desc: '加入甜香料、焦糖梅子和杏仁炖煮的羊肉。' }, ko: { name: '자두 양고기 타진', desc: '달콤한 향신료, 캐러멜 처리된 자두, 아몬드로 푹 끓인 양고기.' }, pt: { name: 'Tajine de Cordeiro com Ameixas', desc: 'Cordeiro cozido em fogo brando com especiarias doces, ameixas caramelizadas e amêndoas.' } } },
-    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', active: true, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' }, de: { name: 'Zimtorange', desc: 'Frische Orangenscheiben, gemahlener Zimt und Orangenblütensirup.' }, zh: { name: '肉桂橙', desc: '新鲜橙片、肉桂粉和橙花糖浆。' }, ko: { name: '시나몬 오렌지', desc: '신선한 오렌지 슬라이스, 계피 가루, 오렌지 블라썸 시럽.' }, pt: { name: 'Laranja com Canela', desc: 'Fatias de laranja fresca, canela em pó e xarope de flor de laranjeira.' } } },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' }, de: { name: 'Königlicher Minztee', desc: 'Traditioneller grüner Tee, aufgegossen mit frischer Minze und Pinienkernen.' }, zh: { name: '皇家薄荷茶', desc: '传统绿茶，泡有新鲜薄荷和松子。' }, ko: { name: '로열 민트 티', desc: '신선한 민트와 잣을 우려낸 전통 녹차.' }, pt: { name: 'Chá de Hortelã Real', desc: 'Chá verde tradicional infundido com hortelã fresca e pinhões.' } } }
+    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', image: 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' }, de: { name: 'Käse-Briouates', desc: 'Knuspriges Gebäck gefüllt mit Ziegenkäse und frischen Kräutern.' }, zh: { name: '奶酪薄饼', desc: '脆皮糕点塞满了山羊奶酪和新鲜香草。' }, ko: { name: '치즈 브리오와트', desc: '염소 치즈와 신선한 허브로 속을 채운 바삭한 페이스트리.' }, pt: { name: 'Briouates de Queijo', desc: 'Pastéis crocantes recheados com queijo de cabra e ervas frescas.' } } },
+    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' }, de: { name: 'Zaalouk-Salat', desc: 'Gegrillter Auberginenkaviar mit Tomaten, Knoblauch und Gewürzen.' }, zh: { name: '扎卢克沙拉', desc: '烤茄子鱼子酱加番茄、大蒜和香料。' }, ko: { name: '잘룩 샐러드', desc: '토마토, 마늘, 향신료를 곁들인 구운 가지 캐비어.' }, pt: { name: 'Salada Zaalouk', desc: 'Caviar de berinjela grelhada com tomate, alho e especiarias.' } } },
+    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', image: 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=500', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' }, de: { name: 'Lamm-Tajine mit Pflaumen', desc: 'Lamm geschmort mit süßen Gewürzen, karamellisierten Pflaumen und Mandeln.' }, zh: { name: '羊肉塔吉锅配梅子', desc: '加入甜香料、焦糖梅子和杏仁炖煮的羊肉。' }, ko: { name: '자두 양고기 타진', desc: '달콤한 향신료, 캐러멜 처리된 자두, 아몬드로 푹 끓인 양고기.' }, pt: { name: 'Tajine de Cordeiro com Ameixas', desc: 'Cordeiro cozido em fogo brando com especiarias doces, ameixas caramelizadas e amêndoas.' } } },
+    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=500', active: true, translated: false },
+    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', image: 'https://images.unsplash.com/photo-1582294436965-f483fc6371cb?w=500', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' }, de: { name: 'Zimtorange', desc: 'Frische Orangenscheiben, gemahlener Zimt und Orangenblütensirup.' }, zh: { name: '肉桂橙', desc: '新鲜橙片、肉桂粉和橙花糖浆。' }, ko: { name: '시나몬 오렌지', desc: '신선한 오렌지 슬라이스, 계피 가루, 오렌지 블라썸 시럽.' }, pt: { name: 'Laranja com Canela', desc: 'Fatias de laranja fresca, canela em pó e xarope de flor de laranjeira.' } } },
+    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', image: 'https://images.unsplash.com/photo-1576092762791-dd9e2220abd4?w=500', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' }, de: { name: 'Königlicher Minztee', desc: 'Traditioneller grüner Tee, aufgegossen mit frischer Minze und Pinienkernen.' }, zh: { name: '皇家薄荷茶', desc: '传统绿茶，泡有新鲜薄荷和松子。' }, ko: { name: '로열 민트 티', desc: '신선한 민트와 잣을 우려낸 전통 녹차.' }, pt: { name: 'Chá de Hortelã Real', desc: 'Chá verde tradicional infundido com hortelã fresca e pinhões.' } } }
   ]);
 
   const handleTranslate = async () => {
@@ -3484,7 +3484,7 @@ function DigitalMenu() {
   };
 
   const handleDeleteDish = (id: number) => {
-    if (confirm("Voulez-vous vraiment supprimer ce plat ?")) {
+    if (window.confirm("Voulez-vous vraiment supprimer ce plat ?")) {
       setMenuItems(items => items.filter(item => item.id !== id));
       showToast("Plat supprimé avec succès");
     }
@@ -4017,6 +4017,8 @@ function Inventory() {
   const [semiFinishedAdjustData, setSemiFinishedAdjustData] = useState<any>({id: '', name: '', quantity: 0, adjustment: ''});
   const [isSemiFinishedDeleteModalOpen, setIsSemiFinishedDeleteModalOpen] = useState(false);
   const [semiFinishedDeleteData, setSemiFinishedDeleteData] = useState<any>({id: '', name: ''});
+  const [isInventoryDeleteModalOpen, setIsInventoryDeleteModalOpen] = useState(false);
+  const [inventoryDeleteData, setInventoryDeleteData] = useState<any>({id: '', name: ''});
 
 
   useEffect(() => {
@@ -4602,18 +4604,11 @@ function Inventory() {
                           </button>
                           <button 
                             type="button"
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
-                                try {
-                                  await deleteDoc(doc(db, 'inventoryItems', item.id));
-                                  showToast("Produit supprimé");
-                                } catch (err) {
-                                  console.error(err);
-                                  showToast("Erreur lors de la suppression", "error");
-                                }
-                              }
+                              setInventoryDeleteData({ id: item.id, name: item.name });
+                              setIsInventoryDeleteModalOpen(true);
                             }}
                             className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
                             title="Supprimer"
@@ -6057,19 +6052,12 @@ function Inventory() {
               </button>
               <button 
                 type="button"
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
-                    try {
-                      await deleteDoc(doc(db, 'inventoryItems', selectedProduct.id));
-                      showToast("Produit supprimé");
-                      setIsSettingsModalOpen(false);
-                    } catch (err) {
-                      console.error(err);
-                      showToast("Erreur lors de la suppression", "error");
-                    }
-                  }
+                  setIsSettingsModalOpen(false);
+                  setInventoryDeleteData({ id: selectedProduct.id, name: selectedProduct.name });
+                  setIsInventoryDeleteModalOpen(true);
                 }}
                 className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium mt-2 hover:bg-red-50 transition-colors"
               >
@@ -6081,7 +6069,52 @@ function Inventory() {
       )}
 
       {/* Modal Nouvelle Commande */}
-      {isNewOrderModalOpen && (
+      {/* Inventory Delete Modal */}
+      {isInventoryDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-red-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 text-red-500 rounded-full flex items-center justify-center">
+                  <Trash2 size={20} />
+                </div>
+                <h3 className="text-xl font-serif font-semibold text-red-700">Supprimer l'article</h3>
+              </div>
+              <button onClick={() => setIsInventoryDeleteModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700">Êtes-vous sûr de vouloir supprimer <strong>{inventoryDeleteData.name}</strong> ?</p>
+              <p className="text-sm text-red-500 mt-2">Cette action est irréversible.</p>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setIsInventoryDeleteModalOpen(false)} className="px-6 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteDoc(doc(db, 'inventoryItems', inventoryDeleteData.id));
+                    showToast('Produit supprimé avec succès');
+                    setIsInventoryDeleteModalOpen(false);
+                  } catch(e) {
+                    showToast('Erreur lors de la suppression', 'error');
+                  }
+                }}
+                className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                <Trash2 size={16} /> Supprimer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+\n            {isNewOrderModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
             <button 

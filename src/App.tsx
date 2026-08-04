@@ -94,7 +94,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3 } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -560,7 +560,9 @@ const AutoSaveForm = ({ formId, children, ...props }: any) => {
           const el = formRef.current?.elements.namedItem(key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
           if (el) el.value = data[key];
         });
-      } catch(e) {}
+      } catch(e: any) {
+        console.error('Error loading autosave:', e);
+      }
     }
   }, [formId]);
 
@@ -4008,9 +4010,25 @@ function Inventory() {
   const [prodTaskForm, setProdTaskForm] = useAutoSave('form_prodTaskForm', { item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
   const [recipes, setRecipes] = useState<any[]>([]);
 
+  const [semiFinished, setSemiFinished] = useState<any[]>([]);
+  const [isSemiFinishedModalOpen, setIsSemiFinishedModalOpen] = useState(false);
+  const [semiFinishedForm, setSemiFinishedForm] = useState<any>({ name: '', unit: 'kg', cost: '', quantity: 0 });
+  const [isSemiFinishedAdjustModalOpen, setIsSemiFinishedAdjustModalOpen] = useState(false);
+  const [semiFinishedAdjustData, setSemiFinishedAdjustData] = useState<any>({id: '', name: '', quantity: 0, adjustment: ''});
+  const [isSemiFinishedDeleteModalOpen, setIsSemiFinishedDeleteModalOpen] = useState(false);
+  const [semiFinishedDeleteData, setSemiFinishedDeleteData] = useState<any>({id: '', name: ''});
+
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'recipes'), (snapshot) => {
       setRecipes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'semi_finished'), (snapshot) => {
+      setSemiFinished(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
     return () => unsub();
   }, []);
@@ -4363,7 +4381,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'requirements', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
+          {['stocks', 'requirements', 'semi_finished', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -4372,6 +4390,7 @@ function Inventory() {
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'requirements' && 'Besoins & Seuils'}
               
+              {tab === 'semi_finished' && 'Produits Semi-finis'}
               {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
@@ -4667,6 +4686,94 @@ function Inventory() {
           )}
 
           
+
+          
+          {activeTab === 'semi_finished' && (
+            <div className="p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Produits Semi-finis</h3>
+                <button 
+                  onClick={() => {
+                    setSemiFinishedForm({ name: '', unit: 'kg', cost: '', quantity: 0 });
+                    setIsSemiFinishedModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} /> Nouveau Produit
+                </button>
+              </div>
+              
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4">Nom du produit</th>
+                      <th className="px-6 py-4 text-center">Quantité en stock</th>
+                      <th className="px-6 py-4 text-center">Unité</th>
+                      <th className="px-6 py-4 text-right">Coût Unitaire (MAD)</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {semiFinished.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                          Aucun produit semi-fini enregistré.
+                        </td>
+                      </tr>
+                    ) : (
+                      semiFinished.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
+                          <td className="px-6 py-4 text-center font-medium">
+                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs ${item.quantity <= 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                              {item.quantity}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center text-gray-500">{item.unit}</td>
+                          <td className="px-6 py-4 text-right text-gray-900">{Number(item.cost || 0).toFixed(2)} MAD</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => {
+                                  setSemiFinishedAdjustData({ id: item.id, name: item.name, quantity: item.quantity, adjustment: '' });
+                                  setIsSemiFinishedAdjustModalOpen(true);
+                                }}
+                                className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                                title="Alimenter (Ajuster Stock)"
+                              >
+                                <Plus size={18} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSemiFinishedForm(item);
+                                  setIsSemiFinishedModalOpen(true);
+                                }}
+                                className="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                                title="Éditer la fiche"
+                              >
+                                <Edit3 size={18} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSemiFinishedDeleteData({ id: item.id, name: item.name });
+                                  setIsSemiFinishedDeleteModalOpen(true);
+                                }}
+                                className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'production' && (
             <div className="p-6">
@@ -6616,6 +6723,206 @@ function Inventory() {
       )}
 
       {/* Production Task Modal */}
+      
+      
+      {isSemiFinishedAdjustModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Ajuster Stock</h3>
+              <button onClick={() => setIsSemiFinishedAdjustModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-gray-600">Produit: <span className="font-medium text-gray-900">{semiFinishedAdjustData.name}</span></p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité à ajouter ou retirer (ex: 5 ou -2)</label>
+                <input
+                  type="number"
+                  value={semiFinishedAdjustData.adjustment}
+                  onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, adjustment: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setIsSemiFinishedAdjustModalOpen(false)} className="px-6 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  const qty = Number(semiFinishedAdjustData.adjustment);
+                  if (!isNaN(qty) && semiFinishedAdjustData.adjustment !== '') {
+                    try {
+                      const newQty = Number(semiFinishedAdjustData.quantity || 0) + qty;
+                      await updateDoc(doc(db, 'semi_finished', semiFinishedAdjustData.id), { quantity: newQty });
+                      showToast(`Stock de ${semiFinishedAdjustData.name} mis à jour avec succès.`);
+                      setIsSemiFinishedAdjustModalOpen(false);
+                    } catch(e) {
+                      showToast('Erreur lors de la mise à jour', 'error');
+                    }
+                  }
+                }}
+                className="px-6 py-2.5 bg-[#265C6D] text-white font-medium rounded-xl hover:bg-[#1f4a58] transition-colors"
+              >
+                Confirmer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {isSemiFinishedDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Supprimer le produit</h3>
+              <button onClick={() => setIsSemiFinishedDeleteModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-700">Voulez-vous vraiment supprimer le produit <strong>{semiFinishedDeleteData.name}</strong> ?</p>
+              <p className="text-sm text-red-500 mt-2">Cette action est irréversible.</p>
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button onClick={() => setIsSemiFinishedDeleteModalOpen(false)} className="px-6 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteDoc(doc(db, 'semi_finished', semiFinishedDeleteData.id));
+                    showToast('Produit supprimé avec succès');
+                    setIsSemiFinishedDeleteModalOpen(false);
+                  } catch(e) {
+                    showToast('Erreur lors de la suppression', 'error');
+                  }
+                }}
+                className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+
+      {isSemiFinishedModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">
+                {semiFinishedForm.id ? 'Éditer le Produit' : 'Nouveau Produit Semi-fini'}
+              </h3>
+              <button onClick={() => setIsSemiFinishedModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
+                <input
+                  type="text"
+                  value={semiFinishedForm.name}
+                  onChange={(e) => setSemiFinishedForm({...semiFinishedForm, name: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  placeholder="Ex: Pâte à pizza"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select
+                    value={semiFinishedForm.unit}
+                    onChange={(e) => setSemiFinishedForm({...semiFinishedForm, unit: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="L">L</option>
+                    <option value="portion">portion</option>
+                    <option value="pièce">pièce</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Coût unitaire (MAD)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={semiFinishedForm.cost}
+                    onChange={(e) => setSemiFinishedForm({...semiFinishedForm, cost: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{semiFinishedForm.id ? 'Quantité en stock' : 'Stock initial'}</label>
+                <input
+                  type="number"
+                  value={semiFinishedForm.quantity}
+                  onChange={(e) => setSemiFinishedForm({...semiFinishedForm, quantity: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={() => setIsSemiFinishedModalOpen(false)}
+                className="px-6 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const data: any = {
+                      name: semiFinishedForm.name,
+                      unit: semiFinishedForm.unit,
+                      cost: Number(semiFinishedForm.cost) || 0,
+                      quantity: Number(semiFinishedForm.quantity) || 0,
+                      updatedAt: serverTimestamp()
+                    };
+                    if (semiFinishedForm.id) {
+                      await updateDoc(doc(db, 'semi_finished', semiFinishedForm.id), data);
+                      showToast('Produit mis à jour');
+                    } else {
+                      data.createdAt = serverTimestamp();
+                      await addDoc(collection(db, 'semi_finished'), data);
+                      showToast('Produit créé');
+                    }
+                    setIsSemiFinishedModalOpen(false);
+                  } catch(e: any) {
+                    console.error('Error saving:', e);
+                    showToast('Erreur: ' + e.message, 'error');
+                  }
+                }}
+                className="px-6 py-2.5 bg-[#265C6D] text-white font-medium rounded-xl hover:bg-[#1f4a58] transition-colors"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+
       {isProdTaskModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">

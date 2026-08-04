@@ -4009,6 +4009,7 @@ function Inventory() {
   const [editingProdTask, setEditingProdTask] = useState<any>(null);
   const [prodTaskForm, setProdTaskForm] = useAutoSave('form_prodTaskForm', { item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
   const [recipes, setRecipes] = useState<any[]>([]);
+  const [fichesTechniques, setFichesTechniques] = useState<any[]>([]);
 
   const [semiFinished, setSemiFinished] = useState<any[]>([]);
   const [isSemiFinishedModalOpen, setIsSemiFinishedModalOpen] = useState(false);
@@ -4022,10 +4023,13 @@ function Inventory() {
 
 
   useEffect(() => {
+    const unsubFiches = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
+      setFichesTechniques(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
     const unsub = onSnapshot(collection(db, 'recipes'), (snapshot) => {
       setRecipes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
-    return () => unsub();
+    return () => { unsub(); unsubFiches(); };
   }, []);
 
   useEffect(() => {
@@ -5583,8 +5587,8 @@ function Inventory() {
                       onChange={(e) => setIngredientUnit(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
                     >
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
+                      <option value="kg">Kg</option>
+                      <option value="g">G</option>
                       <option value="L">L</option>
                       <option value="cl">cl</option>
                       <option value="ml">ml</option>
@@ -6448,8 +6452,8 @@ function Inventory() {
                     onChange={e => setTxForm({...txForm, unit: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   >
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
+                    <option value="kg">Kg</option>
+                    <option value="g">G</option>
                     <option value="L">L</option>
                     <option value="cl">cl</option>
                     <option value="pièce(s)">pièce(s)</option>
@@ -6651,8 +6655,8 @@ function Inventory() {
                     onChange={e => setWasteForm({...wasteForm, unit: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   >
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
+                    <option value="kg">Kg</option>
+                    <option value="g">G</option>
                     <option value="L">L</option>
                     <option value="cl">cl</option>
                     <option value="pièce(s)">pièce(s)</option>
@@ -6872,12 +6876,22 @@ function Inventory() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
                 <input
+                  list="fiches-list"
                   type="text"
                   value={semiFinishedForm.name}
                   onChange={(e) => setSemiFinishedForm({...semiFinishedForm, name: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   placeholder="Ex: Pâte à pizza"
                 />
+                <datalist id="fiches-list">
+                  {Array.from(new Set([
+                    "Pâte à pizza", "Sauce tomate", "Pâte brisée", "Pâte feuilletée", 
+                    "Fond de veau", "Bouillon de volaille", "Crème pâtissière", "Sauce béchamel",
+                    ...recipes.map(r => r.name), ...fichesTechniques.map(f => f.name)
+                  ])).map((name: any, idx) => (
+                    <option key={idx} value={name} />
+                  ))}
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -6887,8 +6901,8 @@ function Inventory() {
                     onChange={(e) => setSemiFinishedForm({...semiFinishedForm, unit: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   >
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
+                    <option value="kg">Kg</option>
+                    <option value="g">G</option>
                     <option value="L">L</option>
                     <option value="cl">cl</option>
                     <option value="ml">ml</option>

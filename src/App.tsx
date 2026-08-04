@@ -517,7 +517,6 @@ const getCategoryImageUrl = (category: string) => {
     'Sauces': 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?auto=format&fit=crop&w=150&q=80',
     'Conserves': 'https://images.unsplash.com/photo-1564834724105-918b73d1b9e0?auto=format&fit=crop&w=150&q=80',
     'Sirops': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
-    "Produits d'entretien": 'https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=150&q=80',
     "Matériel": 'https://images.unsplash.com/photo-1550159930-40066082a4fc?auto=format&fit=crop&w=150&q=80',
     "Matériel Cuisine": 'https://images.unsplash.com/photo-1550159930-40066082a4fc?auto=format&fit=crop&w=150&q=80',
     "Services": 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=150&q=80',
@@ -4089,7 +4088,7 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Produits d'entretien", "Matériel", "Services", "Hygiène & Entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien"];
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))

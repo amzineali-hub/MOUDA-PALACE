@@ -5771,6 +5771,7 @@ function Inventory() {
               const category = normalizeCategory(formData.get('category') as string);
               const unit = formData.get('unit') as string;
               const quantity = Number(formData.get('quantity') || 0);
+              const unitPrice = Number(formData.get('unitPrice') || 0);
               const expirationDate = formData.get('expirationDate') as string;
               
               if (!categories.includes(category)) {
@@ -5787,6 +5788,7 @@ function Inventory() {
                 supplier: 'Non renseigné',
                 quantity: quantity,
                 unit,
+                unitPrice,
                 minStock: 10,
                 expirationDate: expirationDate || null,
                 createdAt: serverTimestamp()
@@ -5853,9 +5855,15 @@ function Inventory() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Initiale</label>
-                <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 50" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Initiale</label>
+                  <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire (MAD)</label>
+                  <input name="unitPrice" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 15.50" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration (Optionnel)</label>

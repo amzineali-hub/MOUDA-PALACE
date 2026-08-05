@@ -257,7 +257,7 @@ export default function AchatsFournisseurs() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{cmd.date}</td>
                     <td className="px-6 py-4 text-[#1A1A1A] font-medium">{cmd.fournisseur}</td>
-                    <td className="px-6 py-4 text-gray-600">{cmd.items} articles</td>
+                    <td className="px-6 py-4 text-gray-600">{Array.isArray(cmd.items) ? cmd.items.length : (typeof cmd.items === 'number' ? cmd.items : (typeof cmd.articles === 'string' ? cmd.articles.split(',').length : 0))} articles</td>
                     <td className="px-6 py-4 text-right font-medium">{cmd.montant}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="relative inline-block w-32">

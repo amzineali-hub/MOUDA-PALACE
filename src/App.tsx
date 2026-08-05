@@ -573,9 +573,19 @@ const AutoSaveForm = ({ formId, children, ...props }: any) => {
 
   const handleChange = () => {
     if (formRef.current) {
-      const formData = new FormData(formRef.current);
-      const data = Object.fromEntries(formData.entries());
-      localStorage.setItem(`autosave_${formId}`, JSON.stringify(data));
+      const requiredElements = formRef.current.querySelectorAll('[required]');
+      let allValid = true;
+      requiredElements.forEach((el) => {
+        if ((el as HTMLInputElement).value.trim() === '') {
+          allValid = false;
+        }
+      });
+      
+      if (allValid) {
+        const formData = new FormData(formRef.current);
+        const data = Object.fromEntries(formData.entries());
+        localStorage.setItem(`autosave_${formId}`, JSON.stringify(data));
+      }
     }
   };
 

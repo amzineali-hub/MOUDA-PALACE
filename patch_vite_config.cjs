@@ -1,4 +1,6 @@
-import tailwindcss from '@tailwindcss/vite';
+const fs = require('fs');
+const content = fs.readFileSync('vite.config.ts', 'utf-8');
+const replacement = `import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -32,4 +34,7 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
   };
-});
+});`;
+
+fs.writeFileSync('vite.config.ts', replacement);
+console.log('Fixed vite.config.ts');

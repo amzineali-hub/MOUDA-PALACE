@@ -1,4 +1,5 @@
 import MenuGenerator from "./MenuGenerator";
+import ZonesStockage from "./ZonesStockage";
 import BarcodeScanner from "./components/BarcodeScanner";
 /**
  * @license
@@ -94,7 +95,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3 } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, ThermometerSnowflake, LayoutDashboard } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -107,6 +108,10 @@ import Documentation from "./Documentation";
 import GuideEcrans from "./GuideEcrans";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import FichesTechniques from "./FichesTechniques";
+import ProductionJournaliere from "./ProductionJournaliere";
+import TracabiliteHACCP from "./TracabiliteHACCP";
+import ChambreNegative from "./ChambreNegative";
+import TableauDeBord from "./TableauDeBord";
 import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
 import EcranCuisine from "./EcranCuisine";
@@ -711,6 +716,8 @@ function App() {
         return <EcranCuisine />;
       case 'inventory':
         return <Inventory />;
+      case 'zones':
+        return <ZonesStockage />;
       case 'staff':
         return <RH />;
       case 'finance':
@@ -735,6 +742,14 @@ function App() {
         return <AchatsFournisseurs />;
       case 'recettes':
         return <FichesTechniques />;
+      case 'production_jour':
+        return <ProductionJournaliere />;
+      case 'haccp':
+        return <TracabiliteHACCP />;
+      case 'chambre_negative':
+        return <ChambreNegative />;
+      case 'dashboard':
+        return <TableauDeBord />;
       case 'tables':
         return <GestionTables setActiveTab={handleTabChange} />;
       default:
@@ -850,6 +865,18 @@ function App() {
           </button>
 
           <button
+            onClick={() => handleTabChange('dashboard')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
+              activeTab === 'dashboard'
+                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
+                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
+            }`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Tableau de Bord Exécutif</span>
+          </button>
+
+          <button
             onClick={() => handleTabChange('finance')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
               activeTab === 'finance'
@@ -894,10 +921,14 @@ function App() {
             isExpanded={expandedCategory === 'production'} 
             onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
           >
-            <SubNavItem icon={<ChefHat size={16} />} label="Production cuisine" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
+            <SubNavItem icon={<Package size={16} />} label="État des Stocks" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
             <SubNavItem icon={<AlertCircle size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
+            <SubNavItem icon={<Package size={16} />} label="Zones & Économat" active={activeTab === 'zones'} onClick={() => handleTabChange('zones')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Fiches Techniques" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
+            <SubNavItem icon={<Activity size={16} />} label="Ordres de Fabrication" active={activeTab === 'production_jour'} onClick={() => handleTabChange('production_jour')} />
+            <SubNavItem icon={<Package size={16} />} label="HACCP & Sous-Vide" active={activeTab === 'haccp'} onClick={() => handleTabChange('haccp')} />
+            <SubNavItem icon={<ThermometerSnowflake size={16} />} label="Chambre Négative" active={activeTab === 'chambre_negative'} onClick={() => handleTabChange('chambre_negative')} />
           </NavCategory>
 
           <NavCategory 
@@ -3468,14 +3499,16 @@ function DigitalMenu() {
       } : item));
       showToast("Plat modifié avec succès (Traduction requise)");
     } else {
-      const newItem = {
+      const newItem: any = {
         id: Date.now(),
         name: newDishForm.name,
         category: newDishForm.category,
         price: `${newDishForm.price} MAD`,
         desc: newDishForm.desc,
         active: true,
-        translated: false
+        translated: false,
+        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+        translations: {}
       };
       setMenuItems(items => [...items, newItem]);
       showToast("Plat ajouté avec succès (Traduction requise)");
@@ -4391,7 +4424,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'requirements', 'semi_finished', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
+          {['stocks', 'zones', 'requirements', 'semi_finished', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}

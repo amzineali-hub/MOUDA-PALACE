@@ -289,8 +289,19 @@ Détails <ChevronRight size={16} />
 <button onClick={() => {
                             setSelectedCommande(cmd); 
                             setProductSearch(''); 
-                            const initialSelections: Record<string, {checked: boolean, qty: string}> = {};
-                            if (cmd.articles) {
+                            const initialSelections: Record<string, {checked: boolean, qty: string, price?: string}> = {};
+                            if (Array.isArray(cmd.items)) {
+                              cmd.items.forEach((itemObj: any) => {
+                                if (itemObj.id) {
+                                  initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                                } else {
+                                  const item = inventoryItems.find(i => i.name === itemObj.name);
+                                  if (item) {
+                                    initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                                  }
+                                }
+                              });
+                            } else if (cmd.articles) {
                               cmd.articles.split(', ').forEach((a: string) => {
                                 const parts = a.split(' - ');
                                 const name = parts[0];
@@ -623,19 +634,23 @@ Détails <ChevronRight size={16} />
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
                   {(() => {
-                    const articlesList = (selectedCommande.articles || '').split(',').map((a: string) => a.trim()).filter((a: string) => a.length > 0);
                     let totalGlobal = 0;
+                    
+                    const itemsToRender = Array.isArray(selectedCommande.items) ? selectedCommande.items : (selectedCommande.articles || '').split(',').map((a: string) => {
+                      const parts = a.split(' - ');
+                      return { name: parts[0], quantity: parseFloat(parts[1]) || 1, expectedPrice: 0 };
+                    }).filter((i: any) => i.name.trim().length > 0);
+
                     return (
                       <>
-                        {articlesList.map((article: string, idx: number) => {
-                          // Génération d'un prix unitaire mocké basé sur le nom de l'article pour avoir des données cohérentes
-                          const unitPrice = (article.length * 5.5) + 15; 
-                          const quantity = 1;
+                        {itemsToRender.map((item: any, idx: number) => {
+                          const unitPrice = item.expectedPrice || item.price || 0; 
+                          const quantity = item.quantity || item.quantityOrdered || 1;
                           const total = unitPrice * quantity;
                           totalGlobal += total;
                           return (
                             <tr key={idx} className="hover:bg-gray-50/50">
-                              <td className="px-4 py-3 font-medium text-[#1A1A1A]">{article}</td>
+                              <td className="px-4 py-3 font-medium text-[#1A1A1A]">{item.name}</td>
                               <td className="px-4 py-3 text-center text-gray-600">{quantity}</td>
                               <td className="px-4 py-3 text-right text-gray-600">{unitPrice.toFixed(2)} DH</td>
                               <td className="px-4 py-3 text-right font-medium text-[#1A1A1A]">{total.toFixed(2)} DH</td>
@@ -653,6 +668,41 @@ Détails <ChevronRight size={16} />
               </table>
             </div>
             <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  const cmd = selectedCommande;
+                  setIsDetailsModalOpen(false);
+                  setProductSearch(''); 
+                  const initialSelections: Record<string, {checked: boolean, qty: string, price?: string}> = {};
+                  if (Array.isArray(cmd.items)) {
+                    cmd.items.forEach((itemObj: any) => {
+                      if (itemObj.id) {
+                        initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                      } else {
+                        const item = inventoryItems.find(i => i.name === itemObj.name);
+                        if (item) {
+                          initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                        }
+                      }
+                    });
+                  } else if (cmd.articles) {
+                    cmd.articles.split(', ').forEach((a: string) => {
+                      const parts = a.split(' - ');
+                      const name = parts[0];
+                      const qty = parts[1] || '';
+                      const item = inventoryItems.find(i => i.name === name);
+                      if (item) {
+                        initialSelections[item.id] = { checked: true, qty };
+                      }
+                    });
+                  }
+                  setOrderSelections(initialSelections);
+                  setIsNewOrderModalOpen(true); 
+                }}
+                className="px-4 py-2 text-[#265C6D] bg-[#F4C75B]/20 hover:bg-[#F4C75B]/30 rounded-lg font-medium transition-colors"
+              >
+                Éditer
+              </button>
               <button 
                 onClick={async () => {
                   if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
@@ -703,12 +753,23 @@ Détails <ChevronRight size={16} />
               const categorie = formData.get('categorie') as string;
               
               // gather selected items
-              const selectedProducts: string[] = [];
+              const selectedProducts: any[] = [];
+              let computedTotal = 0;
               Object.entries(orderSelections).forEach(([itemId, selection]) => {
                 if (selection.checked) {
                   const item = inventoryItems.find(i => i.id === itemId);
                   if (item) {
-                    selectedProducts.push(`${item.name} - ${selection.qty || '1'}`);
+                    const price = parseFloat(selection.price || item.unitPrice || '0');
+                    const qty = parseFloat(selection.qty || '1');
+                    computedTotal += (price * qty);
+                    selectedProducts.push({
+                      id: item.id,
+                      name: item.name,
+                      quantity: qty,
+                      quantityOrdered: qty,
+                      expectedPrice: price,
+                      unit: item.unit
+                    });
                   }
                 }
               });
@@ -718,7 +779,7 @@ Détails <ChevronRight size={16} />
                 return;
               }
 
-              const articles = selectedProducts.join(', ');
+              
               
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
@@ -729,10 +790,10 @@ Détails <ChevronRight size={16} />
                   fournisseurId: supplierId,
                   date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
                   deliveryDate,
-                  montant: selectedCommande ? selectedCommande.montant : '0 MAD',
+                  montant: selectedCommande ? selectedCommande.montant : `${computedTotal.toFixed(2)} MAD`,
                   status: selectedCommande ? selectedCommande.status : 'En attente',
-                  items: selectedProducts.length,
-                  articles,
+                  items: selectedProducts,
+                  articles: selectedProducts.map(p => `${p.name} - ${p.quantity}`).join(', '),
                   categorie,
                   createdAt: selectedCommande ? selectedCommande.createdAt : serverTimestamp()
               };
@@ -796,8 +857,7 @@ Détails <ChevronRight size={16} />
                           </thead>
                           <tbody>
                             ${selectedProducts.map(p => {
-                              const parts = p.split(' - ');
-                              return `<tr><td>${parts[0]}</td><td>${parts[1] || ''}</td></tr>`;
+                              return `<tr><td>${p.name}</td><td>${p.quantity} ${p.unit || ''}</td></tr>`;
                             }).join('')}
                           </tbody>
                         </table>
@@ -904,7 +964,8 @@ Détails <ChevronRight size={16} />
                             <th className="px-3 py-2 font-medium">Produit</th>
                             {showCategoryCol && <th className="px-3 py-2 font-medium">Catégorie</th>}
                             {showSupplierCol && <th className="px-3 py-2 font-medium">Fournisseur</th>}
-                            <th className="px-3 py-2 font-medium w-28 text-right">Quantité</th>
+                            <th className="px-3 py-2 font-medium w-24 text-right">Prix U.</th>
+                            <th className="px-3 py-2 font-medium w-24 text-right">Quantité</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -935,9 +996,18 @@ Détails <ChevronRight size={16} />
                                 )}
                                 <td className="px-3 py-2 text-right">
                                   <input 
+                                    type="number" step="0.01" min="0"
+                                    value={selection.price !== undefined ? selection.price : (item.unitPrice || '')}
+                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], price: e.target.value, checked: prev[item.id]?.checked || e.target.value !== '' } }))}
+                                    placeholder="0.00" 
+                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right" 
+                                  />
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <input 
                                     type="text" 
                                     value={selection.qty}
-                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], qty: e.target.value } }))}
+                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], qty: e.target.value, checked: prev[item.id]?.checked || e.target.value !== '' } }))}
                                     placeholder={`Qté (${item.unit || 'u'})`} 
                                     className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right" 
                                   />

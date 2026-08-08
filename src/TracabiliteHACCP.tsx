@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { QrCode, Printer, Thermometer, ShieldCheck, AlertTriangle, PackageOpen, Plus, Search, Calendar, ChefHat, CheckCircle2, Clock, X } from 'lucide-react';
+import { QrCode, Printer, Thermometer, ShieldCheck, AlertTriangle, PackageOpen, Plus, Search, Calendar, ChefHat, CheckCircle2, Clock, X, Trash2, CheckSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function TracabiliteHACCP() {
@@ -153,7 +153,11 @@ export default function TracabiliteHACCP() {
                     return (
                       <tr key={lot.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
-                          <div className="font-bold text-gray-900">{lot.lotNumber}</div>
+                          <div className="font-bold text-gray-900 flex items-center gap-2">
+  {lot.lotNumber}
+  {lot.status === 'Consommé' && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Consommé</span>}
+  {lot.status === 'Jeté' && <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Jeté</span>}
+</div>
                           <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                             <ChefHat size={12} /> {lot.operator}
                           </div>
@@ -190,6 +194,49 @@ export default function TracabiliteHACCP() {
                           >
                             <Printer size={18} />
                           </button>
+                          
+                          {lot.status !== 'Consommé' && lot.status !== 'Jeté' && (
+                            <>
+                              <button 
+                                onClick={async () => {
+                                  if(confirm('Marquer ce lot comme consommé ?')) {
+                                    try {
+                                      await updateDoc(doc(db, 'haccpLots', lot.id), { status: 'Consommé' });
+                                      showToast('Lot marqué comme consommé', 'success');
+                                    } catch(e) {}
+                                  }
+                                }}
+                                className="p-2 ml-1 text-green-600 hover:bg-green-50 rounded-lg transition-colors inline-flex"
+                                title="Marquer comme consommé"
+                              >
+                                <CheckSquare size={18} />
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if(confirm('Marquer ce lot comme jeté (perte) ?')) {
+                                    try {
+                                      await updateDoc(doc(db, 'haccpLots', lot.id), { status: 'Jeté' });
+                                      showToast('Lot marqué comme jeté', 'success');
+                                      // Log waste
+                                      await addDoc(collection(db, 'wasteRecords'), {
+                                        item: lot.itemName,
+                                        quantity: lot.quantity,
+                                        unit: 'portion', // approx
+                                        reason: 'DLC dépassée / Avarié (HACCP)',
+                                        user: lot.operator,
+                                        date: new Date().toLocaleDateString('fr-FR'),
+                                        createdAt: serverTimestamp()
+                                      });
+                                    } catch(e) {}
+                                  }
+                                }}
+                                className="p-2 ml-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex"
+                                title="Marquer comme jeté (perte)"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     );

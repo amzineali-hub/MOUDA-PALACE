@@ -213,7 +213,7 @@ export default function TableauDeBord() {
   // Stock Faible
   inventory.forEach(item => {
     const qty = parseFloat(item.quantity) || 0;
-    const min = parseFloat(item.minThreshold) || 5;
+    const min = parseFloat(item.minStock) || 5;
     if (qty <= min) {
       alerts.push({
         id: `stock-${item.id}`,
@@ -232,7 +232,7 @@ export default function TableauDeBord() {
   nextWeek.setDate(now.getDate() + 7);
 
   haccpLots.forEach(lot => {
-    if (lot.status === 'Épuisé') return;
+    if (lot.status === 'Épuisé' || lot.status === 'Consommé' || lot.status === 'Jeté') return;
     const dlc = new Date(lot.dlcDate);
     if (dlc < now) {
       alerts.push({

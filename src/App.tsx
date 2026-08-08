@@ -2641,6 +2641,7 @@ function B2BPortal() {
   const [newPartnerAccessCode, setNewPartnerAccessCode] = useState('');
   const [isEditPartnerModalOpen, setIsEditPartnerModalOpen] = useState(false);
 
+  const [partnerToDelete, setPartnerToDelete] = useState<string | null>(null);
   const [partners, setPartners] = useState(() => {
     const saved = localStorage.getItem('mouda_partners');
     if (saved) {
@@ -3386,13 +3387,9 @@ function DigitalMenu() {
   };
 
   const handleDeleteDish = (id: number) => {
-    setDishToDelete(id);
-  };
-  const confirmDeleteDish = () => {
-    if (dishToDelete !== null) {
-      setMenuItems(items => items.filter(item => item.id !== dishToDelete));
+    if (confirm('Voulez-vous vraiment supprimer ce plat ?')) {
+      setMenuItems(items => items.filter(item => item.id !== id));
       showToast("Plat supprimé avec succès");
-      setDishToDelete(null);
     }
   };
 
@@ -6325,7 +6322,8 @@ function Inventory() {
                 <button 
                   type="button"
                   onClick={async () => {
-                    setIsEditSupplierModalOpen(false); setSupplierToDelete(selectedSupplier.id); if (false) {
+                    setIsEditSupplierModalOpen(false);
+                    if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
                       try {
                         setIsEditSupplierModalOpen(false);
                         if (selectedSupplier.id) {

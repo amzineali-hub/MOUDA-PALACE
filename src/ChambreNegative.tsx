@@ -25,7 +25,7 @@ export default function ChambreNegative() {
     const unsubLots = onSnapshot(query(collection(db, 'haccpLots'), orderBy('dlcDate', 'asc')), snapshot => {
       // Filter for items that are not exhausted
       const allLots = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      setLots(allLots.filter((l: any) => l.status !== 'Épuisé' && l.tempRefrigeration <= 0));
+      setLots(allLots.filter((l: any) => l.status !== 'Épuisé' && l.status !== 'Consommé' && l.status !== 'Jeté' && l.tempRefrigeration <= 0));
     });
 
     const unsubTemp = onSnapshot(query(collection(db, 'temperatureLogs'), orderBy('timestamp', 'desc')), snapshot => {

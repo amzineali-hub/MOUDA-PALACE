@@ -1,3 +1,4 @@
+import ConfirmModal from "./components/ConfirmModal";
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar } from 'lucide-react';
@@ -320,7 +321,7 @@ Détails <ChevronRight size={16} />
                           }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
                         <button 
                           onClick={async () => {
-                            setCommandeToDelete(commande.id); if (false) {
+                            setCommandeToDelete(cmd.id); if (false) {
                               try {
                                 if (cmd.id) {
                                   await deleteDoc(doc(db, 'commandes', cmd.id));
@@ -566,7 +567,7 @@ Détails <ChevronRight size={16} />
                             </button>
                             <button 
                               onClick={async () => {
-                                setFournisseurToDelete(f.id); if (false) {
+                                setFournisseurToDelete(fournisseur.id); if (false) {
                                   await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
                                 }
                               }}
@@ -708,7 +709,7 @@ Détails <ChevronRight size={16} />
               </button>
               <button 
                 onClick={async () => {
-                  setCommandeToDelete(commande.id); if (false) {
+                  if (confirm('Voulez-vous vraiment supprimer cette commande ?')) {
                     try {
                       if (selectedCommande?.id) { await deleteDoc(doc(db, 'commandes', selectedCommande.id)); }
                       showToast("Commande supprimée");
@@ -1108,7 +1109,7 @@ Détails <ChevronRight size={16} />
               <button 
                 type="button"
                 onClick={async () => {
-                  setFournisseurToDelete(f.id); if (false) {
+                  if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
                     try {
                       if (selectedFournisseur?.id) { await deleteDoc(doc(db, 'fournisseurs', selectedFournisseur.id)); }
                       showToast("Fournisseur supprimé");
@@ -1299,45 +1300,7 @@ Détails <ChevronRight size={16} />
           </div>
         </div>
       )}
-      <ConfirmModal 
-        isOpen={!!commandeToDelete}
-        title="Supprimer la commande"
-        message="Voulez-vous vraiment supprimer cette commande ?"
-        onConfirm={async () => {
-          if (commandeToDelete) {
-            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
-            setCommandeToDelete(null);
-          }
-        }}
-        onCancel={() => setCommandeToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!fournisseurToDelete}
-        title="Supprimer le fournisseur"
-        message="Voulez-vous vraiment supprimer ce fournisseur ?"
-        onConfirm={async () => {
-          if (fournisseurToDelete) {
-            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
-            setFournisseurToDelete(null);
-          }
-        }}
-        onCancel={() => setFournisseurToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!deliveryToReject}
-        title="Refuser la livraison"
-        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
-        onConfirm={async () => {
-          if (deliveryToReject) {
-            try { 
-              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
-              // Assuming showToast is available here, if not it's ok
-            } catch(e){}
-            setDeliveryToReject(null);
-          }
-        }}
-        onCancel={() => setDeliveryToReject(null)}
-      />
+
     </div>
   );
 }
@@ -1438,14 +1401,16 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
         // 3. Create accounting transaction (Expense)
         if (totalActual > 0) {
           const supplierName = selectedOrder?.fournisseur || selectedOrder?.supplier || 'Fournisseur Inconnu';
-          await addDoc(collection(db, 'transactions'), {
-            amount: -totalActual, // negative for expense
+          const newExpRef = await addDoc(collection(db, 'expenses'), {
+            supplier: supplierName,
+            amount: totalActual.toFixed(2) + ' MAD',
             category: 'Achats / Marchandises',
             date: new Date().toISOString().split('T')[0],
-            description: `Achat Marchandises (BC: ${orderId.substring(0,8)}) - Fournisseur: ${supplierName}`,
-            type: 'expense',
-            timestamp: serverTimestamp()
+            method: 'Virement', // par defaut
+            description: `Achat Marchandises (BC: ${orderId.substring(0,8)})`,
+            createdAt: serverTimestamp()
           });
+          await updateDoc(newExpRef, { id: 'EXP-' + newExpRef.id.substring(0,6).toUpperCase() });
         }
         
         showToast("Réception validée, stock et comptabilité mis à jour !");
@@ -1503,45 +1468,7 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
           onValidate={handleValidate}
         />
       )}
-      <ConfirmModal 
-        isOpen={!!commandeToDelete}
-        title="Supprimer la commande"
-        message="Voulez-vous vraiment supprimer cette commande ?"
-        onConfirm={async () => {
-          if (commandeToDelete) {
-            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
-            setCommandeToDelete(null);
-          }
-        }}
-        onCancel={() => setCommandeToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!fournisseurToDelete}
-        title="Supprimer le fournisseur"
-        message="Voulez-vous vraiment supprimer ce fournisseur ?"
-        onConfirm={async () => {
-          if (fournisseurToDelete) {
-            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
-            setFournisseurToDelete(null);
-          }
-        }}
-        onCancel={() => setFournisseurToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!deliveryToReject}
-        title="Refuser la livraison"
-        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
-        onConfirm={async () => {
-          if (deliveryToReject) {
-            try { 
-              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
-              // Assuming showToast is available here, if not it's ok
-            } catch(e){}
-            setDeliveryToReject(null);
-          }
-        }}
-        onCancel={() => setDeliveryToReject(null)}
-      />
+
     </div>
   );
 }
@@ -1592,7 +1519,7 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
   };
 
   const handleReject = () => {
-    setDeliveryToReject(commande.id); if (false) {
+    if (confirm('Voulez-vous vraiment refuser cette livraison ?')) {
       onValidate(order.id, items, 'Refusée', invoiceNote);
     }
   };
@@ -1712,45 +1639,7 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
           </button>
         </div>
       </div>
-      <ConfirmModal 
-        isOpen={!!commandeToDelete}
-        title="Supprimer la commande"
-        message="Voulez-vous vraiment supprimer cette commande ?"
-        onConfirm={async () => {
-          if (commandeToDelete) {
-            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
-            setCommandeToDelete(null);
-          }
-        }}
-        onCancel={() => setCommandeToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!fournisseurToDelete}
-        title="Supprimer le fournisseur"
-        message="Voulez-vous vraiment supprimer ce fournisseur ?"
-        onConfirm={async () => {
-          if (fournisseurToDelete) {
-            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
-            setFournisseurToDelete(null);
-          }
-        }}
-        onCancel={() => setFournisseurToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!deliveryToReject}
-        title="Refuser la livraison"
-        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
-        onConfirm={async () => {
-          if (deliveryToReject) {
-            try { 
-              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
-              // Assuming showToast is available here, if not it's ok
-            } catch(e){}
-            setDeliveryToReject(null);
-          }
-        }}
-        onCancel={() => setDeliveryToReject(null)}
-      />
+
     </div>
   );
 }

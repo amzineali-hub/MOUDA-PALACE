@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs, where, runTransaction, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2 } from 'lucide-react';
+import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ProductionJournaliere() {
@@ -20,12 +20,31 @@ export default function ProductionJournaliere() {
   const [targetZone, setTargetZone] = useState('chambre_froide');
   const [targetSubZone, setTargetSubZone] = useState('');
   const [subZones, setSubZones] = useState<any[]>([]);
+  const [expectedCovers, setExpectedCovers] = useState(0);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'subZones'), (snapshot) => {
       setSubZones(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
-    return () => unsub();
+    
+    // Fetch today's reservations for forecast
+    const unsubRes = onSnapshot(collection(db, 'reservations'), (snapshot) => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      let covers = 0;
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        // date format might be YYYY-MM-DD, HH:MM
+        if (data.date && data.date.startsWith(todayStr) && data.status === 'Confirmé') {
+          covers += parseInt(data.pax) || 0;
+        }
+      });
+      setExpectedCovers(covers);
+    });
+    
+    return () => {
+      unsub();
+      unsubRes();
+    };
   }, []);
 
 
@@ -128,8 +147,21 @@ export default function ProductionJournaliere() {
         }
         
         // 2. Perform updates
+        const dateStr = new Date().toLocaleDateString('fr-FR');
         for (const update of ingredientsUpdates) {
           transaction.update(update.ref, { quantity: update.newQty });
+          // Log out transaction for ingredient
+          const outTxRef = doc(collection(db, 'inventoryTransactions'));
+          transaction.set(outTxRef, {
+            item: update.item.name,
+            type: 'out',
+            amount: update.neededQty,
+            unit: update.item.unit || 'kg',
+            reason: `Production: ${recipe.nom}`,
+            user: chefResponsable,
+            date: dateStr,
+            createdAt: serverTimestamp()
+          });
         }
         
         // 3. Create production order
@@ -178,6 +210,18 @@ export default function ProductionJournaliere() {
            }
 
            transaction.update(doc(db, colName, producedItem.id), updateData);
+           
+           const inTxRef = doc(collection(db, 'inventoryTransactions'));
+           transaction.set(inTxRef, {
+             item: producedItem.name,
+             type: 'in',
+             amount: quantiteAProduire,
+             unit: producedItem.unit || 'portion',
+             reason: `Production: ${recipe.nom}`,
+             user: chefResponsable,
+             date: new Date().toLocaleDateString('fr-FR'),
+             createdAt: serverTimestamp()
+           });
         } else {
            // check recipe category to decide where it goes
            const cat = (recipe.categorie || '').toLowerCase();

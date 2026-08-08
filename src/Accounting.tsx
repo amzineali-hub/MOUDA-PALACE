@@ -149,6 +149,19 @@ export default function Accounting() {
     link.remove();
     showToast("Exportation réussie");
   };
+  
+  const handleDeleteExpense = async (id: string) => {
+    if (window.confirm("Voulez-vous vraiment supprimer cette dépense ?")) {
+      try {
+        await deleteDoc(doc(db, "expenses", id));
+        showToast("Dépense supprimée avec succès");
+      } catch (error) {
+        console.error(error);
+        showToast("Erreur lors de la suppression", "error");
+      }
+    }
+  };
+
   const handleDeleteReceipt = async (id: string) => {
     if (window.confirm("Voulez-vous vraiment supprimer cet encaissement ?")) {
       try {
@@ -377,7 +390,7 @@ export default function Accounting() {
             />
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors">
+            <button onClick={() => setSearchQuery('')}  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors" title="Effacer la recherche">
               <Filter size={18} />
               <span className="text-sm font-medium">Filtrer</span>
             </button>
@@ -517,7 +530,7 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {receipts.map((receipt, idx) => (
+                {receipts.filter(r => r.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) || r.id?.toLowerCase().includes(searchQuery.toLowerCase()) || r.method?.toLowerCase().includes(searchQuery.toLowerCase())).map((receipt, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{receipt.displayId || 'TKT-' + receipt.id.substring(0, 6).toUpperCase()}</td>
                     <td className="px-6 py-4 text-gray-500">
@@ -567,7 +580,7 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {expenses.map((expense, idx) => (
+                {expenses.filter(e => e.supplier?.toLowerCase().includes(searchQuery.toLowerCase()) || e.category?.toLowerCase().includes(searchQuery.toLowerCase()) || e.id?.toLowerCase().includes(searchQuery.toLowerCase())).map((expense, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{expense.id}</td>
                     <td className="px-6 py-4 text-gray-900">{expense.category}</td>
@@ -579,6 +592,78 @@ export default function Accounting() {
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { setSelectedExpense(expense); setIsExpenseModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le justificatif">
                           <Eye size={16} />
+                        </button>
+                        <button onClick={() => {
+                          let printWindow = window.open('', '', 'width=800,height=900');
+                          if (printWindow) {
+                            printWindow.document.write(`
+                              <html>
+                                <head>
+                                  <title>Dépense ${expense.id}</title>
+                                  <style>
+                                    body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+                                    .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
+                                    .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+                                    .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
+                                    table { w-full text-left border-collapse: collapse; width: 100%; margin-bottom: 40px; }
+                                    th, td { padding: 15px; border-bottom: 1px solid #eee; }
+                                    th { background-color: #f9fafb; font-weight: bold; }
+                                    .total-row { font-weight: bold; font-size: 20px; background-color: #f9fafb; }
+                                  </style>
+                                </head>
+                                <body>
+                                  <div class="header">
+                                    <div class="logo-text">MOUDA PALACE</div>
+                                    <div>FÈS</div>
+                                  </div>
+                                  <h2 style="text-align: center; margin-bottom: 30px;">DÉPENSE / ACHAT</h2>
+                                  <div class="invoice-info">
+                                    <div>
+                                      <strong>N° Dépense:</strong> ${expense.id}<br>
+                                      <strong>Date:</strong> ${expense.date}
+                                    </div>
+                                    <div style="text-align: right;">
+                                      <strong>Bénéficiaire:</strong> ${expense.supplier || '-'}<br>
+                                      <strong>Catégorie:</strong> ${expense.category}
+                                    </div>
+                                  </div>
+                                  <table>
+                                    <thead>
+                                      <tr>
+                                        <th>Description</th>
+                                        <th style="text-align: right;">Montant</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr>
+                                        <td>${expense.description || expense.category}</td>
+                                        <td style="text-align: right;">${parseFloat(expense.amount).toFixed(2)} MAD</td>
+                                      </tr>
+                                      <tr class="total-row">
+                                        <td>Total</td>
+                                        <td style="text-align: right;">${parseFloat(expense.amount).toFixed(2)} MAD</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                  <div style="text-align: center; color: #666; margin-top: 50px; font-size: 14px;">
+                                    Méthode de paiement: ${expense.method}<br>
+                                    Document généré le ${new Date().toLocaleDateString('fr-FR')}
+                                  </div>
+                                </body>
+                              </html>
+                            `);
+                            printWindow.document.close();
+                            printWindow.focus();
+                            setTimeout(() => {
+                              printWindow.print();
+                              printWindow.close();
+                            }, 250);
+                          }
+                        }} className="p-1.5 text-gray-400 hover:text-green-500 transition-colors rounded-lg hover:bg-gray-100" title="Imprimer">
+                          <Printer size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteExpense(expense.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -828,11 +913,28 @@ export default function Accounting() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => showToast && showToast('Action en cours de développement...')}  className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
+                          <button onClick={() => { setSelectedReport(report); setIsViewReportModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le rapport">
                             <Eye size={16} />
                           </button>
                           <button onClick={() => handleDownloadReport(report.type, report.format)} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger">
                             <Download size={16} />
+                          </button>
+                          <button onClick={async () => {
+                            if (window.confirm("Voulez-vous vraiment supprimer ce rapport ?")) {
+                              if (report.id.startsWith("RPT-20")) {
+                                setFinancialReports(prev => prev.filter(r => r.id !== report.id));
+                                showToast("Rapport supprimé avec succès");
+                              } else {
+                                try {
+                                  await deleteDoc(doc(db, 'financialReports', report.id));
+                                  showToast("Rapport supprimé avec succès");
+                                } catch(e) {
+                                  showToast("Erreur lors de la suppression", "error");
+                                }
+                              }
+                            }
+                          }} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>

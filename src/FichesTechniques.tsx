@@ -5,6 +5,7 @@ import { useToast } from './context/ToastContext';
 import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, ChefHat } from 'lucide-react';
 import { query, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
+import ConfirmModal from './components/ConfirmModal';
 
 // Define calculateCost outside so it can be reused
 const calculateCost = (qty: number, unit: string, price: number, priceUnit: string, forceCost?: number) => {
@@ -21,6 +22,7 @@ const calculateCost = (qty: number, unit: string, price: number, priceUnit: stri
 export default function FichesTechniques() {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [ficheToDelete, setFicheToDelete] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<any>(null);
   const [search, setSearch] = useState('');
@@ -47,15 +49,18 @@ export default function FichesTechniques() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    setFicheToDelete(id); if (false) {
-      try {
-        await deleteDoc(doc(db, 'fiches_techniques', id));
-        showToast('Fiche technique supprimée', 'success');
-      } catch (err) {
-        showToast('Erreur lors de la suppression', 'error');
-      }
+  const handleDelete = (id: string) => {
+    setFicheToDelete(id);
+  };
+  const confirmDelete = async () => {
+    if (!ficheToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'fiches_techniques', ficheToDelete));
+      showToast('Fiche technique supprimée', 'success');
+    } catch (err) {
+      showToast('Erreur lors de la suppression', 'error');
     }
+    setFicheToDelete(null);
   };
 
   const categories = ['Toutes', ...Array.from(new Set(recipes.map(r => r.categorie).filter(Boolean)))];
@@ -663,13 +668,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
           </button>
         </div>
       </div>
-      <ConfirmModal 
-        isOpen={!!ficheToDelete}
-        title="Supprimer la fiche technique"
-        message="Voulez-vous vraiment supprimer cette fiche technique ?"
-        onConfirm={confirmDelete}
-        onCancel={() => setFicheToDelete(null)}
-      />
+
     </div>
   );
 }

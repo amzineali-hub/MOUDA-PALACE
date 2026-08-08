@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat } from 'lucide-react';
 import { useToast } from './context/ToastContext';
+import ConfirmModal from './components/ConfirmModal';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -16,6 +17,7 @@ export default function MenuGenerator() {
   const [isPrintView, setIsPrintView] = useState(false);
   const [printTemplate, setPrintTemplate] = useState<'moderne' | 'traditionnel'>('moderne');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [dishToDelete, setDishToDelete] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -587,11 +589,10 @@ if (isPrintView) {
               {editingItem && (
                 <button 
                   type="button"
-                  onClick={async () => {
-                    setDishToDelete(editingItem.id); setEditingItem(null); if (false) {
-                      try { await deleteDoc(doc(db, 'menu_items', editingItem.id)); showToast('Plat supprimé.'); } catch (e) { showToast('Erreur lors de la suppression.', 'error'); }
-                      setIsAddModalOpen(false);
-                    }
+                  onClick={() => {
+                    setDishToDelete(editingItem.id); 
+                    setEditingItem(null);
+                    setIsAddModalOpen(false);
                   }}
                   className="w-full mt-2 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                 >

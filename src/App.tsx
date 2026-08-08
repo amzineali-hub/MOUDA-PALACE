@@ -220,159 +220,6 @@ function ReviewAnalyzer() {
   );
 }
 
-function InventoryAlerts() {
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [orderingItem, setOrderingItem] = useState<any | null>(null);
-  const { user } = useAuth();
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    const q = query(collection(db, 'inventoryItems'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lowStockItems: any[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.quantity !== undefined && data.minStock !== undefined) {
-          if (data.quantity <= data.minStock) {
-            lowStockItems.push({ ...data, id: doc.id });
-          }
-        }
-      });
-      setAlerts(lowStockItems);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching inventory alerts:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleOrderSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    showToast(`Commande fournisseur envoyée pour ${orderingItem?.name}`);
-    setOrderingItem(null);
-  };
-
-  if (loading || alerts.length === 0) return null;
-
-  return (
-    <>
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 bg-red-50 border border-red-100 rounded-2xl p-6"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-red-100 text-red-600 rounded-lg">
-            <AlertTriangle size={20} />
-          </div>
-          <h3 className="text-lg font-serif font-medium text-red-900">Alertes de Stock</h3>
-        </div>
-        <div className="space-y-3">
-          {alerts.map(item => (
-            <div key={item.id} className="flex flex-col md:flex-row md:items-center justify-between bg-white/60 p-3 rounded-lg border border-red-50 gap-4">
-              <span className="font-medium text-red-900">{item.name || 'Produit inconnu'}</span>
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <span className="text-sm text-red-700">Stock actuel: {item.quantity} {item.unit || ''}</span>
-                <span className="text-sm text-red-500 font-medium">Seuil: {item.criticalThreshold} {item.unit || ''}</span>
-                <button 
-                  onClick={() => setOrderingItem(item)}
-                  className="flex items-center gap-2 text-sm font-medium px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-                >
-                  <ShoppingCart size={16} />
-                  Commander
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Order Modal */}
-      {orderingItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
-          >
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-xl font-serif font-medium text-gray-900">Nouvelle Commande Fournisseur</h3>
-              <button onClick={() => setOrderingItem(null)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleOrderSubmit} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Produit</label>
-                  <input 
-                    type="text" 
-                    value={orderingItem.name || ''}
-                    disabled
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actuel</label>
-                    <input 
-                      type="text" 
-                      value={`${orderingItem.quantity} ${orderingItem.unit || ''}`}
-                      disabled
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-red-50 text-red-600 font-medium cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantité Suggérée</label>
-                    <input 
-                      type="number" 
-                      defaultValue={Math.max((orderingItem.criticalThreshold * 3) - orderingItem.quantity, orderingItem.criticalThreshold * 2)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                      min="1"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur (Optionnel)</label>
-                  <input list="dl-xrqdjw-1" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all" placeholder="Ex: Marché Central" />
-                  <datalist id="dl-xrqdjw-1">
-                    {['Marché Central', 'Ferme Atlas', 'Boucherie Centrale'].map((sup, idx) => (
-                      <option key={idx} value={sup} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-              
-              <div className="mt-8 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setOrderingItem(null)}
-                  className="flex-1 px-4 py-3 rounded-xl font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-[#F4C75B] hover:bg-[#c99a4e] transition-colors shadow-lg shadow-[#F4C75B]/20 flex justify-center items-center gap-2"
-                >
-                  <Send size={18} />
-                  Envoyer Commande
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-    </>
-  );
-}
-
 const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
   <div className="mb-2">
     <button
@@ -1543,7 +1390,6 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           />
         </div>
 
-        <InventoryAlerts />
 
         {/* Quick Operations Actions */}
         <motion.div 
@@ -3963,6 +3809,7 @@ function Inventory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expirationFilter, setExpirationFilter] = useState("Tous");
   const [stockAlertFilter, setStockAlertFilter] = useState(false);
+  const [advancedAlertFilter, setAdvancedAlertFilter] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
@@ -4052,8 +3899,23 @@ function Inventory() {
         }
       }
     }
-    
-    return matchesSearch && matchesCategory && matchesExpiration && matchesAlert;
+
+    let matchesAdvancedAlert = true;
+    if (advancedAlertFilter) {
+      if (item.quantity > item.minStock || !item.expirationDate) {
+         matchesAdvancedAlert = false;
+      } else {
+         const expDate = new Date(item.expirationDate);
+         const today = new Date();
+         const diffTime = expDate.getTime() - today.getTime();
+         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+         if (diffDays >= 15) {
+             matchesAdvancedAlert = false;
+         }
+      }
+    }
+
+    return matchesSearch && matchesCategory && matchesExpiration && matchesAlert && matchesAdvancedAlert;
   }).sort((a, b) => {
     if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
     if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -4210,6 +4072,7 @@ function Inventory() {
             setActiveTab('stocks');
             setExpirationFilter('Tous');
             setStockAlertFilter(false);
+            setAdvancedAlertFilter(false);
             setSelectedCategory('Tous');
             setSearchQuery('');
           }}
@@ -4269,6 +4132,7 @@ function Inventory() {
             setActiveTab('stocks');
             setExpirationFilter('Proche/Expiré');
             setStockAlertFilter(false);
+            setAdvancedAlertFilter(false);
             setSelectedCategory('Tous');
             setSearchQuery('');
           }}
@@ -4346,11 +4210,29 @@ function Inventory() {
                 
               <div className="w-full sm:w-auto">
                 <button
-                  onClick={() => setStockAlertFilter(!stockAlertFilter)}
+                  onClick={() => {
+                    setStockAlertFilter(!stockAlertFilter);
+                    if (!stockAlertFilter) setAdvancedAlertFilter(false);
+                  }}
                   className={`w-full px-4 py-2 border rounded-lg focus:outline-none transition-colors flex items-center justify-center gap-2 ${stockAlertFilter ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                 >
                   <AlertTriangle size={16} />
                   <span>{stockAlertFilter ? 'Alertes actives' : 'Stock bas'}</span>
+                </button>
+              </div>
+              <div className="w-full sm:w-auto">
+                <button
+                  onClick={() => {
+                    setAdvancedAlertFilter(!advancedAlertFilter);
+                    if (!advancedAlertFilter) {
+                       setStockAlertFilter(false);
+                    }
+                  }}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none transition-colors flex items-center justify-center gap-2 ${advancedAlertFilter ? 'bg-orange-50 border-orange-200 text-orange-600' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                  title="Stock bas & DLC < 15j"
+                >
+                  <AlertTriangle size={16} />
+                  <span>Priorité Achats</span>
                 </button>
               </div>
               <select 
@@ -4375,7 +4257,7 @@ function Inventory() {
               </div>
             </div>
             
-            <div className="mb-6 flex overflow-x-auto hide-scrollbar gap-3 pb-2">
+            <div className="mb-6 flex flex-wrap gap-3 pb-2">
               <button
                 onClick={() => setSelectedCategory('Tous')}
                 className={`pr-4 pl-1.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 border ${selectedCategory === 'Tous' ? 'bg-[#265C6D] text-white border-transparent shadow-sm' : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200 shadow-sm'}`}

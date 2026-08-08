@@ -1,7 +1,17 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/Accounting.tsx', 'utf8');
+let code = fs.readFileSync('src/App.tsx', 'utf8');
 
-code = code.replace(/<Eye size=\{16\} \/>\n                        <\/button>\n                        <\/button>/g, '<Eye size={16} />\n                        </button>');
-code = code.replace(/<Eye size=\{16\} \/>\n                        <\/button>\n                          <\/button>/g, '<Eye size={16} />\n                          </button>');
+const badCode = `                  onClick={() => {
+                    setAdvancedAlertFilter(!advancedAlertFilter);
+                    if (!advancedAlertFilter) setStockAlertFilter(false);
+            setAdvancedAlertFilter(false);
+                  }}`;
 
-fs.writeFileSync('src/Accounting.tsx', code);
+const goodCode = `                  onClick={() => {
+                    setAdvancedAlertFilter(!advancedAlertFilter);
+                    if (!advancedAlertFilter) {
+                       setStockAlertFilter(false);
+                    }
+                  }}`;
+code = code.replace(badCode, goodCode);
+fs.writeFileSync('src/App.tsx', code);

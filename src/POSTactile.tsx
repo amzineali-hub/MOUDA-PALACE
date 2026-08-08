@@ -459,7 +459,7 @@ export default function POSTactile() {
               </div>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+            <div className="flex flex-wrap gap-3 pb-2">
               {CATEGORIES.map(cat => (
                 <button
                   key={cat.id}

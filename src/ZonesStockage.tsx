@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { Package, ThermometerSnowflake, Wine, ShoppingBag, Plus, Edit2, AlertTriangle, ChevronRight, Settings } from 'lucide-react';
+import { Package, ThermometerSnowflake, Wine, ShoppingBag, Plus, Edit2, AlertTriangle, ChevronRight, Settings, Trash2 } from 'lucide-react';
 
 const DEFAULT_ZONES = [
   { id: 'economat', name: 'Économat', description: 'Produits secs / denrées non périssables', icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -315,16 +315,34 @@ export default function ZonesStockage() {
                   <tr>
                     <th className="px-4 py-2 font-medium">Zone</th>
                     <th className="px-4 py-2 font-medium">Nom</th>
+                    <th className="px-4 py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {subZones.length === 0 ? (
-                    <tr><td colSpan={2} className="px-4 py-4 text-center text-gray-500">Aucun sous-emplacement configuré</td></tr>
+                    <tr><td colSpan={3} className="px-4 py-4 text-center text-gray-500">Aucun sous-emplacement configuré</td></tr>
                   ) : (
                     subZones.map(sz => (
                       <tr key={sz.id}>
                         <td className="px-4 py-2">{DEFAULT_ZONES.find(z => z.id === sz.zoneId)?.name}</td>
                         <td className="px-4 py-2 font-medium">{sz.name}</td>
+                        <td className="px-4 py-2 text-right">
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm('Voulez-vous supprimer ce sous-emplacement ?')) {
+                                try {
+                                  await deleteDoc(doc(db, 'subZones', sz.id));
+                                  showToast("Sous-emplacement supprimé");
+                                } catch (e) {
+                                  showToast("Erreur lors de la suppression", "error");
+                                }
+                              }
+                            }}
+                            className="text-red-500 hover:bg-red-50 p-1 rounded"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}

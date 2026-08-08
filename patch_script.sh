@@ -1,1 +1,0 @@
-sed -i 's/showToast("Article automatiquement publié via Webhook !");/showToast("Article automatiquement publié via Webhook !");\n              updateDoc(doc(db, '"'blog_posts'"', docRef.id), { published: true, publishedAt: serverTimestamp() });\n              setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);/g' src/BlogWriterAI.tsx

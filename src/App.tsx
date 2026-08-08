@@ -100,7 +100,7 @@ import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
-import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import Accounting from './Accounting';
 import BlogWriterAI from './BlogWriterAI';
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
@@ -119,7 +119,6 @@ import DeviceManagement from "./DeviceManagement";
 import DeviceSimulator from "./DeviceSimulator";
 import SystemMonitoring from "./SystemMonitoring";
 import LivePlanningWidget from "./components/LivePlanningWidget";
-import ChatBot from './components/ChatBot';
 import RH from './RH';
 import NotificationSystem from './NotificationSystem';
 import DocumentsRestaurant from "./DocumentsRestaurant";
@@ -488,7 +487,7 @@ function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
       <input 
         type="hidden" 
         name="articles" 
-        value={articles.map(a => `${a.name} (${a.qty})`).join('\n')} 
+        value={articles.map(a => `${a.name} (${a.qty})`).join('')} 
       />
     </div>
   );
@@ -498,9 +497,10 @@ function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
 const normalizeCategory = (cat: string) => {
   if (!cat) return cat;
   const c = cat.trim();
+  if (c === 'Épicerie Sèche' || c === 'Epicerie Sèche' || c === 'Épicerie & Sec' || c === 'Épicerie & sec') return 'Épicerie';
   if (c === 'Fruits' || c === 'Légumes' || c === 'Fruits & Légumes' || c === 'Fruits et légumes' || c === 'Légumes & Fruits') return 'Fruits & Légumes';
   if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
-  if (c === 'Viandes') return 'Viandes';
+  if (c === 'Viandes' || c === 'Viande') return 'Viandes';
   if (c === 'Produits d\'entretien' || c === 'Produits de maintenance' || c === 'Hygiène & Entretien') return 'Hygiène & Entretien';
   return c;
 };
@@ -630,7 +630,6 @@ function App() {
     { type: 'Gestion', text: 'Comptabilité', tab: 'accounting', keywords: ['finances', 'bilan', 'revenus', 'dépenses', 'chiffre d\'affaires', 'compta'] },
     { type: 'Gestion', text: 'Caisse / POS Tactile', tab: 'finance', keywords: ['pos', 'encaissement', 'factures', 'paiement', 'commandes', 'caisse'] },
     { type: 'RH', text: 'RH personnel', tab: 'staff', keywords: ['employés', 'personnel', 'salaires', 'présence', 'équipe', 'rh', 'planning'] },
-    { type: 'Configuration', text: 'WhatsApp & IA', tab: 'whatsapp', keywords: ['chatbot', 'messages', 'auto-répondeur', 'ia'] },
     { type: 'Configuration', text: 'API & Paramètres', tab: 'config', keywords: ['réglages', 'système', 'options', 'paramètres'] },
     { type: 'Marketing', text: 'Articles du blog', tab: 'blog', keywords: ['seo', 'contenu', 'générateur', 'ia', 'blog', 'article'] },
     { type: 'Marketing', text: 'Analytics SEO', tab: 'seo_analytics', keywords: ['référencement', 'trafic', 'stats seo', 'analytics'] },
@@ -714,8 +713,6 @@ function App() {
         return <Reservations />;
       case 'b2b':
         return <B2BPortal />;
-      case 'whatsapp':
-        return <WhatsAppAI />;
       case 'blog':
         return <BlogWriterAI />;
       case 'seo_analytics':
@@ -777,11 +774,11 @@ function App() {
           <div 
              className="h-10 w-12 bg-[#F4C75B]" 
              style={{
-              maskImage: 'url(/mouda-1.png)',
+              maskImage: 'url(/mouda-1-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda-1.png)',
+              WebkitMaskImage: 'url(/mouda-1-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -797,16 +794,41 @@ function App() {
 
       {/* Sidebar Navigation */}
       {!isFullScreenView && (
-      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-64 bg-[#265C6D] text-[#E8E6E1] p-6 flex-col border-r border-[#2F6B7F] fixed md:sticky top-16 md:top-0 h-[calc(100vh-4rem)] md:h-screen z-40 overflow-y-auto`}>
+      
+      <aside className={`print:hidden ${isMobileMenuOpen ? 'flex' : 'hidden'} md:flex shrink-0 w-full md:w-80 bg-[#265C6D] text-[#E8E6E1] p-6 flex-col border-r border-[#2F6B7F] fixed md:sticky inset-0 md:inset-auto md:top-0 h-screen z-[100] md:z-40 overflow-y-auto`}>
+        
+        {/* Mobile Sidebar Header */}
+        <div className="md:hidden flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div
+                className="h-10 w-12 bg-[#F4C75B]"
+                style={{
+                maskImage: 'url(/mouda-1-1.png)',
+                maskSize: 'contain',
+                maskRepeat: 'no-repeat',
+                maskPosition: 'center',
+                WebkitMaskImage: 'url(/mouda-1-1.png)',
+                WebkitMaskSize: 'contain',
+                WebkitMaskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center'
+              }}
+            />
+            <span className="font-serif font-normal tracking-[0.1em] uppercase text-base text-white">Mouda Palace</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#E8E6E1] p-1">
+            <X size={28} />
+          </button>
+        </div>
+
         <div className="mb-12 hidden md:flex flex-col items-center text-center">
           <div 
             className="h-24 w-32 mb-4 bg-[#F4C75B]" 
             style={{
-              maskImage: 'url(/mouda-1.png)',
+              maskImage: 'url(/mouda-1-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda-1.png)',
+              WebkitMaskImage: 'url(/mouda-1-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -978,7 +1000,6 @@ function App() {
             isExpanded={expandedCategory === 'config_cat'} 
             onClick={() => setExpandedCategory(expandedCategory === 'config_cat' ? null : 'config_cat')}
           >
-            <SubNavItem icon={<MessageCircle size={16} />} label="WhatsApp & IA" active={activeTab === 'whatsapp'} onClick={() => handleTabChange('whatsapp')} />
             <SubNavItem icon={<Settings size={16} />} label="API & Paramètres" active={activeTab === 'config'} onClick={() => handleTabChange('config')} />
           </NavCategory>
 
@@ -1048,7 +1069,6 @@ function App() {
         </AnimatePresence>
       </main>
 
-      {/* {!isFullScreenView && <ChatBot />} */}
       {isFullScreenView && activeTab !== 'device_simulator' && (
         <button 
           onClick={() => {
@@ -1074,31 +1094,60 @@ function App() {
 
 function PerformanceAnalysis() {
   const [averageMargin, setAverageMargin] = useState(0);
+  const [fichesTechniques, setFichesTechniques] = useState<any[]>([]);
+  const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
-      let totalMargin = 0;
-      let count = 0;
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.prixVente && data.coutMatiere) {
-          const pv = Number(data.prixVente);
-          const cm = Number(data.coutMatiere);
-          if (pv > 0) {
-            const margin = ((pv - cm) / pv) * 100;
-            totalMargin += margin;
-            count++;
-          }
-        }
-      });
-      if (count > 0) {
-        setAverageMargin(totalMargin / count);
+    const unsubFiches = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
+      setFichesTechniques(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    const unsubStock = onSnapshot(collection(db, 'inventoryItems'), (snapshot) => {
+      setStockItemsData(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => { unsubFiches(); unsubStock(); };
+  }, []);
+
+  useEffect(() => {
+    const calculateCost = (qty: number, unit: string, price: number, priceUnit: string) => {
+      if (!qty || !price) return 0;
+      let adjustedQty = qty;
+      if (unit === 'g' && priceUnit === 'kg') adjustedQty = qty / 1000;
+      if (unit === 'kg' && priceUnit === 'g') adjustedQty = qty * 1000;
+      if (unit === 'ml' && (priceUnit === 'L' || priceUnit === 'l')) adjustedQty = qty / 1000;
+      if ((unit === 'L' || unit === 'l') && priceUnit === 'ml') adjustedQty = qty * 1000;
+      return adjustedQty * price;
+    };
+
+    let totalMargin = 0;
+    let count = 0;
+    
+    fichesTechniques.forEach(recipe => {
+      let dynamicCoutMatiere = 0;
+      if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+        recipe.ingredients.forEach((ing: any) => {
+          const matchedItem = stockItemsData.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
+          const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price || matchedItem.cost) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
+          const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
+          dynamicCoutMatiere += calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit);
+        });
       } else {
-        setAverageMargin(0);
+        dynamicCoutMatiere = Number(recipe.coutMatiere || 0);
+      }
+      
+      const pv = Number(recipe.prixVente);
+      if (pv > 0) {
+        const margin = ((pv - dynamicCoutMatiere) / pv) * 100;
+        totalMargin += margin;
+        count++;
       }
     });
-    return () => unsub();
-  }, []);
+    
+    if (count > 0) {
+      setAverageMargin(totalMargin / count);
+    } else {
+      setAverageMargin(0);
+    }
+  }, [fichesTechniques, stockItemsData]);
 
   const occupancyData = [
     { name: 'Lun', taux: 45 },
@@ -1330,7 +1379,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
       >
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-[3000ms] ease-out group-hover:scale-105"
-          style={{ backgroundImage: "url('/img1.png')" }}
+          style={{ backgroundImage: "url('/img1-3.png')" }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7] pointer-events-none"></div>
       </div>
@@ -2361,6 +2410,7 @@ function Reservations() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du client</label>
                 <input name="nom" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: M. Dubois" />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -2613,9 +2663,13 @@ function B2BPortal() {
   }, [partners]);
 
   const handleDeletePartner = (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce partenaire ?")) {
-      setPartners(partners.filter((p: any) => p.id !== id));
+    setPartnerToDelete(id);
+  };
+  const confirmDeletePartner = () => {
+    if (partnerToDelete) {
+      setPartners(partners.filter((p: any) => p.id !== partnerToDelete));
       showToast("Partenaire supprimé avec succès");
+      setPartnerToDelete(null);
     }
   };
 
@@ -3185,202 +3239,7 @@ Ton ton doit être élégant, chaleureux et professionnel.
 Tu peux répondre aux questions sur le menu, les horaires, l'adresse et l'emplacement du restaurant, prendre des réservations et fournir le site web du restaurant : www.moudapalace.com, ainsi que le menu digital. 
 Si une demande est complexe, propose au client d'être contacté par un humain.`;
 
-function WhatsAppAI() {
-  const { showToast } = useToast();
-  const [isBotActive, setIsBotActive] = useState(true);
-  const [isKnowledgeBaseOpen, setIsKnowledgeBaseOpen] = useState(false);
-  const [prompt, setPrompt] = useState(savedPrompt);
 
-  return (
-    <div className="p-8 md:p-12 relative z-10">
-      <header className="mb-10">
-        <h2 className="text-3xl font-serif text-[#265C6D] font-semibold mb-2">WhatsApp & IA</h2>
-        <p className="text-gray-500">Configuration du bot WhatsApp et paramètres de l'IA.</p>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-serif font-semibold text-gray-900">État du Bot</h3>
-                <p className="text-sm text-gray-500">Activer ou désactiver les réponses automatiques IA.</p>
-              </div>
-              <button 
-                onClick={() => {
-                  setIsBotActive(!isBotActive);
-                  showToast(isBotActive ? "Bot WhatsApp désactivé" : "Bot WhatsApp activé");
-                }}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isBotActive ? 'bg-green-500' : 'bg-gray-200'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBotActive ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t border-gray-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
-                  <MessageCircle className="text-green-600" size={24} />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Numéro connecté</h4>
-                  <p className="text-sm text-gray-500">+212 6 00 00 00 00</p>
-                </div>
-                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <h3 className="text-xl font-serif font-semibold text-gray-900 mb-1">Comportement de l'IA (Prompt Système)</h3>
-            <p className="text-sm text-gray-500 mb-6">Définissez comment le bot doit s'adresser aux clients.</p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Instructions principales</label>
-                <textarea 
-                  rows={6}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl p-4 text-sm focus:outline-none focus:border-[#F4C75B] resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Langue par défaut</label>
-                  <select className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]">
-                    <option>Français (par défaut)</option>
-                    <option>Anglais</option>
-                    <option>Arabe</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Délai de réponse (secondes)</label>
-                  <input type="number" defaultValue={2} className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]" />
-                </div>
-              </div>
-              
-              <button onClick={() => {
-                savedPrompt = prompt;
-                showToast("Paramètres IA enregistrés");
-              }} className="mt-4 px-6 py-2.5 bg-[#265C6D] text-white rounded-lg text-sm font-medium hover:bg-[#2F6B7F] transition-colors">
-                Enregistrer les paramètres
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <h3 className="text-xl font-serif font-semibold text-gray-900 mb-4">Statistiques du Bot</h3>
-            
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="text-sm text-gray-500 mb-1">Conversations actives</div>
-                <div className="text-2xl font-bold text-gray-900 flex items-center justify-between">
-                  12
-                  <TrendingUp className="text-green-500" size={20} />
-                </div>
-              </div>
-              
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="text-sm text-gray-500 mb-1">Réservations générées (Ce mois)</div>
-                <div className="text-2xl font-bold text-gray-900">45</div>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="text-sm text-gray-500 mb-1">Taux de résolution IA</div>
-                <div className="text-2xl font-bold text-gray-900">85%</div>
-                <div className="text-xs text-gray-400 mt-1">15% transférés à un humain</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                <BookOpen size={20} />
-              </div>
-              <h4 className="font-medium text-blue-900">Base de Connaissances</h4>
-            </div>
-            <p className="text-sm text-blue-800 mb-4">
-              L'IA utilise le menu digital et les informations du restaurant (adresse, horaires) pour répondre aux clients.
-            </p>
-            <button onClick={() => setIsKnowledgeBaseOpen(true)} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">
-              Gérer les informations <ExternalLink size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Knowledge Base Modal */}
-      {isKnowledgeBaseOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">Base de Connaissances (IA)</h3>
-              <button onClick={() => setIsKnowledgeBaseOpen(false)} className="text-gray-400 hover:text-gray-900">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm text-gray-600 mb-4">
-                Ces informations sont utilisées par l'assistant IA pour répondre aux questions fréquentes des clients sur WhatsApp, Instagram, etc.
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du restaurant</label>
-                <input type="text" defaultValue="Mouda Palace" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse complète</label>
-                <textarea rows={2} defaultValue="Derb El Hammam, Medina, Fès, Maroc" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horaires (Ouverture)</label>
-                  <input type="time" defaultValue="12:00" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horaires (Fermeture)</label>
-                  <input type="time" defaultValue="23:30" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Indications d'accès (Parking, repères)</label>
-                <textarea rows={3} defaultValue="Parking sécurisé à Bab Boujloud (à 5min à pied). Le restaurant est situé juste derrière la fontaine bleue." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Informations supplémentaires</label>
-                <textarea rows={3} defaultValue="- Option végétarienne et vegan disponibles.
-- Animation musicale (Luth/Oud) tous les vendredis et samedis soirs.
-- Accessible aux fauteuils roulants au rez-de-chaussée uniquement." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
-              </div>
-
-              <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-gray-100">
-                <button onClick={() => setIsKnowledgeBaseOpen(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                  Annuler
-                </button>
-                <button onClick={() => {
-                  showToast("Base de connaissances mise à jour avec succès.");
-                  setIsKnowledgeBaseOpen(false);
-                }} className="px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors">
-                  Enregistrer les modifications
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function DigitalMenu() {
   const { showToast } = useToast();
@@ -3527,9 +3386,13 @@ function DigitalMenu() {
   };
 
   const handleDeleteDish = (id: number) => {
-    if (window.confirm("Voulez-vous vraiment supprimer ce plat ?")) {
-      setMenuItems(items => items.filter(item => item.id !== id));
+    setDishToDelete(id);
+  };
+  const confirmDeleteDish = () => {
+    if (dishToDelete !== null) {
+      setMenuItems(items => items.filter(item => item.id !== dishToDelete));
       showToast("Plat supprimé avec succès");
+      setDishToDelete(null);
     }
   };
 
@@ -4116,6 +3979,8 @@ function Inventory() {
   
   const [productionTasks, setProductionTasks] = useState<any[]>([]);
   const [wasteRecords, setWasteRecords] = useState<any[]>([]);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [wasteToDelete, setWasteToDelete] = useState<string | null>(null);
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
   const [wasteForm, setWasteForm] = useAutoSave('form_wasteForm', { item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
@@ -4144,7 +4009,7 @@ function Inventory() {
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
-      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec' && c !== 'Viandes & Volailles' && c !== 'Boissons & Vins')
+      .filter(c => c !== 'Épicerie & Sec' && c !== 'Épicerie & sec' && c !== 'Viandes & Volailles' && c !== 'Boissons & Vins' && c !== 'Épicerie Sèche' && c !== 'Epicerie Sèche')
       .sort();
   }, [stockItemsData, fournisseurs]);
 
@@ -4550,6 +4415,9 @@ function Inventory() {
                     <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('supplier')}>
                       <div className="flex items-center gap-1">Fournisseur {sortConfig.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
                     </th>
+                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('price')}>
+                      <div className="flex items-center gap-1">Prix U. {sortConfig.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                    </th>
                     <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
                       <div className="flex items-center gap-1">Quantité {sortConfig.key === 'quantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
                     </th>
@@ -4571,6 +4439,9 @@ function Inventory() {
                       </td>
                       <td className="px-6 py-4 text-gray-500">{item.category}</td>
                       <td className="px-6 py-4 text-gray-500">{item.supplier}</td>
+                      <td className="px-6 py-4 text-gray-900 font-medium whitespace-nowrap">
+                        {item.averageCost || item.price ? `${Number(item.averageCost || item.price).toFixed(2)} DH` : '-'}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
                           <span className={`font-semibold ${item.status === 'critical' ? 'text-red-600' : item.status === 'alert' ? 'text-amber-600' : 'text-gray-900'}`}>
@@ -4680,7 +4551,23 @@ function Inventory() {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Définition des Besoins et Seuils d'Alerte</h3>
                 <button 
-                  onClick={() => showToast("Paramètres enregistrés avec succès")}
+                  onClick={async () => {
+                    try {
+                      const batch = writeBatch(db);
+                      stockItemsData.forEach(item => {
+                        const itemRef = doc(db, 'inventoryItems', item.id);
+                        batch.update(itemRef, {
+                          requiredQty: item.requiredQty || 0,
+                          minStock: item.minStock || 0
+                        });
+                      });
+                      await batch.commit();
+                      showToast("Paramètres enregistrés avec succès");
+                    } catch (error) {
+                      console.error(error);
+                      showToast("Erreur lors de l'enregistrement", "error");
+                    }
+                  }}
                   className="px-4 py-2 bg-[#265C6D] text-white rounded-lg text-sm font-medium hover:bg-[#2F6B7F] transition-colors"
                 >
                   Enregistrer les modifications
@@ -4782,7 +4669,7 @@ function Inventory() {
                             <div className="flex justify-end gap-2">
                               <button
                                 onClick={() => {
-                                  setSemiFinishedAdjustData({ id: item.id, name: item.name, quantity: item.quantity, adjustment: '' });
+                                  setSemiFinishedAdjustData({ id: item.id, name: item.name, quantity: item.quantity, adjustment: '', type: 'in', reason: 'Ajustement', destination: 'Cuisine' });
                                   setIsSemiFinishedAdjustModalOpen(true);
                                 }}
                                 className="text-blue-500 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
@@ -4912,15 +4799,7 @@ function Inventory() {
                             }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Modifier">
                               <Edit2 size={16} />
                             </button>
-                            <button onClick={async () => {
-                              if (window.confirm('Voulez-vous vraiment supprimer cette tâche ?')) {
-                                try {
-                                  if (task.id) await deleteDoc(doc(db, 'productionTasks', task.id));
-                                } catch (e) {
-                                  console.error(e);
-                                }
-                              }
-                            }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
+                            <button onClick={() => setTaskToDelete(task.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
                               <Trash2 size={16} />
                             </button>
                           </div>
@@ -4994,15 +4873,7 @@ function Inventory() {
                         }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Modifier">
                           <Edit2 size={16} />
                         </button>
-                        <button onClick={async () => {
-                          if (window.confirm('Voulez-vous vraiment supprimer cette déclaration ?')) {
-                            try {
-                              await deleteDoc(doc(db, 'wasteRecords', waste.id));
-                            } catch (e) {
-                              console.error(e);
-                            }
-                          }
-                        }} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
+                        <button onClick={() => setWasteToDelete(waste.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -5205,36 +5076,7 @@ function Inventory() {
                 <p className="text-sm text-gray-500">Suivez l'évolution des coûts par fournisseur au fil du temps pour optimiser vos achats.</p>
               </div>
               
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-6">
-                <div className="h-[400px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={recentTransactions.filter(tx => tx.type === 'in' && tx.unitPrice).map(tx => ({
-                        date: tx.date,
-                        prix: Number(tx.unitPrice) || 0,
-                        fournisseur: tx.supplier || 'Inconnu',
-                        produit: tx.item || tx.itemName || 'Produit'
-                      })).reverse()}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                      barSize={40}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dx={-10} tickFormatter={(val) => `${val} MAD`} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value, name, props) => [`${value} MAD`, `${props.payload.produit} (${props.payload.fournisseur})`]}
-                        cursor={{fill: '#f3f4f6'}}
-                      />
-                      <Bar 
-                        dataKey="prix" 
-                        fill="#F4C75B" 
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+              
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
@@ -5788,7 +5630,8 @@ function Inventory() {
                 supplier: 'Non renseigné',
                 quantity: quantity,
                 unit,
-                unitPrice,
+                price: unitPrice,
+                averageCost: unitPrice,
                 minStock: 10,
                 expirationDate: expirationDate || null,
                 createdAt: serverTimestamp()
@@ -5918,6 +5761,14 @@ function Inventory() {
                   <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Achat du jour" />
                 )}
               </div>
+              {fichesTechniques.some(r => (r.nom || '').toLowerCase() === selectedProduct.name.toLowerCase()) && (
+                <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <input type="checkbox" id="tx-sync-recipe" defaultChecked={txType === 'out'} className="w-4 h-4 text-[#265C6D] bg-white border-gray-300 rounded focus:ring-[#265C6D]" />
+                  <label htmlFor="tx-sync-recipe" className="text-sm font-medium text-blue-900">
+                    Déduire les ingrédients (Fiche technique)
+                  </label>
+                </div>
+              )}
               {txType === 'in' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -5931,7 +5782,7 @@ function Inventory() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
-                    <input id="tx-price" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
+                    <input id="tx-price" type="number" step="any" min="0" defaultValue={selectedProduct?.price || selectedProduct?.averageCost || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
                   </div>
                 </div>
               )}
@@ -5956,10 +5807,52 @@ function Inventory() {
                       return;
                     }
 
-                    await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), {
+                    const updateData: any = {
                       quantity: newQuantity,
                       updatedAt: serverTimestamp()
-                    });
+                    };
+
+                    const priceInput = document.getElementById('tx-price') as HTMLInputElement;
+                    if (txType === 'in' && priceInput && priceInput.value) {
+                       const inQty = qty;
+                       const inPrice = parseFloat(priceInput.value);
+                       const currentQty = parseFloat(selectedProduct.quantity || 0);
+                       const currentPrice = parseFloat(selectedProduct.averageCost || selectedProduct.price || 0);
+                       
+                       let newAverageCost = inPrice;
+                       if (newQuantity > 0) {
+                          newAverageCost = ((currentQty * currentPrice) + (inQty * inPrice)) / newQuantity;
+                       }
+                       updateData.averageCost = newAverageCost;
+                       updateData.price = inPrice;
+                    }
+                    
+                    await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), updateData);
+                    
+                    const syncCheckbox = document.getElementById('tx-sync-recipe') as HTMLInputElement;
+                    const shouldSync = syncCheckbox?.checked;
+                    if (shouldSync) {
+                         const recipe = fichesTechniques.find(r => (r.nom || '').toLowerCase() === selectedProduct.name.toLowerCase());
+                         if (recipe && recipe.ingredients) {
+                             const recipePortions = parseFloat(recipe.portions) || 1;
+                             for (const ing of recipe.ingredients) {
+                                 let neededQty = (parseFloat(ing.quantite) || 0) * (qty / recipePortions);
+                                 const ingUnit = (ing.unite || '').toLowerCase();
+                                 
+                                 const matchedInv = stockItemsData.find(i => i.name.toLowerCase() === ing.nom.toLowerCase());
+                                 if (matchedInv && matchedInv.id) {
+                                     const invUnit = (matchedInv.unit || '').toLowerCase();
+                                     if (ingUnit === 'g' && invUnit === 'kg') neededQty /= 1000;
+                                     else if (ingUnit === 'kg' && invUnit === 'g') neededQty *= 1000;
+                                     else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty /= 1000;
+                                     else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty *= 1000;
+                                     
+                                     const newInvQty = Math.max(0, parseFloat(matchedInv.quantity || 0) - neededQty);
+                                     await updateDoc(doc(db, 'inventoryItems', matchedInv.id), { quantity: newInvQty });
+                                 }
+                             }
+                         }
+                    }
 
                     const txData: any = {
                       itemId: selectedProduct.id,
@@ -6059,14 +5952,20 @@ function Inventory() {
                   </div>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
-                <input id="edit-sup" list="dl-zik38c-6" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                <datalist id="dl-zik38c-6">
-                  {suppliersList.map((sup, idx) => (
-                    <option key={idx} value={sup} />
-                  ))}
-                </datalist>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
+                  <input id="edit-sup" list="dl-zik38c-6" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <datalist id="dl-zik38c-6">
+                    {suppliersList.map((sup, idx) => (
+                      <option key={idx} value={sup} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire (DH)</label>
+                  <input id="edit-price" type="number" step="any" defaultValue={selectedProduct.price || selectedProduct.averageCost || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration</label>
@@ -6084,6 +5983,8 @@ function Inventory() {
                   const newMin = Number((document.getElementById('edit-min') as HTMLInputElement)?.value);
                   const newSup = (document.getElementById('edit-sup') as HTMLInputElement)?.value;
                   const newExp = (document.getElementById('edit-exp') as HTMLInputElement)?.value;
+                  const priceStr = (document.getElementById('edit-price') as HTMLInputElement)?.value;
+                  const newPrice = priceStr ? Number(priceStr) : (selectedProduct.price || 0);
                   
                   if (selectedProduct.id) {
                     try {
@@ -6094,6 +5995,8 @@ function Inventory() {
                         quantity: newQty,
                         minStock: newMin,
                         supplier: newSup,
+                        price: newPrice,
+                        averageCost: newPrice,
                         expirationDate: newExp || null,
                         updatedAt: serverTimestamp()
                       });
@@ -6173,7 +6076,7 @@ function Inventory() {
           </motion.div>
         </div>
       )}
-\n            {isNewOrderModalOpen && (
+            {isNewOrderModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 relative">
             <button 
@@ -6422,7 +6325,7 @@ function Inventory() {
                 <button 
                   type="button"
                   onClick={async () => {
-                    if (window.confirm("Voulez-vous vraiment supprimer ce fournisseur ?")) {
+                    setIsEditSupplierModalOpen(false); setSupplierToDelete(selectedSupplier.id); if (false) {
                       try {
                         setIsEditSupplierModalOpen(false);
                         if (selectedSupplier.id) {
@@ -6478,7 +6381,17 @@ function Inventory() {
                 <input
                   list="dl-tx-items"
                   value={txForm.item}
-                  onChange={e => setTxForm({...txForm, item: e.target.value})}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const matchedItem = stockItemsData.find(i => i.name === val);
+                    if (matchedItem && txForm.type === 'in') {
+                      setTxForm({...txForm, item: val, unit: matchedItem.unit || 'kg', unitPrice: matchedItem.price || matchedItem.averageCost || ''});
+                    } else if (matchedItem) {
+                      setTxForm({...txForm, item: val, unit: matchedItem.unit || 'kg'});
+                    } else {
+                      setTxForm({...txForm, item: val});
+                    }
+                  }}
                   className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
                   placeholder="Rechercher un produit..."
                 />
@@ -6571,6 +6484,14 @@ function Inventory() {
                 </select>
               </div>
 
+              {fichesTechniques.some(r => (r.nom || '').toLowerCase() === txForm.item.toLowerCase()) && (
+                <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <input type="checkbox" id="global-tx-sync-recipe" defaultChecked={txForm.type === 'out'} className="w-4 h-4 text-[#265C6D] bg-white border-gray-300 rounded focus:ring-[#265C6D]" />
+                  <label htmlFor="global-tx-sync-recipe" className="text-sm font-medium text-blue-900">
+                    Déduire les ingrédients (Fiche technique)
+                  </label>
+                </div>
+              )}
               {txForm.type === 'out' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Destination de sortie</label>
@@ -6639,10 +6560,50 @@ function Inventory() {
                           (parseFloat(itemToUpdate.quantity || 0) + amount) : 
                           (parseFloat(itemToUpdate.quantity || 0) - amount);
                         
-                        await updateDoc(doc(db, 'inventoryItems', itemToUpdate.id), {
+                        const updateData: any = {
                           quantity: newQuantity,
                           updatedAt: serverTimestamp()
-                        });
+                        };
+
+                        if (txForm.type === 'in' && txForm.unitPrice) {
+                           const currentQty = parseFloat(itemToUpdate.quantity || 0);
+                           const currentPrice = parseFloat(itemToUpdate.averageCost || itemToUpdate.price || 0);
+                           const inQty = amount;
+                           const inPrice = parseFloat(txForm.unitPrice);
+                           
+                           let newAverageCost = inPrice;
+                           if (newQuantity > 0) {
+                              newAverageCost = ((currentQty * currentPrice) + (inQty * inPrice)) / newQuantity;
+                           }
+                           updateData.averageCost = newAverageCost;
+                           updateData.price = inPrice; // Also update the last purchase price
+                        }
+                        
+                        await updateDoc(doc(db, 'inventoryItems', itemToUpdate.id), updateData);
+                        
+                        const shouldSync = (document.getElementById('global-tx-sync-recipe') as HTMLInputElement)?.checked;
+                        if (shouldSync) {
+                           const recipe = fichesTechniques.find(r => (r.nom || '').toLowerCase() === txForm.item.toLowerCase());
+                           if (recipe && recipe.ingredients) {
+                               const recipePortions = parseFloat(recipe.portions) || 1;
+                               for (const ing of recipe.ingredients) {
+                                   let neededQty = (parseFloat(ing.quantite) || 0) * (amount / recipePortions);
+                                   const ingUnit = (ing.unite || '').toLowerCase();
+                                   
+                                   const matchedInv = stockItemsData.find(i => i.name.toLowerCase() === ing.nom.toLowerCase());
+                                   if (matchedInv && matchedInv.id) {
+                                       const invUnit = (matchedInv.unit || '').toLowerCase();
+                                       if (ingUnit === 'g' && invUnit === 'kg') neededQty /= 1000;
+                                       else if (ingUnit === 'kg' && invUnit === 'g') neededQty *= 1000;
+                                       else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty /= 1000;
+                                       else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty *= 1000;
+                                       
+                                       const newInvQty = Math.max(0, parseFloat(matchedInv.quantity || 0) - neededQty);
+                                       await updateDoc(doc(db, 'inventoryItems', matchedInv.id), { quantity: newInvQty });
+                                   }
+                               }
+                           }
+                        }
                       }
 
                       showToast("Mouvement enregistré avec succès");
@@ -6832,17 +6793,98 @@ function Inventory() {
             </div>
             <div className="p-6 space-y-4">
               <p className="text-gray-600">Produit: <span className="font-medium text-gray-900">{semiFinishedAdjustData.name}</span></p>
+              
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="adjType"
+                    value="in"
+                    checked={semiFinishedAdjustData.type === 'in'}
+                    onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, type: e.target.value})}
+                    className="text-green-600 focus:ring-green-500"
+                  />
+                  <span className="text-sm font-medium text-green-700">Entrée (+)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="adjType"
+                    value="out"
+                    checked={semiFinishedAdjustData.type === 'out'}
+                    onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, type: e.target.value})}
+                    className="text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm font-medium text-red-700">Sortie (-)</span>
+                </label>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité à ajouter ou retirer (ex: 5 ou -2)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité {semiFinishedAdjustData.type === 'in' ? 'à ajouter' : 'à retirer'}</label>
                 <input
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={semiFinishedAdjustData.adjustment}
                   onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, adjustment: e.target.value})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   autoFocus
                 />
               </div>
+              
+              {semiFinishedAdjustData.type === 'out' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Point de vente (Destination)</label>
+                  <select
+                    value={semiFinishedAdjustData.destination || 'Cuisine'}
+                    onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, destination: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B] bg-white mb-4"
+                  >
+                    <option value="Cuisine">Cuisine</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Restaurant">Restaurant</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motif de l'ajustement</label>
+                <select
+                  value={semiFinishedAdjustData.reason}
+                  onChange={(e) => setSemiFinishedAdjustData({...semiFinishedAdjustData, reason: e.target.value})}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B] bg-white"
+                >
+                  {semiFinishedAdjustData.type === 'in' ? (
+                    <>
+                      <option value="Production">Production (Cuisine)</option>
+                      <option value="Production (Bar)">Production (Bar)</option>
+                      <option value="Ajustement d'inventaire">Ajustement d'inventaire</option>
+                      <option value="Erreur de saisie">Correction / Erreur de saisie</option>
+                      <option value="Autre">Autre</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Sortie vers point de vente">Sortie vers point de vente</option>
+                      <option value="Consommation interne">Consommation interne</option>
+                      <option value="Perte">Perte / Avarié</option>
+                      <option value="Casse">Casse / Dégât</option>
+                      <option value="Ajustement d'inventaire">Ajustement d'inventaire</option>
+                      <option value="Erreur de saisie">Correction / Erreur de saisie</option>
+                      <option value="Autre">Autre</option>
+                    </>
+                  )}
+                </select>
+              </div>
             </div>
+              {fichesTechniques.some(r => (r.nom || '').toLowerCase() === semiFinishedAdjustData.name.toLowerCase()) && (
+                <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100 mt-4">
+                  <input type="checkbox" id="sf-tx-sync-recipe" defaultChecked={semiFinishedAdjustData.type === 'in'} className="w-4 h-4 text-[#265C6D] bg-white border-gray-300 rounded focus:ring-[#265C6D]" />
+                  <label htmlFor="sf-tx-sync-recipe" className="text-sm font-medium text-blue-900">
+                    Déduire les ingrédients (Fiche technique)
+                  </label>
+                </div>
+              )}
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setIsSemiFinishedAdjustModalOpen(false)} className="px-6 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors">
                 Annuler
@@ -6850,20 +6892,78 @@ function Inventory() {
               <button
                 onClick={async () => {
                   const qty = Number(semiFinishedAdjustData.adjustment);
-                  if (!isNaN(qty) && semiFinishedAdjustData.adjustment !== '') {
+                  if (!isNaN(qty) && qty > 0) {
                     try {
-                      const newQty = Number(semiFinishedAdjustData.quantity || 0) + qty;
+                      const adjustmentAmount = semiFinishedAdjustData.type === 'in' ? qty : -qty;
+                      const newQty = Number(semiFinishedAdjustData.quantity || 0) + adjustmentAmount;
+                      
+                      // Check for negative stock
+                      if (newQty < 0) {
+                        showToast("Le stock ne peut pas être négatif.", "error");
+                        return;
+                      }
+
                       await updateDoc(doc(db, 'semi_finished', semiFinishedAdjustData.id), { quantity: newQty });
+                      
+                      const shouldSync = (document.getElementById('sf-tx-sync-recipe') as HTMLInputElement)?.checked;
+                      if (shouldSync) {
+                         const recipe = fichesTechniques.find(r => (r.nom || '').toLowerCase() === semiFinishedAdjustData.name.toLowerCase());
+                         if (recipe && recipe.ingredients) {
+                             const recipePortions = parseFloat(recipe.portions) || 1;
+                             for (const ing of recipe.ingredients) {
+                                 let neededQty = (parseFloat(ing.quantite) || 0) * (qty / recipePortions);
+                                 const ingUnit = (ing.unite || '').toLowerCase();
+                                 
+                                 const matchedInv = stockItemsData.find(i => i.name.toLowerCase() === ing.nom.toLowerCase());
+                                 if (matchedInv && matchedInv.id) {
+                                     const invUnit = (matchedInv.unit || '').toLowerCase();
+                                     if (ingUnit === 'g' && invUnit === 'kg') neededQty /= 1000;
+                                     else if (ingUnit === 'kg' && invUnit === 'g') neededQty *= 1000;
+                                     else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty /= 1000;
+                                     else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty *= 1000;
+                                     
+                                     const newInvQty = Math.max(0, parseFloat(matchedInv.quantity || 0) - neededQty);
+                                     await updateDoc(doc(db, 'inventoryItems', matchedInv.id), { quantity: newInvQty });
+                                 }
+                             }
+                         }
+                      }
+                      
+                      // Also add to transactions history
+                      const txData: any = {
+                        itemId: semiFinishedAdjustData.id,
+                        itemName: semiFinishedAdjustData.name,
+                        type: semiFinishedAdjustData.type,
+                        quantity: qty,
+                        reason: semiFinishedAdjustData.reason,
+                        date: new Date().toLocaleDateString('fr-FR'),
+                        user: 'Admin', // In real app, user from auth
+                        amount: qty,
+                        unit: 'unit', // Or get from semiFinishedAdjustData if available
+                        item: semiFinishedAdjustData.name,
+                        createdAt: serverTimestamp()
+                      };
+                      
+                      if (semiFinishedAdjustData.type === 'out' && semiFinishedAdjustData.destination) {
+                        txData.destination = semiFinishedAdjustData.destination;
+                        txData.reason = txData.reason === 'Ajustement' ? 'Sortie vers point de vente' : txData.reason;
+                      }
+
+                      await addDoc(collection(db, 'inventoryTransactions'), txData);
+
                       showToast(`Stock de ${semiFinishedAdjustData.name} mis à jour avec succès.`);
                       setIsSemiFinishedAdjustModalOpen(false);
                     } catch(e) {
                       showToast('Erreur lors de la mise à jour', 'error');
+                      console.error(e);
                     }
+                  } else {
+                     showToast("Veuillez entrer une quantité valide (> 0)", "error");
                   }
                 }}
-                className="px-6 py-2.5 bg-[#265C6D] text-white font-medium rounded-xl hover:bg-[#1f4a58] transition-colors"
+                className={`px-6 py-2.5 text-white font-medium rounded-xl transition-colors ${semiFinishedAdjustData.type === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
               >
-                Confirmer
+                Confirmer ${semiFinishedAdjustData.type === 'in' ? "l'entrée" : "la sortie"}
               </button>
             </div>
           </motion.div>
@@ -7169,21 +7269,35 @@ function Configuration() {
     password: '',
     webhookUrl: ''
   });
+  const [generalConfig, setGeneralConfig] = useState({
+    name: 'Mouda Palace',
+    category: 'Restaurant Gastronomique',
+    address: 'Fès, Maroc',
+    email: 'contact@moudapalace.com',
+    phone: '+212 524 00 00 00',
+    currency: 'MAD (Dirham)',
+    timezone: 'UTC+1 (Casablanca)'
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
-    const loadWebsiteConfig = async () => {
+    const loadSettingsConfig = async () => {
       try {
         const docRef = doc(db, 'settings', 'website');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setWebsiteConfig(prev => ({ ...prev, ...docSnap.data() }));
         }
+        const genRef = doc(db, 'settings', 'general');
+        const genSnap = await getDoc(genRef);
+        if (genSnap.exists()) {
+          setGeneralConfig(prev => ({ ...prev, ...genSnap.data() }));
+        }
       } catch (error) {
-        console.error("Erreur lors du chargement de la configuration du site web:", error);
+        console.error("Erreur lors du chargement de la configuration:", error);
       }
     };
-    loadWebsiteConfig();
+    loadSettingsConfig();
   }, []);
 
   const handleSave = async () => {
@@ -7196,6 +7310,9 @@ function Configuration() {
         // Also update webhook for backward compatibility with BlogWriter
         const webhookRef = doc(db, 'settings', 'webhook');
         await setDoc(webhookRef, { url: websiteConfig.webhookUrl }, { merge: true });
+      } else if (activeSettingsTab === 'general') {
+        const docRef = doc(db, 'settings', 'general');
+        await setDoc(docRef, generalConfig, { merge: true });
       }
       showToast("Paramètres sauvegardés avec succès");
     } catch (error) {
@@ -7246,11 +7363,11 @@ function Configuration() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'établissement</label>
-                    <input type="text" defaultValue="Mouda Palace" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="text" value={generalConfig.name} onChange={(e) => setGeneralConfig({...generalConfig, name: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                    <select defaultValue="Restaurant" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
+                    <select value={generalConfig.category} onChange={(e) => setGeneralConfig({...generalConfig, category: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
                       <option>Restaurant</option>
                       <option>Restaurant Gastronomique</option>
                       <option>Café / Lounge</option>
@@ -7261,15 +7378,15 @@ function Configuration() {
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                    <input type="text" defaultValue="Fès, Maroc" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="text" value={generalConfig.address} onChange={(e) => setGeneralConfig({...generalConfig, address: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email de contact</label>
-                    <input type="email" defaultValue="contact@moudapalace.com" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="email" value={generalConfig.email} onChange={(e) => setGeneralConfig({...generalConfig, email: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                    <input type="text" defaultValue="+212 524 00 00 00" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="text" value={generalConfig.phone} onChange={(e) => setGeneralConfig({...generalConfig, phone: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                 </div>
               </div>
@@ -7551,7 +7668,7 @@ function NavItem({ icon, label, active = false, onClick }: { icon: ReactNode, la
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-sm ${active ? 'bg-[#2F6B7F] text-white' : 'text-gray-400 hover:bg-[#222] hover:text-white'}`}
+      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all text-sm mb-3 ${active ? 'bg-[#F4C75B] text-[#265C6D] font-medium shadow-[0_0_15px_rgba(244,199,91,0.3)]' : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:bg-[#F4C75B]/10'}`}
     >
       {icon}
       <span>{label}</span>
@@ -7602,7 +7719,7 @@ function IntegrationRow({ name, status, desc }: { name: string, status: string, 
 function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden group">
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1-3.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -7611,11 +7728,11 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
       >
         <div className="text-center mb-12">
           <div className="mx-auto h-20 w-24 bg-[#F4C75B] mb-6" style={{
-            maskImage: 'url(/mouda-1.png)',
+            maskImage: 'url(/mouda-1-1.png)',
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
-            WebkitMaskImage: 'url(/mouda-1.png)',
+            WebkitMaskImage: 'url(/mouda-1-1.png)',
             WebkitMaskSize: 'contain',
             WebkitMaskRepeat: 'no-repeat',
             WebkitMaskPosition: 'center'
@@ -7664,7 +7781,7 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden group">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1-3.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

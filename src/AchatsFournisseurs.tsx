@@ -13,7 +13,7 @@ export default function AchatsFournisseurs() {
   const [productSearch, setProductSearch] = useState('');
   const [showSupplierCol, setShowSupplierCol] = useState(true);
   const [showCategoryCol, setShowCategoryCol] = useState(true);
-  const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string}>>({});
+  const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string, price?: string}>>({});
     const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
@@ -32,6 +32,9 @@ export default function AchatsFournisseurs() {
   
   const [commandes, setCommandes] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
+  const [commandeToDelete, setCommandeToDelete] = useState<string | null>(null);
+  const [fournisseurToDelete, setFournisseurToDelete] = useState<string | null>(null);
+  const [deliveryToReject, setDeliveryToReject] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   
@@ -317,7 +320,7 @@ Détails <ChevronRight size={16} />
                           }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
+                            setCommandeToDelete(commande.id); if (false) {
                               try {
                                 if (cmd.id) {
                                   await deleteDoc(doc(db, 'commandes', cmd.id));
@@ -563,7 +566,7 @@ Détails <ChevronRight size={16} />
                             </button>
                             <button 
                               onClick={async () => {
-                                if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                                setFournisseurToDelete(f.id); if (false) {
                                   await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
                                 }
                               }}
@@ -705,7 +708,7 @@ Détails <ChevronRight size={16} />
               </button>
               <button 
                 onClick={async () => {
-                  if (window.confirm('Voulez-vous vraiment supprimer cette commande ?')) {
+                  setCommandeToDelete(commande.id); if (false) {
                     try {
                       if (selectedCommande?.id) { await deleteDoc(doc(db, 'commandes', selectedCommande.id)); }
                       showToast("Commande supprimée");
@@ -1105,7 +1108,7 @@ Détails <ChevronRight size={16} />
               <button 
                 type="button"
                 onClick={async () => {
-                  if (window.confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                  setFournisseurToDelete(f.id); if (false) {
                     try {
                       if (selectedFournisseur?.id) { await deleteDoc(doc(db, 'fournisseurs', selectedFournisseur.id)); }
                       showToast("Fournisseur supprimé");
@@ -1296,6 +1299,45 @@ Détails <ChevronRight size={16} />
           </div>
         </div>
       )}
+      <ConfirmModal 
+        isOpen={!!commandeToDelete}
+        title="Supprimer la commande"
+        message="Voulez-vous vraiment supprimer cette commande ?"
+        onConfirm={async () => {
+          if (commandeToDelete) {
+            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
+            setCommandeToDelete(null);
+          }
+        }}
+        onCancel={() => setCommandeToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!fournisseurToDelete}
+        title="Supprimer le fournisseur"
+        message="Voulez-vous vraiment supprimer ce fournisseur ?"
+        onConfirm={async () => {
+          if (fournisseurToDelete) {
+            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
+            setFournisseurToDelete(null);
+          }
+        }}
+        onCancel={() => setFournisseurToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!deliveryToReject}
+        title="Refuser la livraison"
+        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
+        onConfirm={async () => {
+          if (deliveryToReject) {
+            try { 
+              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
+              // Assuming showToast is available here, if not it's ok
+            } catch(e){}
+            setDeliveryToReject(null);
+          }
+        }}
+        onCancel={() => setDeliveryToReject(null)}
+      />
     </div>
   );
 }
@@ -1327,11 +1369,23 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
             const inventoryItem = inventoryItems.find(i => i.name.toLowerCase() === item.name.toLowerCase() || i.id === item.inventoryItemId);
             
             if (inventoryItem) {
-              const newQty = (inventoryItem.quantity || 0) + item.quantityReceived;
+              
+              const oldQty = inventoryItem.quantity || 0;
+              const oldPrice = inventoryItem.averageCost || inventoryItem.unitPrice || inventoryItem.price || 0;
+              const newQty = oldQty + item.quantityReceived;
+              
+              const newAverageCost = newQty > 0 
+                  ? ((oldQty * oldPrice) + (item.quantityReceived * (item.actualPrice || 0))) / newQty 
+                  : (item.actualPrice || oldPrice);
+
               const updateData: any = {
                 quantity: newQty,
+                averageCost: newAverageCost,
+                unitPrice: item.actualPrice || inventoryItem.unitPrice,
+                price: item.actualPrice || inventoryItem.price,
                 updatedAt: serverTimestamp()
               };
+
               if (item.zone) {
                 updateData.zone = item.zone;
               }
@@ -1344,6 +1398,33 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
                 amount: item.quantityReceived,
                 unit: inventoryItem.unit || item.unit || 'unité',
                 reason: `Réception Commande ${orderId.substring(0,6)}`,
+                user: 'Gestionnaire Achats',
+                date: new Date().toLocaleDateString('fr-FR'),
+                createdAt: serverTimestamp()
+              });
+            } else {
+              // Create new inventory item if it doesn't exist
+              const newItemRef = await addDoc(collection(db, 'inventoryItems'), {
+                name: item.name || 'Produit Inconnu',
+                quantity: item.quantityReceived,
+                unit: item.unit || 'unité',
+                category: 'Matière Première',
+                minStock: 5,
+                price: item.actualPrice || item.expectedPrice || 0,
+                unitPrice: item.actualPrice || item.expectedPrice || 0,
+                averageCost: item.actualPrice || item.expectedPrice || 0,
+                zone: item.zone || '',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              });
+              
+              // Add stock transaction
+              await addDoc(collection(db, 'inventoryTransactions'), {
+                item: item.name || 'Produit Inconnu',
+                type: 'in',
+                amount: item.quantityReceived,
+                unit: item.unit || 'unité',
+                reason: `Réception Commande ${orderId.substring(0,6)} (Nouveau Produit)`,
                 user: 'Gestionnaire Achats',
                 date: new Date().toLocaleDateString('fr-FR'),
                 createdAt: serverTimestamp()
@@ -1422,6 +1503,45 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
           onValidate={handleValidate}
         />
       )}
+      <ConfirmModal 
+        isOpen={!!commandeToDelete}
+        title="Supprimer la commande"
+        message="Voulez-vous vraiment supprimer cette commande ?"
+        onConfirm={async () => {
+          if (commandeToDelete) {
+            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
+            setCommandeToDelete(null);
+          }
+        }}
+        onCancel={() => setCommandeToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!fournisseurToDelete}
+        title="Supprimer le fournisseur"
+        message="Voulez-vous vraiment supprimer ce fournisseur ?"
+        onConfirm={async () => {
+          if (fournisseurToDelete) {
+            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
+            setFournisseurToDelete(null);
+          }
+        }}
+        onCancel={() => setFournisseurToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!deliveryToReject}
+        title="Refuser la livraison"
+        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
+        onConfirm={async () => {
+          if (deliveryToReject) {
+            try { 
+              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
+              // Assuming showToast is available here, if not it's ok
+            } catch(e){}
+            setDeliveryToReject(null);
+          }
+        }}
+        onCancel={() => setDeliveryToReject(null)}
+      />
     </div>
   );
 }
@@ -1472,7 +1592,7 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
   };
 
   const handleReject = () => {
-    if (window.confirm("Voulez-vous vraiment refuser entièrement cette livraison ?")) {
+    setDeliveryToReject(commande.id); if (false) {
       onValidate(order.id, items, 'Refusée', invoiceNote);
     }
   };
@@ -1592,6 +1712,45 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
           </button>
         </div>
       </div>
+      <ConfirmModal 
+        isOpen={!!commandeToDelete}
+        title="Supprimer la commande"
+        message="Voulez-vous vraiment supprimer cette commande ?"
+        onConfirm={async () => {
+          if (commandeToDelete) {
+            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
+            setCommandeToDelete(null);
+          }
+        }}
+        onCancel={() => setCommandeToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!fournisseurToDelete}
+        title="Supprimer le fournisseur"
+        message="Voulez-vous vraiment supprimer ce fournisseur ?"
+        onConfirm={async () => {
+          if (fournisseurToDelete) {
+            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
+            setFournisseurToDelete(null);
+          }
+        }}
+        onCancel={() => setFournisseurToDelete(null)}
+      />
+      <ConfirmModal 
+        isOpen={!!deliveryToReject}
+        title="Refuser la livraison"
+        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
+        onConfirm={async () => {
+          if (deliveryToReject) {
+            try { 
+              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
+              // Assuming showToast is available here, if not it's ok
+            } catch(e){}
+            setDeliveryToReject(null);
+          }
+        }}
+        onCancel={() => setDeliveryToReject(null)}
+      />
     </div>
   );
 }

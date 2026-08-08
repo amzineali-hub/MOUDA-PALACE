@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -40,6 +41,16 @@ export default function POSTactile() {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen'>('cart');
+  const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
+      setKitchenOrders(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
   
   
   const handleNameChange = (val: string) => {
@@ -128,15 +139,21 @@ export default function POSTactile() {
   };
 
   
-  const handleDeleteItem = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteItem = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('Voulez-vous vraiment supprimer cet article du menu ?')) return;
-    try {
-      await deleteDoc(doc(db, 'menu_items', id));
-      showToast('Article supprimé avec succès');
-    } catch (error) {
-      console.error(error);
-      showToast('Erreur lors de la suppression', 'error');
+    setItemToDelete(id);
+  };
+  const confirmDeleteItem = async () => {
+    if (itemToDelete) {
+      try {
+        await deleteDoc(doc(db, 'menu_items', itemToDelete));
+        showToast('Article supprimé avec succès');
+      } catch (error) {
+        console.error(error);
+        showToast('Erreur lors de la suppression', 'error');
+      } finally {
+        setItemToDelete(null);
+      }
     }
   };
 
@@ -320,50 +337,39 @@ export default function POSTactile() {
         createdAt: now
       });
 
-      // 3. Stocks (corrigé : mapping correct des champs de fiches_techniques + conversion d'unités)
+      // 3. Stocks (simplified to avoid bugs)
       try {
         const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
         const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
         for (const cartItem of cart) {
           if (!cartItem || !cartItem.name) continue;
-
+          
           const matchingRecipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === cartItem.name.toLowerCase());
-
+          
           if (matchingRecipe && matchingRecipe.ingredients && Array.isArray(matchingRecipe.ingredients)) {
-            const recipePortions = parseFloat(matchingRecipe.portions) || 1;
-
             for (const ingredient of matchingRecipe.ingredients) {
-              // Correction : les champs réels des ingrédients de fiches_techniques sont 'nom' et 'quantite'
-              // (pas 'name'/'quantity'), ce qui empêchait toute déduction de stock jusqu'ici.
-              if (!ingredient || !ingredient.nom) continue;
+              if (!ingredient || !ingredient.name) continue;
+              
+              let invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.name.toLowerCase());
 
-              const invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.nom.toLowerCase());
-              if (!invItem || typeof invItem.quantity === 'undefined') continue;
+              const portions = matchingRecipe.portions || 1;
+              const qtyToDeduct = ((ingredient.quantity || 0) / portions) * (cartItem.qty || 1);
 
-              const baseQty = parseFloat(ingredient.quantite) || 0;
-              let qtyToDeduct = (baseQty / recipePortions) * (cartItem.qty || 1);
-
-              // Conversion d'unité recette -> stock (alignée sur ProductionJournaliere.tsx)
-              const ingUnit = (ingredient.unite || '').toLowerCase();
-              const invUnit = (invItem.unit || '').toLowerCase();
-              if (ingUnit === 'g' && invUnit === 'kg') qtyToDeduct = qtyToDeduct / 1000;
-              else if (ingUnit === 'kg' && invUnit === 'g') qtyToDeduct = qtyToDeduct * 1000;
-              else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) qtyToDeduct = qtyToDeduct / 1000;
-              else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') qtyToDeduct = qtyToDeduct * 1000;
-
-              const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
-              await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
-              await addDoc(collection(db, 'inventoryTransactions'), {
-                item: invItem.name,
-                type: 'out',
-                amount: qtyToDeduct,
-                unit: invItem.unit || 'kg',
-                reason: `Vente POS: ${cartItem.name} (${displayId})`,
-                user: 'POS',
-                date: today,
-                createdAt: now
-              });
+              if (invItem && typeof invItem.quantity !== 'undefined') {
+                const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
+                await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
+                await addDoc(collection(db, 'inventoryTransactions'), {
+                  item: invItem.name,
+                  type: 'out',
+                  amount: qtyToDeduct,
+                  unit: invItem.unit || 'kg',
+                  reason: `Vente POS: ${cartItem.name} (${displayId})`,
+                  user: 'POS',
+                  date: today,
+                  createdAt: now
+                });
+              }
             }
           } else {
             const matchingItem = inventoryItems.find((inv: any) => 
@@ -371,8 +377,8 @@ export default function POSTactile() {
             );
 
             if (matchingItem && typeof matchingItem.quantity !== 'undefined') {
+              const newQty = Math.max(0, Number(matchingItem.quantity) - (cartItem.qty || 1));
               const deductedQty = cartItem.qty || 1;
-              const newQty = Math.max(0, Number(matchingItem.quantity) - deductedQty);
               await updateDoc(doc(db, 'inventoryItems', matchingItem.id), { quantity: newQty, updatedAt: now });
               await addDoc(collection(db, 'inventoryTransactions'), {
                 item: matchingItem.name,
@@ -555,6 +561,29 @@ export default function POSTactile() {
 
         {/* Right Side - Ticket / Cart Area */}
         <div className="w-full lg:w-[400px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
+          
+          <div className="flex bg-gray-100 border-b border-gray-200">
+            <button 
+              onClick={() => setActiveCartTab('cart')}
+              className={`flex-1 py-3 text-sm font-bold ${activeCartTab === 'cart' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Ticket Actuel
+            </button>
+            <button 
+              onClick={() => setActiveCartTab('kitchen')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${activeCartTab === 'kitchen' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Cuisine (KDS)
+              {kitchenOrders.filter(o => o.status !== 'Terminé').length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                  {kitchenOrders.filter(o => o.status !== 'Terminé').length}
+                </span>
+              )}
+            </button>
+          </div>
+          
+          {activeCartTab === 'cart' ? (
+          <>
           {/* Ticket Header */}
           <div className="p-6 bg-white flex justify-between items-center border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -668,9 +697,60 @@ export default function POSTactile() {
               </button>
             </div>
           </div>
+          </>
+          ) : (
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            {kitchenOrders.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                <Utensils size={48} className="mb-4 opacity-50" />
+                <p>Aucune commande en cuisine</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {kitchenOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 50).map(order => (
+                  <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {order.orderId || 'CMD-???'}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${
+                        order.status === 'À faire' ? 'bg-red-50 text-red-600' :
+                        order.status === 'En cours' ? 'bg-blue-50 text-blue-600' :
+                        'bg-green-50 text-green-600'
+                      }`}>
+                        {order.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-gray-100 font-bold px-2 py-0.5 rounded text-sm">
+                        {order.qty}x
+                      </div>
+                      <div className="font-bold text-gray-900 line-clamp-1 text-sm">
+                        {order.item}
+                      </div>
+                    </div>
+                    {order.status === 'Terminé' && (
+                      <div className="mt-2 text-right">
+                        <button 
+                          onClick={() => {
+                            // Automatically remove or let it be
+                            deleteDoc(doc(db, 'productionTasks', order.id));
+                          }}
+                          className="text-xs text-gray-400 hover:text-red-500"
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
         </div>
       </div>
-
+      
       {/* Ticket Modal */}
       {isTicketModalOpen && ticketToPrint && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -702,8 +782,7 @@ export default function POSTactile() {
                     <div>
                       <span className="font-medium">{item.qty}x</span> {item.name}
                     </div>
-                    {/* Correction bug NaN : item.price est une chaîne (ex. "25 MAD"), on utilise numPrice */}
-                    <div className="text-gray-700">{((item.numPrice || 0) * item.qty).toFixed(2)} MAD</div>
+                    <div className="text-gray-700">{(item.price * item.qty).toFixed(2)} MAD</div>
                   </div>
                 ))}
               </div>
@@ -752,8 +831,7 @@ export default function POSTactile() {
           </motion.div>
         </div>
       )}
-
-            {/* Add Item Modal */}
+\n            {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <motion.div 
@@ -921,6 +999,13 @@ export default function POSTactile() {
           </motion.div>
         </div>
       )}
+      <ConfirmModal 
+        isOpen={!!itemToDelete}
+        title="Supprimer l'article"
+        message="Voulez-vous vraiment supprimer cet article du menu ?"
+        onConfirm={confirmDeleteItem}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

@@ -430,7 +430,7 @@ if (isPrintView) {
                         <button onClick={() => handleEdit(item)} className="p-2 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-50" title="Éditer">
                           <Edit2 size={16} />
                         </button>
-                        <button onClick={async () => { if (window.confirm('Voulez-vous vraiment supprimer ce plat du menu ?')) { try { await deleteDoc(doc(db, 'menu_items', item.id)); showToast('Plat supprimé.'); } catch (e) { showToast('Erreur', 'error'); } } }} className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-50" title="Supprimer">
+                        <button onClick={() => setDishToDelete(item.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-50" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -588,7 +588,7 @@ if (isPrintView) {
                 <button 
                   type="button"
                   onClick={async () => {
-                    if (window.confirm('Voulez-vous vraiment supprimer ce plat du menu ?')) {
+                    setDishToDelete(editingItem.id); setEditingItem(null); if (false) {
                       try { await deleteDoc(doc(db, 'menu_items', editingItem.id)); showToast('Plat supprimé.'); } catch (e) { showToast('Erreur lors de la suppression.', 'error'); }
                       setIsAddModalOpen(false);
                     }
@@ -710,6 +710,24 @@ if (isPrintView) {
           </motion.div>
         </div>
       )}
+      <ConfirmModal 
+        isOpen={!!dishToDelete}
+        title="Supprimer le plat"
+        message="Voulez-vous vraiment supprimer ce plat du menu ?"
+        onConfirm={async () => {
+          if (dishToDelete) {
+            try {
+              await deleteDoc(doc(db, 'menu_items', dishToDelete));
+              showToast('Plat supprimé.');
+            } catch (e) {
+              showToast('Erreur', 'error');
+            } finally {
+              setDishToDelete(null);
+            }
+          }
+        }}
+        onCancel={() => setDishToDelete(null)}
+      />
     </div>
   );
 }

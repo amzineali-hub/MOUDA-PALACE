@@ -10,12 +10,24 @@ export default function ProductionJournaliere() {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [productionOrders, setProductionOrders] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [semiFinished, setSemiFinished] = useState<any[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState('');
   const [quantiteAProduire, setQuantiteAProduire] = useState(1);
   const [chefResponsable, setChefResponsable] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [targetZone, setTargetZone] = useState('chambre_froide');
+  const [targetSubZone, setTargetSubZone] = useState('');
+  const [subZones, setSubZones] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'subZones'), (snapshot) => {
+      setSubZones(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsub();
+  }, []);
+
 
   useEffect(() => {
     const unsubRecipes = onSnapshot(collection(db, 'fiches_techniques'), snapshot => {
@@ -27,11 +39,15 @@ export default function ProductionJournaliere() {
     const unsubInv = onSnapshot(collection(db, 'inventoryItems'), snapshot => {
       setInventoryItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     });
+    const unsubSemi = onSnapshot(collection(db, 'semi_finished'), snapshot => {
+      setSemiFinished(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
     
     return () => {
       unsubRecipes();
       unsubOrders();
       unsubInv();
+      unsubSemi();
     };
   }, []);
 
@@ -65,24 +81,26 @@ export default function ProductionJournaliere() {
       // Transaction to decrement inventory and create order
       await runTransaction(db, async (transaction) => {
         const ingredientsUpdates = [];
+        let calculatedRealCost = 0;
         
         // 1. Calculate needed quantities and find inventory docs
         for (const ing of recipe.ingredients || []) {
           // Find the corresponding inventory item
-          // Normally we'd use an ID, but we match by name as fallback
-          const inventoryItem = inventoryItems.find(i => i.name === ing.nom);
+          // Normally we'd use an ID, but we match by name as fallback (case-insensitive)
+          const inventoryItem = inventoryItems.find(i => (i.name || '').toLowerCase() === (ing.nom || '').toLowerCase());
           
-          if (!inventoryItem) {
-            // Optional: warn user that ingredient is not in inventory
-            continue; 
-          }
           
-          // Base quantity needed for the required number of portions
-          // If recipe is for N portions, and we want to produce M portions:
-          // totalQty = (ing.quantite / recipe.portions) * M
           const baseQty = parseFloat(ing.quantite) || 0;
           const recipePortions = parseFloat(recipe.portions) || 1;
           let neededQty = (baseQty / recipePortions) * quantiteAProduire;
+
+          if (!inventoryItem) {
+            // Ingredient not in inventory, just add the cost and skip deduction
+            const ingPrice = parseFloat(ing.prixUnitaire) || 0;
+            calculatedRealCost += neededQty * ingPrice;
+            continue; 
+          }
+
           
           // Convert units if necessary to match inventory unit
           const ingUnit = ing.unite.toLowerCase();
@@ -92,6 +110,11 @@ export default function ProductionJournaliere() {
           else if (ingUnit === 'kg' && invUnit === 'g') neededQty = neededQty * 1000;
           else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty = neededQty / 1000;
           else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty = neededQty * 1000;
+          
+          
+          // Compute cost based on current averageCost or price
+          const itemPrice = parseFloat(inventoryItem.averageCost || inventoryItem.unitPrice || inventoryItem.price || ing.prixUnitaire || 0);
+          calculatedRealCost += neededQty * itemPrice;
           
           const invRef = doc(db, 'inventoryItems', inventoryItem.id);
           const currentQty = parseFloat(inventoryItem.quantity) || 0;
@@ -117,17 +140,80 @@ export default function ProductionJournaliere() {
           quantiteProduite: quantiteAProduire,
           chefResponsable,
           status: 'completed',
-          coutMatiereEstime: recipe.coutMatiere * quantiteAProduire,
+          coutMatiereEstime: calculatedRealCost || (recipe.coutMatiere * quantiteAProduire),
           timestamp: serverTimestamp()
         });
         
-        // 4. Optionally credit the produced item in inventory (if it exists)
-        const producedItem = inventoryItems.find(i => i.name === recipe.nom);
-        if (producedItem) {
-           transaction.update(doc(db, 'inventoryItems', producedItem.id), {
-             quantity: (parseFloat(producedItem.quantity) || 0) + quantiteAProduire
-           });
+        
+        // 4. Credit the produced item in inventory or semi_finished
+        let isProducedSemi = false;
+        let producedItem = inventoryItems.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
+        if (!producedItem) {
+           producedItem = semiFinished.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
+           if (producedItem) isProducedSemi = true;
         }
+        
+        const unitCost = quantiteAProduire > 0 ? (calculatedRealCost / quantiteAProduire) : 0;
+        
+        if (producedItem) {
+           const oldQty = parseFloat(producedItem.quantity) || 0;
+           const oldPrice = parseFloat(producedItem.averageCost || producedItem.unitPrice || producedItem.price || producedItem.cost || 0);
+           const newQty = oldQty + quantiteAProduire;
+           
+           const newAverageCost = newQty > 0 
+               ? ((oldQty * oldPrice) + (quantiteAProduire * unitCost)) / newQty 
+               : (unitCost || oldPrice);
+
+           const colName = isProducedSemi ? 'semi_finished' : 'inventoryItems';
+           const updateData: any = { 
+             quantity: newQty, 
+             updatedAt: serverTimestamp(),
+             zone: targetZone,
+             subZone: targetSubZone
+           };
+           if (isProducedSemi) {
+              updateData.cost = newAverageCost;
+           } else {
+              updateData.averageCost = newAverageCost;
+           }
+
+           transaction.update(doc(db, colName, producedItem.id), updateData);
+        } else {
+           // check recipe category to decide where it goes
+           const cat = (recipe.categorie || '').toLowerCase();
+           const goesToSemi = cat.includes('semi-fini') || cat.includes('préparation') || cat.includes('base');
+           
+           if (goesToSemi) {
+             const newItemRef = doc(collection(db, 'semi_finished'));
+             transaction.set(newItemRef, {
+               name: recipe.nom,
+               quantity: quantiteAProduire,
+               unit: 'portion',
+               cost: unitCost,
+               createdAt: serverTimestamp(),
+               updatedAt: serverTimestamp(),
+               zone: targetZone,
+               subZone: targetSubZone
+             });
+           } else {
+             const newItemRef = doc(collection(db, 'inventoryItems'));
+             transaction.set(newItemRef, {
+               name: recipe.nom,
+               category: recipe.categorie || 'Produit Fini',
+               quantity: quantiteAProduire,
+               unit: 'portion', // typically portions for recipes
+               minStock: 0,
+               price: unitCost,
+               unitPrice: unitCost,
+               averageCost: unitCost,
+               createdAt: serverTimestamp(),
+               updatedAt: serverTimestamp(),
+               zone: targetZone,
+               subZone: targetSubZone
+             });
+           }
+        }
+
       });
       
       showToast("Ordre de fabrication créé et stocks mis à jour.");
@@ -259,6 +345,34 @@ export default function ProductionJournaliere() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Zone de stockage</label>
+                  <select
+                    value={targetZone}
+                    onChange={(e) => { setTargetZone(e.target.value); setTargetSubZone(''); }}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#265C6D] focus:ring-1 focus:ring-[#265C6D]"
+                  >
+                    <option value="economat">Économat</option>
+                    <option value="chambre_froide">Chambre Froide</option>
+                    <option value="cave">Cave</option>
+                    <option value="consommables">Consommables</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Sous-emplacement</label>
+                  <select
+                    value={targetSubZone}
+                    onChange={(e) => setTargetSubZone(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#265C6D] focus:ring-1 focus:ring-[#265C6D]"
+                  >
+                    <option value="">Général</option>
+                    {subZones.filter(sz => sz.zoneId === targetZone).map(sz => (
+                      <option key={sz.id} value={sz.id}>{sz.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Quantité à produire</label>
                   <input 
                     type="number"
@@ -288,16 +402,45 @@ export default function ProductionJournaliere() {
                   <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center gap-1.5">
                     <Package size={16} /> Impacts sur le stock (Estimation)
                   </h4>
-                  <ul className="text-xs text-blue-800 space-y-1 max-h-32 overflow-y-auto">
+                  <ul className="text-xs text-blue-800 space-y-2 max-h-48 overflow-y-auto">
                     {recipes.find(r => r.id === selectedRecipeId)?.ingredients?.map((ing: any, idx: number) => {
                       const recipe = recipes.find(r => r.id === selectedRecipeId);
                       const baseQty = parseFloat(ing.quantite) || 0;
                       const recipePortions = parseFloat(recipe.portions) || 1;
-                      const neededQty = (baseQty / recipePortions) * quantiteAProduire;
+                      let neededQty = (baseQty / recipePortions) * quantiteAProduire;
+                      
+                      const invItem = inventoryItems.find(i => i.name.toLowerCase() === (ing.nom || '').toLowerCase());
+                      const currentStock = invItem ? parseFloat(invItem.quantity) || 0 : 0;
+                      
+                      let displayNeededQty = neededQty;
+                      const ingUnit = (ing.unite || '').toLowerCase();
+                      const invUnit = invItem ? (invItem.unit || '').toLowerCase() : ingUnit;
+                      
+                      // Convert neededQty to invUnit for comparison if possible
+                      let convertedNeededQty = neededQty;
+                      if (invItem) {
+                          if (ingUnit === 'g' && invUnit === 'kg') convertedNeededQty = neededQty / 1000;
+                          else if (ingUnit === 'kg' && invUnit === 'g') convertedNeededQty = neededQty * 1000;
+                          else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) convertedNeededQty = neededQty / 1000;
+                          else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') convertedNeededQty = neededQty * 1000;
+                      }
+
+                      const isInsufficient = invItem && currentStock < convertedNeededQty;
+
                       return (
-                        <li key={idx} className="flex justify-between border-b border-blue-100/50 pb-1">
-                          <span>{ing.nom}</span>
-                          <span className="font-medium">- {neededQty.toFixed(2)} {ing.unite}</span>
+                        <li key={idx} className="flex flex-col border-b border-blue-100/50 pb-1">
+                          <div className="flex justify-between">
+                            <span className="font-medium">{ing.nom}</span>
+                            <span className="font-bold">- {convertedNeededQty.toFixed(2)} {invUnit}</span>
+                          </div>
+                          <div className="flex justify-between text-[10px] mt-0.5">
+                            <span className={!invItem ? "text-gray-500" : "text-blue-600"}>
+                              {!invItem ? "Non trouvé en stock" : `Stock actuel: ${currentStock.toFixed(2)} ${invUnit}`}
+                            </span>
+                            {isInsufficient && (
+                              <span className="text-red-500 font-medium">Stock insuffisant !</span>
+                            )}
+                          </div>
                         </li>
                       );
                     })}

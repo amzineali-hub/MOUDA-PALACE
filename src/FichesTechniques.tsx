@@ -147,9 +147,15 @@ export default function FichesTechniques() {
                   dynamicCoutMatiere = recipe.coutMatiere;
                 }
 
+                // Correction : coutMatiere/dynamicCoutMatiere représente le coût pour la totalité des
+                // "portions" de la recette, alors que prixVente est le prix d'UNE portion vendue.
+                // On divise donc par le nombre de portions avant de comparer au prix de vente.
+                const portions = Number(recipe.portions) || 1;
+                const coutMatiereParPortion = dynamicCoutMatiere / portions;
+
                 const pv = Number(recipe.prixVente) || 0;
-                const dynamicFoodCost = pv > 0 ? (dynamicCoutMatiere / pv) * 100 : 0;
-                const dynamicMarge = pv > 0 ? pv - dynamicCoutMatiere : 0;
+                const dynamicFoodCost = pv > 0 ? (coutMatiereParPortion / pv) * 100 : 0;
+                const dynamicMarge = pv > 0 ? pv - coutMatiereParPortion : 0;
 
                 return (
                 <tr key={recipe.id} className="hover:bg-gray-50/50 transition-colors">
@@ -159,7 +165,14 @@ export default function FichesTechniques() {
                       {recipe.categorie || 'Non classé'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-medium text-red-600">{Number(dynamicCoutMatiere).toFixed(2)} DH</td>
+                  <td className="px-6 py-4 font-medium text-red-600">
+                    {Number(coutMatiereParPortion).toFixed(2)} DH
+                    {portions > 1 && (
+                      <span className="block text-xs text-gray-400 font-normal">
+                        ({Number(dynamicCoutMatiere).toFixed(2)} DH / {portions} portions)
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 font-medium text-green-600">{Number(pv).toFixed(2)} DH</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
@@ -236,9 +249,14 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   
   const coutMatiere = ingredients.length > 0 ? calculatedCoutMatiere : (Number(manualCoutMatiere) || 0);
 
+  // Correction : mêmes hypothèses que dans la liste principale — coutMatiere est le coût
+  // pour l'ensemble des "portions" de la recette, prixVente est le prix d'une portion vendue.
+  const portionsNum = Number(portions) || 1;
+  const coutMatiereParPortion = coutMatiere / portionsNum;
+
   const pv = Number(prixVente) || 0;
-  const foodCost = pv > 0 ? (coutMatiere / pv) * 100 : 0;
-  const margeBrute = pv > 0 ? pv - coutMatiere : 0;
+  const foodCost = pv > 0 ? (coutMatiereParPortion / pv) * 100 : 0;
+  const margeBrute = pv > 0 ? pv - coutMatiereParPortion : 0;
 
   const handleSave = async () => {
     if (!nom || !categorie || !prixVente) {
@@ -420,7 +438,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 </div>
                 
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                  <span className="text-gray-600 text-sm">Coût matière</span>
+                  <span className="text-gray-600 text-sm">Coût matière (total recette)</span>
                   <div className="relative w-24">
                     <input 
                       type="number" step="any" 
@@ -432,6 +450,13 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                     <span className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 text-sm">DH</span>
                   </div>
                 </div>
+
+                {portionsNum > 1 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">Coût matière / portion</span>
+                    <span className="font-semibold text-gray-900">{Number(coutMatiereParPortion || 0).toFixed(2)} DH</span>
+                  </div>
+                )}
                 
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Food Cost</span>

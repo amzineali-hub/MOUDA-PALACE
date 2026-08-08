@@ -320,39 +320,50 @@ export default function POSTactile() {
         createdAt: now
       });
 
-      // 3. Stocks (simplified to avoid bugs)
+      // 3. Stocks (corrigé : mapping correct des champs de fiches_techniques + conversion d'unités)
       try {
         const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
         const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
         for (const cartItem of cart) {
           if (!cartItem || !cartItem.name) continue;
-          
+
           const matchingRecipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === cartItem.name.toLowerCase());
-          
+
           if (matchingRecipe && matchingRecipe.ingredients && Array.isArray(matchingRecipe.ingredients)) {
+            const recipePortions = parseFloat(matchingRecipe.portions) || 1;
+
             for (const ingredient of matchingRecipe.ingredients) {
-              if (!ingredient || !ingredient.name) continue;
-              
-              let invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.name.toLowerCase());
+              // Correction : les champs réels des ingrédients de fiches_techniques sont 'nom' et 'quantite'
+              // (pas 'name'/'quantity'), ce qui empêchait toute déduction de stock jusqu'ici.
+              if (!ingredient || !ingredient.nom) continue;
 
-              const portions = matchingRecipe.portions || 1;
-              const qtyToDeduct = ((ingredient.quantity || 0) / portions) * (cartItem.qty || 1);
+              const invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.nom.toLowerCase());
+              if (!invItem || typeof invItem.quantity === 'undefined') continue;
 
-              if (invItem && typeof invItem.quantity !== 'undefined') {
-                const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
-                await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
-                await addDoc(collection(db, 'inventoryTransactions'), {
-                  item: invItem.name,
-                  type: 'out',
-                  amount: qtyToDeduct,
-                  unit: invItem.unit || 'kg',
-                  reason: `Vente POS: ${cartItem.name} (${displayId})`,
-                  user: 'POS',
-                  date: today,
-                  createdAt: now
-                });
-              }
+              const baseQty = parseFloat(ingredient.quantite) || 0;
+              let qtyToDeduct = (baseQty / recipePortions) * (cartItem.qty || 1);
+
+              // Conversion d'unité recette -> stock (alignée sur ProductionJournaliere.tsx)
+              const ingUnit = (ingredient.unite || '').toLowerCase();
+              const invUnit = (invItem.unit || '').toLowerCase();
+              if (ingUnit === 'g' && invUnit === 'kg') qtyToDeduct = qtyToDeduct / 1000;
+              else if (ingUnit === 'kg' && invUnit === 'g') qtyToDeduct = qtyToDeduct * 1000;
+              else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) qtyToDeduct = qtyToDeduct / 1000;
+              else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') qtyToDeduct = qtyToDeduct * 1000;
+
+              const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
+              await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
+              await addDoc(collection(db, 'inventoryTransactions'), {
+                item: invItem.name,
+                type: 'out',
+                amount: qtyToDeduct,
+                unit: invItem.unit || 'kg',
+                reason: `Vente POS: ${cartItem.name} (${displayId})`,
+                user: 'POS',
+                date: today,
+                createdAt: now
+              });
             }
           } else {
             const matchingItem = inventoryItems.find((inv: any) => 
@@ -360,8 +371,8 @@ export default function POSTactile() {
             );
 
             if (matchingItem && typeof matchingItem.quantity !== 'undefined') {
-              const newQty = Math.max(0, Number(matchingItem.quantity) - (cartItem.qty || 1));
               const deductedQty = cartItem.qty || 1;
+              const newQty = Math.max(0, Number(matchingItem.quantity) - deductedQty);
               await updateDoc(doc(db, 'inventoryItems', matchingItem.id), { quantity: newQty, updatedAt: now });
               await addDoc(collection(db, 'inventoryTransactions'), {
                 item: matchingItem.name,
@@ -691,7 +702,8 @@ export default function POSTactile() {
                     <div>
                       <span className="font-medium">{item.qty}x</span> {item.name}
                     </div>
-                    <div className="text-gray-700">{(item.price * item.qty).toFixed(2)} MAD</div>
+                    {/* Correction bug NaN : item.price est une chaîne (ex. "25 MAD"), on utilise numPrice */}
+                    <div className="text-gray-700">{((item.numPrice || 0) * item.qty).toFixed(2)} MAD</div>
                   </div>
                 ))}
               </div>
@@ -740,7 +752,8 @@ export default function POSTactile() {
           </motion.div>
         </div>
       )}
-\n            {/* Add Item Modal */}
+
+            {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <motion.div 

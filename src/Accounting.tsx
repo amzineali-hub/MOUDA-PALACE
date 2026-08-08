@@ -25,10 +25,21 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 
+
+const parseAmount = (val: any) => {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  return parseFloat(val.toString().replace(/[^0-9.-]+/g, '')) || 0;
+};
+
 export default function Accounting() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('invoices');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSupplier, setFilterSupplier] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isNewExpenseModalOpen, setIsNewExpenseModalOpen] = useState(false);
@@ -104,7 +115,7 @@ export default function Accounting() {
       csvContent += "04/11/2026;5161;Caisse (Recettes du jour);15800.00;\n";
     } else {
       csvContent += `Mois;Revenus;Depenses\n`;
-      monthlyRevenueData.forEach(data => {
+      monthlyRevenueData.forEach((data: any) => {
         csvContent += `${data.name};${data.revenus};${data.depenses}\n`;
       });
     }
@@ -200,9 +211,9 @@ export default function Accounting() {
   ]);
   
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'invoices'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsub = onSnapshot(collection(db, 'invoices'), (snapshot) => {
       if (!snapshot.empty) {
-        setInvoices(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        setInvoices(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       }
     }, (error) => {
       console.error("Error fetching invoices", error);
@@ -224,9 +235,9 @@ export default function Accounting() {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   useEffect(() => {
-    const unsubReceipts = onSnapshot(query(collection(db, 'cash_receipts'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsubReceipts = onSnapshot(collection(db, 'cash_receipts'), (snapshot) => {
       if (!snapshot.empty) {
-        setReceipts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        setReceipts(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       }
     }, (error) => {
       console.error("Error fetching receipts", error);
@@ -235,12 +246,12 @@ export default function Accounting() {
   }, []);
 
   useEffect(() => {
-    const unsubExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    const unsubExpenses = onSnapshot(collection(db, 'expenses'), (snapshot) => {
+      setExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
     });
-    const unsubReports = onSnapshot(query(collection(db, 'financialReports'), orderBy('createdAt', 'desc')), (snapshot) => {
+    const unsubReports = onSnapshot(collection(db, 'financialReports'), (snapshot) => {
       if (!snapshot.empty) {
-        setFinancialReports(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+        setFinancialReports(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       }
     });
     return () => {
@@ -249,23 +260,82 @@ export default function Accounting() {
     };
   }, []);
 
-  const monthlyRevenueData = [
-    { name: 'Juin', revenus: 85000, depenses: 32000 },
-    { name: 'Juil', revenus: 110000, depenses: 45000 },
-    { name: 'Août', revenus: 135000, depenses: 51000 },
-    { name: 'Sept', revenus: 95000, depenses: 38000 },
-    { name: 'Oct', revenus: 105000, depenses: 40000 },
-    { name: 'Nov', revenus: 124500, depenses: 42800 },
-  ];
 
-  const expensesByCategoryData = [
-    { name: 'Marchandise', value: 45000 },
-    { name: 'Salaires', value: 35000 },
-    { name: 'Loyer & Charges', value: 15000 },
-    { name: 'Marketing', value: 5000 },
-    { name: 'Divers', value: 2500 },
-  ];
-  const COLORS = ['#F4C75B', '#1A1A1A', '#4b5563', '#9ca3af', '#e5e7eb'];
+  const monthlyRevenueData = useMemo(() => {
+    const data: Record<string, { name: string, revenus: number, depenses: number, sortKey: number }> = {};
+    const months = ['Janv', 'Fév', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+    const d = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const past = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const mName = months[past.getMonth()];
+      data[`${past.getFullYear()}-${past.getMonth()}`] = { name: mName, revenus: 0, depenses: 0, sortKey: past.getTime() };
+    }
+
+    receipts.forEach((r: any) => {
+      const date = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (data[key]) {
+        data[key].revenus += parseAmount(r.amount) || 0;
+      }
+    });
+
+    expenses.forEach((e: any) => {
+      const date = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (data[key]) {
+        data[key].depenses += parseAmount(e.amount) || 0;
+      }
+    });
+
+    return Object.values(data).sort((a,b) => a.sortKey - b.sortKey);
+  }, [receipts, expenses]);
+
+  const expensesByCategoryData = useMemo(() => {
+    const categories: Record<string, number> = {};
+    expenses.forEach((e: any) => {
+      const cat = e.category || 'Divers';
+      categories[cat] = (categories[cat] || 0) + (parseAmount(e.amount) || 0);
+    });
+    return Object.entries(categories).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+  }, [expenses]);
+  
+  const COLORS = ['#F4C75B', '#1A1A1A', '#4b5563', '#9ca3af', '#e5e7eb', '#8b5cf6', '#ef4444', '#10b981'];
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  
+  const currentMonthRevenue = receipts.reduce((sum, r) => {
+    const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) return sum + (parseAmount(r.amount) || 0);
+    return sum;
+  }, 0);
+  const lastMonthRevenue = receipts.reduce((sum, r) => {
+    const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
+    if (d.getMonth() === (currentMonth === 0 ? 11 : currentMonth - 1) && d.getFullYear() === (currentMonth === 0 ? currentYear - 1 : currentYear)) return sum + (parseAmount(r.amount) || 0);
+    return sum;
+  }, 0);
+  const revenueGrowth = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 100;
+
+  const currentMonthExpenses = expenses.reduce((sum, e) => {
+    const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) return sum + (parseAmount(e.amount) || 0);
+    return sum;
+  }, 0);
+  const lastMonthExpenses = expenses.reduce((sum, e) => {
+    const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
+    if (d.getMonth() === (currentMonth === 0 ? 11 : currentMonth - 1) && d.getFullYear() === (currentMonth === 0 ? currentYear - 1 : currentYear)) return sum + (parseAmount(e.amount) || 0);
+    return sum;
+  }, 0);
+  const expensesGrowth = lastMonthExpenses > 0 ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 100;
+
+
+  const currentMonthProfit = currentMonthRevenue - currentMonthExpenses;
+  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+  const profitGrowth = lastMonthProfit !== 0 ? ((currentMonthProfit - lastMonthProfit) / Math.abs(lastMonthProfit)) * 100 : (currentMonthProfit > 0 ? 100 : 0);
+
+  const pendingInvoicesTotal = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').reduce((sum, i) => sum + (parseAmount(i.amount) || 0), 0);
+  const pendingInvoicesCount = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').length;
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -317,7 +387,7 @@ export default function Accounting() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-gray-500 font-medium">Chiffre d'Affaires (Mois)</h3>
@@ -325,9 +395,9 @@ export default function Accounting() {
               <TrendingUp size={20} />
             </div>
           </div>
-          <p className="text-3xl font-serif text-gray-900 mb-1">124 500 MAD</p>
-          <p className="text-sm text-green-600 flex items-center gap-1">
-            <TrendingUp size={14} /> +12% vs mois dernier
+          <p className="text-3xl font-serif text-gray-900 mb-1">{currentMonthRevenue.toLocaleString('fr-FR')} MAD</p>
+          <p className={`text-sm flex items-center gap-1 ${revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {revenueGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />} {revenueGrowth > 0 ? '+' : ''}{revenueGrowth.toFixed(1)}% vs mois dernier
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -337,9 +407,22 @@ export default function Accounting() {
               <TrendingDown size={20} />
             </div>
           </div>
-          <p className="text-3xl font-serif text-gray-900 mb-1">42 800 MAD</p>
-          <p className="text-sm text-red-600 flex items-center gap-1">
-            <TrendingUp size={14} /> +5% vs mois dernier
+          <p className="text-3xl font-serif text-gray-900 mb-1">{currentMonthExpenses.toLocaleString('fr-FR')} MAD</p>
+          <p className={`text-sm flex items-center gap-1 ${expensesGrowth <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {expensesGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />} {expensesGrowth > 0 ? '+' : ''}{expensesGrowth.toFixed(1)}% vs mois dernier
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-500 font-medium">Bénéfice (Mois)</h3>
+            <div className={`p-2 rounded-lg ${currentMonthProfit >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+              {currentMonthProfit >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+            </div>
+          </div>
+          <p className="text-3xl font-serif text-gray-900 mb-1">{currentMonthProfit.toLocaleString('fr-FR')} MAD</p>
+          <p className={`text-sm flex items-center gap-1 ${profitGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {profitGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />} {profitGrowth > 0 ? '+' : ''}{profitGrowth.toFixed(1)}% vs mois dernier
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -349,8 +432,8 @@ export default function Accounting() {
               <Clock size={20} />
             </div>
           </div>
-          <p className="text-3xl font-serif text-gray-900 mb-1">7 700 MAD</p>
-          <p className="text-sm text-gray-500">2 factures impayées</p>
+          <p className="text-3xl font-serif text-gray-900 mb-1">{pendingInvoicesTotal.toLocaleString('fr-FR')} MAD</p>
+          <p className="text-sm text-gray-500">{pendingInvoicesCount} facture(s) impayée(s)</p>
         </div>
       </div>
 
@@ -390,7 +473,7 @@ export default function Accounting() {
             />
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <button onClick={() => setSearchQuery('')}  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors" title="Effacer la recherche">
+            <button onClick={() => setIsFilterModalOpen(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors" title="Filtrer">
               <Filter size={18} />
               <span className="text-sm font-medium">Filtrer</span>
             </button>
@@ -412,7 +495,7 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {invoices.map((invoice, idx) => (
+                {invoices.filter(inv => (inv.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.client || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.ice || '').toLowerCase().includes(searchQuery.toLowerCase())).map((invoice, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{invoice.id}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{invoice.client}</td>
@@ -530,24 +613,24 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {receipts.filter(r => r.displayId?.toLowerCase().includes(searchQuery.toLowerCase()) || r.id?.toLowerCase().includes(searchQuery.toLowerCase()) || r.method?.toLowerCase().includes(searchQuery.toLowerCase())).map((receipt, idx) => (
+                {receipts.filter(r => (r.displayId || '').toLowerCase().includes(searchQuery.toLowerCase()) || (r.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (r.method || '').toLowerCase().includes(searchQuery.toLowerCase())).map((receipt, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{receipt.displayId || 'TKT-' + receipt.id.substring(0, 6).toUpperCase()}</td>
                     <td className="px-6 py-4 text-gray-500">
                       {receipt.createdAt?.toDate ? receipt.createdAt.toDate().toLocaleString('fr-FR') : receipt.date}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">{receipt.method}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{Number(receipt.amount || 0).toFixed(2)} MAD</td>
+                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{parseAmount(receipt.amount).toFixed(2)} MAD</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { setSelectedReceipt(receipt); setIsReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le ticket">
                           <Eye size={16} />
+                        </button>
                         <button onClick={() => { setEditingReceipt(receipt); setEditReceiptAmount(receipt.amount.toString()); setEditReceiptMethod(receipt.method); setIsEditReceiptModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100" title="Modifier">
                           <Pencil size={16} />
                         </button>
                         <button onClick={() => handleDeleteReceipt(receipt.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
                           <Trash2 size={16} />
-                        </button>
                         </button>
                       </div>
                     </td>
@@ -580,7 +663,12 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {expenses.filter(e => e.supplier?.toLowerCase().includes(searchQuery.toLowerCase()) || e.category?.toLowerCase().includes(searchQuery.toLowerCase()) || e.id?.toLowerCase().includes(searchQuery.toLowerCase())).map((expense, idx) => (
+                {expenses
+  .filter(e => (e.supplier || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.category || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.id || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  .filter(e => filterCategory ? e.category === filterCategory : true)
+  .filter(e => filterSupplier ? e.supplier === filterSupplier : true)
+  .filter(e => filterDate ? e.date === filterDate : true)
+  .map((expense, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{expense.id}</td>
                     <td className="px-6 py-4 text-gray-900">{expense.category}</td>
@@ -637,11 +725,11 @@ export default function Accounting() {
                                     <tbody>
                                       <tr>
                                         <td>${expense.description || expense.category}</td>
-                                        <td style="text-align: right;">${parseFloat(expense.amount).toFixed(2)} MAD</td>
+                                        <td style="text-align: right;">${parseAmount(expense.amount).toFixed(2)} MAD</td>
                                       </tr>
                                       <tr class="total-row">
                                         <td>Total</td>
-                                        <td style="text-align: right;">${parseFloat(expense.amount).toFixed(2)} MAD</td>
+                                        <td style="text-align: right;">${parseAmount(expense.amount).toFixed(2)} MAD</td>
                                       </tr>
                                     </tbody>
                                   </table>
@@ -900,7 +988,7 @@ export default function Accounting() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {financialReports.map((report, idx) => (
+                  {financialReports.filter(rpt => (rpt.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (rpt.type || '').toLowerCase().includes(searchQuery.toLowerCase())).map((report, idx) => (
                     <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-mono text-gray-500 text-xs">{report.id}</td>
                       <td className="px-6 py-4 font-medium text-gray-900">{report.type}</td>
@@ -1151,6 +1239,59 @@ export default function Accounting() {
                 Ajouter la Dépense
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* Filter Modal */}
+      {isFilterModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold">Filtres de recherche</h3>
+              <button onClick={() => setIsFilterModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
+                  <option value="">Toutes les catégories</option>
+                  {categories.map((cat, idx) => (
+                    <option key={idx} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" title="Filtre par date" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                <select value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
+                  <option value="">Tous les fournisseurs</option>
+                  {suppliersList.map((sup, idx) => (
+                    <option key={idx} value={sup}>{sup}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button 
+                  onClick={() => { setFilterCategory(''); setFilterSupplier(''); setFilterDate(''); setSearchQuery(''); setIsFilterModalOpen(false); }}
+                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-medium mt-4 hover:bg-gray-200 transition-colors"
+                >
+                  Réinitialiser
+                </button>
+                <button 
+                  onClick={() => setIsFilterModalOpen(false)}
+                  className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+                >
+                  Appliquer
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

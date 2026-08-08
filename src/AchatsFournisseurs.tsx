@@ -62,15 +62,15 @@ export default function AchatsFournisseurs() {
   }, [inventoryItems, fournisseurs]);
   
   useEffect(() => {
-    const unsubCommandes = onSnapshot(query(collection(db, 'commandes'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    const unsubCommandes = onSnapshot(collection(db, 'commandes'), (snapshot) => {
+      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
     }, (error) => {
       console.error("Error fetching commandes", error);
       showToast("Erreur lors de la récupération des commandes");
     });
 
-    const unsubFournisseurs = onSnapshot(query(collection(db, 'fournisseurs'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    const unsubFournisseurs = onSnapshot(collection(db, 'fournisseurs'), (snapshot) => {
+      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       setLoading(false);
     }, (error) => {
       console.error("Error fetching fournisseurs", error);

@@ -161,10 +161,14 @@ export default function Accounting() {
     showToast("Exportation réussie");
   };
   
-  const handleDeleteExpense = async (id: string) => {
+  const handleDeleteExpense = async (expense: any) => {
     if (window.confirm("Voulez-vous vraiment supprimer cette dépense ?")) {
       try {
-        await deleteDoc(doc(db, "expenses", id));
+        if (expense.isOrder) {
+           await deleteDoc(doc(db, "commandes", expense.id));
+        } else {
+           await deleteDoc(doc(db, "expenses", expense.id));
+        }
         showToast("Dépense supprimée avec succès");
       } catch (error) {
         console.error(error);
@@ -221,7 +225,26 @@ export default function Accounting() {
     return () => unsub();
   }, []);
 
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [manualExpenses, setManualExpenses] = useState<any[]>([]);
+  const [commandes, setCommandes] = useState<any[]>([]);
+
+  const expenses = useMemo(() => {
+    const all = [
+      ...manualExpenses,
+      ...commandes.filter(c => c.status === 'Livrée' || c.status === 'Validée').map(c => ({
+        id: c.id,
+        category: c.categorie || c.category || 'Achat Marchandises',
+        supplier: c.fournisseur,
+        amount: c.montant,
+        date: c.date || new Date(c.createdAt?.toMillis?.() || Date.now()).toLocaleDateString('fr-FR'),
+        method: c.method || 'Virement',
+        createdAt: c.createdAt,
+        description: c.articles,
+        isOrder: true
+      }))
+    ];
+    return all.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  }, [manualExpenses, commandes]);
 
   const [financialReports, setFinancialReports] = useState<any[]>([
     { id: 'RPT-2026-11', type: 'Bilan Comptable', date: '30 Nov 2026', status: 'Généré', format: 'PDF' },
@@ -247,7 +270,10 @@ export default function Accounting() {
 
   useEffect(() => {
     const unsubExpenses = onSnapshot(collection(db, 'expenses'), (snapshot) => {
-      setExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+      setManualExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+    });
+    const unsubCommandes = onSnapshot(collection(db, 'commandes'), (snapshot) => {
+      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
     });
     const unsubReports = onSnapshot(collection(db, 'financialReports'), (snapshot) => {
       if (!snapshot.empty) {
@@ -256,6 +282,7 @@ export default function Accounting() {
     });
     return () => {
       unsubExpenses();
+      unsubCommandes();
       unsubReports();
     };
   }, []);
@@ -345,6 +372,25 @@ export default function Accounting() {
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
+
+
+  const filteredExpenses = useMemo(() => {
+    return expenses
+      .filter(e => (e.supplier || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.category || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.id || '').toLowerCase().includes(searchQuery.toLowerCase()))
+      .filter(e => filterCategory ? e.category === filterCategory : true)
+      .filter(e => filterSupplier ? e.supplier === filterSupplier : true)
+      .filter(e => filterDate ? e.date === filterDate : true);
+  }, [expenses, searchQuery, filterCategory, filterSupplier, filterDate]);
+
+
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter(inv => (inv.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.client || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.ice || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [invoices, searchQuery]);
+
+
+  const filteredReceipts = useMemo(() => {
+    return receipts.filter(rec => (rec.displayId || '').toLowerCase().includes(searchQuery.toLowerCase()) || (rec.id || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [receipts, searchQuery]);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
@@ -495,7 +541,7 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {invoices.filter(inv => (inv.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.client || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.ice || '').toLowerCase().includes(searchQuery.toLowerCase())).map((invoice, idx) => (
+                {filteredInvoices.map((invoice, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{invoice.id}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{invoice.client}</td>
@@ -595,6 +641,13 @@ export default function Accounting() {
                     </td>
                   </tr>
                 ))}
+                {filteredInvoices.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      Aucune facture trouvée.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -636,7 +689,7 @@ export default function Accounting() {
                     </td>
                   </tr>
                 ))}
-                {receipts.length === 0 && (
+                {filteredReceipts.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                       Aucune recette caisse trouvée. Les encaissements du POS apparaîtront ici.
@@ -663,12 +716,7 @@ export default function Accounting() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {expenses
-  .filter(e => (e.supplier || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.category || '').toLowerCase().includes(searchQuery.toLowerCase()) || (e.id || '').toLowerCase().includes(searchQuery.toLowerCase()))
-  .filter(e => filterCategory ? e.category === filterCategory : true)
-  .filter(e => filterSupplier ? e.supplier === filterSupplier : true)
-  .filter(e => filterDate ? e.date === filterDate : true)
-  .map((expense, idx) => (
+                {filteredExpenses.map((expense, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-mono text-gray-900">{expense.id}</td>
                     <td className="px-6 py-4 text-gray-900">{expense.category}</td>
@@ -750,13 +798,20 @@ export default function Accounting() {
                         }} className="p-1.5 text-gray-400 hover:text-green-500 transition-colors rounded-lg hover:bg-gray-100" title="Imprimer">
                           <Printer size={16} />
                         </button>
-                        <button onClick={() => handleDeleteExpense(expense.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                        <button onClick={() => handleDeleteExpense(expense)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
+                {filteredExpenses.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      Aucune dépense trouvée. Les achats apparaîtront ici.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

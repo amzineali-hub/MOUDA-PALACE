@@ -1,7 +1,7 @@
 import ConfirmModal from "./components/ConfirmModal";
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar } from 'lucide-react';
+import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar , ArrowUpDown } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -15,6 +15,7 @@ export default function AchatsFournisseurs() {
   const [showSupplierCol, setShowSupplierCol] = useState(true);
   const [showCategoryCol, setShowCategoryCol] = useState(true);
   const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string, price?: string}>>({});
+  const [orderTvaRate, setOrderTvaRate] = useState<number>(20);
     const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
@@ -37,6 +38,67 @@ export default function AchatsFournisseurs() {
   const [fournisseurToDelete, setFournisseurToDelete] = useState<string | null>(null);
   const [deliveryToReject, setDeliveryToReject] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterSupplier, setFilterSupplier] = useState('');
+
+  const filteredCommandes = useMemo(() => {
+    return commandes.filter((cmd) => {
+      const matchesSearch = (cmd.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (cmd.fournisseur || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSupplier = filterSupplier ? cmd.fournisseur === filterSupplier : true;
+      return matchesSearch && matchesSupplier;
+    });
+  }, [commandes, searchQuery, filterSupplier]);
+
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+  const sortedCommandes = useMemo(() => {
+    let sortableItems = [...filteredCommandes];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        let aValue = a[sortConfig.key];
+        let bValue = b[sortConfig.key];
+
+        if (sortConfig.key === 'montant' || sortConfig.key === 'montantHT' || sortConfig.key === 'tva') {
+          const parseNumeric = (val: any) => {
+             if (typeof val === 'number') return val;
+             if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g, "")) || 0;
+             return 0;
+          };
+          aValue = parseNumeric(aValue);
+          bValue = parseNumeric(bValue);
+        } else if (sortConfig.key === 'date') {
+          const parseDate = (d: string) => {
+            if (!d) return 0;
+            const parts = d.split('/');
+            if (parts.length === 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime();
+            return 0;
+          };
+          aValue = parseDate(aValue);
+          bValue = parseDate(bValue);
+        } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [filteredCommandes, sortConfig]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   
   useEffect(() => {
@@ -63,55 +125,24 @@ export default function AchatsFournisseurs() {
   
   useEffect(() => {
     const unsubCommandes = onSnapshot(collection(db, 'commandes'), (snapshot) => {
-      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      console.log('Fetched Commandes:', docs.length, docs);
+      setCommandes(docs.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
     }, (error) => {
       console.error("Error fetching commandes", error);
       showToast("Erreur lors de la récupération des commandes");
     });
 
     const unsubFournisseurs = onSnapshot(collection(db, 'fournisseurs'), (snapshot) => {
-      setFournisseurs(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+      const docs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      console.log('Fetched Fournisseurs:', docs.length, docs);
+      setFournisseurs(docs.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       setLoading(false);
     }, (error) => {
       console.error("Error fetching fournisseurs", error);
       showToast("Erreur lors de la récupération des fournisseurs");
       setLoading(false);
     });
-
-  
-  const handleGeneratePrevisions = () => {
-    setIsGeneratingPrevisions(true);
-    setTimeout(() => {
-      setPrevisions([
-        {
-          category: 'Produits Frais',
-          items: [
-            { name: 'Tomates (Catégorie 1)', quantity: '50 kg', supplier: 'Marché Central', reason: 'Forte demande prévue pour les salades (Hausse de 20% des réservations)' },
-            { name: 'Poulet Fermier', quantity: '120 kg', supplier: 'Ferme Atlas', reason: 'Menu spécial du weekend' },
-            { name: 'Saumon Frais', quantity: '30 kg', supplier: 'Marée Bleue', reason: 'Stock actuel critique (Reste 5 kg)' }
-          ]
-        },
-        {
-          category: 'Épicerie & Secs',
-          amount: '15 items',
-          items: [
-            { name: 'Riz Basmati', quantity: '100 kg', supplier: 'Atlas Food', reason: 'Réapprovisionnement mensuel optimal' },
-            { name: 'Huile d\'olive extra vierge', quantity: '40 L', supplier: 'Huileries du Sud', reason: 'Consommation accrue observée' }
-          ]
-        },
-        {
-          category: 'Boissons',
-          amount: '8 items',
-          items: [
-            { name: 'Eau Minérale (Plate)', quantity: '200 packs', supplier: 'Distributeur Boissons', reason: 'Prévision de fortes chaleurs cette semaine' },
-            { name: 'Jus d\'orange frais', quantity: '50 L', supplier: 'Marché Central', reason: 'Consommation matinale au buffet en hausse' }
-          ]
-        }
-      ]);
-      setIsGeneratingPrevisions(false);
-      showToast('Prévisions générées avec succès par l\'IA');
-    }, 2500);
-  };
 
   return () => {
       unsubCommandes();
@@ -122,6 +153,10 @@ export default function AchatsFournisseurs() {
 
 
   const updateOrderStatus = async (cmdId: string, newStatus: string) => {
+    if (newStatus === 'Livrée') {
+      showToast("Veuillez utiliser l'onglet Réception pour valider une livraison et mettre à jour le stock.", "error");
+      return;
+    }
     try {
       await updateDoc(doc(db, 'commandes', cmdId), {
         status: newStatus
@@ -156,7 +191,7 @@ export default function AchatsFournisseurs() {
             <Store size={18} />
             <span>Nouveau fournisseur</span>
           </button>
-          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setOrderTvaRate(20); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
             <span>Créer une commande</span>
           </button>
@@ -226,15 +261,29 @@ export default function AchatsFournisseurs() {
             </button>
           </div>
           
-          <div className="relative w-full sm:w-64">
-            <input 
-              type="text" 
-              placeholder="Rechercher..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent"
-            />
-            <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {activeTab === 'commandes' && (
+              <select 
+                value={filterSupplier} 
+                onChange={(e) => setFilterSupplier(e.target.value)}
+                className="w-full sm:w-48 border border-gray-200 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F4C75B] bg-white"
+              >
+                <option value="">Tous les fournisseurs</option>
+                {suppliersList.map((sup, idx) => (
+                  <option key={idx} value={sup}>{sup}</option>
+                ))}
+              </select>
+            )}
+            <div className="relative w-full sm:w-64">
+              <input 
+                type="text" 
+                placeholder="Rechercher..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent"
+              />
+              <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+            </div>
           </div>
         </div>
 
@@ -244,16 +293,28 @@ export default function AchatsFournisseurs() {
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                   <th className="px-6 py-4 font-medium">N° Commande</th>
-                  <th className="px-6 py-4 font-medium">Date</th>
-                  <th className="px-6 py-4 font-medium">Fournisseur</th>
+                  <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('date')}>
+                    <div className="flex items-center gap-1">Date <ArrowUpDown size={14} className={sortConfig?.key === 'date' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
+                  </th>
+                  <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('fournisseur')}>
+                    <div className="flex items-center gap-1">Fournisseur <ArrowUpDown size={14} className={sortConfig?.key === 'fournisseur' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
+                  </th>
                   <th className="px-6 py-4 font-medium">Articles</th>
-                  <th className="px-6 py-4 font-medium text-right">Montant</th>
+                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('montantHT')}>
+                    <div className="flex items-center justify-end gap-1">Montant HT <ArrowUpDown size={14} className={sortConfig?.key === 'montantHT' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
+                  </th>
+                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('tva')}>
+                    <div className="flex items-center justify-end gap-1">TVA <ArrowUpDown size={14} className={sortConfig?.key === 'tva' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
+                  </th>
+                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('montant')}>
+                    <div className="flex items-center justify-end gap-1">Total TTC <ArrowUpDown size={14} className={sortConfig?.key === 'montant' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
+                  </th>
                   <th className="px-6 py-4 font-medium text-center">Statut</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {commandes.map((cmd) => (
+                {sortedCommandes.map((cmd) => (
                   <tr key={cmd.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-[#1A1A1A] flex items-center gap-2">
                       <FileText size={16} className="text-gray-400" />
@@ -262,7 +323,9 @@ export default function AchatsFournisseurs() {
                     <td className="px-6 py-4 text-gray-600">{cmd.date}</td>
                     <td className="px-6 py-4 text-[#1A1A1A] font-medium">{cmd.fournisseur}</td>
                     <td className="px-6 py-4 text-gray-600">{Array.isArray(cmd.items) ? cmd.items.length : (typeof cmd.items === 'number' ? cmd.items : (typeof cmd.articles === 'string' ? cmd.articles.split(',').length : 0))} articles</td>
-                    <td className="px-6 py-4 text-right font-medium">{cmd.montant}</td>
+                    <td className="px-6 py-4 text-right font-medium">{cmd.montantHT != null ? `${Number(cmd.montantHT).toFixed(2)} MAD` : '-'}</td>
+                    <td className="px-6 py-4 text-right font-medium text-gray-500">{cmd.tva != null ? `${cmd.tva}%` : '-'}</td>
+                    <td className="px-6 py-4 text-right font-medium text-[#1A1A1A]">{cmd.montant}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="relative inline-block w-32">
                         <select
@@ -292,7 +355,8 @@ Détails <ChevronRight size={16} />
 </button>
 <button onClick={() => {
                             setSelectedCommande(cmd); 
-                            setProductSearch(''); 
+                            setProductSearch('');
+                            setOrderTvaRate(cmd.tva || 20); 
                             const initialSelections: Record<string, {checked: boolean, qty: string, price?: string}> = {};
                             if (Array.isArray(cmd.items)) {
                               cmd.items.forEach((itemObj: any) => {
@@ -426,7 +490,7 @@ Détails <ChevronRight size={16} />
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-serif text-[#1A1A1A]">Liste d'Achats Recommandée</h3>
-                    <button onClick={() => { setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="text-sm bg-[#F4C75B]/10 text-[#F4C75B] hover:bg-[#F4C75B]/20 px-4 py-2 rounded-lg font-medium transition-colors">
+                    <button onClick={() => { setOrderSelections({}); setOrderTvaRate(20); setIsNewOrderModalOpen(true); }} className="text-sm bg-[#F4C75B]/10 text-[#F4C75B] hover:bg-[#F4C75B]/20 px-4 py-2 rounded-lg font-medium transition-colors">
                       Créer des bons de commande
                     </button>
                   </div>
@@ -755,17 +819,18 @@ Détails <ChevronRight size={16} />
               const supplierId = formData.get('supplier') as string;
               const deliveryDate = formData.get('deliveryDate') as string;
               const categorie = formData.get('categorie') as string;
+              const tva = parseFloat(formData.get('tva') as string || '20');
               
               // gather selected items
               const selectedProducts: any[] = [];
-              let computedTotal = 0;
+              let computedHT = 0;
               Object.entries(orderSelections).forEach(([itemId, selection]) => {
                 if (selection.checked) {
                   const item = inventoryItems.find(i => i.id === itemId);
                   if (item) {
                     const price = parseFloat(selection.price || item.unitPrice || '0');
                     const qty = parseFloat(selection.qty || '1');
-                    computedTotal += (price * qty);
+                    computedHT += (price * qty);
                     selectedProducts.push({
                       id: item.id,
                       name: item.name,
@@ -783,7 +848,8 @@ Détails <ChevronRight size={16} />
                 return;
               }
 
-              
+              const tvaAmount = (computedHT * tva) / 100;
+              const computedTTC = computedHT + tvaAmount;
               
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
@@ -794,7 +860,9 @@ Détails <ChevronRight size={16} />
                   fournisseurId: supplierId,
                   date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
                   deliveryDate,
-                  montant: selectedCommande ? selectedCommande.montant : `${computedTotal.toFixed(2)} MAD`,
+                  montantHT: selectedCommande ? selectedCommande.montantHT : computedHT,
+                  tva: selectedCommande ? selectedCommande.tva : tva,
+                  montant: selectedCommande ? selectedCommande.montant : `${computedTTC.toFixed(2)} MAD`,
                   status: selectedCommande ? selectedCommande.status : 'En attente',
                   items: selectedProducts,
                   articles: selectedProducts.map(p => `${p.name} - ${p.quantity}`).join(', '),
@@ -857,14 +925,22 @@ Détails <ChevronRight size={16} />
                             <tr>
                               <th>Désignation de l'article</th>
                               <th>Quantité</th>
+                              <th>Prix unitaire HT</th>
+                              <th>Total HT</th>
                             </tr>
                           </thead>
                           <tbody>
                             ${selectedProducts.map(p => {
-                              return `<tr><td>${p.name}</td><td>${p.quantity} ${p.unit || ''}</td></tr>`;
+                              return `<tr><td>${p.name}</td><td>${p.quantity} ${p.unit || ''}</td><td>${parseFloat(p.expectedPrice || '0').toFixed(2)} MAD</td><td>${(parseFloat(p.expectedPrice || '0') * parseFloat(p.quantity || '0')).toFixed(2)} MAD</td></tr>`;
                             }).join('')}
                           </tbody>
                         </table>
+                        
+                        <div style="text-align: right; margin-top: 20px;">
+                          <p><strong>Total HT:</strong> ${computedHT.toFixed(2)} MAD</p>
+                          <p><strong>TVA (${tva}%):</strong> ${tvaAmount.toFixed(2)} MAD</p>
+                          <p style="font-size: 1.2em;"><strong>Total TTC:</strong> ${computedTTC.toFixed(2)} MAD</p>
+                        </div>
 
                         <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.</p>
                         
@@ -898,7 +974,7 @@ Détails <ChevronRight size={16} />
                 </datalist>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
                   <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
@@ -911,6 +987,10 @@ Détails <ChevronRight size={16} />
                       <option key={idx} value={cat} />
                     ))}
                   </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
+                  <input name="tva" type="number" min="0" max="100" value={orderTvaRate} onChange={(e) => setOrderTvaRate(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
               </div>
 

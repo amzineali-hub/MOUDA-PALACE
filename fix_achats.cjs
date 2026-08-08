@@ -1,65 +1,44 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/AchatsFournisseurs.tsx', 'utf8');
 
-// The modal block we want to keep
-const modalStr = `      <ConfirmModal 
-        isOpen={!!commandeToDelete}
-        title="Supprimer la commande"
-        message="Voulez-vous vraiment supprimer cette commande ?"
-        onConfirm={async () => {
-          if (commandeToDelete) {
-            try { await deleteDoc(doc(db, 'purchaseOrders', commandeToDelete)); } catch(e){}
-            setCommandeToDelete(null);
-          }
-        }}
-        onCancel={() => setCommandeToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!fournisseurToDelete}
-        title="Supprimer le fournisseur"
-        message="Voulez-vous vraiment supprimer ce fournisseur ?"
-        onConfirm={async () => {
-          if (fournisseurToDelete) {
-            try { await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete)); } catch(e){}
-            setFournisseurToDelete(null);
-          }
-        }}
-        onCancel={() => setFournisseurToDelete(null)}
-      />
-      <ConfirmModal 
-        isOpen={!!deliveryToReject}
-        title="Refuser la livraison"
-        message="Voulez-vous vraiment refuser entièrement cette livraison ?"
-        onConfirm={async () => {
-          if (deliveryToReject) {
-            try { 
-              await updateDoc(doc(db, 'purchaseOrders', deliveryToReject), { status: 'Rejetée' });
-              // Assuming showToast is available here, if not it's ok
-            } catch(e){}
-            setDeliveryToReject(null);
-          }
-        }}
-        onCancel={() => setDeliveryToReject(null)}
-      />`;
+const badCode = `    const handleGeneratePrevisions = () => {
+    setIsGeneratingPrevisions(true);
+    setTimeout(() => {
+      setPrevisions([
+        {
+          category: 'Produits Frais',
+          items: [
+            { name: 'Tomates (Catégorie 1)', quantity: '50 kg', supplier: 'Marché Central', reason: 'Forte demande prévue pour les salades (Hausse de 20% des réservations)' },
+            { name: 'Poulet Fermier', quantity: '120 kg', supplier: 'Ferme Atlas', reason: 'Menu spécial du weekend' },
+            { name: 'Saumon Frais', quantity: '30 kg', supplier: 'Marée Bleue', reason: 'Stock actuel critique (Reste 5 kg)' }
+          ]
+        },
+        {
+          category: 'Épicerie & Secs',
+          amount: '15 items',
+          items: [
+            { name: 'Riz Basmati', quantity: '100 kg', supplier: 'Atlas Food', reason: 'Réapprovisionnement mensuel optimal' },
+            { name: 'Huile d\'olive extra vierge', quantity: '40 L', supplier: 'Huileries du Sud', reason: 'Consommation accrue observée' }
+          ]
+        },
+        {
+          category: 'Boissons',
+          amount: '8 items',
+          items: [
+            { name: 'Eau Minérale (Plate)', quantity: '200 packs', supplier: 'Distributeur Boissons', reason: 'Prévision de fortes chaleurs cette semaine' },
+            { name: 'Jus d\\'orange frais', quantity: '50 L', supplier: 'Marché Central', reason: 'Consommation matinale au buffet en hausse' }
+          ]
+        }
+      ]);
+      setIsGeneratingPrevisions(false);
+      showToast('Prévisions générées avec succès par l\\'IA');
+    }, 2500);
+  };`;
 
-// Replace all occurrences of it with nothing
-code = code.split(modalStr).join('');
-
-// Re-add it only once before the end of AchatsFournisseurs
-const anchor = `setActiveTab={setActiveTab} />
-      )}
-    </div>
-  );
-}`;
-code = code.replace(anchor, `setActiveTab={setActiveTab} />
-      )}\n${modalStr}
-    </div>
-  );
-}`);
-
-// Also fix the commande/f variables
-code = code.replace(/setCommandeToDelete\(commande\.id\)/g, 'setCommandeToDelete(cmd.id)');
-code = code.replace(/setFournisseurToDelete\(f\.id\)/g, 'setFournisseurToDelete(fournisseur.id)');
-code = code.replace(/setDeliveryToReject\(commande\.id\)/g, 'setDeliveryToReject(cmd.id)');
-
-fs.writeFileSync('src/AchatsFournisseurs.tsx', code);
+if (code.includes(badCode)) {
+  code = code.replace(badCode, '');
+  fs.writeFileSync('src/AchatsFournisseurs.tsx', code);
+  console.log('Fixed AchatsFournisseurs');
+} else {
+  console.log('Not found');
+}

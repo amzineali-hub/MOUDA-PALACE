@@ -283,7 +283,7 @@ export default function DocumentsRestaurant() {
   };
 
   const handleDelete = async (docData: RestaurantDoc) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer le document "${docData.name}" ?`)) return;
+    
 
     try {
       if (docData.storagePath) {

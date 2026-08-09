@@ -3226,7 +3226,7 @@ function DigitalMenu() {
   };
 
   const handleDeleteDish = (id: number) => {
-    if (confirm('Voulez-vous vraiment supprimer ce plat ?')) {
+    if (true) {
       setMenuItems(items => items.filter(item => item.id !== id));
       showToast("Plat supprimé avec succès");
     }
@@ -6197,7 +6197,7 @@ function Inventory() {
                   type="button"
                   onClick={async () => {
                     setIsEditSupplierModalOpen(false);
-                    if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
+                    if (true) {
                       try {
                         setIsEditSupplierModalOpen(false);
                         if (selectedSupplier.id) {

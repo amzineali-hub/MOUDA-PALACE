@@ -329,7 +329,7 @@ export default function ZonesStockage() {
                         <td className="px-4 py-2 text-right">
                           <button 
                             onClick={async () => {
-                              if (window.confirm('Voulez-vous supprimer ce sous-emplacement ?')) {
+                              if (true) {
                                 try {
                                   await deleteDoc(doc(db, 'subZones', sz.id));
                                   showToast("Sous-emplacement supprimé");

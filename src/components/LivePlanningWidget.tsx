@@ -31,9 +31,16 @@ export default function LivePlanningWidget() {
         area: staff.department || "Général",
         status: staff.status === "Actif" ? "actif" : (staff.status === "En congé" || staff.status === "Absent") ? "pause" : "actif",
         time: staff.shift && staff.shift !== "-" ? staff.shift : "08:00 - 16:00",
-        photo: (staff.photo && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100") ? staff.photo : defaultPhotos[index % defaultPhotos.length]
+        photo: (staff.photo && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100") ? staff.photo : defaultPhotos[(staff.name || "").split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % defaultPhotos.length]
       }));
-      setActiveStaff(formattedStaff.slice(0, 4)); // Limiting to 4 for the widget layout
+      formattedStaff.sort((a, b) => {
+        const isMoudaA = a.name.includes("Mohamed Mouda");
+        const isMoudaB = b.name.includes("Mohamed Mouda");
+        if (isMoudaA && !isMoudaB) return -1;
+        if (!isMoudaA && isMoudaB) return 1;
+        return 0;
+      });
+      setActiveStaff(formattedStaff); // Limiting to 4 for the widget layout
     });
     return () => unsub();
   }, []);
@@ -63,7 +70,7 @@ export default function LivePlanningWidget() {
       </div>
 
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
         variants={{
           hidden: { opacity: 0 },
           show: {

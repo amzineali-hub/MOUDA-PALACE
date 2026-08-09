@@ -199,7 +199,7 @@ export default function TracabiliteHACCP() {
                             <>
                               <button 
                                 onClick={async () => {
-                                  if(confirm('Marquer ce lot comme consommé ?')) {
+                                  if (true) {
                                     try {
                                       await updateDoc(doc(db, 'haccpLots', lot.id), { status: 'Consommé' });
                                       showToast('Lot marqué comme consommé', 'success');
@@ -213,7 +213,7 @@ export default function TracabiliteHACCP() {
                               </button>
                               <button 
                                 onClick={async () => {
-                                  if(confirm('Marquer ce lot comme jeté (perte) ?')) {
+                                  if(true) {
                                     try {
                                       await updateDoc(doc(db, 'haccpLots', lot.id), { status: 'Jeté' });
                                       showToast('Lot marqué comme jeté', 'success');

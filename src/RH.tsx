@@ -157,15 +157,10 @@ export default function RH() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'staff'), async (snapshot) => {
-      const data: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
       
       // Si la base de données est vide, on restaure les données initiales
-            const moudaExists = data.some(s => s.name === 'Si Mohamed Mouda');
-      if (!moudaExists && data.length > 0) {
-        try {
-          await addDoc(collection(db, 'staff'), { name: 'Si Mohamed Mouda', role: 'Administratif', department: 'Management', phone: '+212674293063', email: 'moudapalace@gmail.com', status: 'Actif', shift: 'Matin', baseSalary: 25000, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2023-01-01', language: 'Français, Anglais, Arabe', empId: `EMP-${Date.now().toString().slice(-4)}` });
-        } catch (e) { console.error(e) }
-      }
+            
       
       if (data.length === 0) {
         const initialStaff = [
@@ -188,6 +183,13 @@ export default function RH() {
           console.error("Error seeding initial staff:", e);
         }
       } else {
+        data.sort((a, b) => {
+          const isMoudaA = a.name.includes("Mohamed Mouda");
+          const isMoudaB = b.name.includes("Mohamed Mouda");
+          if (isMoudaA && !isMoudaB) return -1;
+          if (!isMoudaA && isMoudaB) return 1;
+          return 0;
+        });
         setStaffData(data);
       }
     });
@@ -322,7 +324,7 @@ export default function RH() {
   };
 
   const handleDeleteStaff = async (id: string) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer cet employé ?')) return;
+    
     try {
       if (id) {
         await deleteDoc(doc(db, 'staff', id));
@@ -404,7 +406,9 @@ export default function RH() {
                           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-400 overflow-hidden">
                              {(() => {
   const isDefaultMan = staff.photo === "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" || staff.photo === "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100";
-  const finalPhoto = (staff.photo && !isDefaultMan) ? staff.photo : ["https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100"][idx % 5];
+  const photoPool = ["https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100"];
+const nameHash = staff.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+const finalPhoto = (staff.photo && !isDefaultMan) ? staff.photo : photoPool[nameHash % photoPool.length];
   return finalPhoto ? <img src={finalPhoto} alt={staff.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : staff.name.charAt(0);
 })()}
                           </div>
@@ -439,7 +443,7 @@ export default function RH() {
       {activeTab === 'payroll' && (
         <div className="space-y-6">
            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-900">Historique des Paies</h3>
+              <h3 className="text-xl font-bold text-gray-900">État des Paies & Staff</h3>
               <button onClick={() => setIsPayrollModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
                  <Calculator size={18} /> Générer une fiche
               </button>
@@ -459,23 +463,38 @@ export default function RH() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
-                   {payrollList.map((item, idx) => (
-                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                       <td className="p-4 font-medium text-gray-900">{item.name}</td>
+                   {staffData.map((staff, idx) => {
+                     const item = payrollList.find(p => p.name === staff.name) || {
+                       period: '-',
+                       base: staff.baseSalary,
+                       net: '-',
+                       status: 'Non généré',
+                       id: null
+                     };
+                     
+                     return (
+                     <tr key={staff.id} className="hover:bg-gray-50 transition-colors">
+                       <td className="p-4 font-medium text-gray-900">{staff.name}</td>
                        <td className="p-4 text-gray-600">{item.period}</td>
-                       <td className="p-4 text-gray-600">{item.base} MAD</td>
+                       <td className="p-4 text-gray-600">{staff.baseSalary} MAD</td>
                        <td className="p-4 font-bold text-green-600">{item.net}</td>
-                       <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
+                       <td className="p-4"><span className={`px-2 py-1 text-xs rounded-full ${item.status === 'Payé' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{item.status}</span></td>
                        <td className="p-4 text-right">
-                         <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg">
-                           <FileText size={16} />
-                         </button>
+                         {item.id ? (
+                           <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg" title="Voir la fiche">
+                             <FileText size={16} />
+                           </button>
+                         ) : (
+                           <button onClick={() => { /* We could open modal pre-selected for this staff */ setIsPayrollModalOpen(true); }} className="text-gray-400 hover:text-[#F4C75B] p-2 bg-gray-50 rounded-lg" title="Générer une fiche">
+                             <Calculator size={16} />
+                           </button>
+                         )}
                        </td>
                      </tr>
-                   ))}
-                   {payrollList.length === 0 && (
+                   )})}
+                   {staffData.length === 0 && (
                      <tr>
-                       <td colSpan={6} className="p-8 text-center text-gray-500">Aucune fiche de paie générée.</td>
+                       <td colSpan={6} className="p-8 text-center text-gray-500">Aucun employé dans l'annuaire.</td>
                      </tr>
                    )}
                  </tbody>
@@ -495,14 +514,28 @@ export default function RH() {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-gray-100 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white">
-              <h3 className="text-xl font-serif font-medium text-gray-900">
-                Bulletin de Paie - {selectedPayslip.name}
+            {/* Toolbar */}
+            <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <FileText size={20} className="text-[#265C6D]" />
+                Fiche de Paie - {selectedPayslip.name} ({selectedPayslip.period})
               </h3>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={() => {
-                    setTimeout(() => window.print(), 100);
+                    const printContent = document.getElementById('payslip-print-area');
+                    if (printContent) {
+                      const win = window.open('', '', 'width=800,height=600');
+                      win?.document.write('<html><head><title>Fiche de Paie</title>');
+                      win?.document.write('<script src="https://cdn.tailwindcss.com"></script>');
+                      win?.document.write('</head><body class="p-4 bg-white text-black print:p-0">');
+                      win?.document.write(printContent.innerHTML);
+                      win?.document.write('</body></html>');
+                      win?.document.close();
+                      setTimeout(() => {
+                        win?.print();
+                      }, 1000);
+                    }
                   }} 
                   className="px-4 py-1.5 bg-[#F4C75B] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >

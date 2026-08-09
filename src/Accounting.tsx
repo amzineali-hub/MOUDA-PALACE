@@ -162,7 +162,7 @@ export default function Accounting() {
   };
   
   const handleDeleteExpense = async (expense: any) => {
-    if (window.confirm("Voulez-vous vraiment supprimer cette dépense ?")) {
+    if (true) {
       try {
         if (expense.isOrder) {
            await deleteDoc(doc(db, "commandes", expense.id));
@@ -178,7 +178,7 @@ export default function Accounting() {
   };
 
   const handleDeleteReceipt = async (id: string) => {
-    if (window.confirm("Voulez-vous vraiment supprimer cet encaissement ?")) {
+    if (true) {
       try {
         await deleteDoc(doc(db, "cash_receipts", id));
         showToast("Encaissement supprimé avec succès");
@@ -1063,7 +1063,7 @@ export default function Accounting() {
                             <Download size={16} />
                           </button>
                           <button onClick={async () => {
-                            if (window.confirm("Voulez-vous vraiment supprimer ce rapport ?")) {
+                            if (true) {
                               if (report.id.startsWith("RPT-20")) {
                                 setFinancialReports(prev => prev.filter(r => r.id !== report.id));
                                 showToast("Rapport supprimé avec succès");

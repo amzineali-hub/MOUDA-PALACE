@@ -339,7 +339,7 @@ export default function BlogWriterAI() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cet article ?")) {
+    if (true) {
       try {
         await deleteDoc(doc(db, 'blog_posts', id));
         showToast("Article supprimé.");

@@ -755,29 +755,20 @@ function App() {
             <span>Tableau de Bord Exécutif</span>
           </button>
 
-          <button
-            onClick={() => handleTabChange('finance')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
-              activeTab === 'finance'
-                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
-                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
-            }`}
-          >
-            <Wallet size={18} />
-            <span>Caisse / POS Tactile</span>
-          </button>
 
-          <button
-            onClick={() => handleTabChange('docs_devices')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium mb-4 ${
-              activeTab === 'docs_devices'
-                ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
-                : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
-            }`}
+
+
+          <NavCategory 
+            title="Écrans Tactiles & Cuisine" 
+            icon={<Monitor size={18} />}
+            isExpanded={expandedCategory === 'ecrans'}
+            onClick={() => setExpandedCategory(expandedCategory === 'ecrans' ? null : 'ecrans')}
           >
-            <Monitor size={18} />
-            <span>Gestion Écrans Tactile & Cuisine</span>
-          </button>
+            <SubNavItem icon={<Wallet size={16} />} label="Caisse / POS Tactile" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
+            <SubNavItem icon={<Monitor size={16} />} label="Gestion des Appareils" active={activeTab === 'docs_devices'} onClick={() => handleTabChange('docs_devices')} />
+            <SubNavItem icon={<ChefHat size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
+          </NavCategory>
+
 
           <button
             onClick={() => handleTabChange('menu')}
@@ -801,7 +792,6 @@ function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
           >
             <SubNavItem icon={<Package size={16} />} label="État des Stocks" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
-            <SubNavItem icon={<AlertCircle size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
             <SubNavItem icon={<Package size={16} />} label="Zones & Économat" active={activeTab === 'zones'} onClick={() => handleTabChange('zones')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Fiches Techniques" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />

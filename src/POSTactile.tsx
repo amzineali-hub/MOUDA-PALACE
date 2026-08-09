@@ -278,7 +278,7 @@ export default function POSTactile() {
           qty: item.qty || 1,
           status: 'À faire',
           progress: 0,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
           source: 'POS',
           priority: 'Haute'
         });

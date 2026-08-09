@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Users, Clock, ArrowRight, UserCheck } from 'lucide-react';
+import { Users, Clock } from 'lucide-react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function LivePlanningWidget() {
   const [time, setTime] = useState(new Date());
+  const [activeStaff, setActiveStaff] = useState<any[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000); // update every minute
     return () => clearInterval(timer);
   }, []);
 
-  const activeStaff = [
-    { id: 1, name: "Amine K.", role: "Chef de Rang", area: "Terrasse", status: "actif", time: "14:00 - 22:00", photo: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100" },
-    { id: 2, name: "Sarah M.", role: "Manager", area: "Salle Principale", status: "actif", time: "16:00 - 00:00", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100" },
-    { id: 3, name: "Youssef T.", role: "Chef de Cuisine", area: "Cuisine", status: "actif", time: "15:00 - 23:00", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100" },
-    { id: 4, name: "Sofia B.", role: "Serveuse", area: "Terrasse", status: "pause", time: "12:00 - 20:00", photo: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100" }
-  ];
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'staff'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      const defaultPhotos = [
+        "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100",
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100",
+        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100",
+        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100"
+      ];
+      
+      const formattedStaff = data.map((staff, index) => ({
+        id: staff.id,
+        name: staff.name || "Inconnu",
+        role: staff.role || "Non défini",
+        area: staff.department || "Général",
+        status: staff.status === "Actif" ? "actif" : (staff.status === "En congé" || staff.status === "Absent") ? "pause" : "actif",
+        time: staff.shift && staff.shift !== "-" ? staff.shift : "08:00 - 16:00",
+        photo: (staff.photo && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" && staff.photo !== "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100") ? staff.photo : defaultPhotos[index % defaultPhotos.length]
+      }));
+      setActiveStaff(formattedStaff.slice(0, 4)); // Limiting to 4 for the widget layout
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <motion.div
@@ -76,7 +97,6 @@ export default function LivePlanningWidget() {
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-[#F4C75B]"></span>
               </span>
             )}
-
             <div className="relative w-16 h-16 shrink-0">
               <img 
                 src={staff.photo} 

@@ -153,50 +153,93 @@ export default function RH() {
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
 
-  const initialStaff = [
-    { id: 'EMP-01', name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', email: 'ahmed.b@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 14500, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2022-03-15', language: 'Français, Arabe' },
-    { id: 'EMP-02', name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', email: 'karima.i@moudapalace.com', status: 'Actif', shift: 'Matin', baseSalary: 9500, photo: '', cin: 'AB98765', cnss: '987654321', hireDate: '2023-01-10', language: 'Français, Anglais, Arabe' },
-    { id: 'EMP-03', name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', email: 'youssef.t@moudapalace.com', status: 'En congé', shift: '-', baseSalary: 4000, photo: '', cin: 'C456789', cnss: '456123789', hireDate: '2024-06-01', language: 'Français, Arabe' },
-    { id: 'EMP-04', name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', email: 'sofia.a@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 6000, photo: '', cin: 'D654321', cnss: '789123456', hireDate: '2024-02-20', language: 'Français, Anglais, Espagnol' },
-  ];
+  const [staffData, setStaffData] = useState<any[]>([]);
 
-  const [staffData, setStaffData] = useState(initialStaff);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'staff'), async (snapshot) => {
+      const data: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Si la base de données est vide, on restaure les données initiales
+            const moudaExists = data.some(s => s.name === 'Si Mohamed Mouda');
+      if (!moudaExists && data.length > 0) {
+        try {
+          await addDoc(collection(db, 'staff'), { name: 'Si Mohamed Mouda', role: 'Administratif', department: 'Management', phone: '+212674293063', email: 'moudapalace@gmail.com', status: 'Actif', shift: 'Matin', baseSalary: 25000, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2023-01-01', language: 'Français, Anglais, Arabe', empId: `EMP-${Date.now().toString().slice(-4)}` });
+        } catch (e) { console.error(e) }
+      }
+      
+      if (data.length === 0) {
+        const initialStaff = [
+          { name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', email: 'ahmed.b@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 14500, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2022-03-15', language: 'Français, Arabe' },
+          { name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', email: 'karima.i@moudapalace.com', status: 'Actif', shift: 'Matin', baseSalary: 9500, photo: '', cin: 'AB98765', cnss: '987654321', hireDate: '2023-01-10', language: 'Français, Anglais, Arabe' },
+          { name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', email: 'youssef.t@moudapalace.com', status: 'En congé', shift: '-', baseSalary: 4000, photo: '', cin: 'C456789', cnss: '456123789', hireDate: '2024-06-01', language: 'Français, Arabe' },
+          { name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', email: 'sofia.a@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 6000, photo: '', cin: 'D654321', cnss: '789123456', hireDate: '2024-02-20', language: 'Français, Anglais, Espagnol' },
+          { name: 'Si Mohamed Mouda', role: 'Administratif', department: 'Management', phone: '+212674293063', email: 'moudapalace@gmail.com', status: 'Actif', shift: 'Matin', baseSalary: 25000, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2023-01-01', language: 'Français, Anglais, Arabe' },
+        ];
+        
+        try {
+          for (const staff of initialStaff) {
+            await addDoc(collection(db, 'staff'), {
+              ...staff,
+              empId: `EMP-${Date.now().toString().slice(-4)}`,
+              createdAt: serverTimestamp()
+            });
+          }
+        } catch (e) {
+          console.error("Error seeding initial staff:", e);
+        }
+      } else {
+        setStaffData(data);
+      }
+    });
+    return () => unsub();
+  }, []);
   
-  const [leavesList, setLeavesList] = useState([
-    { id: 1, name: "Sofia Amrani", type: "Congé Annuel", dates: "12 Août - 26 Août", status: "En attente" },
-    { id: 2, name: "Karima Idrissi", type: "Maladie", dates: "Aujourd'hui", status: "Approuvé" }
-  ]);
+  const [leavesList, setLeavesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'leaves'), (snapshot) => {
+      setLeavesList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
   
-  const [evaluationsList, setEvaluationsList] = useState([
-    { id: 1, name: "Ahmed Benali", role: "Chef de Cuisine", score: "4.8/5", date: "Juin 2026", next: "Déc 2026" },
-    { id: 2, name: "Karima Idrissi", role: "Maître d'Hôtel", score: "4.9/5", date: "Jan 2026", next: "Juil 2026" },
-    { id: 3, name: "Sofia Amrani", role: "Réceptionniste", score: "4.5/5", date: "Fév 2026", next: "Août 2026" }
-  ]);
+  const [evaluationsList, setEvaluationsList] = useState<any[]>([]);
 
-  const [trainingSessions, setTrainingSessions] = useState([
-    { id: 1, title: "Hygiène et Sécurité Alimentaire (HACCP)", date: "15 Juillet 2026", participants: 8, status: "Planifié", trainer: "Expert Externe" },
-    { id: 2, title: "Standards de Service Salle", date: "02 Juin 2026", participants: 12, status: "Complété", trainer: "Karima Idrissi" },
-    { id: 3, title: "Introduction aux Vins Locaux", date: "10 Août 2026", participants: 5, status: "Planifié", trainer: "Sommelier Invité" }
-  ]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'evaluations'), (snapshot) => {
+      setEvaluationsList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
 
-  const [rolesList, setRolesList] = useState([
-    { id: 1, role: "Administrateur", users: 2, access: "Accès total à tous les modules" },
-    { id: 2, role: "Manager", users: 3, access: "Accès à la gestion des stocks, personnel et réservations. Pas d'accès financier." },
-    { id: 3, role: "Cuisine", users: 5, access: "Accès aux commandes, recettes et plan de production." },
-    { id: 4, role: "Réception", users: 4, access: "Accès aux réservations et annuaire client." }
-  ]);
+  const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
 
-  const [scheduleData, setScheduleData] = useState([
-    { id: 1, name: "Ahmed Benali", mon: "15:00 - 23:30", tue: "15:00 - 23:30", wed: "15:00 - 23:30", thu: "15:00 - 23:30", fri: "15:00 - 23:30", sat: "Repos", sun: "Repos" },
-    { id: 2, name: "Karima Idrissi", mon: "08:00 - 16:30", tue: "08:00 - 16:30", wed: "08:00 - 16:30", thu: "08:00 - 16:30", fri: "Repos", sat: "Repos", sun: "08:00 - 16:30" },
-    { id: 3, name: "Youssef Tazi", mon: "Repos", tue: "Repos", wed: "15:00 - 23:30", thu: "15:00 - 23:30", fri: "15:00 - 23:30", sat: "15:00 - 23:30", sun: "15:00 - 23:30" },
-  ]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'training'), (snapshot) => {
+      setTrainingSessions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
 
-  const [attendanceList, setAttendanceList] = useState([
-    { id: 1, name: "Ahmed Benali", in: "08:15", out: "-", status: "En poste" },
-    { id: 2, name: "Karima Idrissi", in: "08:30", out: "-", status: "En poste" },
-    { id: 3, name: "Youssef Tazi", in: "-", out: "-", status: "Absent" }
-  ]);
+  const [rolesList, setRolesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'roles'), (snapshot) => {
+      setRolesList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const [scheduleData, setScheduleData] = useState<any[]>([]);
+
+  const [attendanceList, setAttendanceList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'attendance'), (snapshot) => {
+      setAttendanceList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsub();
+  }, []);
 
   const [payrollList, setPayrollList] = useState<any[]>([]);
 
@@ -231,12 +274,21 @@ export default function RH() {
   const [filterDept, setFilterDept] = useState('Tous');
   const [filterStatus, setFilterStatus] = useState('Tous');
 
-  const handleSaveStaff = (e: any) => {
+  const handleSaveStaff = async (e: any) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    let photoDataUrl = editingStaff?.photo || "";
+    const file = formData.get('photoFile') as File;
+    if (file && file.size > 0) {
+      photoDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    }
+
     const newStaff = {
-      id: editingStaff?.id || `EMP-${Date.now().toString().slice(-4)}`,
       name: formData.get('name') as string,
       role: formData.get('role') as string,
       department: formData.get('department') as string,
@@ -245,23 +297,28 @@ export default function RH() {
       status: formData.get('status') as string,
       shift: formData.get('shift') as string || '-',
       baseSalary: Number(formData.get('baseSalary')) || 4000,
-      photo: formData.get('photo') as string,
+      photo: photoDataUrl,
       cin: formData.get('cin') as string,
       cnss: formData.get('cnss') as string,
       hireDate: formData.get('hireDate') as string,
       language: formData.get('language') as string,
+      updatedAt: serverTimestamp()
     };
 
-    if (editingStaff) {
-      setStaffData(prev => prev.map(s => s.id === editingStaff.id ? newStaff : s));
-      showToast("Employé mis à jour avec succès");
-    } else {
-      setStaffData(prev => [...prev, newStaff]);
-      showToast("Employé ajouté avec succès");
+    try {
+      if (editingStaff?.id) {
+        await updateDoc(doc(db, 'staff', editingStaff.id), newStaff);
+        showToast("Employé mis à jour avec succès");
+      } else {
+        await addDoc(collection(db, 'staff'), { ...newStaff, createdAt: serverTimestamp(), empId: `EMP-${Date.now().toString().slice(-4)}` });
+        showToast("Employé ajouté avec succès");
+      }
+      setIsModalOpen(false);
+      setEditingStaff(null);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la sauvegarde", "error");
     }
-    
-    setIsModalOpen(false);
-    setEditingStaff(null);
   };
 
   const handleDeleteStaff = async (id: string) => {
@@ -334,17 +391,22 @@ export default function RH() {
                 <option value="Tous">Tous les départements</option>
                 <option value="Cuisine">Cuisine</option>
                 <option value="Salle">Salle</option>
-                <option value="Direction">Direction</option>
+                <option value="Accueil">Accueil</option>
+                <option value="Management">Management</option>
               </select>
            </div>
            
            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredStaff.map(staff => (
+              {filteredStaff.map((staff, idx) => (
                  <div key={staff.id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm flex flex-col hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-4">
                        <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-400 overflow-hidden">
-                             {staff.photo ? <img src={staff.photo} alt={staff.name} className="w-full h-full object-cover" /> : staff.name.charAt(0)}
+                             {(() => {
+  const isDefaultMan = staff.photo === "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop" || staff.photo === "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100";
+  const finalPhoto = (staff.photo && !isDefaultMan) ? staff.photo : ["https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100&h=100", "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=100&h=100"][idx % 5];
+  return finalPhoto ? <img src={finalPhoto} alt={staff.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : staff.name.charAt(0);
+})()}
                           </div>
                           <div>
                              <h3 className="font-bold text-gray-900">{staff.name}</h3>
@@ -655,8 +717,13 @@ export default function RH() {
               <form onSubmit={handleSaveStaff} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo (URL optionnelle)</label>
-                  <input name="photo" defaultValue={editingStaff?.photo} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="https://..." />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Importer une photo</label>
+                  <div className="flex items-center gap-4">
+                    {editingStaff?.photo && (
+                       <img src={editingStaff?.photo} alt="Current" className="w-12 h-12 rounded-full object-cover border border-gray-200 shrink-0" />
+                    )}
+                    <input name="photoFile" type="file" accept="image/*" className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#F4C75B]/10 file:text-[#265C6D] hover:file:bg-[#F4C75B]/20" />
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nom complet</label>
@@ -828,16 +895,17 @@ export default function RH() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              setEvaluationsList([...evaluationsList, {
-                id: Date.now(),
+              addDoc(collection(db, 'evaluations'), {
                 name: formData.get('staffName') as string,
                 role: "Poste",
                 score: `${formData.get('score')}/5`,
                 date: "Aujourd'hui",
-                next: "Dans 6 mois"
-              }]);
-              showToast("Évaluation enregistrée");
-              setIsEvalModalOpen(false);
+                next: "Dans 6 mois",
+                createdAt: serverTimestamp()
+              }).then(() => {
+                showToast("Évaluation enregistrée");
+                setIsEvalModalOpen(false);
+              });
             }} className="p-6">
               <div className="space-y-4">
                 <div>
@@ -946,14 +1014,17 @@ export default function RH() {
                 users: editingRole?.users || 0,
                 access: formData.get('access') as string
               };
-              if (editingRole) {
-                setRolesList(rolesList.map(r => r.id === editingRole.id ? newRole : r));
-                showToast("Rôle mis à jour");
+              if (editingRole?.id && typeof editingRole.id === 'string') {
+                updateDoc(doc(db, 'roles', editingRole.id), newRole).then(() => {
+                  showToast("Rôle mis à jour");
+                  setIsRoleModalOpen(false);
+                });
               } else {
-                setRolesList([...rolesList, newRole]);
-                showToast("Rôle créé");
+                addDoc(collection(db, 'roles'), newRole).then(() => {
+                  showToast("Rôle créé");
+                  setIsRoleModalOpen(false);
+                });
               }
-              setIsRoleModalOpen(false);
             }} className="p-6">
               <div className="space-y-4">
                 <div>
@@ -1098,15 +1169,19 @@ export default function RH() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              setAttendanceList([...attendanceList, {
-                id: Date.now(),
+              addDoc(collection(db, 'attendance'), {
                 name: formData.get('staffName') as string,
                 in: formData.get('timeIn') as string || "-",
                 out: formData.get('timeOut') as string || "-",
-                status: formData.get('timeOut') ? "Terminé" : "En poste"
-              }]);
-              showToast("Pointage enregistré");
-              setIsAttendanceModalOpen(false);
+                status: formData.get('timeOut') ? "Terminé" : "En poste",
+                createdAt: serverTimestamp()
+              }).then(() => {
+                showToast("Pointage enregistré");
+                setIsAttendanceModalOpen(false);
+              }).catch(e => {
+                console.error(e);
+                showToast("Erreur d'enregistrement", "error");
+              });
             }} className="p-6">
               <div className="space-y-4">
                 <div>

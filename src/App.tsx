@@ -1,3 +1,4 @@
+import SyncStatusPanel from "./components/SyncStatusPanel";
 import MenuGenerator from "./MenuGenerator";
 import ZonesStockage from "./ZonesStockage";
 import BarcodeScanner from "./components/BarcodeScanner";
@@ -6,7 +7,7 @@ import BarcodeScanner from "./components/BarcodeScanner";
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, ReactNode, useMemo, useRef } from 'react';
+import { useState, useEffect, ReactNode, useMemo, useRef, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
@@ -17,7 +18,7 @@ import {
   ChefHat, 
   Users, 
   MessageCircle, 
-  Settings, 
+  Settings, Database, 
   MapPin, 
   TrendingUp, 
   CalendarCheck,
@@ -101,8 +102,8 @@ import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
-import Accounting from './Accounting';
-import BlogWriterAI from './BlogWriterAI';
+const Accounting = lazy(() => import('./Accounting'));
+const BlogWriterAI = lazy(() => import('./BlogWriterAI'));
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
 import Documentation from "./Documentation";
 import GuideEcrans from "./GuideEcrans";
@@ -119,7 +120,7 @@ import DeviceManagement from "./DeviceManagement";
 import DeviceSimulator from "./DeviceSimulator";
 import SystemMonitoring from "./SystemMonitoring";
 import LivePlanningWidget from "./components/LivePlanningWidget";
-import RH from './RH';
+const RH = lazy(() => import('./RH'));
 import NotificationSystem from './NotificationSystem';
 import DocumentsRestaurant from "./DocumentsRestaurant";
 
@@ -901,7 +902,9 @@ function App() {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className={isFullScreenView ? "h-full" : "min-h-full"}
           >
-            {renderContent()}
+            <Suspense fallback={<div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><div className="w-8 h-8 border-4 border-[#F4C75B] border-t-transparent rounded-full animate-spin"></div><p>Chargement du module...</p></div>}>
+              {renderContent()}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -4150,7 +4153,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'zones', 'requirements', 'semi_finished', 'production', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
+          {['stocks', 'zones', 'requirements', 'semi_finished', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -4158,9 +4161,8 @@ function Inventory() {
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
               {tab === 'requirements' && 'Besoins & Seuils'}
-              
               {tab === 'semi_finished' && 'Plats Semi-finis'}
-              {tab === 'production' && 'Production Journalière'}
+              
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
@@ -7211,6 +7213,7 @@ function Configuration() {
         <div className="w-full lg:w-64 flex flex-col gap-2">
           <SettingsTab active={activeSettingsTab === 'general'} onClick={() => setActiveSettingsTab('general')} icon={<Building size={18} />} label="Général" />
           <SettingsTab active={activeSettingsTab === 'integrations'} onClick={() => setActiveSettingsTab('integrations')} icon={<Globe size={18} />} label="Intégrations & IA" />
+          <SettingsTab active={activeSettingsTab === 'sync'} onClick={() => setActiveSettingsTab('sync')} icon={<Database size={18} />} label="Synchronisation Firestore" />
           <SettingsTab active={activeSettingsTab === 'website'} onClick={() => setActiveSettingsTab('website')} icon={<Globe size={18} />} label="Site Web (moudapalace.com)" />
           <SettingsTab active={activeSettingsTab === 'billing'} onClick={() => setActiveSettingsTab('billing')} icon={<CreditCard size={18} />} label="Facturation & Stripe" />
           <SettingsTab active={activeSettingsTab === 'notifications'} onClick={() => setActiveSettingsTab('notifications')} icon={<Bell size={18} />} label="Notifications" />
@@ -7284,6 +7287,10 @@ function Configuration() {
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {activeSettingsTab === 'sync' && (
+            <SyncStatusPanel />
           )}
 
           {activeSettingsTab === 'integrations' && (

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface Employee {
   id: string;
@@ -51,11 +53,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
 
-  const handleIAPlanning = () => {
+  const handleIAPlanning = async () => {
     setIsGenerating(true);
     showToast("Analyse IA en cours : contraintes, disponibilités et historique...");
     
-    setTimeout(() => {
+    setTimeout(async () => {
       const newShifts = [];
       employees.forEach(emp => {
         weekDays.forEach(day => {
@@ -76,13 +78,23 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
           }
         });
       });
-      setShifts([...shifts, ...newShifts]);
-      setIsGenerating(false);
-      showToast("Planning optimal généré avec succès ✨");
+      try {
+        for (const ns of newShifts) {
+          await addDoc(collection(db, 'shifts'), {
+            ...ns,
+            createdAt: serverTimestamp()
+          });
+        }
+        setIsGenerating(false);
+        showToast("Planning optimal généré avec succès ✨");
+      } catch (e) {
+        console.error(e);
+        setIsGenerating(false);
+      }
     }, 2500);
   };
 
-  const handleGenericSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleGenericSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const empId = formData.get('employeeId') as string;
@@ -106,9 +118,17 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       colorType
     };
 
-    setShifts([...shifts, newShift]);
-    setIsGenericModalOpen(false);
-    showToast("Shift ajouté avec succès");
+    try {
+      await addDoc(collection(db, 'shifts'), {
+        ...newShift,
+        createdAt: serverTimestamp()
+      });
+      setIsGenericModalOpen(false);
+      showToast("Shift ajouté avec succès");
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur d'ajout", "error");
+    }
   };
 
   // Mock data setup
@@ -130,23 +150,15 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     contractHours: s.contract === 'CDI' ? 44 : 20,
   }));
 
-  const [shifts, setShifts] = useState<Shift[]>([
-    // Available shifts
-    { id: 's1', employeeId: null, date: weekDays[1].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'pink' },
-    { id: 's2', employeeId: null, date: weekDays[2].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'pink' },
-    { id: 's3', employeeId: null, date: weekDays[5].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'green' },
-    { id: 's4', employeeId: null, date: weekDays[6].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'green' },
-    
-    // Employee shifts
-    { id: 's5', employeeId: employees[0]?.id, date: weekDays[0].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'orange' },
-    { id: 's6', employeeId: employees[0]?.id, date: weekDays[1].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'orange' },
-    { id: 's7', employeeId: employees[0]?.id, date: weekDays[3].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'orange' },
-    { id: 's8', employeeId: employees[0]?.id, date: weekDays[4].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'orange' },
+  const [shifts, setShifts] = useState<Shift[]>([]);
 
-    { id: 's9', employeeId: employees[1]?.id, date: weekDays[1].dateStr, startTime: '14:00', endTime: '18:00', hours: 4, colorType: 'blue' },
-    { id: 's10', employeeId: employees[1]?.id, date: weekDays[2].dateStr, startTime: '14:00', endTime: '18:00', hours: 4, colorType: 'blue' },
-    { id: 's11', employeeId: employees[1]?.id, date: weekDays[6].dateStr, startTime: '09:00', endTime: '17:00', hours: 8, colorType: 'blue' },
-  ]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'shifts'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any })) as Shift[];
+      setShifts(data);
+    });
+    return () => unsub();
+  }, []);
 
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{empId: string | null, date: string} | null>(null);
@@ -178,7 +190,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     setIsShiftModalOpen(true);
   };
 
-  const addNewShift = (e: React.FormEvent<HTMLFormElement>) => {
+  const addNewShift = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedCell) return;
 
@@ -202,8 +214,15 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       colorType
     };
 
-    setShifts([...shifts, newShift]);
-    setIsShiftModalOpen(false);
+    try {
+      await addDoc(collection(db, 'shifts'), {
+        ...newShift,
+        createdAt: serverTimestamp()
+      });
+      setIsShiftModalOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (

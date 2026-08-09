@@ -350,7 +350,7 @@ export default function AchatsFournisseurs() {
                             setSelectedCommande(cmd);
                             setIsDetailsModalOpen(true);
                           }}
-                          className="text-[#F4C75B] hover:text-[#C89845] font-medium text-sm flex items-center justify-end gap-1">
+                          className="text-[#265C6D] hover:text-[#1a3d48] font-medium text-sm flex items-center justify-end gap-1">
 <Eye size={16} /> Visualiser
 </button>
 <button onClick={() => {

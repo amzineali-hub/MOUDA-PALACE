@@ -615,11 +615,11 @@ function App() {
           <div 
              className="h-10 w-12 bg-[#F4C75B]" 
              style={{
-              maskImage: 'url(/mouda-1-1.png)',
+              maskImage: 'url(/mouda-1-1-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda-1-1.png)',
+              WebkitMaskImage: 'url(/mouda-1-1-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -644,11 +644,11 @@ function App() {
             <div
                 className="h-10 w-12 bg-[#F4C75B]"
                 style={{
-                maskImage: 'url(/mouda-1-1.png)',
+                maskImage: 'url(/mouda-1-1-1.png)',
                 maskSize: 'contain',
                 maskRepeat: 'no-repeat',
                 maskPosition: 'center',
-                WebkitMaskImage: 'url(/mouda-1-1.png)',
+                WebkitMaskImage: 'url(/mouda-1-1-1.png)',
                 WebkitMaskSize: 'contain',
                 WebkitMaskRepeat: 'no-repeat',
                 WebkitMaskPosition: 'center'
@@ -665,11 +665,11 @@ function App() {
           <div 
             className="h-24 w-32 mb-4 bg-[#F4C75B]" 
             style={{
-              maskImage: 'url(/mouda-1-1.png)',
+              maskImage: 'url(/mouda-1-1-1.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/mouda-1-1.png)',
+              WebkitMaskImage: 'url(/mouda-1-1-1.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
@@ -1209,7 +1209,7 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
       >
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-[3000ms] ease-out group-hover:scale-105"
-          style={{ backgroundImage: "url('/img1-3.png')" }}
+          style={{ backgroundImage: "url('/img1-1.png')" }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#FDFBF7] pointer-events-none"></div>
       </div>
@@ -7526,11 +7526,11 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
       >
         <div className="text-center mb-12">
           <div className="mx-auto h-20 w-24 bg-[#F4C75B] mb-6" style={{
-            maskImage: 'url(/mouda-1-1.png)',
+            maskImage: 'url(/mouda-1-1-1.png)',
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
-            WebkitMaskImage: 'url(/mouda-1-1.png)',
+            WebkitMaskImage: 'url(/mouda-1-1-1.png)',
             WebkitMaskSize: 'contain',
             WebkitMaskRepeat: 'no-repeat',
             WebkitMaskPosition: 'center'

@@ -99,23 +99,6 @@ export const processUnifiedProduction = async (
         timestamp: serverTimestamp()
       });
       
-      // 4. Generate HACCP lot for Production Journalière
-      const lotRef = doc(collection(db, 'haccpLots'));
-      const lotNumber = `LOT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*1000).toString().padStart(3, '0')}`;
-      const dlcDate = new Date();
-      dlcDate.setDate(dlcDate.getDate() + 3); 
-      
-      transaction.set(lotRef, {
-        lotNumber,
-        itemName: itemName,
-        operator: chefResponsable,
-        quantity,
-        dlcDays: 3,
-        dlcDate: dlcDate.toISOString(),
-        status: 'Validé',
-        createdAt: serverTimestamp(),
-        source: 'Production Automatique'
-      });
       
       // Credit inventory with produced item (semi-finished or finished)
       const producedItem = inventoryItems.find(i => (i.name || '').toLowerCase() === itemName.toLowerCase());

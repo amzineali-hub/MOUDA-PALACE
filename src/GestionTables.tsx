@@ -194,7 +194,7 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                 </div>
                 <button 
                   onClick={() => {
-                    if (true) {
+                    if (window.confirm(`Voulez-vous vraiment supprimer la table ${table.id} ?`)) {
                       deleteDoc(doc(db, 'tables', table.fbId)).then(() => showToast('Table supprimée')).catch(() => showToast('Erreur lors de la suppression', 'error'));
                     }
                   }}

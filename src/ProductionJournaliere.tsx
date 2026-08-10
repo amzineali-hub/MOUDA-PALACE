@@ -71,7 +71,7 @@ export default function ProductionJournaliere() {
   }, []);
 
   const handleDeleteOrder = async (id: string) => {
-    if (true) {
+    if (window.confirm('Voulez-vous vraiment supprimer cet ordre de production (l\'historique sera effacé mais le stock restera inchangé) ?')) {
       try {
         await deleteDoc(doc(db, 'productionOrders', id));
         showToast("Ordre de production supprimé avec succès");

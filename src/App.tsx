@@ -1,6 +1,5 @@
 import SyncStatusPanel from "./components/SyncStatusPanel";
 import MenuGenerator from "./MenuGenerator";
-import ZonesStockage from "./ZonesStockage";
 import BarcodeScanner from "./components/BarcodeScanner";
 /**
  * @license
@@ -96,7 +95,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, ThermometerSnowflake, LayoutDashboard } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -110,8 +109,6 @@ import GuideEcrans from "./GuideEcrans";
 import AchatsFournisseurs from "./AchatsFournisseurs";
 import FichesTechniques from "./FichesTechniques";
 import ProductionJournaliere from "./ProductionJournaliere";
-import TracabiliteHACCP from "./TracabiliteHACCP";
-import ChambreNegative from "./ChambreNegative";
 import TableauDeBord from "./TableauDeBord";
 import GestionTables from "./GestionTables";
 import POSTactile from "./POSTactile";
@@ -350,6 +347,7 @@ const normalizeCategory = (cat: string) => {
   if (c === 'Poissons' || c === 'Poissons & Fruits de mer' || c === 'Poissons et fruits de mer') return 'Poissons & Fruits de mer';
   if (c === 'Viandes' || c === 'Viande') return 'Viandes';
   if (c === 'Produits d\'entretien' || c === 'Produits de maintenance' || c === 'Hygiène & Entretien') return 'Hygiène & Entretien';
+  if (c === 'Boulangerie & Pâtisserie' || c === 'Boulangerie & Patisserie' || c === 'Boulangerie et Pâtisserie' || c === 'Boulangerie et Patisserie' || c === 'Pâtisserie' || c === 'Patisserie') return 'Patisseie';
   return c;
 };
 
@@ -364,6 +362,7 @@ const getCategoryImageUrl = (category: string) => {
     'Boissons': 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=150&q=80',
     'Produits Laitiers': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&w=150&q=80',
     'Boulangerie': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=150&q=80',
+    'Patisseie': 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=150&q=80',
     'Herbes': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&w=150&q=80',
     'Fruits Secs': 'https://images.unsplash.com/photo-1506484381205-f7945653044d?auto=format&fit=crop&w=150&q=80',
     'Épicerie': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80',
@@ -571,8 +570,6 @@ function App() {
         return <EcranCuisine />;
       case 'inventory':
         return <Inventory />;
-      case 'zones':
-        return <ZonesStockage />;
       case 'staff':
         return <RH />;
       case 'finance':
@@ -599,10 +596,6 @@ function App() {
         return <FichesTechniques />;
       case 'production_jour':
         return <ProductionJournaliere />;
-      case 'haccp':
-        return <TracabiliteHACCP />;
-      case 'chambre_negative':
-        return <ChambreNegative />;
       case 'dashboard':
         return <TableauDeBord />;
       case 'tables':
@@ -794,11 +787,8 @@ function App() {
           >
             <SubNavItem icon={<Package size={16} />} label="État des Stocks" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
-            <SubNavItem icon={<Package size={16} />} label="Zones & Économat" active={activeTab === 'zones'} onClick={() => handleTabChange('zones')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Fiches Techniques" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
             <SubNavItem icon={<Activity size={16} />} label="Ordres de Fabrication" active={activeTab === 'production_jour'} onClick={() => handleTabChange('production_jour')} />
-            <SubNavItem icon={<Package size={16} />} label="HACCP & Sous-Vide" active={activeTab === 'haccp'} onClick={() => handleTabChange('haccp')} />
-            <SubNavItem icon={<ThermometerSnowflake size={16} />} label="Chambre Négative" active={activeTab === 'chambre_negative'} onClick={() => handleTabChange('chambre_negative')} />
           </NavCategory>
 
           <NavCategory 
@@ -3226,7 +3216,7 @@ function DigitalMenu() {
   };
 
   const handleDeleteDish = (id: number) => {
-    if (true) {
+    if (confirm('Voulez-vous vraiment supprimer ce plat ?')) {
       setMenuItems(items => items.filter(item => item.id !== id));
       showToast("Plat supprimé avec succès");
     }
@@ -3842,7 +3832,7 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Patisseie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien"];
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
@@ -4153,16 +4143,17 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'zones', 'requirements', 'semi_finished', 'waste', 'transactions', 'suppliers', 'price_history'].map(tab => (
+          {['stocks', 'production_orders', 'semi_finished', 'transactions', 'waste'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {tab === 'stocks' && 'Inventaires Actuels'}
-              {tab === 'requirements' && 'Besoins & Seuils'}
-              {tab === 'semi_finished' && 'Plats Semi-finis'}
+              {tab === 'production_orders' && 'Ordre de fabrication'}
               
+              {tab === 'semi_finished' && 'Plats Semi-finis'}
+              {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
@@ -4417,81 +4408,11 @@ function Inventory() {
             </div>
           )}
 
-          {activeTab === 'requirements' && (
-            <div className="overflow-x-auto p-4 md:p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Définition des Besoins et Seuils d'Alerte</h3>
-                <button 
-                  onClick={async () => {
-                    try {
-                      const batch = writeBatch(db);
-                      stockItemsData.forEach(item => {
-                        const itemRef = doc(db, 'inventoryItems', item.id);
-                        batch.update(itemRef, {
-                          requiredQty: item.requiredQty || 0,
-                          minStock: item.minStock || 0
-                        });
-                      });
-                      await batch.commit();
-                      showToast("Paramètres enregistrés avec succès");
-                    } catch (error) {
-                      console.error(error);
-                      showToast("Erreur lors de l'enregistrement", "error");
-                    }
-                  }}
-                  className="px-4 py-2 bg-[#265C6D] text-white rounded-lg text-sm font-medium hover:bg-[#2F6B7F] transition-colors"
-                >
-                  Enregistrer les modifications
-                </button>
-              </div>
-              <table className="w-full text-left text-sm whitespace-nowrap border border-gray-100 rounded-xl overflow-hidden">
-                <thead className="bg-gray-50 text-gray-500 font-medium">
-                  <tr>
-                    <th className="px-6 py-4 border-b border-gray-100">Produit</th>
-                    <th className="px-6 py-4 border-b border-gray-100">Unité</th>
-                    <th className="px-6 py-4 border-b border-gray-100">Quantité Requise (Besoin)</th>
-                    <th className="px-6 py-4 border-b border-gray-100">Stock Minimal (Alerte)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {stockItemsData.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-                      <td className="px-6 py-4 text-gray-500">{item.unit}</td>
-                      <td className="px-6 py-4">
-                        <input 
-                          type="number"
-                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] text-gray-900 font-medium"
-                          value={item.requiredQty || 0}
-                          onChange={(e) => {
-                            const newItems = [...stockItemsData];
-                            newItems[idx] = { ...newItems[idx], requiredQty: Number(e.target.value) };
-                            setStockItemsData(newItems);
-                          }}
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <input 
-                          type="number"
-                          className="w-32 border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] text-gray-900 font-medium"
-                          value={item.minStock || 0}
-                          onChange={(e) => {
-                            const newItems = [...stockItemsData];
-                            newItems[idx] = { ...newItems[idx], minStock: Number(e.target.value) };
-                            setStockItemsData(newItems);
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {activeTab === 'production_orders' && (
+            <div className="h-[800px] flex-1 overflow-y-auto bg-gray-50">
+              <ProductionJournaliere />
             </div>
           )}
-
-          
-
-          
           {activeTab === 'semi_finished' && (
             <div className="p-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
@@ -6062,7 +5983,7 @@ function Inventory() {
                     <option value="Viandes" />
                     <option value="Volailles" />
                     <option value="Poissons & Fruits de mer" />
-                    <option value="Boulangerie & Pâtisserie" />
+                    <option value="Patisseie" />
                     <option value="Produits Laitiers & Œufs" />
                     <option value="Épicerie Sèche" />
                     
@@ -6157,7 +6078,7 @@ function Inventory() {
                     <option value="Viandes" />
                     <option value="Volailles" />
                     <option value="Poissons & Fruits de mer" />
-                    <option value="Boulangerie & Pâtisserie" />
+                    <option value="Patisseie" />
                     <option value="Produits Laitiers & Œufs" />
                     <option value="Épicerie Sèche" />
                     
@@ -6197,7 +6118,7 @@ function Inventory() {
                   type="button"
                   onClick={async () => {
                     setIsEditSupplierModalOpen(false);
-                    if (true) {
+                    if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
                       try {
                         setIsEditSupplierModalOpen(false);
                         if (selectedSupplier.id) {
@@ -6378,7 +6299,7 @@ function Inventory() {
                     <option value="Cuisine Principale" />
                     <option value="Bar" />
                     <option value="Événement" />
-                    <option value="Pâtisserie" />
+                    <option value="Patisseie" />
                   </datalist>
                 </div>
               )}

@@ -83,7 +83,7 @@ export default function TableauDeBord() {
       });
 
       // 2. Ingrédients (inventoryItems)
-      const i1 = await addDoc(collection(db, 'inventoryItems'), {
+      await addDoc(collection(db, 'inventoryItems'), {
         name: 'Poulet Entier',
         category: 'Viande',
         quantity: 50,
@@ -93,7 +93,7 @@ export default function TableauDeBord() {
         zone: 'Chambre Froide',
         createdAt: serverTimestamp()
       });
-      const i2 = await addDoc(collection(db, 'inventoryItems'), {
+      await addDoc(collection(db, 'inventoryItems'), {
         name: 'Citron Confit',
         category: 'Épicerie',
         quantity: 5,
@@ -103,7 +103,7 @@ export default function TableauDeBord() {
         zone: 'Économat',
         createdAt: serverTimestamp()
       });
-      const i3 = await addDoc(collection(db, 'inventoryItems'), {
+      await addDoc(collection(db, 'inventoryItems'), {
         name: 'Oignon Blanc',
         category: 'Légumes',
         quantity: 20,
@@ -131,30 +131,7 @@ export default function TableauDeBord() {
         updatedAt: serverTimestamp()
       });
 
-      // 4. Lot sous-vide (haccpLots)
-      await addDoc(collection(db, 'haccpLots'), {
-        lotNumber: `LOT-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*1000).toString().padStart(3, '0')}`,
-        itemId: i1.id,
-        itemName: 'Poulet Entier (Portionné)',
-        operator: 'Chef Ahmed',
-        tempSealing: 4.5,
-        tempRefrigeration: -19.0,
-        quantity: 10,
-        dlcDays: 30,
-        dlcDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'Validé',
-        createdAt: serverTimestamp()
-      });
-
-      // 5. Temperature log
-      await addDoc(collection(db, 'temperatureLogs'), {
-        temperature: -19.5,
-        operator: 'Chef Ahmed',
-        room: 'Chambre Négative',
-        timestamp: serverTimestamp()
-      });
-
-      // 6. Production Order
+      // 4. Production Order
       await addDoc(collection(db, 'productionOrders'), {
         recipeId: 'fake-id',
         recipeName: 'Tajine de Poulet Citron Confit',
@@ -267,16 +244,6 @@ export default function TableauDeBord() {
   // Temperatures
   const recentTemps = temperatureLogs.slice(0, 10);
   recentTemps.forEach(log => {
-    if (log.room === 'Chambre Négative' && log.temperature > -18) {
-      alerts.push({
-        id: `temp-${log.id}`,
-        type: 'temp',
-        severity: 'high',
-        title: 'Alerte Température',
-        message: `Chambre Négative à ${log.temperature}°C le ${log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : ''}`,
-        icon: <ThermometerSnowflake size={16} />
-      });
-    }
   });
 
   // --- Charts Data ---

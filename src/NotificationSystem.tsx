@@ -59,7 +59,6 @@ export default function NotificationSystem() {
 
   // Tracking alerts
   const alertedStock = useRef<Set<string>>(new Set());
-  const alertedHACCP = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // Inventory Alerts
@@ -98,46 +97,9 @@ export default function NotificationSystem() {
       });
     });
 
-    // HACCP DLC Alerts
-    const unsubHaccp = onSnapshot(collection(db, 'haccpLots'), (snapshot) => {
-      const now = new Date();
-      const warningTime = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000); // 48 hours
-      snapshot.docChanges().forEach(change => {
-        const lot = change.doc.data();
-        const id = change.doc.id;
-
-        if (lot.status !== 'Consommé' && lot.status !== 'Jeté' && lot.dlcDate) {
-          const dlc = new Date(lot.dlcDate);
-          
-          if (dlc < now) {
-            if (!alertedHACCP.current.has(id + '_expired')) {
-              if (change.type === 'modified') {
-                showToast(`Alerte HACCP : Le lot ${lot.idLot} (${lot.itemName}) est expiré !`, 'error');
-              }
-              alertedHACCP.current.add(id + '_expired');
-            }
-          } else if (dlc < warningTime) {
-            if (!alertedHACCP.current.has(id + '_warning')) {
-              if (change.type === 'modified') {
-                showToast(`Alerte HACCP : Le lot ${lot.idLot} expire bientôt (${dlc.toLocaleDateString('fr-FR')}).`, 'error');
-              }
-              alertedHACCP.current.add(id + '_warning');
-            }
-            alertedHACCP.current.delete(id + '_expired');
-          } else {
-            alertedHACCP.current.delete(id + '_expired');
-            alertedHACCP.current.delete(id + '_warning');
-          }
-        } else {
-          alertedHACCP.current.delete(id + '_expired');
-          alertedHACCP.current.delete(id + '_warning');
-        }
-      });
-    });
 
     return () => {
       unsubInv();
-      unsubHaccp();
     };
   }, [showToast]);
 

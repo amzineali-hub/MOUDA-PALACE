@@ -205,9 +205,22 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                 </button>
               </div>
               
-              <div className="text-[10px] sm:text-xs font-medium uppercase tracking-wider opacity-70">
-                {getStatusLabel(table.status)}
-              </div>
+              <select
+                value={table.status}
+                onChange={(e) => {
+                  if (table.fbId) {
+                    handleUpdateStatus(table.fbId, e.target.value);
+                  } else {
+                    showToast("Cette table n'est pas encore synchronisée avec la base de données", "error");
+                  }
+                }}
+                className="text-[10px] sm:text-xs font-medium uppercase tracking-wider opacity-70 bg-transparent border-none outline-none cursor-pointer hover:opacity-100 -ml-1"
+              >
+                <option value="libre">{getStatusLabel('libre')}</option>
+                <option value="reservee">{getStatusLabel('reservee')}</option>
+                <option value="occupee">{getStatusLabel('occupee')}</option>
+                <option value="nettoyage">{getStatusLabel('nettoyage')}</option>
+              </select>
 
               {table.reservation && (
                 <div className="mt-2 text-sm font-medium flex items-center gap-1 truncate">

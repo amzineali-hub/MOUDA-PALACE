@@ -1698,17 +1698,23 @@ function Reservations() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isNoShowOpen, setIsNoShowOpen] = useState(false);
 
-  const [reservations, setReservations] = useState(() => {
-    const saved = localStorage.getItem('mouda_reservations');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return [
-      { id: 'RES-1029', name: 'Sophie Martin', date: 'Aujourd\'hui, 19:30', pax: 4, source: 'TripAdvisor', status: 'Confirmé', phone: '+33 6 12 34 56 78', tag: 'VIP', table: 'T3' },
-      { id: 'RES-1030', name: 'Jean Dupont', date: 'Aujourd\'hui, 20:00', pax: 2, source: 'WhatsApp Bot', status: 'Confirmé', phone: '+212 6 00 00 00 00', tag: 'Nouveau', table: 'T1' },
-      { id: 'RES-1031', name: 'Famille Dubois', date: 'Aujourd\'hui, 20:30', pax: 6, source: 'Site Web', status: 'En attente', phone: '+33 6 98 76 54 32', tag: 'Allergies', table: null },
-    ];
-  });
+  const [reservations, setReservations] = useState<any[]>([
+    { id: 'RES-1029', name: 'Sophie Martin', date: 'Aujourd\'hui, 19:30', pax: 4, source: 'TripAdvisor', status: 'Confirmé', phone: '+33 6 12 34 56 78', tag: 'VIP', table: 'T3' },
+    { id: 'RES-1030', name: 'Jean Dupont', date: 'Aujourd\'hui, 20:00', pax: 2, source: 'WhatsApp Bot', status: 'Confirmé', phone: '+212 6 00 00 00 00', tag: 'Nouveau', table: 'T1' },
+    { id: 'RES-1031', name: 'Famille Dubois', date: 'Aujourd\'hui, 20:30', pax: 6, source: 'Site Web', status: 'En attente', phone: '+33 6 98 76 54 32', tag: 'Allergies', table: null },
+  ]);
+
+  useEffect(() => {
+    const unsubReservations = onSnapshot(collection(db, 'reservations'), (snapshot) => {
+      const fbReservations = snapshot.docs
+        .map(doc => ({ ...doc.data(), fbId: doc.id }))
+        .sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+      setReservations(fbReservations);
+    }, (error) => {
+      console.error("Error fetching reservations", error);
+    });
+    return () => unsubReservations();
+  }, []);
 
   const [tables, setTables] = useState<any[]>(() => {
     const saved = localStorage.getItem('mouda_tables');
@@ -1732,10 +1738,6 @@ function Reservations() {
       { id: 'T14', capacity: 4, status: 'available', x: 820, y: 280, type: 'square' },
     ];
   });
-
-  useEffect(() => {
-    localStorage.setItem('mouda_reservations', JSON.stringify(reservations));
-  }, [reservations]);
 
   useEffect(() => {
     localStorage.setItem('mouda_tables', JSON.stringify(tables));
@@ -1796,24 +1798,32 @@ function Reservations() {
 
   const autoAssignTables = async () => {
     let updatedTables = [...tables];
+    const assignedReservations: any[] = [];
     let updatedReservations = reservations.map(res => {
       if (!res.table && res.status !== 'Annulé') {
         const suitableTable = updatedTables.find(t => t.capacity >= res.pax && (t.status === 'available' || t.status === 'libre'));
         if (suitableTable) {
           suitableTable.status = 'reserved';
-          return { ...res, table: suitableTable.id };
+          const updatedRes = { ...res, table: suitableTable.id };
+          assignedReservations.push(updatedRes);
+          return updatedRes;
         }
       }
       return res;
     });
     setTables(updatedTables);
     setReservations(updatedReservations);
-    
+
     // Update Firestore
     try {
       for (const table of updatedTables) {
         if (table.fbId && table.status === 'reserved') {
            await updateDoc(doc(db, 'tables', table.fbId), { status: 'reservee' });
+        }
+      }
+      for (const res of assignedReservations) {
+        if (res.fbId) {
+          await updateDoc(doc(db, 'reservations', res.fbId), { table: res.table });
         }
       }
       showToast("Attribution automatique des tables effectuée avec succès.");
@@ -1916,7 +1926,7 @@ function Reservations() {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors rounded-lg ${activeTab === tab ? 'bg-[#F4C75B]/20 text-[#F4C75B]' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
-              {tab === 'upcoming' && 'À venir (3)'}
+              {tab === 'upcoming' && `À venir (${reservations.filter((r: any) => r.status !== 'Annulé').length})`}
               {tab === 'floorplan' && 'Plan de Salle'}
               {tab === 'waitlist' && 'Liste d\'attente'}
               {tab === 'history' && 'Historique'}
@@ -1928,6 +1938,11 @@ function Reservations() {
         {/* Content */}
         <div className="p-0">
           {activeTab === 'upcoming' && (
+            reservations.length === 0 ? (
+              <div className="text-center text-gray-500 py-12">
+                Aucune réservation pour le moment.
+              </div>
+            ) : (
             <div className="divide-y divide-gray-100">
               {reservations.map((res, i) => (
                 <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
@@ -1962,14 +1977,38 @@ function Reservations() {
                   <div className="flex items-center gap-3">
                     {res.status === 'En attente' ? (
                       <>
-                        <button 
-                          onClick={() => showToast(`Réservation ${res.id} confirmée`)}
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (res.fbId) {
+                                await updateDoc(doc(db, 'reservations', res.fbId), { status: 'Confirmé' });
+                              } else {
+                                setReservations(reservations.map((r: any) => r.id === res.id ? { ...r, status: 'Confirmé' } : r));
+                              }
+                              showToast(`Réservation ${res.id} confirmée`);
+                            } catch (err) {
+                              console.error(err);
+                              showToast("Erreur lors de la synchronisation au serveur", "error");
+                            }
+                          }}
                           className="px-3 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg text-sm font-medium transition-colors"
                         >
                           Confirmer
                         </button>
-                        <button 
-                          onClick={() => showToast(`Réservation ${res.id} refusée`)}
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (res.fbId) {
+                                await updateDoc(doc(db, 'reservations', res.fbId), { status: 'Annulé' });
+                              } else {
+                                setReservations(reservations.map((r: any) => r.id === res.id ? { ...r, status: 'Annulé' } : r));
+                              }
+                              showToast(`Réservation ${res.id} refusée`);
+                            } catch (err) {
+                              console.error(err);
+                              showToast("Erreur lors de la synchronisation au serveur", "error");
+                            }
+                          }}
                           className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
                         >
                           Refuser
@@ -2016,6 +2055,7 @@ function Reservations() {
                 </div>
               ))}
               </div>
+            )
           )}
 
           {activeTab === 'floorplan' && (
@@ -2232,7 +2272,6 @@ function Reservations() {
 
               try {
                 await addDoc(collection(db, 'reservations'), newRes);
-                setReservations([newRes, ...reservations]);
                 showToast("Réservation ajoutée avec succès");
               } catch (err) {
                 console.error(err);
@@ -2441,10 +2480,18 @@ function Reservations() {
                 >
                   Annuler
                 </button>
-                <button 
-                  onClick={() => {
-                    const updated = reservations.map(r => r.id === selectedActionRes.id ? { ...r, status: 'No-show' } : r);
-                    setReservations(updated);
+                <button
+                  onClick={async () => {
+                    if (selectedActionRes.fbId) {
+                      try {
+                        await updateDoc(doc(db, 'reservations', selectedActionRes.fbId), { status: 'No-show' });
+                      } catch (err) {
+                        console.error(err);
+                        showToast("Erreur lors de la synchronisation au serveur", "error");
+                      }
+                    } else {
+                      setReservations(reservations.map(r => r.id === selectedActionRes.id ? { ...r, status: 'No-show' } : r));
+                    }
                     showToast(`${selectedActionRes.name} marqué comme no-show`);
                     setIsNoShowOpen(false);
                   }}
@@ -2476,34 +2523,34 @@ function B2BPortal() {
   const [isEditPartnerModalOpen, setIsEditPartnerModalOpen] = useState(false);
 
   const [partnerToDelete, setPartnerToDelete] = useState<string | null>(null);
-  const [partners, setPartners] = useState(() => {
-    const saved = localStorage.getItem('mouda_partners');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error parsing partners from localStorage", e);
-      }
-    }
-    return [
-      { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
-      { id: 'P-002', name: 'Atlas Voyages', type: 'Agence', commission: 5, revenue: '34 200 MAD', active: true, clients: 120 },
-      { id: 'P-003', name: 'LocaCar Marrakech', type: 'Location Auto', commission: 5, revenue: '4 800 MAD', active: true, clients: 15 },
-      { id: 'P-004', name: 'Hôtel La Medina', type: 'Hôtel', commission: 5, revenue: '8 900 MAD', active: false, clients: 32 }
-    ];
-  });
+  const [partners, setPartners] = useState<any[]>([
+    { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
+    { id: 'P-002', name: 'Atlas Voyages', type: 'Agence', commission: 5, revenue: '34 200 MAD', active: true, clients: 120 },
+    { id: 'P-003', name: 'LocaCar Marrakech', type: 'Location Auto', commission: 5, revenue: '4 800 MAD', active: true, clients: 15 },
+    { id: 'P-004', name: 'Hôtel La Medina', type: 'Hôtel', commission: 5, revenue: '8 900 MAD', active: false, clients: 32 }
+  ]);
 
   useEffect(() => {
-    localStorage.setItem('mouda_partners', JSON.stringify(partners));
-  }, [partners]);
+    const unsubPartners = onSnapshot(collection(db, 'partners'), (snapshot) => {
+      setPartners(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
+    }, (error) => {
+      console.error("Error fetching partners", error);
+    });
+    return () => unsubPartners();
+  }, []);
 
   const handleDeletePartner = (id: string) => {
     setPartnerToDelete(id);
   };
-  const confirmDeletePartner = () => {
+  const confirmDeletePartner = async () => {
     if (partnerToDelete) {
-      setPartners(partners.filter((p: any) => p.id !== partnerToDelete));
-      showToast("Partenaire supprimé avec succès");
+      try {
+        await deleteDoc(doc(db, 'partners', partnerToDelete));
+        showToast("Partenaire supprimé avec succès");
+      } catch (err) {
+        console.error(err);
+        showToast("Erreur lors de la suppression", "error");
+      }
       setPartnerToDelete(null);
     }
   };
@@ -2551,6 +2598,16 @@ Clients apportés: ${partner.clients}
     }
   };
 
+  const parseRevenue = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    return parseFloat(val.toString().replace(/[^0-9.-]+/g, '')) || 0;
+  };
+  const totalClients = partners.reduce((sum: number, p: any) => sum + (p.clients || 0), 0);
+  const totalRevenue = partners.reduce((sum: number, p: any) => sum + parseRevenue(p.revenue), 0);
+  const totalCommissionsDue = partners.reduce((sum: number, p: any) => sum + (parseRevenue(p.revenue) * (p.commission || 0) / 100), 0);
+  const formatK = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : n.toLocaleString('fr-FR');
+
   return (
     <div className="p-8 md:p-12 relative z-10">
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -2582,15 +2639,15 @@ Clients apportés: ${partner.clients}
             <h4 className="text-sm font-medium text-gray-500">Chiffre d'Affaires B2B</h4>
             <div className="p-2 bg-green-50 text-green-600 rounded-lg"><TrendingUp size={18} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">245k <span className="text-sm font-normal text-gray-500">MAD</span></h3>
-          <p className="text-xs text-green-600 mt-2 font-medium">+12% vs mois dernier</p>
+          <h3 className="text-2xl font-bold text-gray-900">{formatK(totalRevenue)} <span className="text-sm font-normal text-gray-500">MAD</span></h3>
+          <p className="text-xs text-gray-500 mt-2 font-medium">Cumulé sur tous les partenaires</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-sm font-medium text-gray-500">Clients Apportés</h4>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Users size={18} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">890</h3>
+          <h3 className="text-2xl font-bold text-gray-900">{totalClients}</h3>
           <p className="text-xs text-gray-500 mt-2 font-medium">Depuis le début de l'année</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
@@ -2598,7 +2655,7 @@ Clients apportés: ${partner.clients}
             <h4 className="text-sm font-medium text-gray-500">Commissions Dues</h4>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Banknote size={18} /></div>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900">14.5k <span className="text-sm font-normal text-gray-500">MAD</span></h3>
+          <h3 className="text-2xl font-bold text-gray-900">{formatK(totalCommissionsDue)} <span className="text-sm font-normal text-gray-500">MAD</span></h3>
           <p className="text-xs text-amber-600 mt-2 font-medium">À régler ce mois-ci</p>
         </div>
       </div>
@@ -2685,7 +2742,7 @@ Clients apportés: ${partner.clients}
                             <Edit2 size={18} />
                           </button>
                           <button 
-                            onClick={() => handleDeletePartner(partner.id)}  
+                            onClick={() => handleDeletePartner(partner.fbId)}  
                             className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
                             title="Supprimer Partenaire"
                           >
@@ -2923,13 +2980,13 @@ Clients apportés: ${partner.clients}
                   />
                 </div>
               </div>
-              <button 
-                onClick={() => {
+              <button
+                onClick={async () => {
                   if (!newPartnerAccessCode) {
                     showToast("Veuillez définir un code d'accès pour ce partenaire.", "error");
                     return;
                   }
-                  
+
                   const newPartner = {
                     id: `P-00${partners.length + 1}`,
                     name: newPartnerName || 'Nouveau Partenaire',
@@ -2941,18 +2998,23 @@ Clients apportés: ${partner.clients}
                     accessCode: newPartnerAccessCode,
                     email: newPartnerEmail
                   };
-                  
-                  setPartners([...partners, newPartner]);
-                  showToast("Partenaire ajouté. QR Code généré et prêt à l'emploi.");
-                  setIsAddPartnerModalOpen(false);
-                  setSelectedPartner(newPartner);
-                  setIsQRModalOpen(true);
-                  
-                  setNewPartnerName('');
-                  setNewPartnerType('Riad');
-                  setNewPartnerCommission(5);
-                  setNewPartnerEmail('');
-                  setNewPartnerAccessCode('');
+
+                  try {
+                    const newPartnerRef = await addDoc(collection(db, 'partners'), newPartner);
+                    showToast("Partenaire ajouté. QR Code généré et prêt à l'emploi.");
+                    setIsAddPartnerModalOpen(false);
+                    setSelectedPartner({ ...newPartner, fbId: newPartnerRef.id });
+                    setIsQRModalOpen(true);
+
+                    setNewPartnerName('');
+                    setNewPartnerType('Riad');
+                    setNewPartnerCommission(5);
+                    setNewPartnerEmail('');
+                    setNewPartnerAccessCode('');
+                  } catch (err) {
+                    console.error(err);
+                    showToast("Erreur lors de l'ajout du partenaire", "error");
+                  }
                 }}
                 className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#2F6B7F] transition-colors"
               >
@@ -3031,31 +3093,35 @@ Clients apportés: ${partner.clients}
                   />
                 </div>
               </div>
-              <button 
-                onClick={() => {
+              <button
+                onClick={async () => {
                   if (!newPartnerAccessCode) {
                     showToast("Veuillez définir un code d'accès pour ce partenaire.", "error");
                     return;
                   }
-                  
-                  const updatedPartner = {
-                    ...selectedPartner,
+
+                  const updates = {
                     name: newPartnerName,
                     type: newPartnerType,
                     commission: newPartnerCommission,
                     accessCode: newPartnerAccessCode,
                     email: newPartnerEmail
                   };
-                  
-                  setPartners(partners.map((p) => p.id === selectedPartner.id ? updatedPartner : p));
-                  showToast("Partenaire modifié avec succès.");
-                  setIsEditPartnerModalOpen(false);
-                  
-                  setNewPartnerName('');
-                  setNewPartnerType('Riad');
-                  setNewPartnerCommission(5);
-                  setNewPartnerEmail('');
-                  setNewPartnerAccessCode('');
+
+                  try {
+                    await updateDoc(doc(db, 'partners', selectedPartner.fbId), updates);
+                    showToast("Partenaire modifié avec succès.");
+                    setIsEditPartnerModalOpen(false);
+
+                    setNewPartnerName('');
+                    setNewPartnerType('Riad');
+                    setNewPartnerCommission(5);
+                    setNewPartnerEmail('');
+                    setNewPartnerAccessCode('');
+                  } catch (err) {
+                    console.error(err);
+                    showToast("Erreur lors de la modification", "error");
+                  }
                 }}
                 className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#2F6B7F] transition-colors"
               >

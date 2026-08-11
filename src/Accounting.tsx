@@ -229,13 +229,17 @@ export default function Accounting() {
   const [commandes, setCommandes] = useState<any[]>([]);
 
   const expenses = useMemo(() => {
+    const isDelivered = (c: any) => {
+      const st = c.status || c.statut;
+      return st === 'Livrée' || st === 'Validée';
+    };
     const all = [
       ...manualExpenses,
-      ...commandes.filter(c => c.status === 'Livrée' || c.status === 'Validée').map(c => ({
+      ...commandes.filter(isDelivered).map(c => ({
         id: c.id,
         category: c.categorie || c.category || 'Achat Marchandises',
         supplier: c.fournisseur,
-        amount: c.montant,
+        amount: c.montant ?? c.totalActual ?? c.totalAmount ?? 0,
         date: c.date || new Date(c.createdAt?.toMillis?.() || Date.now()).toLocaleDateString('fr-FR'),
         method: c.method || 'Virement',
         createdAt: c.createdAt,

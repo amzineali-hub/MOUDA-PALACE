@@ -333,73 +333,45 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
             <div className="col-span-1 md:col-span-2 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <select
-                  value={menuItems.some(m => m.name === nom) ? nom : (nom ? 'autre' : '')}
+                <input
+                  type="text"
+                  list="dl-fiche-nom-plat"
+                  value={nom}
                   onChange={e => {
                     const val = e.target.value;
-                    if (val === 'autre') {
-                      setNom('');
-                    } else if (val) {
-                      setNom(val);
-                      const matchedMenu = menuItems.find(m => m.name === val);
-                      if (matchedMenu) {
-                        setCategorie(matchedMenu.category || '');
-                        setPrixVente(matchedMenu.price ? String(matchedMenu.price).replace(/[^0-9.]/g, '') : '');
-                      }
-                    } else {
-                      setNom('');
+                    setNom(val);
+                    const matchedMenu = menuItems.find(m => m.name === val);
+                    if (matchedMenu) {
+                      setCategorie(matchedMenu.category || '');
+                      setPrixVente(matchedMenu.price ? String(matchedMenu.price).replace(/[^0-9.]/g, '') : '');
                     }
                   }}
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] mb-2 bg-gray-50"
-                >
-                  <option value="">-- Sélectionner depuis le menu --</option>
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                  placeholder="Sélectionner depuis le menu ou saisir un nouveau plat..."
+                  autoFocus={nom === ''}
+                />
+                <datalist id="dl-fiche-nom-plat">
                   {menuItems.map((m, idx) => (
-                    <option key={idx} value={m.name}>{m.name} ({m.price} DH)</option>
+                    <option key={idx} value={m.name} />
                   ))}
-                  <option value="autre">+ Nouveau plat (hors menu)</option>
-                </select>
-                {(!menuItems.some(m => m.name === nom)) && (
-                  <input 
-                    type="text" 
-                    value={nom} 
-                    onChange={e => setNom(e.target.value)} 
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                    placeholder="Saisir le nom du plat..."
-                    autoFocus={nom === ''}
-                  />
-                )}
+                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select
-                    value={Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).includes(categorie) ? categorie : (categorie ? 'autre' : '')}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === 'autre') {
-                        setCategorie('');
-                      } else {
-                        setCategorie(val);
-                      }
-                    }}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white mb-2"
-                  >
-                    <option value="">Sélectionner une catégorie...</option>
+                  <input
+                    type="text"
+                    list="dl-fiche-categorie"
+                    value={categorie}
+                    onChange={e => setCategorie(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
+                    placeholder="Sélectionner ou saisir une catégorie..."
+                  />
+                  <datalist id="dl-fiche-categorie">
                     {Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).map((cat: any, idx) => (
-                      <option key={idx} value={cat}>{cat}</option>
+                      <option key={idx} value={cat} />
                     ))}
-                    <option value="autre">Autre catégorie...</option>
-                  </select>
-                  {(!Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).includes(categorie)) && (
-                    <input 
-                      type="text" 
-                      value={categorie} 
-                      onChange={e => setCategorie(e.target.value)} 
-                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                      placeholder="Saisir la catégorie..."
-                      autoFocus={categorie === ''}
-                    />
-                  )}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portions</label>
@@ -558,46 +530,33 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 {/* Add new row */}
                 <tr className="bg-gray-50/30">
                   <td className="px-4 py-2">
-                    <select
-                      className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50 mb-1"
-                      value={(newIng as any).isCustom ? 'autre' : (inventoryItems.some(i => i.name === newIng.nom) ? newIng.nom : (newIng.nom ? 'autre' : ''))}
+                    <input
+                      type="text"
+                      list="dl-fiche-ingredient"
+                      placeholder="Nom (ex: Sel) ou depuis l'inventaire"
+                      className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50"
+                      value={newIng.nom}
                       onChange={e => {
                         const val = e.target.value;
-                        if (val === 'autre') {
-                          setNewIng({...newIng, nom: '', isCustom: true} as any);
-                        } else if (val) {
-                          const matchedItem = inventoryItems.find(i => i.name === val);
-                          if (matchedItem) {
-                            setNewIng({
-                              ...newIng,
-                              nom: val,
-                              unite: matchedItem.unit || 'g',
-                              unitePrix: matchedItem.unit || 'kg',
-                              prixUnitaire: matchedItem.averageCost ? String(matchedItem.averageCost) : (matchedItem.price ? String(matchedItem.price) : (matchedItem.cost ? String(matchedItem.cost) : '')),
-                              isCustom: false
-                            } as any);
-                          }
+                        const matchedItem = inventoryItems.find(i => i.name === val);
+                        if (matchedItem) {
+                          setNewIng({
+                            ...newIng,
+                            nom: val,
+                            unite: matchedItem.unit || 'g',
+                            unitePrix: matchedItem.unit || 'kg',
+                            prixUnitaire: matchedItem.averageCost ? String(matchedItem.averageCost) : (matchedItem.price ? String(matchedItem.price) : (matchedItem.cost ? String(matchedItem.cost) : ''))
+                          });
                         } else {
-                          setNewIng({...newIng, nom: '', isCustom: false} as any);
+                          setNewIng({...newIng, nom: val});
                         }
                       }}
-                    >
-                      <option value="">-- Depuis l'inventaire --</option>
+                    />
+                    <datalist id="dl-fiche-ingredient">
                       {inventoryItems.map((item, idx) => (
-                        <option key={idx} value={item.name}>{item.name} ({item.averageCost || item.price || item.cost} DH/{item.unit})</option>
+                        <option key={idx} value={item.name} />
                       ))}
-                      <option value="autre">+ Nouvel ingrédient</option>
-                    </select>
-                    {((newIng as any).isCustom || (!inventoryItems.some(i => i.name === newIng.nom) && newIng.nom !== '')) && (
-                      <input 
-                        type="text" 
-                        placeholder="Nom (ex: Sel)" 
-                        className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B]"
-                        value={newIng.nom}
-                        onChange={e => setNewIng({...newIng, nom: e.target.value})}
-                        autoFocus
-                      />
-                    )}
+                    </datalist>
                   </td>
                   <td className="px-4 py-2">
                     <input 

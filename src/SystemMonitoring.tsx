@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MonitorSmartphone, ChefHat, Package, FileSpreadsheet, ShoppingCart, CheckCircle2, Wifi, WifiOff, Database, Activity } from 'lucide-react';
+import { MonitorSmartphone, ChefHat, Package, FileSpreadsheet, ShoppingCart, CheckCircle2, XCircle, Wifi, WifiOff, Database, Activity } from 'lucide-react';
+import { indexedDbPersistenceReady } from './firebase';
 
 export default function SystemMonitoring() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
+  const [persistenceEnabled, setPersistenceEnabled] = useState<boolean | null>(null);
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    indexedDbPersistenceReady.then(setPersistenceEnabled);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -166,11 +170,15 @@ export default function SystemMonitoring() {
       <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-400 relative z-10">
         <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
           <CheckCircle2 size={14} className="text-emerald-400" />
-          <span>Batch Write Synaptique</span>
+          <span>Synchronisation Multi-Écrans en Direct</span>
         </div>
         <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
-          <CheckCircle2 size={14} className="text-emerald-400" />
-          <span>Cache IndexedDB Local</span>
+          {persistenceEnabled === false ? (
+            <XCircle size={14} className="text-red-400" />
+          ) : (
+            <CheckCircle2 size={14} className="text-emerald-400" />
+          )}
+          <span>{persistenceEnabled === false ? 'Cache IndexedDB Indisponible' : 'Cache IndexedDB Local'}</span>
         </div>
         <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
           <CheckCircle2 size={14} className="text-emerald-400" />

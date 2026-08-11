@@ -10,17 +10,21 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore using the specific databaseId from config if present
 const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || "(default)");
 
-try {
-  enableMultiTabIndexedDbPersistence(db).catch((err) => {
+export const indexedDbPersistenceReady: Promise<boolean> = (async () => {
+  try {
+    await enableMultiTabIndexedDbPersistence(db);
+    return true;
+  } catch (err: any) {
     if (err.code === "failed-precondition") {
       console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
     } else if (err.code === "unimplemented") {
       console.warn("The current browser does not support all of the features required to enable persistence");
+    } else {
+      console.warn("Could not enable persistence", err);
     }
-  });
-} catch (e) {
-  console.warn("Could not enable persistence", e);
-}
+    return false;
+  }
+})();
 
 
 

@@ -16,6 +16,13 @@ export default function LivePlanningWidget() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'staff'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      const isAdmin = (staff: any) =>
+        staff.department === 'Management' || /admin/i.test(staff.role || '');
+      data.sort((a, b) => {
+        const adminDiff = Number(isAdmin(b)) - Number(isAdmin(a));
+        if (adminDiff !== 0) return adminDiff;
+        return (a.name || '').localeCompare(b.name || '');
+      });
       const defaultPhotos = [
         "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=100&h=100",
         "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100&h=100",

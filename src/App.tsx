@@ -931,6 +931,7 @@ function PerformanceAnalysis() {
   const [averageMargin, setAverageMargin] = useState(0);
   const [fichesTechniques, setFichesTechniques] = useState<any[]>([]);
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
+  const [reservationsData, setReservationsData] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubFiches = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
@@ -939,7 +940,10 @@ function PerformanceAnalysis() {
     const unsubStock = onSnapshot(collection(db, 'inventoryItems'), (snapshot) => {
       setStockItemsData(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
-    return () => { unsubFiches(); unsubStock(); };
+    const unsubRes = onSnapshot(collection(db, 'reservations'), (snapshot) => {
+      setReservationsData(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => { unsubFiches(); unsubStock(); unsubRes(); };
   }, []);
 
   useEffect(() => {
@@ -984,21 +988,16 @@ function PerformanceAnalysis() {
     }
   }, [fichesTechniques, stockItemsData]);
 
-  const occupancyData = [
-    { name: 'Lun', taux: 45 },
-    { name: 'Mar', taux: 52 },
-    { name: 'Mer', taux: 60 },
-    { name: 'Jeu', taux: 75 },
-    { name: 'Ven', taux: 95 },
-    { name: 'Sam', taux: 100 },
-    { name: 'Dim', taux: 85 },
-  ];
-
-  const sourceData = [
-    { name: 'TripAdvisor', value: 35 },
-    { name: 'B2B (Riads)', value: 45 },
-    { name: 'WhatsApp IA', value: 20 },
-  ];
+  const sourceData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reservationsData.forEach((r: any) => {
+      const src = r.source || 'Autre';
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [reservationsData]);
 
   return (
     <div className="mb-8">
@@ -1022,50 +1021,12 @@ function PerformanceAnalysis() {
         </motion.div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Chart 1: Taux de Remplissage (AreaChart) */}
-      <motion.div 
+      <div className="grid grid-cols-1 gap-6">
+      {/* Répartition des Sources (BarChart) */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.5 }}
-        className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 lg:col-span-2"
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-serif font-semibold text-gray-900">Taux de Remplissage</h3>
-            <p className="text-sm text-gray-500">7 derniers jours (%)</p>
-          </div>
-          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-            <TrendingUp size={20} />
-          </div>
-        </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={occupancyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorTaux" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F4C75B" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#F4C75B" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                cursor={{ stroke: '#f3f4f6', strokeWidth: 2 }}
-              />
-              <Area type="monotone" dataKey="taux" stroke="#F4C75B" strokeWidth={3} fillOpacity={1} fill="url(#colorTaux)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-
-      {/* Chart 2: Répartition des Sources (BarChart) */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.6 }}
         className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100"
       >
         <div className="mb-6">
@@ -1123,77 +1084,88 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const [dateRange, setDateRange] = useState('today');
   const [customStartDate, setCustomStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [customEndDate, setCustomEndDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  const metricsCache = useRef<Record<string, any>>({});
-  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
-  const [metrics, setMetrics] = useState({
-    users: "324",
-    aov: "1,076 MAD",
-    reservations: "42",
-    revenue: "45,200 MAD",
-    pos: "Actif",
-    crm: "1,204",
-    commissions: "3,450 MAD"
-  });
+
+  const [reservationsData, setReservationsData] = useState<any[]>([]);
+  const [cashReceipts, setCashReceipts] = useState<any[]>([]);
+  const [partnersData, setPartnersData] = useState<any[]>([]);
 
   useEffect(() => {
-    const cacheKey = dateRange === 'custom' ? `${customStartDate}-${customEndDate}` : dateRange;
-    
-    if (metricsCache.current[cacheKey]) {
-      setMetrics(metricsCache.current[cacheKey]);
-      showToast(`Métriques ${cacheKey} chargées depuis le cache local`);
-      return;
+    const unsubRes = onSnapshot(collection(db, 'reservations'), (snap) => setReservationsData(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubCash = onSnapshot(collection(db, 'cash_receipts'), (snap) => setCashReceipts(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsubPartners = onSnapshot(collection(db, 'partners'), (snap) => setPartnersData(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { unsubRes(); unsubCash(); unsubPartners(); };
+  }, []);
+
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    let end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    if (dateRange === 'week') {
+      start = new Date(now); start.setDate(now.getDate() - 7);
+    } else if (dateRange === 'month') {
+      start = new Date(now); start.setDate(now.getDate() - 30);
+    } else if (dateRange === 'year') {
+      start = new Date(now); start.setDate(now.getDate() - 365);
+    } else if (dateRange === 'custom') {
+      start = new Date(customStartDate);
+      end = new Date(customEndDate); end.setHours(23, 59, 59, 999);
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
+    return { rangeStart: start, rangeEnd: end };
+  }, [dateRange, customStartDate, customEndDate]);
 
-    setIsLoadingMetrics(true);
-    
-    // Simulate Firestore fetch
-    const fetchTimeout = setTimeout(() => {
-      let multiplier = 1;
-      if (dateRange === 'week') multiplier = 7;
-      if (dateRange === 'month') multiplier = 30;
-      if (dateRange === 'year') multiplier = 365;
-      if (dateRange === 'custom') multiplier = 3;
+  const parseDocDate = (d: any) => d?.toDate ? d.toDate() : new Date(d || 0);
+  const inRange = (d: Date) => d >= rangeStart && d <= rangeEnd;
 
-      const newMetrics = {
-        users: (324 * multiplier + Math.floor(Math.random() * 50)).toLocaleString(),
-        aov: (1076 + Math.floor(Math.random() * 100)).toLocaleString() + " MAD",
-        reservations: (42 * multiplier + Math.floor(Math.random() * 10)).toString(),
-        revenue: (45200 * multiplier + Math.floor(Math.random() * 1000)).toLocaleString() + " MAD",
-        pos: "Actif",
-        crm: (1204 + (multiplier > 1 ? Math.floor(Math.random() * 100) : 0)).toLocaleString(),
-        commissions: (3450 * multiplier).toLocaleString() + " MAD"
-      };
+  const receiptsInRange = cashReceipts.filter(r => inRange(parseDocDate(r.createdAt || r.date)));
+  const revenueInRange = receiptsInRange.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const aovInRange = receiptsInRange.length > 0 ? revenueInRange / receiptsInRange.length : 0;
+  const reservationsInRange = reservationsData.filter(r => inRange(parseDocDate(r.createdAt)));
+  const uniqueClients = new Set(reservationsData.map((r: any) => r.phone || r.name).filter(Boolean)).size;
+  const totalCommissionsDue = partnersData.reduce((sum: number, p: any) => {
+    const rev = typeof p.revenue === 'number' ? p.revenue : parseFloat((p.revenue || '0').toString().replace(/[^0-9.-]+/g, '')) || 0;
+    return sum + (rev * (p.commission || 0) / 100);
+  }, 0);
 
-      metricsCache.current[cacheKey] = newMetrics;
-      setMetrics(newMetrics);
-      setIsLoadingMetrics(false);
-      // showToast(`Nouvelles données ${cacheKey} récupérées depuis Firestore`);
-    }, 600);
+  const sourceBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reservationsData.forEach((r: any) => {
+      const src = r.source || 'Autre';
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    const total = reservationsData.length || 1;
+    return Object.entries(counts)
+      .map(([source, count]) => ({ source, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [reservationsData]);
 
-    return () => clearTimeout(fetchTimeout);
-  }, [dateRange, customStartDate, customEndDate, showToast]);
-  
+  const metrics = {
+    aov: aovInRange > 0 ? aovInRange.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' MAD' : '—',
+    reservations: reservationsInRange.length.toString(),
+    revenue: revenueInRange.toLocaleString('fr-FR') + ' MAD',
+    pos: 'Actif',
+    crm: uniqueClients.toString(),
+    commissions: totalCommissionsDue.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' MAD'
+  };
+
   const handleExportExcel = () => {
     try {
       const metricsData = [
         ["Catégorie", "Métrique", "Valeur"],
-        ["Aujourd'hui", "Daily Active Users", "324"],
-        ["Aujourd'hui", "Average Order Value", "1,076 MAD"],
-        ["Aujourd'hui", "Réservations", "42"],
-        ["Aujourd'hui", "Chiffre d'Affaires Prévu", "45,200 MAD"],
-        ["Performances CRM & B2B", "Clients Actifs (CRM)", "1,204"],
-        ["Performances CRM & B2B", "Agences Partenaires", "15"],
-        ["Occupation & Sources", "Taux de Remplissage", "85%"],
-        ["Occupation & Sources", "Réservations Direct / Téléphone", "45%"],
-        ["Occupation & Sources", "Réservations WhatsApp IA", "30%"],
-        ["Occupation & Sources", "Réservations Portail B2B", "25%"]
+        ["Période sélectionnée", "Réservations", metrics.reservations],
+        ["Période sélectionnée", "Panier Moyen", metrics.aov],
+        ["Période sélectionnée", "Chiffre d'Affaires (encaissé)", metrics.revenue],
+        ["Performances CRM & B2B", "Clients Uniques (CRM)", metrics.crm],
+        ["Performances CRM & B2B", "Agences Partenaires", partnersData.length.toString()],
+        ["Performances CRM & B2B", "Commissions Dues", metrics.commissions],
+        ...sourceBreakdown.map(s => ["Sources de Réservation", s.source, `${s.pct}%`])
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(metricsData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Résumé des Métriques");
-      
+
       // Auto-size columns
       const colWidths = [{ wch: 25 }, { wch: 35 }, { wch: 15 }];
       ws['!cols'] = colWidths;
@@ -1302,32 +1274,25 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         <LivePlanningWidget />
 
         {/* Dashboard Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          <DashboardCard 
-            title="Daily Active Users" 
-            value={isLoadingMetrics ? "..." : metrics.users}
-            subtitle="Utilisateurs uniques"
-            icon={<Users className="text-[#F4C75B]" size={24} />}
-            delay={0.1}
-          />
-          <DashboardCard 
-            title="Average Order Value" 
-            value={isLoadingMetrics ? "..." : metrics.aov}
-            subtitle="Panier moyen par table"
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+          <DashboardCard
+            title="Average Order Value"
+            value={metrics.aov}
+            subtitle="Panier moyen (encaissements)"
             icon={<CreditCard className="text-[#F4C75B]" size={24} />}
             delay={0.2}
           />
-          <DashboardCard 
-            title="Réservations" 
-            value={isLoadingMetrics ? "..." : metrics.reservations}
-            subtitle="+12 via WhatsApp IA, 4 via Riads B2B"
+          <DashboardCard
+            title="Réservations"
+            value={metrics.reservations}
+            subtitle={sourceBreakdown[0] ? `Principale source : ${sourceBreakdown[0].source}` : 'Aucune réservation sur la période'}
             icon={<CalendarCheck className="text-[#F4C75B]" size={24} />}
             delay={0.3}
           />
-          <DashboardCard 
-            title="Chiffre d'Affaires Prév." 
-            value={isLoadingMetrics ? "..." : metrics.revenue}
-            subtitle="Basé sur les réservations"
+          <DashboardCard
+            title="Chiffre d'Affaires"
+            value={metrics.revenue}
+            subtitle="Encaissements caisse (période)"
             icon={<Banknote className="text-[#F4C75B]" size={24} />}
             delay={0.4}
           />
@@ -1335,48 +1300,30 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
 
         {/* Operations Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <DashboardCard 
-            title="Point de Vente (POS)" 
-            value={isLoadingMetrics ? "..." : metrics.pos}
+          <DashboardCard
+            title="Point de Vente (POS)"
+            value={metrics.pos}
             subtitle="Synchronisation des tables en temps réel"
             icon={<Store className="text-[#F4C75B]" size={24} />}
             delay={0.3}
           />
-          <DashboardCard 
-            title="Clients Actifs (CRM)" 
-            value={isLoadingMetrics ? "..." : metrics.crm}
+          <DashboardCard
+            title="Clients Actifs (CRM)"
+            value={metrics.crm}
             subtitle="Base Firestore synchronisée en temps réel"
             icon={<Users className="text-[#F4C75B]" size={24} />}
             delay={0.4}
           />
-          <DashboardCard 
-            title="Commissions Riads" 
-            value={isLoadingMetrics ? "..." : metrics.commissions}
-            subtitle="À régler pour la période"
+          <DashboardCard
+            title="Commissions Riads"
+            value={metrics.commissions}
+            subtitle="Total dû aux partenaires B2B"
             icon={<MapPin className="text-[#F4C75B]" size={24} />}
             delay={0.5}
           />
         </div>
 
         <PerformanceAnalysis />
-
-        {/* Social Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <DashboardCard 
-            title="Facebook (Abonnés)" 
-            value="12.4K"
-            subtitle="+24 cette semaine • Portée: 4.2K"
-            icon={<Facebook className="text-[#F4C75B]" size={24} />}
-            delay={0.6}
-          />
-          <DashboardCard 
-            title="Instagram (Abonnés)" 
-            value="8.2K"
-            subtitle="+52 cette semaine • Portée: 6.8K"
-            icon={<Instagram className="text-[#F4C75B]" size={24} />}
-            delay={0.7}
-          />
-        </div>
 
 
         {/* Quick Operations Actions */}
@@ -1418,129 +1365,26 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             </div>
           </button>
 
-          <button 
-            onClick={() => {
-              setActiveTab('whatsapp');
-              showToast('Ouverture WhatsApp...');
-            }}
-            className="bg-[#265C6D] hover:bg-[#222] text-white p-4 rounded-xl shadow-md border border-[#2F6B7F] flex items-center gap-4 transition-all"
-          >
-            <div className="p-3 bg-green-500/20 text-green-400 rounded-lg">
-              <MessageCircle size={20} />
-            </div>
-            <div className="text-left">
-              <span className="block font-medium">Broadcast WhatsApp</span>
-              <span className="text-xs text-gray-400">Message aux clients VIP</span>
-            </div>
-          </button>
         </motion.div>
-
-        {/* Central Marketing Command */}
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.9 }}
-            className="lg:col-span-2 bg-white/95 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-xl"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-serif font-medium text-[#265C6D]">Performance Marketing & ROI</h3>
-              <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none">
-                <option>7 derniers jours</option>
-                <option>Ce mois-ci</option>
-              </select>
-            </div>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[
-                    { name: 'Lun', spend: 300, revenu: 1200 },
-                    { name: 'Mar', spend: 400, revenu: 1900 },
-                    { name: 'Mer', spend: 350, revenu: 1500 },
-                    { name: 'Jeu', spend: 500, revenu: 2200 },
-                    { name: 'Ven', spend: 600, revenu: 3500 },
-                    { name: 'Sam', spend: 800, revenu: 4800 },
-                    { name: 'Dim', spend: 750, revenu: 4200 },
-                  ]}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} dy={10} />
-                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} />
-                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 12}} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ color: '#265C6D', fontWeight: 500 }}
-                  />
-                  <Legend />
-                  <Bar yAxisId="left" name="Budget Ads (MAD)" dataKey="spend" fill="#265C6D" radius={[4, 4, 0, 0]} />
-                  <Bar yAxisId="right" name="Revenu Généré (MAD)" dataKey="revenu" fill="#F4C75B" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 1.0 }}
-            className="flex flex-col gap-6"
-          >
-            <button 
-              onClick={() => showToast('Lancement Nouvelle Campagne Meta...')}
-              className="w-full bg-[#265C6D] hover:bg-[#222] text-white p-6 rounded-2xl shadow-xl border border-[#2F6B7F] flex flex-col items-center justify-center gap-3 transition-all hover:-translate-y-1"
-            >
-              <div className="p-3 bg-[#F4C75B]/20 text-[#F4C75B] rounded-full">
-                <Megaphone size={28} />
-              </div>
-              <span className="font-serif text-lg tracking-wide font-medium">Nouvelle Campagne Ads</span>
-              <span className="text-xs text-gray-400">Générer et cibler avec l'IA Meta</span>
-            </button>
-
-            <div className="bg-[#265C6D] rounded-2xl p-6 border border-[#2F6B7F] shadow-xl flex-1 text-white">
-              <h4 className="font-medium mb-6 flex items-center gap-2"><TrendingUp size={16} className="text-green-400"/> Retour sur Investissement</h4>
-              <div className="space-y-5">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400 font-medium">Facebook Ads</span>
-                    <span className="font-bold text-green-400">x4.2 ROAS</span>
-                  </div>
-                  <div className="w-full bg-[#2F6B7F] rounded-full h-2">
-                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400 font-medium">Instagram Ads</span>
-                    <span className="font-bold text-green-400">x5.8 ROAS</span>
-                  </div>
-                  <div className="w-full bg-[#2F6B7F] rounded-full h-2">
-                    <div className="bg-pink-500 h-2 rounded-full" style={{ width: '85%' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
 
       {/* Architecture Focus Section */}
       <div className="mt-8 bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
         <h3 className="text-xl font-serif font-medium mb-6">État des Intégrations GCP & IA</h3>
-        
+
         <div className="space-y-6">
-          <IntegrationRow 
-            name="Firestore NoSQL" 
-            status="Connecté" 
+          <IntegrationRow
+            name="Firestore NoSQL"
+            status="Connecté"
             desc="Architecture de base de données (Users, Customers, Reservations, Inventory, Partners) avec règles de sécurité strictes déployées."
           />
-          <IntegrationRow 
-            name="Meta WhatsApp API & Vertex AI" 
-            status="Connecté" 
-            desc="Cloud Function 'whatsappWebhook' active. Routage automatisé des intentions et génération de réponses multilingues."
+          <IntegrationRow
+            name="Meta WhatsApp API & Vertex AI"
+            status="Non configuré"
+            desc="Aucun webhook WhatsApp actif pour le moment. Configurez l'intégration dans Configuration > Intégrations & IA."
           />
-          <IntegrationRow 
-            name="Menu Digital & Traductions" 
-            status="Connecté" 
+          <IntegrationRow
+            name="Menu Digital & Traductions"
+            status="Connecté"
             desc="Application Web synchronisée. Traductions IA générées en direct et servies depuis le cache Firestore."
           />
         </div>
@@ -1570,23 +1414,19 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
             <div className="p-6 overflow-y-auto print:block flex-1">
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Aujourd'hui</h4>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Période sélectionnée</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-sm text-gray-500 mb-1">Daily Active Users</div>
-                      <div className="text-2xl font-serif font-medium text-gray-900">324</div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-sm text-gray-500 mb-1">Average Order Value</div>
-                      <div className="text-2xl font-serif font-medium text-gray-900">1,076 MAD</div>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                       <div className="text-sm text-gray-500 mb-1">Réservations</div>
-                      <div className="text-2xl font-serif font-medium text-gray-900">42</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">{metrics.reservations}</div>
                     </div>
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-sm text-gray-500 mb-1">Chiffre d'Affaires Prévu</div>
-                      <div className="text-2xl font-serif font-medium text-gray-900">45,200 MAD</div>
+                      <div className="text-sm text-gray-500 mb-1">Panier Moyen</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">{metrics.aov}</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 col-span-2">
+                      <div className="text-sm text-gray-500 mb-1">Chiffre d'Affaires (encaissé)</div>
+                      <div className="text-2xl font-serif font-medium text-gray-900">{metrics.revenue}</div>
                     </div>
                   </div>
                 </div>
@@ -1595,47 +1435,34 @@ function Overview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
                   <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Performances CRM & B2B</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg">
-                      <span className="text-gray-700">Clients Actifs (CRM)</span>
-                      <span className="font-medium">1,204</span>
+                      <span className="text-gray-700">Clients Uniques (CRM)</span>
+                      <span className="font-medium">{metrics.crm}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg">
                       <span className="text-gray-700">Agences Partenaires</span>
-                      <span className="font-medium">15</span>
+                      <span className="font-medium">{partnersData.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-lg">
+                      <span className="text-gray-700">Commissions Dues</span>
+                      <span className="font-medium">{metrics.commissions}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Occupation & Sources</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-sm text-gray-500 mb-2">Taux de Remplissage</div>
-                      <div className="flex items-end gap-2 mb-2">
-                        <span className="text-3xl font-serif font-medium text-gray-900">85%</span>
-                        <span className="text-sm text-green-600 font-medium mb-1">+5% vs hier</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-[#F4C75B] h-2 rounded-full" style={{ width: '85%' }}></div>
-                      </div>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Sources de Réservation</h4>
+                  {sourceBreakdown.length === 0 ? (
+                    <p className="text-sm text-gray-400">Aucune réservation enregistrée pour le moment.</p>
+                  ) : (
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2">
+                      {sourceBreakdown.map((s, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm">
+                          <span className="text-gray-700">{s.source}</span>
+                          <span className="font-medium">{s.pct}%</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                      <div className="text-sm text-gray-500 mb-3">Sources de Réservation</div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-700">Direct / Téléphone</span>
-                          <span className="font-medium">45%</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-700">WhatsApp IA</span>
-                          <span className="font-medium">30%</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-700">Portail B2B Riads</span>
-                          <span className="font-medium">25%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1743,24 +1570,19 @@ function Reservations() {
     localStorage.setItem('mouda_tables', JSON.stringify(tables));
   }, [tables]);
 
-  const [waitlist, setWaitlist] = useState(() => {
-    const saved = localStorage.getItem('mouda_waitlist');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error parsing waitlist from localStorage", e);
-      }
-    }
-    return [
-      { id: 'WL-1', name: 'M. Karim', pax: 2, time: '10 min', status: 'waiting' },
-      { id: 'WL-2', name: 'Mme. Yasmine', pax: 4, time: '25 min', status: 'waiting' },
-    ];
-  });
+  const [waitlist, setWaitlist] = useState<any[]>([]);
 
   useEffect(() => {
-    localStorage.setItem('mouda_waitlist', JSON.stringify(waitlist));
-  }, [waitlist]);
+    const unsubWaitlist = onSnapshot(collection(db, 'waitlist'), (snapshot) => {
+      const fbWaitlist = snapshot.docs
+        .map(doc => ({ ...doc.data(), fbId: doc.id }))
+        .sort((a: any, b: any) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+      setWaitlist(fbWaitlist);
+    }, (error) => {
+      console.error("Error fetching waitlist", error);
+    });
+    return () => unsubWaitlist();
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
@@ -1843,6 +1665,18 @@ function Reservations() {
   const firstDayOfMonth = new Date(currentYear, calendarDate.getMonth(), 1).getDay();
   const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // 0 for Monday
 
+  const reservationsByDay = useMemo(() => {
+    const counts: Record<number, number> = {};
+    reservations.forEach((r: any) => {
+      const datePart = (r.date || '').split(',')[0]?.trim();
+      const d = new Date(datePart);
+      if (!isNaN(d.getTime()) && d.getMonth() === calendarDate.getMonth() && d.getFullYear() === calendarDate.getFullYear()) {
+        counts[d.getDate()] = (counts[d.getDate()] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [reservations, calendarDate]);
+
   const handlePrevMonth = () => setCalendarDate(new Date(currentYear, calendarDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCalendarDate(new Date(currentYear, calendarDate.getMonth() + 1, 1));
   const handleToday = () => setCalendarDate(new Date());
@@ -1875,47 +1709,6 @@ function Reservations() {
           </button>
         </div>
       </header>
-
-      {/* TripAdvisor Integration Banner */}
-      <div className="bg-[#00AA6C]/10 border border-[#00AA6C]/20 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-48 h-48 text-[#00AA6C]">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4 11h-3v3c0 .55-.45 1-1 1s-1-.45-1-1v-3H8c-.55 0-1-.45-1-1s.45-1 1-1h3V8c0-.55.45-1 1-1s1 .45 1 1v3h3c.55 0 1 .45 1 1s-.45 1-1 1z" />
-          </svg>
-        </div>
-        <div className="flex items-center gap-5 relative z-10">
-          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm border border-[#00AA6C]/30 flex-shrink-0">
-            <svg viewBox="0 0 24 24" fill="#00AA6C" className="w-8 h-8">
-              <path d="M12 2C6.47 2 2 6.47 2 12c0 2.21.73 4.25 1.95 5.89L2.5 21.5l3.6-1.45A9.973 9.973 0 0012 22c5.53 0 10-4.47 10-10S17.53 2 12 2zm4.18 14.62c-.17.35-.91.68-1.3.72-.34.04-.84.09-2.31-.39-1.78-.58-2.92-1.76-3.79-2.74-.86-.97-1.43-2.02-1.42-3.15 0-1.12.58-1.68.8-1.92.21-.24.47-.29.62-.29.15 0 .31.01.44.01.14 0 .33-.05.51.37.19.44.63 1.54.68 1.66.05.11.08.24.01.38-.07.15-.11.24-.22.37-.11.13-.23.27-.33.38-.11.12-.23.24-.11.45.12.21.53.88 1.14 1.42.78.69 1.43.91 1.63 1.01.21.11.33.09.46-.05.12-.15.54-.62.68-.84.15-.22.29-.18.49-.11.21.07 1.3.61 1.52.72.22.11.36.17.42.27.05.11.05.61-.12.96z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="font-serif font-medium text-[#265C6D] text-lg flex items-center gap-2">
-              Synchronisation TripAdvisor Active
-              <span className="px-2 py-0.5 bg-[#00AA6C] text-white text-[10px] uppercase font-bold tracking-wider rounded-sm">Connecté</span>
-            </h3>
-            <p className="text-gray-600 text-sm mt-0.5">Note moyenne : 4.8/5 (243 avis) • Réservations LaFourchette/TripAdvisor synchronisées en temps réel.</p>
-          </div>
-        </div>
-        <div className="flex gap-2 relative z-10">
-          <a 
-            href="https://www.tripadvisor.fr/Search?q=Mouda+Palace+Fes" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-white text-[#265C6D] rounded-lg font-medium text-sm hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm flex items-center gap-2"
-          >
-            <ExternalLink size={16} />
-            Voir la page
-          </a>
-          <button 
-            onClick={() => showToast('Synchronisation TripAdvisor... (Simulation)')}
-            className="p-2 bg-white text-gray-600 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors shadow-sm"
-            title="Synchroniser"
-          >
-            <Loader2 size={18} />
-          </button>
-        </div>
-      </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
@@ -2115,28 +1908,35 @@ function Reservations() {
                  </div>
                ) : (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   {waitlist.map(item => (
-                     <div key={item.id} className="flex flex-col p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                   {waitlist.map(item => {
+                     const waitedMinutes = item.createdAt?.toMillis ? Math.max(0, Math.round((Date.now() - item.createdAt.toMillis()) / 60000)) : 0;
+                     return (
+                     <div key={item.fbId} className="flex flex-col p-5 bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                        <div className="flex justify-between items-start mb-4">
                          <div>
                            <span className="font-semibold text-gray-900 block text-lg">{item.name}</span>
                            <span className="text-sm text-gray-500 flex items-center gap-1 mt-1"><Users size={14} /> {item.pax} personnes</span>
                          </div>
                          <span className="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md text-xs font-medium border border-amber-100 flex items-center gap-1">
-                           <Clock size={12} /> {item.time}
+                           <Clock size={12} /> {waitedMinutes} min
                          </span>
                        </div>
-                       <button 
-                         onClick={() => {
-                           setWaitlist(waitlist.filter(w => w.id !== item.id));
-                           showToast(`Table attribuée à ${item.name}`);
+                       <button
+                         onClick={async () => {
+                           try {
+                             await deleteDoc(doc(db, 'waitlist', item.fbId));
+                             showToast(`Table attribuée à ${item.name}`);
+                           } catch (err) {
+                             console.error(err);
+                             showToast("Erreur lors de la synchronisation au serveur", "error");
+                           }
                          }}
                          className="w-full mt-auto py-2.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors rounded-xl text-sm font-medium flex justify-center items-center gap-2"
                        >
                          <CheckCircle size={16} /> Attribuer une table
                        </button>
                      </div>
-                   ))}
+                   );})}
                  </div>
                )}
              </div>
@@ -2149,23 +1949,9 @@ function Reservations() {
 
           {activeTab === 'reviews' && (
              <div className="p-8">
-               <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2"><Star size={18} className="text-[#F4C75B]" /> Derniers avis TripAdvisor</h4>
-               <div className="space-y-4">
-                 {[1,2].map(i => (
-                    <div key={i} className="p-5 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900">Client TripAdvisor {i}</span>
-                          <span className="text-gray-400 text-xs">• Il y a 2 jours</span>
-                        </div>
-                        <div className="flex gap-0.5 text-[#00AA6C]">
-                          <Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" />
-                        </div>
-                      </div>
-                      <p className="text-gray-600 text-sm mb-3">"Excellente expérience, cadre magnifique et tajines délicieux. Service impeccable via la réservation en ligne."</p>
-                          <button onClick={() => showToast && showToast("Fonctionnalité à venir...")} className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1">Modifier</button>
-                    </div>
-                 ))}
+               <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2"><Star size={18} className="text-[#F4C75B]" /> Avis Clients</h4>
+               <div className="text-center text-gray-500 py-12 border border-dashed border-gray-200 bg-white rounded-2xl">
+                 Aucune intégration d'avis clients connectée pour le moment. Utilisez le module "Analyse d'Avis (IA)" du Tableau de Bord pour analyser un avis collé manuellement.
                </div>
              </div>
           )}
@@ -2203,7 +1989,8 @@ function Reservations() {
                   const day = i - startOffset + 1;
                   const isValidDay = day > 0 && day <= daysInMonth;
                   const isTodayHighlight = isCurrentMonth && day === today.getDate();
-                  const hasReservation = isValidDay && [13, 15, 18, 22].includes(day);
+                  const reservationCount = isValidDay ? (reservationsByDay[day] || 0) : 0;
+                  const hasReservation = reservationCount > 0;
 
                   return (
                     <div key={i} className={`min-h-[100px] p-2 border-r border-b border-gray-100 ${!isValidDay ? 'bg-gray-50/50' : 'bg-white'}`}>
@@ -2213,11 +2000,11 @@ function Reservations() {
                             {day}
                           </div>
                           {hasReservation && (
-                            <div 
-                              onClick={() => showToast(`${day === 13 ? '3 réservations' : '1 réservation'} pour le ${day} ${currentMonthName}`)}
+                            <div
+                              onClick={() => showToast(`${reservationCount} réservation${reservationCount > 1 ? 's' : ''} pour le ${day} ${currentMonthName}`)}
                               className="bg-blue-50 border border-blue-100 text-blue-700 text-xs p-1.5 rounded-md truncate cursor-pointer hover:bg-blue-100 transition-colors"
                             >
-                              {day === 13 ? '3 Réservations' : '1 Réservation'}
+                              {reservationCount} Réservation{reservationCount > 1 ? 's' : ''}
                             </div>
                           )}
                         </>
@@ -2355,20 +2142,24 @@ function Reservations() {
                   <button onClick={() => setNewWaitlistPax(newWaitlistPax + 1)} className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50">+</button>
                 </div>
               </div>
-              <button 
-                onClick={() => {
+              <button
+                onClick={async () => {
                   if(newWaitlistName) {
-                    setWaitlist([...waitlist, {
-                      id: `WL-${Date.now().toString().slice(-4)}`,
-                      name: newWaitlistName,
-                      pax: newWaitlistPax,
-                      time: '0 min',
-                      status: 'waiting'
-                    }]);
-                    showToast(`${newWaitlistName} ajouté à la liste d'attente`);
-                    setNewWaitlistName('');
-                    setNewWaitlistPax(2);
-                    setIsAddWaitlistOpen(false);
+                    try {
+                      await addDoc(collection(db, 'waitlist'), {
+                        name: newWaitlistName,
+                        pax: newWaitlistPax,
+                        status: 'waiting',
+                        createdAt: serverTimestamp()
+                      });
+                      showToast(`${newWaitlistName} ajouté à la liste d'attente`);
+                      setNewWaitlistName('');
+                      setNewWaitlistPax(2);
+                      setIsAddWaitlistOpen(false);
+                    } catch (err) {
+                      console.error(err);
+                      showToast("Erreur lors de l'ajout à la liste d'attente", "error");
+                    }
                   } else {
                     showToast('Veuillez entrer un nom');
                   }
@@ -2632,7 +2423,6 @@ Clients apportés: ${partner.clients}
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Share2 size={18} /></div>
           </div>
           <h3 className="text-2xl font-bold text-gray-900">{partners.length}</h3>
-          <p className="text-xs text-green-600 mt-2 font-medium">+3 ce mois</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -2759,44 +2549,36 @@ Clients apportés: ${partner.clients}
 
           {activeTab === 'commissions' && (
             <div className="p-0">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                 <h3 className="font-medium text-gray-900">Historique des Versements</h3>
-                <button onClick={() => showToast('Génération du rapport...')} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
-                  <Download size={16} /> Exporter
-                </button>
+                <p className="text-sm text-gray-500 mt-1">Commissions actuellement dues par partenaire, calculées à partir du CA généré et du taux de commission.</p>
               </div>
+              {partners.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">Aucun partenaire pour le moment.</div>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
                     <tr>
                       <th className="px-6 py-4">Partenaire</th>
-                      <th className="px-6 py-4">Date</th>
-                      <th className="px-6 py-4">Montant</th>
-                      <th className="px-6 py-4">Méthode</th>
-                      <th className="px-6 py-4">Statut</th>
-<th className="px-6 py-4 text-right">Actions</th>
+                      <th className="px-6 py-4 text-right">CA Généré</th>
+                      <th className="px-6 py-4 text-right">Taux</th>
+                      <th className="px-6 py-4 text-right">Commission Due</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {[
-                      { name: 'Riad Aladina', date: '01 Juil 2026', amount: '1,200 MAD', method: 'Virement bancaire', status: 'Payé' },
-                      { name: 'Voyage Maroc', date: '28 Juin 2026', amount: '4,500 MAD', method: 'Espèces', status: 'Payé' }
-                    ].map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900">{tx.name}</td>
-                        <td className="px-6 py-4 text-gray-600">{tx.date}</td>
-                        <td className="px-6 py-4 font-medium text-[#F4C75B]">{tx.amount}</td>
-                        <td className="px-6 py-4 text-gray-600">{tx.method}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">
-                            {tx.status}
-                          </span>
-                        </td>
+                    {partners.map((p: any) => (
+                      <tr key={p.fbId} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-gray-900">{p.name}</td>
+                        <td className="px-6 py-4 text-right text-gray-600">{p.revenue}</td>
+                        <td className="px-6 py-4 text-right text-gray-600">{p.commission}%</td>
+                        <td className="px-6 py-4 text-right font-medium text-[#F4C75B]">{(parseRevenue(p.revenue) * (p.commission || 0) / 100).toFixed(2)} MAD</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
           )}
         </div>
@@ -2841,7 +2623,7 @@ Clients apportés: ${partner.clients}
 
             <div className="flex flex-col gap-3 flex-shrink-0 mt-auto">
               <div className="flex flex-col sm:flex-row gap-3">
-                <button 
+                <button
                   onClick={() => {
                     const printWindow = window.open('', '_blank');
                     if (printWindow) {
@@ -2887,27 +2669,7 @@ Clients apportés: ${partner.clients}
                   <Printer size={18} />
                   Ouvrir HD / Imprimer
                 </button>
-                <button 
-                  onClick={() => {
-                    showToast("Téléchargement du kit QR partenaire...");
-                    setIsQRModalOpen(false);
-                  }}
-                  className="flex-1 bg-white border border-gray-200 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download size={18} />
-                  Kit ZIP
-                </button>
               </div>
-              <button 
-                onClick={() => {
-                  showToast(`Scan détecté : Client redirigé vers Menu & GPS. Commission de ${selectedPartner.commission}% en attente d'encaissement.`);
-                  setIsQRModalOpen(false);
-                }}
-                className="w-full bg-blue-50 text-blue-700 border border-blue-200 py-2.5 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
-              >
-                <Smartphone size={18} />
-                Simuler un scan client
-              </button>
             </div>
           </div>
         </div>
@@ -2996,7 +2758,8 @@ Clients apportés: ${partner.clients}
                     active: true,
                     clients: 0,
                     accessCode: newPartnerAccessCode,
-                    email: newPartnerEmail
+                    email: newPartnerEmail,
+                    createdAt: serverTimestamp()
                   };
 
                   try {
@@ -3135,603 +2898,7 @@ Clients apportés: ${partner.clients}
   );
 }
 
-let savedPrompt = `Tu es l'assistant virtuel du restaurant gastronomique Mouda Palace à Fès. 
-Ton ton doit être élégant, chaleureux et professionnel.
-Tu peux répondre aux questions sur le menu, les horaires, l'adresse et l'emplacement du restaurant, prendre des réservations et fournir le site web du restaurant : www.moudapalace.com, ainsi que le menu digital. 
-Si une demande est complexe, propose au client d'être contacté par un humain.`;
 
-
-
-function DigitalMenu() {
-  const { showToast } = useToast();
-  const [activeCategory, setActiveCategory] = useState('Tous');
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [isAddDishModalOpen, setIsAddDishModalOpen] = useState(false);
-  const [editingDish, setEditingDish] = useState<any>(null);
-  const [newDishForm, setNewDishForm] = useAutoSave('form_newDishForm', { name: '', category: 'Entrées', price: '', desc: '' });
-  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [displayLanguage, setDisplayLanguage] = useState('fr');
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-  
-  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
-  const [mediaEditingItem, setMediaEditingItem] = useState<any>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
-  const [isVideoPlayerOpen, setIsVideoPlayerOpen] = useState(false);
-  const [currentVideo, setCurrentVideo] = useState<string | null>(null);
-  
-  const openMediaModal = (item: any, type: 'image' | 'video') => {
-    setMediaEditingItem(item);
-    setMediaType(type);
-    setIsMediaModalOpen(true);
-  };
-  
-  const playVideo = (videoUrl?: string) => {
-    if (videoUrl) {
-      setCurrentVideo(videoUrl);
-      setIsVideoPlayerOpen(true);
-    } else {
-      showToast("Aucune vidéo disponible pour ce plat");
-    }
-  };
-
-  const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
-  
-  const [menuItems, setMenuItems] = useState([
-    { id: 1, category: 'Entrées', name: 'Briouates au Fromage', price: '85 MAD', desc: 'Feuilletés croustillants farcis au fromage de chèvre et herbes fraîches.', image: 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500', active: true, translated: true, translations: { en: { name: 'Cheese Briouates', desc: 'Crispy pastries stuffed with goat cheese and fresh herbs.' }, es: { name: 'Briouates de Queso', desc: 'Pasteles crujientes rellenos de queso de cabra y hierbas frescas.' }, ar: { name: 'بريوات بالجبن', desc: 'معجنات مقرمشة محشوة بجبن الماعز والأعشاب الطازجة.' }, de: { name: 'Käse-Briouates', desc: 'Knuspriges Gebäck gefüllt mit Ziegenkäse und frischen Kräutern.' }, zh: { name: '奶酪薄饼', desc: '脆皮糕点塞满了山羊奶酪和新鲜香草。' }, ko: { name: '치즈 브리오와트', desc: '염소 치즈와 신선한 허브로 속을 채운 바삭한 페이스트리.' }, pt: { name: 'Briouates de Queijo', desc: 'Pastéis crocantes recheados com queijo de cabra e ervas frescas.' } } },
-    { id: 2, category: 'Entrées', name: 'Salade Zaalouk', price: '75 MAD', desc: 'Caviar d\'aubergines grillées à la tomate, ail et épices.', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500', active: true, translated: true, translations: { en: { name: 'Zaalouk Salad', desc: 'Grilled eggplant caviar with tomato, garlic, and spices.' }, es: { name: 'Ensalada Zaalouk', desc: 'Caviar de berenjenas asadas con tomate, ajo y especias.' }, ar: { name: 'سلطة زعلوك', desc: 'كافيار الباذنجان المشوي مع الطماطم والثوم والتوابل.' }, de: { name: 'Zaalouk-Salat', desc: 'Gegrillter Auberginenkaviar mit Tomaten, Knoblauch und Gewürzen.' }, zh: { name: '扎卢克沙拉', desc: '烤茄子鱼子酱加番茄、大蒜和香料。' }, ko: { name: '잘룩 샐러드', desc: '토마토, 마늘, 향신료를 곁들인 구운 가지 캐비어.' }, pt: { name: 'Salada Zaalouk', desc: 'Caviar de berinjela grelhada com tomate, alho e especiarias.' } } },
-    { id: 3, category: 'Plats Principaux', name: 'Tagine d\'Agneau aux Pruneaux', price: '220 MAD', desc: 'Agneau mijoté aux épices douces, pruneaux caramélisés et amandes.', image: 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=500', active: true, translated: true, translations: { en: { name: 'Lamb Tagine with Prunes', desc: 'Lamb simmered with sweet spices, caramelized prunes, and almonds.' }, es: { name: 'Tajín de Cordero con Ciruelas', desc: 'Cordero a fuego lento con especias dulces, ciruelas caramelizadas y almendras.' }, ar: { name: 'طاجين اللحم بالبرقوق', desc: 'لحم ضأن مطبوخ ببطء مع توابل حلوة، برقوق مكرمل ولوز.' }, de: { name: 'Lamm-Tajine mit Pflaumen', desc: 'Lamm geschmort mit süßen Gewürzen, karamellisierten Pflaumen und Mandeln.' }, zh: { name: '羊肉塔吉锅配梅子', desc: '加入甜香料、焦糖梅子和杏仁炖煮的羊肉。' }, ko: { name: '자두 양고기 타진', desc: '달콤한 향신료, 캐러멜 처리된 자두, 아몬드로 푹 끓인 양고기.' }, pt: { name: 'Tajine de Cordeiro com Ameixas', desc: 'Cordeiro cozido em fogo brando com especiarias doces, ameixas caramelizadas e amêndoas.' } } },
-    { id: 4, category: 'Plats Principaux', name: 'Pastilla au Pigeon', price: '240 MAD', desc: 'Tourte sucrée-salée aux amandes, cannelle et fleur d\'oranger.', image: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=500', active: true, translated: false },
-    { id: 5, category: 'Desserts', name: 'Orange à la Cannelle', price: '50 MAD', desc: 'Tranches d\'orange fraîche, cannelle moulue et sirop de fleur d\'oranger.', image: 'https://images.unsplash.com/photo-1582294436965-f483fc6371cb?w=500', active: true, translated: true, translations: { en: { name: 'Cinnamon Orange', desc: 'Fresh orange slices, ground cinnamon, and orange blossom syrup.' }, es: { name: 'Naranja a la Canela', desc: 'Rodajas de naranja fresca, canela molida y sirope de azahar.' }, ar: { name: 'برتقال بالقرفة', desc: 'شرائح برتقال طازجة، قرفة مطحونة وشراب زهر البرتقال.' }, de: { name: 'Zimtorange', desc: 'Frische Orangenscheiben, gemahlener Zimt und Orangenblütensirup.' }, zh: { name: '肉桂橙', desc: '新鲜橙片、肉桂粉和橙花糖浆。' }, ko: { name: '시나몬 오렌지', desc: '신선한 오렌지 슬라이스, 계피 가루, 오렌지 블라썸 시럽.' }, pt: { name: 'Laranja com Canela', desc: 'Fatias de laranja fresca, canela em pó e xarope de flor de laranjeira.' } } },
-    { id: 6, category: 'Boissons', name: 'Thé à la Menthe Royal', price: '40 MAD', desc: 'Thé vert traditionnel infusé à la menthe fraîche et pignons de pin.', image: 'https://images.unsplash.com/photo-1576092762791-dd9e2220abd4?w=500', active: true, translated: true, translations: { en: { name: 'Royal Mint Tea', desc: 'Traditional green tea infused with fresh mint and pine nuts.' }, es: { name: 'Té de Menta Real', desc: 'Té verde tradicional infundido con menta fresca y piñones.' }, ar: { name: 'شاي ملكي بالنعناع', desc: 'شاي أخضر تقليدي منقوع بالنعناع الطازج وحبوب الصنوبر.' }, de: { name: 'Königlicher Minztee', desc: 'Traditioneller grüner Tee, aufgegossen mit frischer Minze und Pinienkernen.' }, zh: { name: '皇家薄荷茶', desc: '传统绿茶，泡有新鲜薄荷和松子。' }, ko: { name: '로열 민트 티', desc: '신선한 민트와 잣을 우려낸 전통 녹차.' }, pt: { name: 'Chá de Hortelã Real', desc: 'Chá verde tradicional infundido com hortelã fresca e pinhões.' } } }
-  ]);
-
-  const handleTranslate = async () => {
-    const untranslatedItems = menuItems.filter(item => !item.translated);
-    
-    if (untranslatedItems.length === 0) {
-      showToast('Tous les plats sont déjà traduits.');
-      return;
-    }
-
-    setIsTranslating(true);
-    showToast('Traduction du menu en cours avec Vertex AI...');
-    
-    try {
-      const response = await fetch('/api/translate-menu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: untranslatedItems })
-      });
-      
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        let errMsg = 'Erreur lors de la traduction';
-        if (errData.error === "API key not found") errMsg = "La clé d'API Gemini est manquante. Vérifiez les paramètres.";
-        else if (errData.error && errData.error.includes("401")) errMsg = "La clé d'API Gemini utilisée semble invalide.";
-        throw new Error(errMsg);
-      }
-      
-      const translationsResult = await response.json();
-      
-      setMenuItems(prevItems => prevItems.map(item => {
-        const transResult = translationsResult.find((t: any) => t.id === item.id);
-        if (transResult) {
-          return {
-            ...item,
-            translated: true,
-            translations: transResult.translations
-          };
-        }
-        return item;
-      }));
-      
-      showToast('Traduction terminée avec succès !');
-    } catch (error: any) {
-      console.error(error);
-      showToast(error.message || 'Erreur lors de la traduction.', 'error');
-    } finally {
-      setIsTranslating(false);
-    }
-  };
-
-  const openAddModal = () => {
-    setEditingDish(null);
-    setNewDishForm({ name: '', category: activeCategory === 'Tous' ? categories[0] : activeCategory, price: '', desc: '' });
-    setIsAddDishModalOpen(true);
-  };
-
-  const openEditModal = (item: any) => {
-    setEditingDish(item);
-    setNewDishForm({ 
-      name: item.name, 
-      category: item.category, 
-      price: item.price.replace(' MAD', ''), 
-      desc: item.desc 
-    });
-    setIsAddDishModalOpen(true);
-  };
-
-  const handleSaveDish = () => {
-    if (!newDishForm.name || !newDishForm.price) {
-      showToast("Veuillez remplir les champs obligatoires");
-      return;
-    }
-    
-    if (editingDish) {
-      setMenuItems(items => items.map(item => item.id === editingDish.id ? {
-        ...item,
-        name: newDishForm.name,
-        category: newDishForm.category,
-        price: `${newDishForm.price} MAD`,
-        desc: newDishForm.desc,
-        translated: false
-      } : item));
-      showToast("Plat modifié avec succès (Traduction requise)");
-    } else {
-      const newItem: any = {
-        id: Date.now(),
-        name: newDishForm.name,
-        category: newDishForm.category,
-        price: `${newDishForm.price} MAD`,
-        desc: newDishForm.desc,
-        active: true,
-        translated: false,
-        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-        translations: {}
-      };
-      setMenuItems(items => [...items, newItem]);
-      showToast("Plat ajouté avec succès (Traduction requise)");
-    }
-    setIsAddDishModalOpen(false);
-  };
-
-  const handleDeleteDish = (id: number) => {
-    if (confirm('Voulez-vous vraiment supprimer ce plat ?')) {
-      setMenuItems(items => items.filter(item => item.id !== id));
-      showToast("Plat supprimé avec succès");
-    }
-  };
-
-  const toggleFavorite = (id: number) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(fId => fId !== id) : [...prev, id]);
-  };
-
-  const filteredItems = activeCategory === 'Tous' 
-    ? menuItems 
-    : activeCategory === 'Favoris'
-      ? menuItems.filter(item => favorites.includes(item.id))
-      : menuItems.filter(item => item.category === activeCategory);
-
-  return (
-    <div className="p-8 md:p-12 relative z-10">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-serif text-[#265C6D] font-semibold mb-2">Menu Digital</h2>
-          <p className="text-gray-500">Gestion des plats, prix, et traductions automatiques.</p>
-        </div>
-        <div className="flex flex-wrap justify-end gap-3">
-          <button 
-            onClick={() => setIsPreviewMode(!isPreviewMode)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors shadow-sm"
-          >
-            {isPreviewMode ? <Menu size={16} /> : <ImageIcon size={16} />}
-            {isPreviewMode ? 'Vue Liste' : 'Aperçu Multimédia'}
-          </button>
-          <button 
-            onClick={() => setIsQRModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            <QrCode size={16} />
-            Imprimer QR Code
-          </button>
-          <button 
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm"
-          >
-            <Plus size={16} />
-            Ajouter un plat
-          </button>
-        </div>
-      </header>
-
-      {/* AI Translation Banner */}
-      <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4 text-white">
-          <div className="p-3 bg-[#F4C75B]/20 text-[#F4C75B] rounded-xl">
-            <Globe size={24} />
-          </div>
-          <div>
-            <h3 className="font-medium text-lg">Traductions IA Multilingues</h3>
-            <p className="text-[#E8E6E1]/70 text-sm">Traduisez automatiquement votre menu en 8 langues avec Vertex AI.</p>
-          </div>
-        </div>
-        <button 
-          onClick={handleTranslate}
-          disabled={isTranslating || menuItems.filter(i => !i.translated).length === 0}
-          className={`whitespace-nowrap px-5 py-2.5 bg-white text-[#265C6D] rounded-xl font-medium text-sm hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2 ${(isTranslating || menuItems.filter(i => !i.translated).length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
-        >
-          {isTranslating ? <Loader2 size={16} className="text-[#F4C75B] animate-spin" /> : <Sparkles size={16} className={menuItems.filter(i => !i.translated).length === 0 ? "text-gray-400" : "text-[#F4C75B]"} />}
-          {isTranslating ? 'Traduction en cours...' : menuItems.filter(i => !i.translated).length === 0 ? 'Tous les plats sont traduits' : `Traduire ${menuItems.filter(i => !i.translated).length} plat(s) non traduit(s)`}
-        </button>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Categories Tab and Language Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] p-4 gap-4">
-          <div className="flex items-center gap-3">
-            <label htmlFor="category-filter" className="text-white/70 text-sm font-medium">Catégorie :</label>
-            <select
-              id="category-filter"
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-[#265C6D] text-white border border-white/20 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F4C75B]"
-            >
-              <option value="Tous">Toutes les catégories</option>
-              <option value="Favoris">Favoris ❤️</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Globe size={16} className="text-gray-400" />
-            <select 
-              value={displayLanguage}
-              onChange={(e) => setDisplayLanguage(e.target.value)}
-              className="text-sm border-none bg-transparent text-white font-medium focus:ring-0 outline-none focus:outline-none cursor-pointer"
-            >
-              <option value="fr" className="bg-[#265C6D] text-white">Français (FR)</option>
-              <option value="en" className="bg-[#265C6D] text-white">English (EN)</option>
-              <option value="es" className="bg-[#265C6D] text-white">Español (ES)</option>
-              <option value="ar" className="bg-[#265C6D] text-white">العربية (AR)</option>
-              <option value="de" className="bg-[#265C6D] text-white">Deutsch (DE)</option>
-              <option value="zh" className="bg-[#265C6D] text-white">中文 (ZH)</option>
-              <option value="ko" className="bg-[#265C6D] text-white">한국어 (KO)</option>
-              <option value="pt" className="bg-[#265C6D] text-white">Português (PT)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Menu Items List */}
-        {/* Menu Items List */}
-        <div className={isPreviewMode ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6 bg-gray-50" : "divide-y divide-gray-100"}>
-          {filteredItems.map(item => {
-            // @ts-ignore - dynamic properties
-            const currentTranslation = displayLanguage !== 'fr' && item.translations ? item.translations[displayLanguage] : null;
-            const displayName = currentTranslation?.name || item.name;
-            const displayDesc = currentTranslation?.desc || item.desc;
-            
-            const defaultImages: Record<string, string> = {
-              'Entrées': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop',
-              'Plats Principaux': 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=500&h=300&fit=crop',
-              'Desserts': 'https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=500&h=300&fit=crop',
-              'Boissons': 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=500&h=300&fit=crop'
-            };
-            const imageSrc = (item as any).image || defaultImages[item.category];
-            
-            return isPreviewMode ? (
-              <div key={item.id} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
-                <div className="aspect-video bg-gray-100 relative group overflow-hidden">
-                  <img src={imageSrc} alt={item.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <button onClick={() => playVideo((item as any).video)} className="p-4 bg-white/95 backdrop-blur-sm rounded-full text-indigo-600 hover:scale-110 transition-transform shadow-lg">
-                       <MonitorPlay size={28} className="ml-1" />
-                     </button>
-                  </div>
-                  <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg text-sm font-bold text-gray-900 shadow-sm">
-                    {item.price}
-                  </div>
-                  <div className="absolute top-3 left-3">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
-                      className={`p-2 rounded-full backdrop-blur-sm shadow-sm transition-colors ${favorites.includes(item.id) ? 'bg-white/95 text-red-500' : 'bg-black/20 text-white hover:bg-black/40'}`}
-                    >
-                      <Heart size={18} fill={favorites.includes(item.id) ? "currentColor" : "none"} />
-                    </button>
-                  </div>
-                </div>
-                <div className={`p-5 flex-1 flex flex-col ${displayLanguage === 'ar' ? 'text-right' : ''}`} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
-                  <h4 className="font-serif font-medium text-lg text-gray-900 mb-2">{displayName}</h4>
-                  <p className="text-sm text-gray-500 line-clamp-3 mb-4 flex-1 leading-relaxed">{displayDesc}</p>
-                  
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
-                    {item.translated ? (
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-green-600 flex items-center gap-1.5 bg-green-50 px-2 py-1 rounded-md">
-                        <Globe size={12} /> Traduit
-                      </span>
-                    ) : (
-                      <span className="text-[10px] uppercase tracking-wider font-bold text-amber-600 flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-md">
-                        <AlertTriangle size={12} /> À traduire
-                      </span>
-                    )}
-                    <div className="flex gap-1.5">
-                      <button onClick={() => openMediaModal(item, 'video')} className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-lg transition-colors title='Ajouter une vidéo'"><MonitorPlay size={16}/></button>
-                      <button onClick={() => openMediaModal(item, 'image')} className="p-1.5 text-gray-400 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-lg transition-colors title='Changer la photo'"><ImageIcon size={16}/></button>
-                      <button onClick={() => openEditModal(item)} className="p-1.5 text-gray-400 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16}/></button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-            <div key={item.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
-              <div className="flex items-start gap-4 flex-1">
-                <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 border border-gray-200">
-                  <UtensilsCrossed className="text-gray-400" size={24} />
-                </div>
-                <div className={displayLanguage === 'ar' ? 'text-right w-full' : ''} dir={displayLanguage === 'ar' ? 'rtl' : 'ltr'}>
-                  <div className={`flex items-center gap-3 mb-1 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
-                    <h4 className="font-medium text-gray-900">{displayName}</h4>
-                    <button 
-                      onClick={() => toggleFavorite(item.id)}
-                      className={`p-1 rounded-full transition-colors ${favorites.includes(item.id) ? 'text-red-500 hover:text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      <Heart size={16} fill={favorites.includes(item.id) ? "currentColor" : "none"} />
-                    </button>
-                    {!item.active && (
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md font-medium flex items-center gap-1">
-                        <EyeOff size={12} /> Masqué
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 line-clamp-2 max-w-2xl">{displayDesc}</p>
-                  
-                  <div className={`flex items-center gap-4 mt-3 ${displayLanguage === 'ar' ? 'justify-start flex-row-reverse' : ''}`}>
-                    <span className="font-semibold text-[#265C6D]">{item.price}</span>
-                    <div className="w-px h-4 bg-gray-200"></div>
-                    {item.translated ? (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <Globe size={12} /> Traduit (FR, EN, ES, AR)
-                      </span>
-                    ) : (
-                      <span className="text-xs text-amber-600 flex items-center gap-1">
-                        <AlertTriangle size={12} /> Traduction requise
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => openMediaModal(item, 'image')}
-                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                  title="Ajouter une photo"
-                >
-                  <ImageIcon size={18} />
-                </button>
-                <button 
-                  onClick={() => openMediaModal(item, 'video')}
-                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                  title="Ajouter une vidéo"
-                >
-                  <MonitorPlay size={18} />
-                </button>
-                <button 
-                  onClick={() => {
-                    setMenuItems(items => items.map(i => i.id === item.id ? { ...i, active: !i.active } : i));
-                    showToast(`Visibilité de ${item.name} modifiée`);
-                  }}
-                  className="p-2 text-gray-400 hover:text-gray-900 transition-colors rounded-lg hover:bg-gray-100"
-                  title={item.active ? "Masquer" : "Afficher"}
-                >
-                  {item.active ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
-                <button 
-                  onClick={() => openEditModal(item)}
-                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
-                  title="Modifier"
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button 
-                  onClick={() => handleDeleteDish(item.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
-                  title="Supprimer"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-            );
-          })}
-          {filteredItems.length === 0 && (
-            <div className="p-12 text-center text-gray-500">
-              Aucun plat dans cette catégorie.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Media Modal */}
-      {isMediaModalOpen && mediaEditingItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900 flex items-center gap-2">
-                {mediaType === 'image' ? <ImageIcon size={20} className="text-indigo-600"/> : <MonitorPlay size={20} className="text-indigo-600"/>}
-                Ajouter {mediaType === 'image' ? 'une photo' : 'une vidéo'}
-              </h3>
-              <button onClick={() => setIsMediaModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const url = formData.get('mediaUrl') as string;
-              
-              setMenuItems(items => items.map(item => item.id === mediaEditingItem.id ? {
-                ...item,
-                [mediaType]: url
-              } : item));
-              
-              showToast(`${mediaType === 'image' ? 'Photo' : 'Vidéo'} ajoutée avec succès`);
-              setIsMediaModalOpen(false);
-            }} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URL de la {mediaType === 'image' ? 'photo' : 'vidéo'}
-                  </label>
-                  <input 
-                    type="url" 
-                    name="mediaUrl" 
-                    required 
-                    defaultValue={mediaEditingItem[mediaType] || ''}
-                    placeholder={`https://example.com/${mediaType === 'image' ? 'photo.jpg' : 'video.mp4'}`}
-                    className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-indigo-500" 
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    {mediaType === 'image' 
-                      ? "Pour une meilleure qualité, utilisez une image au format paysage (16:9)."
-                      : "Lien vers une vidéo (MP4, WebM ou YouTube)."}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsMediaModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors">Enregistrer</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-      
-      {/* Video Player Modal */}
-      {isVideoPlayerOpen && currentVideo ? (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[110] p-4" onClick={() => setIsVideoPlayerOpen(false)}>
-          <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setIsVideoPlayerOpen(false)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full backdrop-blur-md transition-colors">
-              <X size={20} />
-            </button>
-            <iframe 
-              src={currentVideo.includes('youtube.com/watch?v=') ? currentVideo.replace('watch?v=', 'embed/') : currentVideo} 
-              className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-              allowFullScreen
-            ></iframe>
-          </div>
-        </div>
-      ) : null}
-
-      {/* QR Code Modal */}
-      {isQRModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">Menu Digital QR</h3>
-              <button onClick={() => setIsQRModalOpen(false)} className="text-gray-400 hover:text-gray-900">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 flex flex-col items-center justify-center mb-6">
-              <QrCode size={160} className="text-gray-800" />
-              <p className="mt-4 text-sm text-gray-500 font-medium">Scannez pour voir le menu</p>
-            </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => {
-                  showToast("Lancement de l'impression...");
-                  setIsQRModalOpen(false);
-                }}
-                className="flex-1 bg-[#265C6D] text-white py-2.5 rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors"
-              >
-                Imprimer
-              </button>
-              <button 
-                onClick={() => setIsQRModalOpen(false)}
-                className="flex-1 bg-white border border-gray-200 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Dish Modal */}
-      {isAddDishModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">{editingDish ? 'Modifier Plat' : 'Nouveau Plat'}</h3>
-              <button onClick={() => setIsAddDishModalOpen(false)} className="text-gray-400 hover:text-gray-900">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input 
-                  type="text" 
-                  value={newDishForm.name}
-                  onChange={(e) => setNewDishForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
-                  placeholder="Ex: Pastilla au Poulet" 
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <select 
-                    value={newDishForm.category}
-                    onChange={(e) => setNewDishForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix (MAD)</label>
-                  <input 
-                    type="number" 
-                    value={newDishForm.price}
-                    onChange={(e) => setNewDishForm(prev => ({ ...prev, price: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" 
-                    placeholder="0" 
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description (FR)</label>
-                <textarea 
-                  rows={3} 
-                  value={newDishForm.desc}
-                  onChange={(e) => setNewDishForm(prev => ({ ...prev, desc: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" 
-                  placeholder="Description du plat..."
-                ></textarea>
-              </div>
-              <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div className="p-2 bg-[#F4C75B]/20 text-[#F4C75B] rounded-md">
-                  <Sparkles size={16} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Traduction IA Automatique</p>
-                  <p className="text-xs text-gray-500">Le titre et la description seront traduits en EN, ES, AR après l'enregistrement.</p>
-                </div>
-              </div>
-              <button 
-                onClick={handleSaveDish}
-                className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#2F6B7F] transition-colors"
-              >
-                {editingDish ? 'Enregistrer et Traduire' : 'Ajouter et Traduire'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function Inventory() {
   const { showToast } = useToast();
@@ -3854,6 +3021,15 @@ function Inventory() {
     });
     return () => unsub();
   }, []);
+
+  const [staffNames, setStaffNames] = useState<string[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'staff'), (snapshot) => {
+      setStaffNames(snapshot.docs.map(doc => doc.data().name).filter(Boolean).sort());
+    });
+    return () => unsub();
+  }, []);
+
   const [txType, setTxType] = useState<'in' | 'out'>('in');
   const [newRecipeForm, setNewRecipeForm] = useAutoSave('form_newRecipeForm', { name: '', category: 'Entrée', portions: 1 });
   const [newRecipeIngredients, setNewRecipeIngredients] = useAutoSave<any[]>('form_newRecipeIngredients', []);
@@ -4072,8 +3248,21 @@ function Inventory() {
           <p className="text-gray-500">Fiches techniques, food cost, production journalière et inventaires automatiques.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button 
-            onClick={() => showToast('Inventaire automatique en cours...')}
+          <button
+            onClick={() => {
+              const staleThresholdMs = 30 * 24 * 60 * 60 * 1000;
+              const now = Date.now();
+              const staleItems = stockItemsData.filter((item: any) => {
+                const ts = item.updatedAt?.toMillis?.() ?? item.createdAt?.toMillis?.();
+                if (!ts) return true;
+                return (now - ts) > staleThresholdMs;
+              });
+              if (staleItems.length === 0) {
+                showToast("Tous les produits ont été recomptés au cours des 30 derniers jours.");
+              } else {
+                showToast(`${staleItems.length} produit(s) n'ont pas été recomptés depuis plus de 30 jours.`, "error");
+              }
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors shadow-sm"
           >
             <Wand2 size={16} />
@@ -4576,15 +3765,24 @@ function Inventory() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Plan de Production Journalier</h3>
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => {
-                      showToast("Plan de production généré avec succès d'après 45 pax aujourd'hui");
-                      const tasks = [
-                        { item: "Tagines d'Agneau (Précuisson)", qty: "20 portions", progress: 0, status: "À faire", priority: "Haute", createdAt: serverTimestamp() },
-                        { item: "Salades Marocaines", qty: "15 portions", progress: 0, status: "À faire", priority: "Moyenne", createdAt: serverTimestamp() },
-                        { item: "Pigeons (Désossage)", qty: "10 pièces", progress: 0, status: "À faire", priority: "Basse", createdAt: serverTimestamp() }
-                      ];
-                      tasks.forEach(async (t) => await addDoc(collection(db, 'productionTasks'), t));
+                  <button
+                    onClick={async () => {
+                      if (fichesTechniques.length === 0) {
+                        showToast("Aucune fiche technique disponible pour générer un plan de production.", "error");
+                        return;
+                      }
+                      const tasksToCreate = fichesTechniques.slice(0, 5).map((f: any) => ({
+                        item: f.nom,
+                        qty: `${f.portions || 1} portion(s)`,
+                        progress: 0,
+                        status: "À faire",
+                        priority: "Moyenne",
+                        createdAt: serverTimestamp()
+                      }));
+                      for (const t of tasksToCreate) {
+                        await addDoc(collection(db, 'productionTasks'), t);
+                      }
+                      showToast(`${tasksToCreate.length} tâche(s) de production générée(s) à partir de vos fiches techniques.`);
                     }}
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
                   >
@@ -5768,7 +4966,12 @@ function Inventory() {
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-              <input id="edit-name" type="text" defaultValue={selectedProduct.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] font-medium text-gray-900" />
+              <input id="edit-name" list="dl-edit-name" type="text" defaultValue={selectedProduct.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] font-medium text-gray-900" />
+              <datalist id="dl-edit-name">
+                {Array.from(new Set(stockItemsData.map((item: any) => item.name))).sort().map((name: any, idx) => (
+                  <option key={idx} value={name} />
+                ))}
+              </datalist>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -6050,18 +5253,9 @@ function Inventory() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
                   <input name="category" list="dl-elq0au-7" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                   <datalist id="dl-elq0au-7">
-                    <option value="Fruits & Légumes" />
-                    <option value="Viandes" />
-                    <option value="Volailles" />
-                    <option value="Poissons & Fruits de mer" />
-                    <option value="Patisseie" />
-                    <option value="Produits Laitiers & Œufs" />
-                    <option value="Épicerie Sèche" />
-                    
-                    <option value="Emballages & Consommables" />
-                    <option value="Hygiène & Entretien" />
-                    <option value="Équipement & Matériel" />
-                    <option value="Services" />
+                    {categories.map((cat, idx) => (
+                      <option key={idx} value={cat} />
+                    ))}
                   </datalist>
                 </div>
                 <div>
@@ -6387,12 +5581,18 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Opérateur</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
+                    list="dl-tx-operateur"
                     value={txForm.user}
                     onChange={e => setTxForm({...txForm, user: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   />
+                  <datalist id="dl-tx-operateur">
+                    {staffNames.map((name, idx) => (
+                      <option key={idx} value={name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               
@@ -6586,13 +5786,19 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
+                    list="dl-waste-responsable"
                     value={wasteForm.user}
                     onChange={e => setWasteForm({...wasteForm, user: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                     placeholder="Ex: Chef Hassan"
                   />
+                  <datalist id="dl-waste-responsable">
+                    {staffNames.map((name, idx) => (
+                      <option key={idx} value={name} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               
@@ -7142,6 +6348,21 @@ function Configuration() {
     currency: 'MAD (Dirham)',
     timezone: 'UTC+1 (Casablanca)'
   });
+  const [notificationsConfig, setNotificationsConfig] = useState({
+    newReservations: true,
+    negativeReviews: true,
+    weeklyReports: false
+  });
+  const [billingConfig, setBillingConfig] = useState({
+    visaEnabled: true,
+    mastercardEnabled: true,
+    cmiEnabled: true,
+    stripePublicKey: '',
+    stripeSecretKey: ''
+  });
+  const [integrationsConfig, setIntegrationsConfig] = useState({
+    whatsappToken: ''
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -7157,6 +6378,21 @@ function Configuration() {
         if (genSnap.exists()) {
           setGeneralConfig(prev => ({ ...prev, ...genSnap.data() }));
         }
+        const notifRef = doc(db, 'settings', 'notifications');
+        const notifSnap = await getDoc(notifRef);
+        if (notifSnap.exists()) {
+          setNotificationsConfig(prev => ({ ...prev, ...notifSnap.data() }));
+        }
+        const billingRef = doc(db, 'settings', 'billing');
+        const billingSnap = await getDoc(billingRef);
+        if (billingSnap.exists()) {
+          setBillingConfig(prev => ({ ...prev, ...billingSnap.data() }));
+        }
+        const integrationsRef = doc(db, 'settings', 'integrations');
+        const integrationsSnap = await getDoc(integrationsRef);
+        if (integrationsSnap.exists()) {
+          setIntegrationsConfig(prev => ({ ...prev, ...integrationsSnap.data() }));
+        }
       } catch (error) {
         console.error("Erreur lors du chargement de la configuration:", error);
       }
@@ -7170,13 +6406,22 @@ function Configuration() {
       if (activeSettingsTab === 'website') {
         const docRef = doc(db, 'settings', 'website');
         await setDoc(docRef, websiteConfig, { merge: true });
-        
+
         // Also update webhook for backward compatibility with BlogWriter
         const webhookRef = doc(db, 'settings', 'webhook');
         await setDoc(webhookRef, { url: websiteConfig.webhookUrl }, { merge: true });
       } else if (activeSettingsTab === 'general') {
         const docRef = doc(db, 'settings', 'general');
         await setDoc(docRef, generalConfig, { merge: true });
+      } else if (activeSettingsTab === 'notifications') {
+        const docRef = doc(db, 'settings', 'notifications');
+        await setDoc(docRef, notificationsConfig, { merge: true });
+      } else if (activeSettingsTab === 'billing') {
+        const docRef = doc(db, 'settings', 'billing');
+        await setDoc(docRef, billingConfig, { merge: true });
+      } else if (activeSettingsTab === 'integrations') {
+        const docRef = doc(db, 'settings', 'integrations');
+        await setDoc(docRef, integrationsConfig, { merge: true });
       }
       showToast("Paramètres sauvegardés avec succès");
     } catch (error) {
@@ -7313,9 +6558,11 @@ function Configuration() {
                         <p className="text-sm text-gray-500">Pour les communications avec les clients et le menu digital.</p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full border border-yellow-200">Configuration requise</span>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full border ${integrationsConfig.whatsappToken ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
+                      {integrationsConfig.whatsappToken ? 'Configuré' : 'Configuration requise'}
+                    </span>
                   </div>
-                  <input type="text" placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
+                  <input type="text" value={integrationsConfig.whatsappToken} onChange={(e) => setIntegrationsConfig({...integrationsConfig, whatsappToken: e.target.value})} placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
                 </div>
               </div>
             </motion.div>
@@ -7408,7 +6655,7 @@ function Configuration() {
                     <p className="text-sm text-gray-500">Recevoir un email pour chaque nouvelle réservation.</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
+                    <input type="checkbox" checked={notificationsConfig.newReservations} onChange={(e) => setNotificationsConfig({...notificationsConfig, newReservations: e.target.checked})} className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
@@ -7418,7 +6665,7 @@ function Configuration() {
                     <p className="text-sm text-gray-500">Alerte immédiate par SMS en cas d'avis inférieur à 3 étoiles.</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
+                    <input type="checkbox" checked={notificationsConfig.negativeReviews} onChange={(e) => setNotificationsConfig({...notificationsConfig, negativeReviews: e.target.checked})} className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
@@ -7428,7 +6675,7 @@ function Configuration() {
                     <p className="text-sm text-gray-500">Recevoir le résumé hebdomadaire par email.</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
+                    <input type="checkbox" checked={notificationsConfig.weeklyReports} onChange={(e) => setNotificationsConfig({...notificationsConfig, weeklyReports: e.target.checked})} className="sr-only peer" />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                   </label>
                 </div>
@@ -7451,11 +6698,11 @@ function Configuration() {
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input type="checkbox" checked={billingConfig.visaEnabled} onChange={(e) => setBillingConfig({...billingConfig, visaEnabled: e.target.checked})} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-5 border border-gray-100 rounded-xl bg-gray-50/30 hover:bg-gray-50/80 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-8 bg-black rounded flex items-center justify-center text-white font-medium shadow-sm text-[10px]">Mastercard</div>
@@ -7465,7 +6712,7 @@ function Configuration() {
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input type="checkbox" checked={billingConfig.mastercardEnabled} onChange={(e) => setBillingConfig({...billingConfig, mastercardEnabled: e.target.checked})} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
@@ -7479,7 +6726,7 @@ function Configuration() {
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" defaultChecked className="sr-only peer" />
+                      <input type="checkbox" checked={billingConfig.cmiEnabled} onChange={(e) => setBillingConfig({...billingConfig, cmiEnabled: e.target.checked})} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F4C75B]"></div>
                     </label>
                   </div>
@@ -7491,11 +6738,11 @@ function Configuration() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clé publique (Publishable key)</label>
-                    <input type="text" defaultValue="pk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="text" value={billingConfig.stripePublicKey} onChange={(e) => setBillingConfig({...billingConfig, stripePublicKey: e.target.value})} placeholder="pk_live_..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Clé secrète (Secret key)</label>
-                    <input type="password" defaultValue="sk_live_••••••••••••••••••••••••" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                    <input type="password" value={billingConfig.stripeSecretKey} onChange={(e) => setBillingConfig({...billingConfig, stripeSecretKey: e.target.value})} placeholder="sk_live_..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
                 </div>
               </div>
@@ -7570,12 +6817,13 @@ function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: str
 }
 
 function IntegrationRow({ name, status, desc }: { name: string, status: string, desc: string }) {
+  const isConnected = status === 'Connecté';
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-4 pb-6 border-b border-gray-50 last:border-0 last:pb-0">
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-1">
           <h4 className="font-medium text-gray-900">{name}</h4>
-          <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-[10px] uppercase font-semibold tracking-wider border border-green-100">
+          <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold tracking-wider border ${isConnected ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
             {status}
           </span>
         </div>
@@ -7766,497 +7014,6 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-function TacSystemsPOS() {
-  const { showToast } = useToast();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isJournalOpen, setIsJournalOpen] = useState(false);
-  const [journalSearch, setJournalSearch] = useState('');
-  const [journalOperatorFilter, setJournalOperatorFilter] = useState('');
-  const [journalCurrentPage, setJournalCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 20;
-  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
-  const [isImportTacModalOpen, setIsImportTacModalOpen] = useState(false);
-  const [isSimulationMode, setIsSimulationMode] = useState(true);
-
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      showToast("Synchronisation TacSystems terminée");
-    }, 1500);
-  };
-
-  const handleSaveApiKeys = (e: any) => {
-    e.preventDefault();
-    setIsSimulationMode(false);
-    setIsApiModalOpen(false);
-    showToast("Clés API TacSystems enregistrées avec succès");
-  };
-
-  const cashMovements = [
-    { id: 'TX-1045', time: '14:32', type: 'Encaissement', amount: '+ 450 MAD', method: 'Espèces', user: 'Sofia Amrani' },
-    { id: 'TX-1046', time: '14:45', type: 'Encaissement', amount: '+ 1200 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
-    { id: 'TX-1047', time: '15:10', type: 'Dépense', amount: '- 150 MAD', method: 'Caisse', user: 'Admin' },
-    { id: 'TX-1048', time: '15:22', type: 'Encaissement', amount: '+ 850 MAD', method: 'TPE (Carte)', user: 'Sofia Amrani' },
-  ];
-
-  const fullJournalMovements = [
-    ...cashMovements,
-    { id: 'TX-1044', time: '13:15', type: 'Encaissement', amount: '+ 320 MAD', method: 'Espèces', user: 'Karima Idrissi' },
-    { id: 'TX-1043', time: '12:50', type: 'Encaissement', amount: '+ 500 MAD', method: 'TPE (Carte)', user: 'Sofia Amrani' },
-    { id: 'TX-1042', time: '12:30', type: 'Dépense', amount: '- 200 MAD', method: 'Caisse', user: 'Admin' },
-    { id: 'TX-1041', time: '11:45', type: 'Encaissement', amount: '+ 1500 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
-    { id: 'TX-1040', time: '11:10', type: 'Encaissement', amount: '+ 750 MAD', method: 'Espèces', user: 'Sofia Amrani' },
-    { id: 'TX-1039', time: '10:20', type: 'Encaissement', amount: '+ 900 MAD', method: 'TPE (Carte)', user: 'Karima Idrissi' },
-  ];
-
-  const filteredJournal = fullJournalMovements.filter(tx => {
-    const matchesSearch = tx.id.toLowerCase().includes(journalSearch.toLowerCase()) || 
-                          tx.user.toLowerCase().includes(journalSearch.toLowerCase()) ||
-                          tx.type.toLowerCase().includes(journalSearch.toLowerCase());
-    const matchesOperator = journalOperatorFilter === '' || tx.user === journalOperatorFilter;
-    return matchesSearch && matchesOperator;
-  });
-
-  const uniqueOperators = Array.from(new Set(fullJournalMovements.map(tx => tx.user)));
-  const totalJournalPages = Math.ceil(filteredJournal.length / ITEMS_PER_PAGE);
-  const paginatedJournal = filteredJournal.slice((journalCurrentPage - 1) * ITEMS_PER_PAGE, journalCurrentPage * ITEMS_PER_PAGE);
-
-  const handleExportCSV = () => {
-    if (filteredJournal.length === 0) {
-      showToast("Aucune transaction à exporter");
-      return;
-    }
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "ID Transaction,Heure,Opérateur,Type,Méthode,Montant\n";
-    filteredJournal.forEach(tx => {
-      const amount = tx.amount.replace(/,/g, '.'); 
-      csvContent += `${tx.id},${tx.time},${tx.user},${tx.type},${tx.method},${amount}\n`;
-    });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `journal_caisse_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    showToast("Exportation réussie");
-  };
-
-  return (
-    <div className="p-8 md:p-12 relative z-10">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-serif text-[#265C6D] font-semibold mb-2">Caisse & Finance</h2>
-          <p className="text-gray-500">Passerelle API TacSystems : Mouvements de caisse en temps réel.</p>
-        </div>
-        <div className="flex gap-3">
-          <button 
-             onClick={() => setIsImportTacModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors border border-gray-200"
-          >
-            <Upload size={16} /> Importer (Fichier)
-          </button>
-          <button 
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors shadow-sm disabled:opacity-50"
-          >
-            {isSyncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            {isSyncing ? 'Synchronisation API' : 'Synchroniser API'}
-          </button>
-        </div>
-      </header>
-
-      {/* Connection Status Banner */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4 text-white">
-          <div className="p-3 bg-blue-500/20 text-blue-400 rounded-xl">
-            <Terminal size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-medium">Intégration TacSystems (Logiciel de caisse)</h3>
-            <p className="text-gray-400 text-sm mt-1 max-w-xl">
-              {isSimulationMode 
-                ? "La passerelle API est prête. En attente des clés API (Endpoint, API Key, et Secret) de la part du fournisseur TacSystems pour basculer en mode production."
-                : "Passerelle API active. Connexion en temps réel avec TacSystems."}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col items-end">
-          {isSimulationMode ? (
-            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold tracking-wider uppercase border border-yellow-500/30 mb-2">
-              Mode Simulation
-            </span>
-          ) : (
-            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold tracking-wider uppercase border border-green-500/30 mb-2">
-              En Production
-            </span>
-          )}
-          <button onClick={() => setIsApiModalOpen(true)} className="text-[#F4C75B] text-sm hover:underline font-medium">
-            Configurer les clés API &rarr;
-          </button>
-        </div>
-      </div>
-
-      {/* Today's Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <DashboardCard title="Chiffre d'affaires (Jour)" value="14,500 MAD" subtitle="Dernière synchro: 15:25" icon={<Banknote size={20} />} />
-        <DashboardCard title="Total Espèces" value="3,250 MAD" subtitle="En tiroir-caisse" icon={<Wallet size={20} />} />
-        <DashboardCard title="Total TPE (Cartes)" value="11,250 MAD" subtitle="Paiements électroniques" icon={<CreditCard size={20} />} />
-        <DashboardCard title="Écart de Caisse" value="0 MAD" subtitle="Caisse balancée" icon={<CheckCircle size={20} />} />
-      </div>
-
-      {/* AI Analysis */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-8 border border-blue-100/50 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-          <Sparkles size={80} className="text-blue-600" />
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-600 text-white rounded-lg shadow-sm">
-              <Sparkles size={18} />
-            </div>
-            <h3 className="font-serif text-lg font-medium text-gray-900">Analyse IA des Encaissements</h3>
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wider rounded-full">Gemini Pro</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/60 rounded-xl p-4 border border-blue-100/50">
-              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-600" /> Performances Financières
-              </h4>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Le chiffre d'affaires actuel (14,500 MAD) est en hausse de <span className="font-medium text-green-600">+18%</span> par rapport à la moyenne des mardis précédents. La part des paiements par TPE (77%) indique une forte préférence pour les paiements électroniques aujourd'hui.
-              </p>
-            </div>
-            <div className="bg-white/60 rounded-xl p-4 border border-blue-100/50">
-              <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <Clock size={16} className="text-blue-600" /> Heures de Pointe Identifiées
-              </h4>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Le pic d'encaissement a eu lieu entre <span className="font-medium text-blue-700">13h15 et 14h45</span> (service du midi). Prévision IA : le prochain afflux majeur en caisse est attendu vers <span className="font-medium text-blue-700">20h30</span>.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      
-      {/* Evolution du Chiffre d'Affaires */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8 p-6">
-        <div className="mb-6">
-          <h3 className="font-serif text-lg font-medium text-gray-900">Évolution du Chiffre d'Affaires (Aujourd'hui)</h3>
-          <p className="text-sm text-gray-500">Données en temps réel (MAD)</p>
-        </div>
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={[
-                { time: '08:00', ca: 0 },
-                { time: '10:00', ca: 1200 },
-                { time: '12:00', ca: 3500 },
-                { time: '14:00', ca: 8900 },
-                { time: '16:00', ca: 10500 },
-                { time: '18:00', ca: 14500 }
-              ]}
-              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} dx={-10} tickFormatter={(val) => `${val} MAD`} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                formatter={(value) => [`${value} MAD`, "Chiffre d'affaires"]}
-                labelStyle={{ color: '#6B7280', marginBottom: '4px' }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="ca" 
-                stroke="#3b82f6" 
-                strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Recent Movements */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-serif text-lg font-medium text-gray-900">Derniers Mouvements de Caisse</h3>
-          <button onClick={() => setIsJournalOpen(true)} className="text-sm text-[#F4C75B] hover:text-[#E5B745] font-medium">Voir le journal complet</button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-4">ID Transaction</th>
-                <th className="px-6 py-4">Heure</th>
-                <th className="px-6 py-4">Opérateur</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Méthode</th>
-                <th className="px-6 py-4 text-right">Montant</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {cashMovements.map((tx, idx) => (
-                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{tx.id}</td>
-                  <td className="px-6 py-4 text-gray-600">{tx.time}</td>
-                  <td className="px-6 py-4 text-gray-900 font-medium">{tx.user}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${tx.type === 'Encaissement' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                      {tx.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600">
-                    <div className="flex items-center gap-2">
-                      {tx.method.includes('TPE') ? <CreditCard size={14} className="text-gray-400" /> : <Banknote size={14} className="text-gray-400" />}
-                      {tx.method}
-                    </div>
-                  </td>
-                  <td className={`px-6 py-4 text-right font-medium ${tx.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                    {tx.amount}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Journal Modal */}
-      {isJournalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <div>
-                <h3 className="text-xl font-serif font-medium text-gray-900">Journal de Caisse Complet</h3>
-                <p className="text-sm text-gray-500 mt-1">Aujourd'hui - Toutes les transactions synchronisées</p>
-              </div>
-              <button onClick={() => setIsJournalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <input 
-                  type="text" 
-                  placeholder="Rechercher par ID, Opérateur ou Type..." 
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
-                  value={journalSearch}
-                  onChange={(e) => { setJournalSearch(e.target.value); setJournalCurrentPage(1); }}
-                />
-                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-              </div>
-              <div className="w-full md:w-64">
-                <select 
-                  className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] bg-white text-gray-700"
-                  value={journalOperatorFilter}
-                  onChange={(e) => { setJournalOperatorFilter(e.target.value); setJournalCurrentPage(1); }}
-                >
-                  <option value="">Tous les opérateurs</option>
-                  {uniqueOperators.map(op => (
-                    <option key={op} value={op}>{op}</option>
-                  ))}
-                </select>
-              </div>
-              <button onClick={handleExportCSV} className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
-                <Download size={16} />
-                Exporter (CSV)
-              </button>
-            </div>
-
-            <div className="overflow-auto flex-1 p-0">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4">ID Transaction</th>
-                    <th className="px-6 py-4">Heure</th>
-                    <th className="px-6 py-4">Opérateur</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Méthode</th>
-                    <th className="px-6 py-4 text-right">Montant</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {paginatedJournal.length > 0 ? (
-                    paginatedJournal.map((tx, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-xs text-gray-500">{tx.id}</td>
-                        <td className="px-6 py-4 text-gray-600">{tx.time}</td>
-                        <td className="px-6 py-4 text-gray-900 font-medium">{tx.user}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${tx.type === 'Encaissement' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          <div className="flex items-center gap-2">
-                            {tx.method.includes('TPE') ? <CreditCard size={14} className="text-gray-400" /> : <Banknote size={14} className="text-gray-400" />}
-                            {tx.method}
-                          </div>
-                        </td>
-                        <td className={`px-6 py-4 text-right font-medium ${tx.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                          {tx.amount}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                        Aucune transaction trouvée.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Pagination UI */}
-            {totalJournalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-gray-50/50">
-                <span className="text-sm text-gray-500">
-                  Affichage de {((journalCurrentPage - 1) * ITEMS_PER_PAGE) + 1} à {Math.min(journalCurrentPage * ITEMS_PER_PAGE, filteredJournal.length)} sur {filteredJournal.length} transactions
-                </span>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => setJournalCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={journalCurrentPage === 1}
-                    className="px-3 py-1 text-sm bg-white border border-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Précédent
-                  </button>
-                  <button 
-                    onClick={() => setJournalCurrentPage(prev => Math.min(prev + 1, totalJournalPages))}
-                    disabled={journalCurrentPage === totalJournalPages}
-                    className="px-3 py-1 text-sm bg-white border border-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
-
-      {/* API Configuration Modal */}
-      {/* Import TacSystems Modal */}
-      {isImportTacModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
-          >
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-xl font-serif font-semibold text-gray-900">
-                Importer Journal de Caisse
-              </h3>
-              <button 
-                onClick={() => setIsImportTacModalOpen(false)}
-                className="text-gray-400 hover:text-gray-900 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6">
-              <div className="mb-6">
-                <p className="text-sm text-gray-500 mb-4">
-                  Importez un export de journal de caisse depuis le backoffice de TacSystems si vous n'êtes pas connecté par API.
-                </p>
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-[#F4C75B] transition-colors bg-gray-50 cursor-pointer">
-                  <div className="flex justify-center mb-2 text-gray-400">
-                    <Upload size={32} />
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">Cliquez ou glissez un fichier ici</p>
-                  <p className="text-xs text-gray-500">Formats supportés: .CSV, .XLS, .XLSX (Export TacSystems)</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3 justify-end">
-                <button 
-                  onClick={() => setIsImportTacModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={() => {
-                    showToast("Importation du journal de caisse démarrée...");
-                    setIsImportTacModalOpen(false);
-                  }}
-                  className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors"
-                >
-                  Sélectionner un fichier
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {isApiModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900">Configuration API TacSystems</h3>
-              <button onClick={() => setIsApiModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSaveApiKeys} className="p-6">
-              <div className="space-y-4 mb-8">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Endpoint URL</label>
-                  <input required type="url" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="https://api.tacsystems.com/v1/" defaultValue="https://api.tacsystems.com/v1/" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Store ID</label>
-                  <input required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="ST-10045" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key / Token</label>
-                  <input required type="password" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="••••••••••••••••••••••••••••••••" />
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsApiModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-5 py-2 bg-[#F4C75B] text-[#265C6D] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
-                >
-                  <Save size={16} /> Enregistrer
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }

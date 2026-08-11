@@ -5,6 +5,8 @@ import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCirc
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { TVA_RATES, computeTTC } from './lib/tva';
+import { calculateStockStatus } from './lib/inventory';
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs' | 'previsions' | 'reception'>('commandes');
@@ -27,11 +29,26 @@ export default function AchatsFournisseurs() {
   const handleGeneratePrevisions = () => {
     setIsGeneratingPrevisions(true);
     setTimeout(() => {
+      const grouped: Record<string, any[]> = {};
+      lowStockItems.forEach((item: any) => {
+        const cat = item.category || 'Divers';
+        if (!grouped[cat]) grouped[cat] = [];
+        const status = calculateStockStatus(Number(item.quantity) || 0, Number(item.minStock) || 5);
+        grouped[cat].push({
+          name: item.name,
+          quantity: `${item.quantity ?? 0} ${item.unit || ''} restant(s)`,
+          reason: status === 'critical' ? `Stock critique (seuil : ${item.minStock ?? 5})` : `Stock bas (seuil : ${item.minStock ?? 5})`,
+          supplier: item.supplier && item.supplier !== 'Non renseigné' ? item.supplier : 'Fournisseur non renseigné'
+        });
+      });
+
+      const result = Object.entries(grouped).map(([category, items]) => ({ category, items }));
+      setPrevisions(result);
       setIsGeneratingPrevisions(false);
-      showToast("Prévisions générées avec succès ! (Simulation)");
-    }, 1500);
+      showToast(result.length === 0 ? "Aucun article en stock bas — aucune prévision nécessaire." : `${lowStockItems.length} article(s) à réapprovisionner détecté(s).`);
+    }, 600);
   };
-  
+
   const [commandes, setCommandes] = useState<any[]>([]);
     const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [commandeToDelete, setCommandeToDelete] = useState<string | null>(null);
@@ -100,13 +117,20 @@ export default function AchatsFournisseurs() {
     setSortConfig({ key, direction });
   };
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  
+
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'inventoryItems')), (snapshot) => {
       setInventoryItems(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
     return () => unsub();
   }, []);
+
+  const lowStockItems = useMemo(() => {
+    return inventoryItems.filter((item: any) => {
+      const status = calculateStockStatus(Number(item.quantity) || 0, Number(item.minStock) || 5);
+      return status === 'alert' || status === 'critical';
+    });
+  }, [inventoryItems]);
 
   const [loading, setLoading] = useState(true);
   
@@ -231,7 +255,7 @@ export default function AchatsFournisseurs() {
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex-1 flex flex-col">
-        <div className="border-b border-gray-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="border-b border-gray-100 p-4 flex flex-col sm:flex-row flex-wrap justify-between items-center gap-4">
           <div className="flex bg-gray-100 p-1 rounded-lg w-full sm:w-auto">
             <button 
               onClick={() => setActiveTab('commandes')}
@@ -425,35 +449,35 @@ Détails <ChevronRight size={16} />
                       <Brain className="text-[#F4C75B]" size={24} />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-serif text-[#1A1A1A]">Prévisions d'Achats Intelligentes</h2>
-                      <p className="text-gray-500 mt-1">Générées par l'IA de Mouda Palace</p>
+                      <h2 className="text-2xl font-serif text-[#1A1A1A]">Prévisions d'Achats</h2>
+                      <p className="text-gray-500 mt-1">Basées sur l'état réel des stocks</p>
                     </div>
                   </div>
-                  
+
                   <p className="text-gray-600 mb-8 leading-relaxed relative z-10">
-                    L'intelligence artificielle analyse en temps réel l'état de vos stocks, l'historique de consommation des 3 derniers mois, ainsi que les réservations et événements prévus pour la semaine à venir afin de vous proposer une liste d'achats optimisée.
+                    Analyse l'état actuel de vos stocks pour identifier les produits sous le seuil d'alerte ou en rupture, et vous propose une liste d'achats groupée par catégorie avec le fournisseur habituel de chaque article.
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 relative z-10">
                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
                       <TrendingUp className="text-blue-500" size={20} />
                       <div className="text-sm">
-                        <span className="block text-gray-500">Tendance Réservations</span>
-                        <span className="font-medium text-gray-900">+15% vs semaine dernière</span>
+                        <span className="block text-gray-500">Commandes en attente</span>
+                        <span className="font-medium text-gray-900">{commandes.filter((c: any) => c.status === 'En attente' || c.status === 'Validée').length}</span>
                       </div>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
                       <Calendar className="text-emerald-500" size={20} />
                       <div className="text-sm">
-                        <span className="block text-gray-500">Période d'analyse</span>
-                        <span className="font-medium text-gray-900">Prochains 7 jours</span>
+                        <span className="block text-gray-500">Basé sur</span>
+                        <span className="font-medium text-gray-900">État actuel du stock</span>
                       </div>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
                       <AlertTriangle className="text-amber-500" size={20} />
                       <div className="text-sm">
                         <span className="block text-gray-500">Stocks bas détectés</span>
-                        <span className="font-medium text-gray-900">12 articles critiques</span>
+                        <span className="font-medium text-gray-900">{lowStockItems.length} article{lowStockItems.length > 1 ? 's' : ''}</span>
                       </div>
                     </div>
                   </div>
@@ -848,8 +872,8 @@ Détails <ChevronRight size={16} />
                 return;
               }
 
-              const tvaAmount = (computedHT * tva) / 100;
-              const computedTTC = computedHT + tvaAmount;
+              const computedTTC = computeTTC(computedHT, tva);
+              const tvaAmount = computedTTC - computedHT;
               
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
@@ -990,7 +1014,11 @@ Détails <ChevronRight size={16} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
-                  <input name="tva" type="number" min="0" max="100" value={orderTvaRate} onChange={(e) => setOrderTvaRate(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                  <select name="tva" value={orderTvaRate} onChange={(e) => setOrderTvaRate(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    {TVA_RATES.map(rate => (
+                      <option key={rate} value={rate}>{rate}%</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

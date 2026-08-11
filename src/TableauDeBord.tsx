@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
@@ -11,12 +11,8 @@ import {
   Clock, CheckCircle2 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useToast } from './context/ToastContext';
-import { Database } from 'lucide-react';
 
 export default function TableauDeBord() {
-  const { showToast } = useToast();
-  const [isSeeding, setIsSeeding] = useState(false);
   const [inventory, setInventory] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
   const [productionOrders, setProductionOrders] = useState<any[]>([]);
@@ -62,101 +58,6 @@ export default function TableauDeBord() {
       unsubCash();
     };
   }, []);
-
-  const handleSeedData = async () => {
-    setIsSeeding(true);
-    try {
-      // 1. Fournisseurs
-      await addDoc(collection(db, 'fournisseurs'), {
-        nom: 'Farine de Fès',
-        contact: '0600000001',
-        email: 'contact@farinedefes.ma',
-        categorie: 'Sec',
-        createdAt: serverTimestamp()
-      });
-      await addDoc(collection(db, 'fournisseurs'), {
-        nom: 'Boucherie Atlas',
-        contact: '0600000002',
-        email: 'contact@boucherieatlas.ma',
-        categorie: 'Viande',
-        createdAt: serverTimestamp()
-      });
-
-      // 2. Ingrédients (inventoryItems)
-      await addDoc(collection(db, 'inventoryItems'), {
-        name: 'Poulet Entier',
-        category: 'Viande',
-        quantity: 50,
-        unit: 'kg',
-        price: 35,
-        minThreshold: 10,
-        zone: 'Chambre Froide',
-        createdAt: serverTimestamp()
-      });
-      await addDoc(collection(db, 'inventoryItems'), {
-        name: 'Citron Confit',
-        category: 'Épicerie',
-        quantity: 5,
-        unit: 'kg',
-        price: 40,
-        minThreshold: 2,
-        zone: 'Économat',
-        createdAt: serverTimestamp()
-      });
-      await addDoc(collection(db, 'inventoryItems'), {
-        name: 'Oignon Blanc',
-        category: 'Légumes',
-        quantity: 20,
-        unit: 'kg',
-        price: 5,
-        minThreshold: 5,
-        zone: 'Économat',
-        createdAt: serverTimestamp()
-      });
-
-      // 3. Fiche technique (fiches_techniques)
-      await addDoc(collection(db, 'fiches_techniques'), {
-        nom: 'Tajine de Poulet Citron Confit',
-        categorie: 'Plat Principal',
-        portions: 4,
-        prixVente: 120,
-        coutMatiere: 45,
-        foodCost: (45 / 120) * 100,
-        margeBrute: 120 - 45,
-        ingredients: [
-          { nom: 'Poulet Entier', quantite: 1, unite: 'kg', prixUnitaire: 35, unitePrix: 'kg', coutCalculated: 35 },
-          { nom: 'Citron Confit', quantite: 0.1, unite: 'kg', prixUnitaire: 40, unitePrix: 'kg', coutCalculated: 4 },
-          { nom: 'Oignon Blanc', quantite: 0.5, unite: 'kg', prixUnitaire: 5, unitePrix: 'kg', coutCalculated: 2.5 }
-        ],
-        updatedAt: serverTimestamp()
-      });
-
-      // 4. Production Order
-      await addDoc(collection(db, 'productionOrders'), {
-        recipeId: 'fake-id',
-        recipeName: 'Tajine de Poulet Citron Confit',
-        plannedQuantity: 20,
-        status: 'En cours',
-        chefResponsable: 'Chef Ahmed',
-        createdAt: serverTimestamp()
-      });
-
-      // 7. Commandes
-      await addDoc(collection(db, 'commandes'), {
-        fournisseur: 'Boucherie Atlas',
-        statut: 'Livrée',
-        totalAmount: 1500,
-        createdAt: serverTimestamp()
-      });
-
-      showToast("Données de démo injectées avec succès !");
-    } catch (error) {
-      console.error("Erreur lors du seeding", error);
-      showToast("Erreur lors de l'injection des données", "error");
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   // --- Calculations for KPIs ---
 
@@ -301,15 +202,6 @@ export default function TableauDeBord() {
             <p className="text-gray-500">Pilotage de la rentabilité, alertes globales et KPIs</p>
           </div>
         </div>
-        <button
-          onClick={handleSeedData}
-          disabled={isSeeding}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl font-medium transition-colors disabled:opacity-50"
-          title="Injecter données de démo"
-        >
-          <Database size={18} />
-          {isSeeding ? 'Injection...' : 'Données Démo'}
-        </button>
       </div>
 
       {/* KPIs */}

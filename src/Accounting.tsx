@@ -24,6 +24,7 @@ import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
+import { TVA_RATES, computeTTC } from './lib/tva';
 
 
 const parseAmount = (val: any) => {
@@ -41,6 +42,10 @@ export default function Accounting() {
   const [filterDate, setFilterDate] = useState('');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [invoiceHT, setInvoiceHT] = useState('');
+  const [invoiceTva, setInvoiceTva] = useState<number>(20);
+  const [expenseHT, setExpenseHT] = useState('');
+  const [expenseTva, setExpenseTva] = useState<number>(20);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isNewExpenseModalOpen, setIsNewExpenseModalOpen] = useState(false);
   const [isNewReceiptModalOpen, setIsNewReceiptModalOpen] = useState(false);
@@ -364,6 +369,44 @@ export default function Accounting() {
   const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
   const profitGrowth = lastMonthProfit !== 0 ? ((currentMonthProfit - lastMonthProfit) / Math.abs(lastMonthProfit)) * 100 : (currentMonthProfit > 0 ? 100 : 0);
 
+  const tvaMonthlyData = useMemo(() => {
+    const monthsFr = ['Janv', 'Fév', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+    const data: Record<string, { name: string, caHT: number, tva20: number, tva10: number, tvaDeductible: number, isCurrent: boolean, sortKey: number }> = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const past = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      data[`${past.getFullYear()}-${past.getMonth()}`] = {
+        name: `${monthsFr[past.getMonth()]} ${past.getFullYear()}`,
+        caHT: 0, tva20: 0, tva10: 0, tvaDeductible: 0,
+        isCurrent: i === 0,
+        sortKey: past.getTime()
+      };
+    }
+    invoices.forEach((inv: any) => {
+      if (inv.tva === undefined || inv.montantHT === undefined) return;
+      const d = inv.createdAt?.toDate ? inv.createdAt.toDate() : new Date(inv.date || Date.now());
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!data[key]) return;
+      const ht = parseAmount(inv.montantHT);
+      data[key].caHT += ht;
+      if (Number(inv.tva) === 20) data[key].tva20 += ht * 0.2;
+      else if (Number(inv.tva) === 10) data[key].tva10 += ht * 0.1;
+    });
+    expenses.forEach((exp: any) => {
+      if (exp.tva === undefined || exp.montantHT === undefined) return;
+      const d = exp.createdAt?.toDate ? exp.createdAt.toDate() : new Date(exp.date || Date.now());
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!data[key]) return;
+      data[key].tvaDeductible += parseAmount(exp.montantHT) * Number(exp.tva) / 100;
+    });
+    return Object.values(data).sort((a, b) => a.sortKey - b.sortKey);
+  }, [invoices, expenses]);
+
+  const currentTvaPeriod = tvaMonthlyData[tvaMonthlyData.length - 1];
+  const tvaCollectee = currentTvaPeriod.tva20 + currentTvaPeriod.tva10;
+  const tvaDeductibleTotal = currentTvaPeriod.tvaDeductible;
+  const tvaADecaisser = tvaCollectee - tvaDeductibleTotal;
+
   const pendingInvoicesTotal = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').reduce((sum, i) => sum + (parseAmount(i.amount) || 0), 0);
   const pendingInvoicesCount = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').length;
 
@@ -490,7 +533,7 @@ export default function Accounting() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
         <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2">
           <nav className="flex overflow-x-auto hide-scrollbar gap-2">
-            {['invoices', 'receipts', 'expenses', 'reports'].map(tab => (
+            {['invoices', 'receipts', 'expenses', 'tva', 'reports'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -499,6 +542,7 @@ export default function Accounting() {
                 {tab === 'invoices' && 'Factures Clients'}
                 {tab === 'receipts' && 'Recettes Caisses'}
                 {tab === 'expenses' && 'Dépenses & Achats'}
+                {tab === 'tva' && 'Déclaration TVA'}
                 {tab === 'reports' && 'Rapports Financiers'}
                 {activeTab === tab && (
                   <motion.div 
@@ -826,27 +870,25 @@ export default function Accounting() {
         {activeTab === 'tva' && (
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-medium">Déclaration TVA (Période en cours)</h2>
-              <button className="bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium">Générer la déclaration</button>
+              <h2 className="text-xl font-medium">Déclaration TVA ({currentTvaPeriod.name})</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
                 <p className="text-sm text-gray-500 font-medium mb-2">TVA Collectée (Ventes)</p>
-                <p className="text-2xl font-bold text-gray-900">45 230.50 MAD</p>
-                <p className="text-xs text-green-600 mt-2">+12% vs mois précédent</p>
+                <p className="text-2xl font-bold text-gray-900">{tvaCollectee.toFixed(2)} MAD</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
                 <p className="text-sm text-gray-500 font-medium mb-2">TVA Déductible (Achats)</p>
-                <p className="text-2xl font-bold text-gray-900">18 450.00 MAD</p>
-                <p className="text-xs text-red-600 mt-2">+5% vs mois précédent</p>
+                <p className="text-2xl font-bold text-gray-900">{tvaDeductibleTotal.toFixed(2)} MAD</p>
               </div>
               <div className="bg-indigo-50 rounded-xl p-6 border border-indigo-100">
                 <p className="text-sm text-indigo-700 font-medium mb-2">TVA à décaisser (Due)</p>
-                <p className="text-2xl font-bold text-indigo-900">26 780.50 MAD</p>
+                <p className="text-2xl font-bold text-indigo-900">{tvaADecaisser.toFixed(2)} MAD</p>
                 <p className="text-xs text-indigo-600 mt-2">À payer avant le 20 du mois</p>
               </div>
             </div>
-            
+            <p className="text-xs text-gray-400 mb-4">Calculé à partir des factures et dépenses avec montant HT et TVA renseignés. Les enregistrements sans TVA précisée ne sont pas comptabilisés ici.</p>
+
             <h3 className="font-medium text-gray-900 mb-4">Détails des opérations taxables</h3>
             <div className="overflow-x-auto border border-gray-100 rounded-xl">
               <table className="w-full text-left text-sm whitespace-nowrap">
@@ -862,24 +904,23 @@ export default function Accounting() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium">Juin 2026</td>
-                    <td className="px-6 py-4 text-right">226 152.00 MAD</td>
-                    <td className="px-6 py-4 text-right">45 230.40 MAD</td>
-                    <td className="px-6 py-4 text-right">0.00 MAD</td>
-                    <td className="px-6 py-4 text-right">18 450.00 MAD</td>
-                    <td className="px-6 py-4 text-right font-medium text-indigo-700">26 780.40 MAD</td>
-                    <td className="px-6 py-4 text-center"><span className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 rounded-full">À déclarer</span></td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium">Mai 2026</td>
-                    <td className="px-6 py-4 text-right">198 400.00 MAD</td>
-                    <td className="px-6 py-4 text-right">39 680.00 MAD</td>
-                    <td className="px-6 py-4 text-right">0.00 MAD</td>
-                    <td className="px-6 py-4 text-right">15 200.00 MAD</td>
-                    <td className="px-6 py-4 text-right font-medium text-indigo-700">24 480.00 MAD</td>
-                    <td className="px-6 py-4 text-center"><span className="px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 rounded-full">Payée</span></td>
-                  </tr>
+                  {tvaMonthlyData.map((period, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-medium">{period.name}</td>
+                      <td className="px-6 py-4 text-right">{period.caHT.toFixed(2)} MAD</td>
+                      <td className="px-6 py-4 text-right">{period.tva20.toFixed(2)} MAD</td>
+                      <td className="px-6 py-4 text-right">{period.tva10.toFixed(2)} MAD</td>
+                      <td className="px-6 py-4 text-right">{period.tvaDeductible.toFixed(2)} MAD</td>
+                      <td className="px-6 py-4 text-right font-medium text-indigo-700">{(period.tva20 + period.tva10 - period.tvaDeductible).toFixed(2)} MAD</td>
+                      <td className="px-6 py-4 text-center">
+                        {period.isCurrent ? (
+                          <span className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 rounded-full">Période en cours</span>
+                        ) : (
+                          <span className="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">Clôturée</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1107,20 +1148,27 @@ export default function Accounting() {
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
+              const montantHT = Number(formData.get('montantHT'));
+              const tva = Number(formData.get('tva'));
+              const montantTTC = computeTTC(montantHT, tva);
               const newInvoice = {
                 client: formData.get('client'),
                 ice: formData.get('ice'),
-                amount: Number(formData.get('amount')) + ' MAD',
+                montantHT,
+                tva,
+                amount: montantTTC.toFixed(2) + ' MAD',
                 date: formData.get('date'),
                 status: 'En attente',
                 createdAt: serverTimestamp()
               };
-              
+
               // Optimistic update
               setInvoices([{ id: 'FAC-NOUVEAU', ...newInvoice }, ...invoices]);
               setIsNewModalOpen(false);
+              setInvoiceHT('');
+              setInvoiceTva(20);
               showToast("Facture créée avec succès");
-              
+
               try {
                 await addDoc(collection(db, 'invoices'), newInvoice);
               } catch (err) {
@@ -1135,15 +1183,26 @@ export default function Accounting() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
                 <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
-                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant HT (MAD)</label>
+                  <input name="montantHT" required type="number" step="0.01" min="0" value={invoiceHT} onChange={(e) => setInvoiceHT(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
+                  <select name="tva" value={invoiceTva} onChange={(e) => setInvoiceTva(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    {TVA_RATES.map(rate => (
+                      <option key={rate} value={rate}>{rate}%</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+              <p className="text-sm text-gray-500 text-right">Total TTC : <span className="font-semibold text-gray-900">{computeTTC(Number(invoiceHT) || 0, invoiceTva).toFixed(2)} MAD</span></p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
                 <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
@@ -1236,21 +1295,28 @@ export default function Accounting() {
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
+              const montantHT = Number(formData.get('montantHT'));
+              const tva = Number(formData.get('tva'));
+              const montantTTC = computeTTC(montantHT, tva);
               const newExpense = {
                 category: formData.get('category'),
                 supplier: formData.get('supplier'),
-                amount: Number(formData.get('amount')) + ' MAD',
+                montantHT,
+                tva,
+                amount: montantTTC.toFixed(2) + ' MAD',
                 date: formData.get('date'),
                 method: formData.get('method'),
                 createdAt: serverTimestamp()
               };
-              
+
               try {
                 const docRef = await addDoc(collection(db, 'expenses'), newExpense);
                 // Also set the generated id back so we don't have empty id if we need it
                 await updateDoc(docRef, { id: 'EXP-' + docRef.id.substring(0,6).toUpperCase() });
                 showToast("Dépense ajoutée avec succès");
                 setIsNewExpenseModalOpen(false);
+                setExpenseHT('');
+                setExpenseTva(20);
               } catch (err) {
                 console.error("Error adding expense", err);
                 showToast("Erreur lors de l'ajout");
@@ -1274,10 +1340,21 @@ export default function Accounting() {
                   ))}
                 </datalist>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Montant (MAD)</label>
-                <input name="amount" required type="number" step="0.01" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 500" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant HT (MAD)</label>
+                  <input name="montantHT" required type="number" step="0.01" min="0" value={expenseHT} onChange={(e) => setExpenseHT(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
+                  <select name="tva" value={expenseTva} onChange={(e) => setExpenseTva(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    {TVA_RATES.map(rate => (
+                      <option key={rate} value={rate}>{rate}%</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+              <p className="text-sm text-gray-500 text-right">Total TTC : <span className="font-semibold text-gray-900">{computeTTC(Number(expenseHT) || 0, expenseTva).toFixed(2)} MAD</span></p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" />

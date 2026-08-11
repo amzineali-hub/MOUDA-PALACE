@@ -156,33 +156,8 @@ export default function RH() {
   const [staffData, setStaffData] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'staff'), async (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // Si la base de données est vide, on restaure les données initiales
-      if (data.length === 0) {
-        const initialStaff = [
-          { name: 'Ahmed Benali', role: 'Chef de Cuisine', department: 'Cuisine', phone: '+212 6 00 11 22 33', email: 'ahmed.b@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 14500, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2022-03-15', language: 'Français, Arabe' },
-          { name: 'Karima Idrissi', role: 'Maître d\'Hôtel', department: 'Salle', phone: '+212 6 00 11 22 34', email: 'karima.i@moudapalace.com', status: 'Actif', shift: 'Matin', baseSalary: 9500, photo: '', cin: 'AB98765', cnss: '987654321', hireDate: '2023-01-10', language: 'Français, Anglais, Arabe' },
-          { name: 'Youssef Tazi', role: 'Serveur', department: 'Salle', phone: '+212 6 00 11 22 35', email: 'youssef.t@moudapalace.com', status: 'En congé', shift: '-', baseSalary: 4000, photo: '', cin: 'C456789', cnss: '456123789', hireDate: '2024-06-01', language: 'Français, Arabe' },
-          { name: 'Sofia Amrani', role: 'Réceptionniste', department: 'Accueil', phone: '+212 6 00 11 22 36', email: 'sofia.a@moudapalace.com', status: 'Actif', shift: 'Soir', baseSalary: 6000, photo: '', cin: 'D654321', cnss: '789123456', hireDate: '2024-02-20', language: 'Français, Anglais, Espagnol' },
-          { name: 'Si Mohamed Mouda', role: 'Administratif', department: 'Management', phone: '+212674293063', email: 'moudapalace@gmail.com', status: 'Actif', shift: 'Matin', baseSalary: 25000, photo: '', cin: 'A123456', cnss: '123456789', hireDate: '2023-01-01', language: 'Français, Anglais, Arabe' },
-        ];
-        
-        try {
-          for (const staff of initialStaff) {
-            await addDoc(collection(db, 'staff'), {
-              ...staff,
-              empId: `EMP-${Date.now().toString().slice(-4)}`,
-              createdAt: serverTimestamp()
-            });
-          }
-        } catch (e) {
-          console.error("Error seeding initial staff:", e);
-        }
-      } else {
-        setStaffData(data);
-      }
+    const unsub = onSnapshot(collection(db, 'staff'), (snapshot) => {
+      setStaffData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsub();
   }, []);
@@ -389,6 +364,11 @@ export default function RH() {
               </select>
            </div>
            
+           {filteredStaff.length === 0 ? (
+             <div className="text-center text-gray-500 py-12 border border-dashed border-gray-200 bg-white rounded-2xl">
+               {staffData.length === 0 ? "Aucun employé pour le moment. Ajoutez votre équipe pour commencer." : "Aucun employé ne correspond à ces filtres."}
+             </div>
+           ) : (
            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredStaff.map((staff, idx) => (
                  <div key={staff.id} className="bg-white border border-gray-100 p-6 rounded-2xl shadow-sm flex flex-col hover:shadow-md transition-shadow">
@@ -426,6 +406,7 @@ export default function RH() {
                  </div>
               ))}
            </div>
+           )}
         </div>
       )}
 

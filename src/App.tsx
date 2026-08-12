@@ -1,6 +1,7 @@
 import SyncStatusPanel from "./components/SyncStatusPanel";
 import MenuGenerator from "./MenuGenerator";
 import BarcodeScanner from "./components/BarcodeScanner";
+import ConfirmModal from "./components/ConfirmModal";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -2894,6 +2895,14 @@ Clients apportés: ${partner.clients}
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!partnerToDelete}
+        title="Supprimer le partenaire"
+        message="Êtes-vous sûr de vouloir supprimer ce partenaire ?"
+        onConfirm={confirmDeletePartner}
+        onCancel={() => setPartnerToDelete(null)}
+      />
     </div>
   );
 }
@@ -2974,6 +2983,7 @@ function Inventory() {
   const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [isProdTaskModalOpen, setIsProdTaskModalOpen] = useState(false);
   const [editingProdTask, setEditingProdTask] = useState<any>(null);
@@ -3403,7 +3413,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'production_orders', 'semi_finished', 'transactions', 'waste'].map(tab => (
+          {['stocks', 'production_orders', 'production', 'semi_finished', 'transactions', 'waste', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -5379,23 +5389,9 @@ function Inventory() {
                 >
                   Mettre à jour
                 </button>
-                <button 
+                <button
                   type="button"
-                  onClick={async () => {
-                    setIsEditSupplierModalOpen(false);
-                    if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
-                      try {
-                        setIsEditSupplierModalOpen(false);
-                        if (selectedSupplier.id) {
-                          await deleteDoc(doc(db, 'fournisseurs', selectedSupplier.id));
-                          showToast("Fournisseur supprimé");
-                        }
-                      } catch (e) {
-                        console.error(e);
-                        showToast("Erreur lors de la suppression", "error");
-                      }
-                    }
-                  }}
+                  onClick={() => setSupplierToDelete(selectedSupplier.id)}
                   className="px-4 py-3 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors"
                 >
                   <Trash2 size={20} />
@@ -6327,6 +6323,58 @@ function Inventory() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!taskToDelete}
+        title="Supprimer la tâche"
+        message="Êtes-vous sûr de vouloir supprimer cette tâche de production ?"
+        onConfirm={async () => {
+          try {
+            await deleteDoc(doc(db, 'productionTasks', taskToDelete as string));
+            showToast("Tâche supprimée");
+          } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la suppression", "error");
+          }
+          setTaskToDelete(null);
+        }}
+        onCancel={() => setTaskToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!wasteToDelete}
+        title="Supprimer l'entrée"
+        message="Êtes-vous sûr de vouloir supprimer cette entrée de perte/gaspillage ?"
+        onConfirm={async () => {
+          try {
+            await deleteDoc(doc(db, 'wasteRecords', wasteToDelete as string));
+            showToast("Entrée supprimée");
+          } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la suppression", "error");
+          }
+          setWasteToDelete(null);
+        }}
+        onCancel={() => setWasteToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!supplierToDelete}
+        title="Supprimer le fournisseur"
+        message="Êtes-vous sûr de vouloir supprimer ce fournisseur ?"
+        onConfirm={async () => {
+          try {
+            await deleteDoc(doc(db, 'fournisseurs', supplierToDelete as string));
+            showToast("Fournisseur supprimé");
+          } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la suppression", "error");
+          }
+          setIsEditSupplierModalOpen(false);
+          setSupplierToDelete(null);
+        }}
+        onCancel={() => setSupplierToDelete(null)}
+      />
     </div>
   );
 }

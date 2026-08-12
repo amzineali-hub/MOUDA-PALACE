@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ConfirmModal from './components/ConfirmModal';
+import Combobox from './components/Combobox';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -480,16 +481,13 @@ if (isPrintView) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input 
-                    list="dl-menu-cat"
+                  <Combobox
+                    options={categories}
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                    onChange={val => setCategory(val)}
                     className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
                     placeholder="Ex: Entrées"
                   />
-                  <datalist id="dl-menu-cat">
-                    {categories.map(c => <option key={c} value={c} />)}
-                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tarif (ex: 220 MAD)</label>

@@ -21,6 +21,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
+import Combobox from './components/Combobox';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
@@ -55,6 +56,8 @@ export default function Accounting() {
   const [editReceiptMethod, setEditReceiptMethod] = useState("");
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isEditInvoiceModalOpen, setIsEditInvoiceModalOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [isViewReportModalOpen, setIsViewReportModalOpen] = useState(false);
@@ -175,6 +178,18 @@ export default function Accounting() {
            await deleteDoc(doc(db, "expenses", expense.id));
         }
         showToast("Dépense supprimée avec succès");
+      } catch (error) {
+        console.error(error);
+        showToast("Erreur lors de la suppression", "error");
+      }
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice: any) => {
+    if (window.confirm(`Voulez-vous vraiment supprimer la facture ${invoice.id} ?`)) {
+      try {
+        await deleteDoc(doc(db, "invoices", invoice.id));
+        showToast("Facture supprimée avec succès");
       } catch (error) {
         console.error(error);
         showToast("Erreur lors de la suppression", "error");
@@ -684,6 +699,12 @@ export default function Accounting() {
                           }
                         }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
                           <Download size={16} />
+                        </button>
+                        <button onClick={() => { setEditingInvoice(invoice); setIsEditInvoiceModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100" title="Éditer">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteInvoice(invoice)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -1220,6 +1241,74 @@ export default function Accounting() {
         </div>
       )}
 
+      {/* Edit Invoice Modal */}
+      {isEditInvoiceModalOpen && editingInvoice && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold">Éditer la Facture {editingInvoice.id}</h3>
+              <button onClick={() => { setIsEditInvoiceModalOpen(false); setEditingInvoice(null); }} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const montant = Number(formData.get('montant'));
+              const updatedInvoice = {
+                client: formData.get('client'),
+                ice: formData.get('ice'),
+                date: formData.get('date'),
+                status: formData.get('status'),
+                amount: montant.toFixed(2) + ' MAD'
+              };
+              try {
+                await updateDoc(doc(db, 'invoices', editingInvoice.id), updatedInvoice);
+                showToast("Facture mise à jour avec succès");
+                setIsEditInvoiceModalOpen(false);
+                setEditingInvoice(null);
+              } catch (err) {
+                console.error("Error updating invoice", err);
+                showToast("Erreur lors de la mise à jour", "error");
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
+                <input name="client" required type="text" defaultValue={editingInvoice.client} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du client" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
+                <input name="ice" type="text" defaultValue={editingInvoice.ice} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant TTC (MAD)</label>
+                  <input name="montant" required type="number" step="0.01" min="0" defaultValue={parseAmount(editingInvoice.amount)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                  <select name="status" required defaultValue={editingInvoice.status} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    <option value="En attente">En attente</option>
+                    <option value="Payée">Payée</option>
+                    <option value="Retard">Retard</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input name="date" required type="text" defaultValue={editingInvoice.date} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 12 nov. 2026" />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+              >
+                Enregistrer les modifications
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* New Report Modal */}
       {isReportModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1331,21 +1420,11 @@ export default function Accounting() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <input name="category" list="dl-omzfgo-1" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marchandise" />
-                <datalist id="dl-omzfgo-1">
-                  {categories.map((cat, idx) => (
-                    <option key={idx} value={cat} />
-                  ))}
-                </datalist>
+                <Combobox name="category" options={categories} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marchandise" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bénéficiaire (Fournisseur)</label>
-                <input name="supplier" list="dl-acc-sup" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du bénéficiaire" />
-                <datalist id="dl-acc-sup">
-                  {suppliersList.map((sup, idx) => (
-                    <option key={idx} value={sup} />
-                  ))}
-                </datalist>
+                <Combobox name="supplier" options={suppliersList} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du bénéficiaire" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

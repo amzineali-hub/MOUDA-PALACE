@@ -6,6 +6,7 @@ import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, Chef
 import { query, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
+import Combobox from './components/Combobox';
 import { computeRecipeCost, computeIngredientCost } from './lib/recipeCost';
 
 export default function FichesTechniques() {
@@ -307,12 +308,10 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
             <div className="col-span-1 md:col-span-2 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input
-                  type="text"
-                  list="dl-fiche-nom-plat"
+                <Combobox
+                  options={menuItems.map(m => m.name).filter(Boolean)}
                   value={nom}
-                  onChange={e => {
-                    const val = e.target.value;
+                  onChange={val => {
                     setNom(val);
                     const matchedMenu = menuItems.find(m => m.name === val);
                     if (matchedMenu) {
@@ -324,28 +323,17 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                   placeholder="Sélectionner depuis le menu ou saisir un nouveau plat..."
                   autoFocus={nom === ''}
                 />
-                <datalist id="dl-fiche-nom-plat">
-                  {menuItems.map((m, idx) => (
-                    <option key={idx} value={m.name} />
-                  ))}
-                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input
-                    type="text"
-                    list="dl-fiche-categorie"
+                  <Combobox
+                    options={[...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément']}
                     value={categorie}
-                    onChange={e => setCategorie(e.target.value)}
+                    onChange={val => setCategorie(val)}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
                     placeholder="Sélectionner ou saisir une catégorie..."
                   />
-                  <datalist id="dl-fiche-categorie">
-                    {Array.from(new Set([...menuItems.map(m => m.category).filter(Boolean), 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément'])).map((cat: any, idx) => (
-                      <option key={idx} value={cat} />
-                    ))}
-                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Portions</label>
@@ -528,14 +516,12 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 {/* Add new row */}
                 <tr className="bg-gray-50/30">
                   <td className="px-4 py-2">
-                    <input
-                      type="text"
-                      list="dl-fiche-ingredient"
+                    <Combobox
+                      options={inventoryItems.map(item => item.name).filter(Boolean)}
                       placeholder="Nom (ex: Sel) ou depuis l'inventaire"
                       className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50"
                       value={newIng.nom}
-                      onChange={e => {
-                        const val = e.target.value;
+                      onChange={val => {
                         const matchedItem = inventoryItems.find(i => i.name === val);
                         if (matchedItem) {
                           setNewIng({
@@ -550,11 +536,6 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                         }
                       }}
                     />
-                    <datalist id="dl-fiche-ingredient">
-                      {inventoryItems.map((item, idx) => (
-                        <option key={idx} value={item.name} />
-                      ))}
-                    </datalist>
                   </td>
                   <td className="px-4 py-2">
                     <input 

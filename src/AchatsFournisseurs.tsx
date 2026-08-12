@@ -1,4 +1,5 @@
 import ConfirmModal from "./components/ConfirmModal";
+import Combobox from "./components/Combobox";
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar , ArrowUpDown } from 'lucide-react';
@@ -972,12 +973,7 @@ Détails <ChevronRight size={16} />
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <input name="supplier" list="dl-achats-suppliers" required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" placeholder="Nom du fournisseur" />
-                <datalist id="dl-achats-suppliers">
-                  {suppliersList.map((sup, idx) => (
-                    <option key={idx} value={sup} />
-                  ))}
-                </datalist>
+                <Combobox name="supplier" options={suppliersList} required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" placeholder="Nom du fournisseur" />
               </div>
               
               <div className="grid grid-cols-3 gap-4">
@@ -987,12 +983,7 @@ Détails <ChevronRight size={16} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <input name="categorie" list="dl-prta6x-1" defaultValue={selectedCommande?.categorie || ''} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Alimentaire" />
-                  <datalist id="dl-prta6x-1">
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
-                    ))}
-                  </datalist>
+                  <Combobox name="categorie" options={categories} defaultValue={selectedCommande?.categorie || ''} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Alimentaire" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
@@ -1174,12 +1165,7 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <input name="categorie" list="dl-3is51f-2" defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fruits & Légumes" />
-                <datalist id="dl-3is51f-2">
-                  {categories.map((cat, idx) => (
-                    <option key={idx} value={cat} />
-                  ))}
-                </datalist>
+                <Combobox name="categorie" options={categories} defaultValue={selectedFournisseur.categorie} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fruits & Légumes" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du contact</label>
@@ -1350,20 +1336,13 @@ Détails <ChevronRight size={16} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <input name="categorie" list="dl-42peds-3"  required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fruits & Légumes" />
-                <datalist id="dl-42peds-3">
-                  <option value="Fruits & Légumes" />
-                  <option value="Viandes & Volailles" />
-                  <option value="Poissons & Fruits de mer" />
-                  <option value="Patisseie" />
-                  <option value="Produits Laitiers & Œufs" />
-                  <option value="Épicerie Sèche" />
-                  
-                  <option value="Emballages & Consommables" />
-                  <option value="Hygiène & Entretien" />
-                  <option value="Équipement & Matériel" />
-                  <option value="Services" />
-                </datalist>
+                <Combobox
+                  name="categorie"
+                  required
+                  options={['Fruits & Légumes', 'Viandes & Volailles', 'Poissons & Fruits de mer', 'Patisseie', 'Produits Laitiers & Œufs', 'Épicerie Sèche', 'Emballages & Consommables', 'Hygiène & Entretien', 'Équipement & Matériel', 'Services']}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
+                  placeholder="Ex: Fruits & Légumes"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>

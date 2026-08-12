@@ -6,6 +6,7 @@ import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
+import Combobox from './components/Combobox';
 
 const CATEGORIES = [
   { id: 'Entrées', name: 'Entrées', icon: <Utensils size={18} /> },
@@ -854,22 +855,14 @@ export default function POSTactile() {
             <form onSubmit={handleAddItem} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'article</label>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    value={newItemName}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="Saisie libre ou sélectionner..." 
-                    required 
-                    list="recettes-list"
-                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
-                  />
-                  <datalist id="recettes-list">
-                    {recettes.map((r, idx) => (
-                      <option key={idx} value={r.nom} />
-                    ))}
-                  </datalist>
-                </div>
+                <Combobox
+                  options={recettes.map(r => r.nom)}
+                  value={newItemName}
+                  onChange={val => handleNameChange(val)}
+                  placeholder="Saisie libre ou sélectionner..."
+                  required
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] bg-white"
+                />
               </div>
               
               <div>

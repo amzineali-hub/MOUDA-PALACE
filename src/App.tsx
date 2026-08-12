@@ -2,6 +2,7 @@ import SyncStatusPanel from "./components/SyncStatusPanel";
 import MenuGenerator from "./MenuGenerator";
 import BarcodeScanner from "./components/BarcodeScanner";
 import ConfirmModal from "./components/ConfirmModal";
+import Combobox from "./components/Combobox";
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -300,18 +301,13 @@ function OrderArticlesField({ stockItemsData }: { stockItemsData: any[] }) {
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <input 
-            list="dl-order-articles" 
+          <Combobox
+            options={allItems}
             value={currentArticle}
-            onChange={e => setCurrentArticle(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]" 
-            placeholder="Nom de l'article" 
+            onChange={val => setCurrentArticle(val)}
+            className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#F4C75B]"
+            placeholder="Nom de l'article"
           />
-          <datalist id="dl-order-articles">
-            {allItems.map((name: any, idx) => (
-              <option key={idx} value={name} />
-            ))}
-          </datalist>
         </div>
         <div className="w-24">
           <input 
@@ -4694,36 +4690,24 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input name="name" list="dl-v9oy8w-2" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Miel pur" />
-                <datalist id="dl-v9oy8w-2">
-                  {[
-                    "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
-                    "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix", 
-                    "Oeufs", "Oignons", "Olives", "Persil", "Poivre noir", "Pommes de terre", "Poulet", "Safran", "Sel", "Semoule", 
-                    "Sucre", "Tomates", "Viande de boeuf", "Viande hachée"
-                  ].map(name => <option key={name} value={name} />)}
-                  {Array.from(new Set(stockItemsData.map((item: any) => item.name)))
-                    .filter((name: any) => ![
-                      "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin", 
-                      "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix", 
-                      "Oeufs", "Oignons", "Olives", "Persil", "Poivre noir", "Pommes de terre", "Poulet", "Safran", "Sel", "Semoule", 
-                      "Sucre", "Tomates", "Viande de boeuf", "Viande hachée"
-                    ].includes(name))
-                    .sort()
-                    .map((name: any, idx) => (
-                      <option key={`existing-${idx}`} value={name} />
-                  ))}
-                </datalist>
+                <Combobox
+                  name="name"
+                  required
+                  options={[
+                    "Agneau", "Amandes", "Beurre", "Cannelle", "Carottes", "Citron confit", "Coriandre", "Courgettes", "Cumin",
+                    "Curcuma", "Dattes", "Farine", "Gingembre", "Huile d'olive", "Huile de tournesol", "Lait", "Miel pur", "Noix",
+                    "Oeufs", "Oignons", "Olives", "Persil", "Poivre noir", "Pommes de terre", "Poulet", "Safran", "Sel", "Semoule",
+                    "Sucre", "Tomates", "Viande de boeuf", "Viande hachée",
+                    ...stockItemsData.map((item: any) => item.name)
+                  ]}
+                  className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
+                  placeholder="Ex: Miel pur"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" list="dl-add-cat" required type="text" placeholder="Sélectionner ou taper..." className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]" />
-                  <datalist id="dl-add-cat">
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat}>{cat}</option>
-                    ))}
-                  </datalist>
+                  <Combobox name="category" options={categories} required placeholder="Sélectionner ou taper..." className="w-full border border-gray-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -4820,12 +4804,7 @@ function Inventory() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                    <input id="tx-supplier" list="dl-ye9z4i-4" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
-                    <datalist id="dl-ye9z4i-4">
-                      {suppliersList.map((sup, idx) => (
-                        <option key={idx} value={sup} />
-                      ))}
-                    </datalist>
+                    <Combobox id="tx-supplier" options={suppliersList} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
@@ -4952,23 +4931,13 @@ function Inventory() {
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
-              <input id="edit-name" list="dl-edit-name" type="text" defaultValue={selectedProduct.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] font-medium text-gray-900" />
-              <datalist id="dl-edit-name">
-                {Array.from(new Set(stockItemsData.map((item: any) => item.name))).sort().map((name: any, idx) => (
-                  <option key={idx} value={name} />
-                ))}
-              </datalist>
+              <Combobox id="edit-name" options={stockItemsData.map((item: any) => item.name)} defaultValue={selectedProduct.name} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] font-medium text-gray-900" />
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input id="edit-cat" list="dl-o3ghs2-5" type="text" defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                  <datalist id="dl-o3ghs2-5">
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
-                    ))}
-                  </datalist>
+                  <Combobox id="edit-cat" options={categories} defaultValue={selectedProduct.category} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
@@ -5007,12 +4976,7 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur Préféré</label>
-                  <input id="edit-sup" list="dl-zik38c-6" type="text" defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                  <datalist id="dl-zik38c-6">
-                    {suppliersList.map((sup, idx) => (
-                      <option key={idx} value={sup} />
-                    ))}
-                  </datalist>
+                  <Combobox id="edit-sup" options={suppliersList} defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire (DH)</label>
@@ -5166,12 +5130,7 @@ function Inventory() {
             }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                <input name="supplier" list="dl-new-order-sup" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Ferme Atlas" />
-                <datalist id="dl-new-order-sup">
-                  {suppliersList.map((sup, idx) => (
-                    <option key={idx} value={sup} />
-                  ))}
-                </datalist>
+                <Combobox name="supplier" options={suppliersList} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Ferme Atlas" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison prévue</label>
@@ -5237,12 +5196,7 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" list="dl-elq0au-7" type="text" required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                  <datalist id="dl-elq0au-7">
-                    {categories.map((cat, idx) => (
-                      <option key={idx} value={cat} />
-                    ))}
-                  </datalist>
+                  <Combobox name="category" options={categories} required placeholder="Ex: Fruits & Légumes" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
@@ -5323,21 +5277,13 @@ function Inventory() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input name="category" list="dl-7sr3pv-8" type="text" required defaultValue={selectedSupplier.category || selectedSupplier.categorie} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                  <datalist id="dl-7sr3pv-8">
-                    <option value="Fruits & Légumes" />
-                    <option value="Viandes" />
-                    <option value="Volailles" />
-                    <option value="Poissons & Fruits de mer" />
-                    <option value="Patisseie" />
-                    <option value="Produits Laitiers & Œufs" />
-                    <option value="Épicerie Sèche" />
-                    
-                    <option value="Emballages & Consommables" />
-                    <option value="Hygiène & Entretien" />
-                    <option value="Équipement & Matériel" />
-                    <option value="Services" />
-                  </datalist>
+                  <Combobox
+                    name="category"
+                    required
+                    options={['Fruits & Légumes', 'Viandes', 'Volailles', 'Poissons & Fruits de mer', 'Patisseie', 'Produits Laitiers & Œufs', 'Épicerie Sèche', 'Emballages & Consommables', 'Hygiène & Entretien', 'Équipement & Matériel', 'Services']}
+                    defaultValue={selectedSupplier.category || selectedSupplier.categorie}
+                    className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
@@ -5408,11 +5354,10 @@ function Inventory() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Article</label>
-                <input
-                  list="dl-tx-items"
+                <Combobox
+                  options={stockItemsData.map(item => item.name)}
                   value={txForm.item}
-                  onChange={e => {
-                    const val = e.target.value;
+                  onChange={val => {
                     const matchedItem = stockItemsData.find(i => i.name === val);
                     if (matchedItem && txForm.type === 'in') {
                       setTxForm({...txForm, item: val, unit: matchedItem.unit || 'kg', unitPrice: matchedItem.price || matchedItem.averageCost || ''});
@@ -5422,14 +5367,9 @@ function Inventory() {
                       setTxForm({...txForm, item: val});
                     }
                   }}
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   placeholder="Rechercher un produit..."
                 />
-                <datalist id="dl-tx-items">
-                  {stockItemsData.map(item => (
-                    <option key={item.id} value={item.name} />
-                  ))}
-                </datalist>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -5475,18 +5415,13 @@ function Inventory() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                    <input
-                      list="dl-tx-suppliers"
+                    <Combobox
+                      options={fournisseurs.map(f => f.name || f.nom)}
                       value={txForm.supplier}
-                      onChange={e => setTxForm({...txForm, supplier: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                      onChange={val => setTxForm({...txForm, supplier: val})}
+                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                       placeholder="Ex: Marché Central"
                     />
-                    <datalist id="dl-tx-suppliers">
-                      {fournisseurs.map(f => (
-                        <option key={f.id} value={f.name || f.nom} />
-                      ))}
-                    </datalist>
                   </div>
                 </div>
               )}
@@ -5525,19 +5460,13 @@ function Inventory() {
               {txForm.type === 'out' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Destination de sortie</label>
-                  <input
-                    list="dl-tx-destinations"
+                  <Combobox
+                    options={['Cuisine Principale', 'Bar', 'Événement', 'Patisseie']}
                     value={txForm.destination || ''}
-                    onChange={e => setTxForm({...txForm, destination: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                    onChange={val => setTxForm({...txForm, destination: val})}
+                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                     placeholder="Ex: Cuisine, Bar, Événement..."
                   />
-                  <datalist id="dl-tx-destinations">
-                    <option value="Cuisine Principale" />
-                    <option value="Bar" />
-                    <option value="Événement" />
-                    <option value="Patisseie" />
-                  </datalist>
                 </div>
               )}
 
@@ -5553,18 +5482,12 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Opérateur</label>
-                  <input
-                    type="text"
-                    list="dl-tx-operateur"
+                  <Combobox
+                    options={staffNames}
                     value={txForm.user}
-                    onChange={e => setTxForm({...txForm, user: e.target.value})}
+                    onChange={val => setTxForm({...txForm, user: val})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   />
-                  <datalist id="dl-tx-operateur">
-                    {staffNames.map((name, idx) => (
-                      <option key={idx} value={name} />
-                    ))}
-                  </datalist>
                 </div>
               </div>
               
@@ -5675,18 +5598,13 @@ function Inventory() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Article</label>
-                <input
-                  list="dl-waste-items"
+                <Combobox
+                  options={stockItemsData.map(item => item.name)}
                   value={wasteForm.item}
-                  onChange={e => setWasteForm({...wasteForm, item: e.target.value})}
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
+                  onChange={val => setWasteForm({...wasteForm, item: val})}
+                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   placeholder="Rechercher un produit..."
                 />
-                <datalist id="dl-waste-items">
-                  {stockItemsData.map(item => (
-                    <option key={item.id} value={item.name} />
-                  ))}
-                </datalist>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -5758,19 +5676,13 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Responsable</label>
-                  <input
-                    type="text"
-                    list="dl-waste-responsable"
+                  <Combobox
+                    options={staffNames}
                     value={wasteForm.user}
-                    onChange={e => setWasteForm({...wasteForm, user: e.target.value})}
+                    onChange={val => setWasteForm({...wasteForm, user: val})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                     placeholder="Ex: Chef Hassan"
                   />
-                  <datalist id="dl-waste-responsable">
-                    {staffNames.map((name, idx) => (
-                      <option key={idx} value={name} />
-                    ))}
-                  </datalist>
                 </div>
               </div>
               
@@ -6072,23 +5984,17 @@ function Inventory() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input
-                  list="fiches-list"
-                  type="text"
+                <Combobox
+                  options={[
+                    "Pâte à pizza", "Sauce tomate", "Pâte brisée", "Pâte feuilletée",
+                    "Fond de veau", "Bouillon de volaille", "Crème pâtissière", "Sauce béchamel",
+                    ...recipes.map(r => r.name), ...fichesTechniques.map(f => f.nom || f.name), ...menuItems.map(m => m.name)
+                  ]}
                   value={semiFinishedForm.name}
-                  onChange={(e) => setSemiFinishedForm({...semiFinishedForm, name: e.target.value})}
+                  onChange={val => setSemiFinishedForm({...semiFinishedForm, name: val})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   placeholder="Ex: Tajine, Pâte à pizza, etc."
                 />
-                <datalist id="fiches-list">
-                  {Array.from(new Set([
-                    "Pâte à pizza", "Sauce tomate", "Pâte brisée", "Pâte feuilletée", 
-                    "Fond de veau", "Bouillon de volaille", "Crème pâtissière", "Sauce béchamel",
-                    ...recipes.map(r => r.name), ...fichesTechniques.map(f => f.nom || f.name), ...menuItems.map(m => m.name)
-                  ])).filter(Boolean).map((name: any, idx) => (
-                    <option key={idx} value={name} />
-                  ))}
-                </datalist>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

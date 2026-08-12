@@ -407,22 +407,8 @@ Détails <ChevronRight size={16} />
                             setOrderSelections(initialSelections);
                             setIsNewOrderModalOpen(true); 
                           }} className="text-blue-600 hover:text-blue-800 font-medium text-sm">Éditer</button>
-                        <button 
-                          onClick={async () => {
-                            setCommandeToDelete(cmd.id); if (false) {
-                              try {
-                                if (cmd.id) {
-                                  await deleteDoc(doc(db, 'commandes', cmd.id));
-                                } else {
-                                  setCommandes(prev => prev.filter(c => c.id !== cmd.id));
-                                }
-                                showToast("Commande supprimée");
-                              } catch (e) {
-                                console.error(e);
-                                showToast("Erreur lors de la suppression", "error");
-                              }
-                            }
-                          }}
+                        <button
+                          onClick={() => setCommandeToDelete(cmd.id)}
                           className="text-red-500 hover:text-red-700 font-medium text-sm"
                           title="Supprimer"
                         >
@@ -1410,6 +1396,23 @@ Détails <ChevronRight size={16} />
           setFournisseurToDelete(null);
         }}
         onCancel={() => setFournisseurToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!commandeToDelete}
+        title="Supprimer la commande"
+        message="Êtes-vous sûr de vouloir supprimer cette commande ?"
+        onConfirm={async () => {
+          try {
+            await deleteDoc(doc(db, 'commandes', commandeToDelete as string));
+            showToast("Commande supprimée");
+          } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la suppression", "error");
+          }
+          setCommandeToDelete(null);
+        }}
+        onCancel={() => setCommandeToDelete(null)}
       />
     </div>
   );

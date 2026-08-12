@@ -24,6 +24,7 @@ export default function CatalogueProduits() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [showMissingOnly, setShowMissingOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'traceable' | 'noSupplier' | 'noOrder'>('all');
   const [viewedProduct, setViewedProduct] = useState<any>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [productToDelete, setProductToDelete] = useState<any>(null);
@@ -83,12 +84,18 @@ export default function CatalogueProduits() {
       .filter(p => selectedCategory === 'Tous' ? true : p.category === selectedCategory)
       .filter(p => showMissingOnly ? (!p.hasSupplier || !p.hasLinkedOrder) : true)
       .filter(p => {
+        if (statusFilter === 'traceable') return p.hasSupplier && p.hasLinkedOrder;
+        if (statusFilter === 'noSupplier') return !p.hasSupplier;
+        if (statusFilter === 'noOrder') return !p.hasLinkedOrder;
+        return true;
+      })
+      .filter(p => {
         const q = searchQuery.toLowerCase();
         if (!q) return true;
         return normalize(p.name).includes(q) || normalize(p.originSupplier).includes(q) || normalize(p.category).includes(q);
       })
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [productsWithOrigin, selectedCategory, showMissingOnly, searchQuery]);
+  }, [productsWithOrigin, selectedCategory, showMissingOnly, statusFilter, searchQuery]);
 
   const missingSupplierCount = productsWithOrigin.filter(p => !p.hasSupplier).length;
   const missingOrderCount = productsWithOrigin.filter(p => !p.hasLinkedOrder).length;
@@ -121,7 +128,10 @@ export default function CatalogueProduits() {
         transition={{ duration: 0.5, staggerChildren: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
       >
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`bg-white rounded-2xl p-6 border shadow-sm flex items-center gap-4 text-left transition-all hover:shadow-md ${statusFilter === 'all' ? 'border-gray-400 ring-2 ring-gray-200' : 'border-gray-100'}`}
+        >
           <div className="p-4 bg-gray-50 text-gray-600 rounded-xl">
             <Package size={24} />
           </div>
@@ -129,8 +139,11 @@ export default function CatalogueProduits() {
             <p className="text-sm text-gray-500 font-medium">Total Produits</p>
             <h4 className="text-2xl font-bold text-gray-900 mt-1">{productsWithOrigin.length}</h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+        </button>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'traceable' ? 'all' : 'traceable')}
+          className={`bg-white rounded-2xl p-6 border shadow-sm flex items-center gap-4 text-left transition-all hover:shadow-md ${statusFilter === 'traceable' ? 'border-green-400 ring-2 ring-green-200' : 'border-gray-100'}`}
+        >
           <div className="p-4 bg-green-50 text-green-600 rounded-xl">
             <CheckCircle2 size={24} />
           </div>
@@ -138,8 +151,11 @@ export default function CatalogueProduits() {
             <p className="text-sm text-gray-500 font-medium">Traçabilité Complète</p>
             <h4 className="text-2xl font-bold text-green-600 mt-1">{fullyTraceableCount}</h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+        </button>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'noSupplier' ? 'all' : 'noSupplier')}
+          className={`bg-white rounded-2xl p-6 border shadow-sm flex items-center gap-4 text-left transition-all hover:shadow-md ${statusFilter === 'noSupplier' ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-100'}`}
+        >
           <div className="p-4 bg-red-50 text-red-600 rounded-xl">
             <AlertTriangle size={24} />
           </div>
@@ -147,8 +163,11 @@ export default function CatalogueProduits() {
             <p className="text-sm text-gray-500 font-medium">Sans Fournisseur</p>
             <h4 className="text-2xl font-bold text-red-600 mt-1">{missingSupplierCount}</h4>
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center gap-4">
+        </button>
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'noOrder' ? 'all' : 'noOrder')}
+          className={`bg-white rounded-2xl p-6 border shadow-sm flex items-center gap-4 text-left transition-all hover:shadow-md ${statusFilter === 'noOrder' ? 'border-orange-400 ring-2 ring-orange-200' : 'border-gray-100'}`}
+        >
           <div className="p-4 bg-orange-50 text-orange-600 rounded-xl">
             <Truck size={24} />
           </div>
@@ -156,7 +175,7 @@ export default function CatalogueProduits() {
             <p className="text-sm text-gray-500 font-medium">Sans Commande Liée</p>
             <h4 className="text-2xl font-bold text-orange-600 mt-1">{missingOrderCount}</h4>
           </div>
-        </div>
+        </button>
       </motion.div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

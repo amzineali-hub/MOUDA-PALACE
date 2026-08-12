@@ -653,12 +653,8 @@ Détails <ChevronRight size={16} />
                             >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                             </button>
-                            <button 
-                              onClick={async () => {
-                                setFournisseurToDelete(fournisseur.id); if (false) {
-                                  await deleteDoc(doc(db, 'fournisseurs', fournisseur.id));
-                                }
-                              }}
+                            <button
+                              onClick={() => setFournisseurToDelete(fournisseur.id)}
                               className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200 transition-all shadow-sm"
                               title="Supprimer"
                             >
@@ -1214,20 +1210,9 @@ Détails <ChevronRight size={16} />
               <button type="submit" className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium hover:bg-black transition-colors">
                 Mettre à jour
               </button>
-              <button 
+              <button
                 type="button"
-                onClick={async () => {
-                  if (confirm('Voulez-vous vraiment supprimer ce fournisseur ?')) {
-                    try {
-                      if (selectedFournisseur?.id) { await deleteDoc(doc(db, 'fournisseurs', selectedFournisseur.id)); }
-                      showToast("Fournisseur supprimé");
-                      setIsEditSupplierModalOpen(false);
-                    } catch (e) {
-                      console.error(e);
-                      showToast("Erreur lors de la suppression", "error");
-                    }
-                  }
-                }}
+                onClick={() => setFournisseurToDelete(selectedFournisseur.id)}
                 className="w-full mt-2 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-medium hover:bg-red-50 transition-colors"
               >
                 Supprimer le fournisseur
@@ -1398,7 +1383,7 @@ Détails <ChevronRight size={16} />
                 <label className="block text-sm font-medium text-gray-700 mb-1">Contact (Email ou Téléphone)</label>
                 <input name="contact" required type="text" placeholder="Ex: contact@bioplus.ma" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
@@ -1409,6 +1394,23 @@ Détails <ChevronRight size={16} />
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={!!fournisseurToDelete}
+        title="Supprimer le fournisseur"
+        message="Êtes-vous sûr de vouloir supprimer ce fournisseur ?"
+        onConfirm={async () => {
+          try {
+            await deleteDoc(doc(db, 'fournisseurs', fournisseurToDelete as string));
+            showToast("Fournisseur supprimé");
+          } catch (e) {
+            console.error(e);
+            showToast("Erreur lors de la suppression", "error");
+          }
+          setIsEditSupplierModalOpen(false);
+          setFournisseurToDelete(null);
+        }}
+        onCancel={() => setFournisseurToDelete(null)}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { useState, useEffect, ReactNode, useMemo, useRef, Suspense, lazy } from 
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
+import { computeRecipeCost } from './lib/recipeCost';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LineChart, Line } from 'recharts';
 import { 
@@ -948,45 +949,20 @@ function PerformanceAnalysis() {
   }, []);
 
   useEffect(() => {
-    const calculateCost = (qty: number, unit: string, price: number, priceUnit: string) => {
-      if (!qty || !price) return 0;
-      let adjustedQty = qty;
-      if (unit === 'g' && priceUnit === 'kg') adjustedQty = qty / 1000;
-      if (unit === 'kg' && priceUnit === 'g') adjustedQty = qty * 1000;
-      if (unit === 'ml' && (priceUnit === 'L' || priceUnit === 'l')) adjustedQty = qty / 1000;
-      if ((unit === 'L' || unit === 'l') && priceUnit === 'ml') adjustedQty = qty * 1000;
-      return adjustedQty * price;
-    };
-
     let totalMargin = 0;
     let count = 0;
-    
+
     fichesTechniques.forEach(recipe => {
-      let dynamicCoutMatiere = 0;
-      if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-        recipe.ingredients.forEach((ing: any) => {
-          const matchedItem = stockItemsData.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
-          const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price || matchedItem.cost) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
-          const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
-          dynamicCoutMatiere += calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit);
-        });
-      } else {
-        dynamicCoutMatiere = Number(recipe.coutMatiere || 0);
-      }
-      
       const pv = Number(recipe.prixVente);
       if (pv > 0) {
-        const margin = ((pv - dynamicCoutMatiere) / pv) * 100;
+        const { totalCost } = computeRecipeCost(recipe, stockItemsData);
+        const margin = ((pv - totalCost) / pv) * 100;
         totalMargin += margin;
         count++;
       }
     });
-    
-    if (count > 0) {
-      setAverageMargin(totalMargin / count);
-    } else {
-      setAverageMargin(0);
-    }
+
+    setAverageMargin(count > 0 ? totalMargin / count : 0);
   }, [fichesTechniques, stockItemsData]);
 
   const sourceData = useMemo(() => {

@@ -6,18 +6,7 @@ import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, Chef
 import { query, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-
-// Define calculateCost outside so it can be reused
-const calculateCost = (qty: number, unit: string, price: number, priceUnit: string, forceCost?: number) => {
-  if (forceCost !== undefined && forceCost !== null && !price) return forceCost;
-  if (!qty || !price) return 0;
-  let adjustedQty = qty;
-  if (unit === 'g' && priceUnit === 'kg') adjustedQty = qty / 1000;
-  if (unit === 'kg' && priceUnit === 'g') adjustedQty = qty * 1000;
-  if (unit === 'ml' && priceUnit === 'L') adjustedQty = qty / 1000;
-  if (unit === 'L' && priceUnit === 'ml') adjustedQty = qty * 1000;
-  return adjustedQty * price;
-};
+import { computeRecipeCost, computeIngredientCost } from './lib/recipeCost';
 
 export default function FichesTechniques() {
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -140,21 +129,7 @@ export default function FichesTechniques() {
                   </td>
                 </tr>
               ) : filteredRecipes.map(recipe => {
-                let dynamicCoutMatiere = recipe.coutMatiere || 0;
-                if (recipe.ingredients && recipe.ingredients.length > 0) {
-                  dynamicCoutMatiere = recipe.ingredients.reduce((sum: number, ing: any) => {
-                    const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
-                    const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price || matchedItem.cost) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
-                    const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
-                    return sum + calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
-                  }, 0);
-                } else if (recipe.coutMatiere) {
-                  dynamicCoutMatiere = recipe.coutMatiere;
-                }
-
-                const pv = Number(recipe.prixVente) || 0;
-                const dynamicFoodCost = pv > 0 ? (dynamicCoutMatiere / pv) * 100 : 0;
-                const dynamicMarge = pv > 0 ? pv - dynamicCoutMatiere : 0;
+                const { totalCost: dynamicCoutMatiere, foodCostPct: dynamicFoodCost, margin: dynamicMarge, warnings } = computeRecipeCost(recipe, inventoryItems);
 
                 return (
                 <tr key={recipe.id} className="hover:bg-gray-50/50 transition-colors">
@@ -165,14 +140,19 @@ export default function FichesTechniques() {
                     </span>
                   </td>
                   <td className="px-6 py-4 font-medium text-red-600">{Number(dynamicCoutMatiere).toFixed(2)} DH</td>
-                  <td className="px-6 py-4 font-medium text-green-600">{Number(pv).toFixed(2)} DH</td>
+                  <td className="px-6 py-4 font-medium text-green-600">{Number(recipe.prixVente || 0).toFixed(2)} DH</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
-                      dynamicFoodCost <= 25 ? 'bg-green-50 text-green-700' : 
+                      dynamicFoodCost <= 25 ? 'bg-green-50 text-green-700' :
                       dynamicFoodCost <= 35 ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
                     }`}>
                       {Number(dynamicFoodCost).toFixed(1)}%
                     </span>
+                    {warnings.length > 0 && (
+                      <span title={warnings.map(w => w.message).join(' ')}>
+                        <AlertCircle size={14} className="inline ml-1.5 text-amber-500 align-text-bottom" />
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 font-medium text-[#265C6D]">{Number(dynamicMarge).toFixed(2)} DH</td>
                   <td className="px-6 py-4 text-right">
@@ -239,18 +219,12 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
 
 
 
-  const calculatedCoutMatiere = ingredients.reduce((sum, ing) => {
-    const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
-    const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price || matchedItem.cost) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
-    const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
-    return sum + calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
-  }, 0);
-  
-  const coutMatiere = ingredients.length > 0 ? calculatedCoutMatiere : (Number(manualCoutMatiere) || 0);
-
   const pv = Number(prixVente) || 0;
-  const foodCost = pv > 0 ? (coutMatiere / pv) * 100 : 0;
-  const margeBrute = pv > 0 ? pv - coutMatiere : 0;
+  const recipeCostResult = computeRecipeCost({ ingredients, coutMatiere: manualCoutMatiere, prixVente }, inventoryItems);
+  const coutMatiere = recipeCostResult.totalCost;
+  const foodCost = recipeCostResult.foodCostPct;
+  const margeBrute = recipeCostResult.margin;
+  const warnings = recipeCostResult.warnings;
 
   const handleSave = async () => {
     if (!nom || !categorie || !prixVente) {
@@ -288,7 +262,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     if (!newIng.nom || !newIng.quantite) return;
     const q = Number(newIng.quantite);
     const p = Number(newIng.prixUnitaire) || 0;
-    const c = calculateCost(q, newIng.unite, p, newIng.unitePrix, undefined);
+    const c = computeIngredientCost({ nom: newIng.nom, quantite: q, unite: newIng.unite, prixUnitaire: p, unitePrix: newIng.unitePrix }, inventoryItems).cost;
 
     setIngredients([
       ...ingredients, 
@@ -438,10 +412,26 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
             <div>
               <h4 className="font-medium mb-1">Gestion du stock automatisée</h4>
               <p className="text-sm text-blue-700/80 leading-relaxed">
-                Cette fiche déduit automatiquement les ingrédients de l'économat à chaque vente du plat. Le coût matière est mis à jour en temps réel selon vos achats, assurant un calcul automatique du Food Cost et une marge précise liée directement au POS.
+                Cette fiche déduit automatiquement de l'économat les ingrédients rattachés au stock (badge "Stock" ci-dessous) à chaque vente du plat. Pour ces ingrédients, le coût matière est mis à jour en temps réel selon vos achats.
               </p>
             </div>
           </div>
+
+          {warnings.length > 0 && (
+            <div className={`p-4 rounded-xl flex gap-3 items-start mb-6 border ${
+              warnings.some(w => w.type === 'food_cost_abnormal_low' || w.type === 'food_cost_abnormal_high')
+                ? 'bg-red-50 text-red-800 border-red-100'
+                : 'bg-amber-50 text-amber-800 border-amber-200'
+            }`}>
+              <AlertCircle className="shrink-0 mt-0.5" size={20} />
+              <div>
+                <h4 className="font-medium mb-1">Fiabilité du calcul à vérifier</h4>
+                <ul className="text-sm leading-relaxed list-disc pl-4 space-y-0.5 opacity-90">
+                  {warnings.map((w, i) => <li key={i}>{w.message}</li>)}
+                </ul>
+              </div>
+            </div>
+          )}
 
           {/* Ingredients Table */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -465,16 +455,24 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {ingredients.map((ing) => {
-                  const matchedItem = inventoryItems.find(i => i.name?.toLowerCase() === ing.nom?.toLowerCase());
-                  const currentPrice = matchedItem ? Number(matchedItem.averageCost || matchedItem.price || matchedItem.cost) || Number(ing.prixUnitaire) : Number(ing.prixUnitaire);
-                  const currentPriceUnit = matchedItem ? (matchedItem.unit || ing.unitePrix) : ing.unitePrix;
-                  const currentCost = calculateCost(Number(ing.quantite), ing.unite, currentPrice, currentPriceUnit, ing.forceCost);
+                  const ingResult = computeIngredientCost(ing, inventoryItems);
+                  const matchedItem = ingResult.matchedItem;
+                  const currentPrice = ingResult.unitPrice;
+                  const currentPriceUnit = ingResult.unitPriceUnit;
+                  const currentCost = ingResult.cost;
 
                   return (
                   <tr key={ing.id} className="hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {ing.nom}
-                      {matchedItem && <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>}
+                      {ingResult.matched ? (
+                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>
+                      ) : (
+                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">Prix manuel</span>
+                      )}
+                      {ingResult.unitIssue && (
+                        <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-700 border border-red-100">Unité incompatible</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       <input 
@@ -594,7 +592,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                     </select>
                   </td>
                   <td className="px-4 py-2 text-right text-gray-500 text-sm font-medium">
-                    {calculateCost(Number(newIng.quantite), newIng.unite, Number(newIng.prixUnitaire), newIng.unitePrix).toFixed(2)} DH
+                    {computeIngredientCost({ nom: newIng.nom, quantite: Number(newIng.quantite), unite: newIng.unite, prixUnitaire: Number(newIng.prixUnitaire), unitePrix: newIng.unitePrix }, inventoryItems).cost.toFixed(2)} DH
                   </td>
                   <td className="px-4 py-2 text-right">
                     <button 

@@ -11,6 +11,7 @@ import {
   Clock, CheckCircle2 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { computeRecipeCost } from './lib/recipeCost';
 
 export default function TableauDeBord() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -66,7 +67,7 @@ export default function TableauDeBord() {
   let totalPrixVente = 0;
   
   recipes.forEach(r => {
-    totalFoodCost += (parseFloat(r.coutMatiere) || 0);
+    totalFoodCost += computeRecipeCost(r, inventory).totalCost;
     totalPrixVente += (parseFloat(r.prixVente) || 0);
   });
   
@@ -171,11 +172,14 @@ export default function TableauDeBord() {
     .map(([date, revenue]) => ({
       name: date,
       CA: revenue
-    }));  const recipeChartData = recipes.slice(0, 5).map(r => ({
-    name: r.nom.substring(0, 15),
-    FoodCost: parseFloat(r.coutMatiere) || 0,
-    Marge: parseFloat(r.margeBrute) || 0
-  }));
+    }));  const recipeChartData = recipes.slice(0, 5).map(r => {
+    const { totalCost, margin } = computeRecipeCost(r, inventory);
+    return {
+      name: r.nom.substring(0, 15),
+      FoodCost: totalCost,
+      Marge: margin
+    };
+  });
 
   // Inventory Distribution by Category
   const categoryCount: Record<string, number> = {};

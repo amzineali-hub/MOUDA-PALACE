@@ -5,6 +5,7 @@ import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Rece
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { computeRecipeCost } from './lib/recipeCost';
 
 const CATEGORIES = [
   { id: 'Entrées', name: 'Entrées', icon: <Utensils size={18} /> },
@@ -61,8 +62,9 @@ export default function POSTactile() {
         setNewItemPrice(String(matchedRecette.prixVente));
       } else if (matchedRecette.prix) {
         setNewItemPrice(String(matchedRecette.prix));
-      } else if (matchedRecette.coutMatiere) {
-        setNewItemPrice(String(Math.round(matchedRecette.coutMatiere * 1.3)));
+      } else {
+        const { totalCost } = computeRecipeCost(matchedRecette, inventoryItems);
+        if (totalCost > 0) setNewItemPrice(String(Math.round(totalCost * 1.3)));
       }
     }
   };

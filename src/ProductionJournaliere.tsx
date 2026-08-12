@@ -4,6 +4,7 @@ import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { computeRecipeCost, convertQuantity } from './lib/recipeCost';
 
 export default function ProductionJournaliere() {
   const { showToast } = useToast();
@@ -100,44 +101,32 @@ export default function ProductionJournaliere() {
       // Transaction to decrement inventory and create order
       await runTransaction(db, async (transaction) => {
         const ingredientsUpdates = [];
-        let calculatedRealCost = 0;
-        
-        // 1. Calculate needed quantities and find inventory docs
+        const recipePortions = parseFloat(recipe.portions) || 1;
+        // Coût réel calculé via le module partagé (même logique que Fiches Techniques / Tableau de Bord / POS)
+        const { totalCost: recipeCostForPortions } = computeRecipeCost(recipe, inventoryItems);
+        const calculatedRealCost = (recipeCostForPortions / recipePortions) * quantiteAProduire;
+
+        // 1. Calculate needed quantities and find inventory docs (déduction de stock uniquement)
         for (const ing of recipe.ingredients || []) {
           // Find the corresponding inventory item
           // Normally we'd use an ID, but we match by name as fallback (case-insensitive)
           const inventoryItem = inventoryItems.find(i => (i.name || '').toLowerCase() === (ing.nom || '').toLowerCase());
-          
-          
+
           const baseQty = parseFloat(ing.quantite) || 0;
-          const recipePortions = parseFloat(recipe.portions) || 1;
           let neededQty = (baseQty / recipePortions) * quantiteAProduire;
 
           if (!inventoryItem) {
-            // Ingredient not in inventory, just add the cost and skip deduction
-            const ingPrice = parseFloat(ing.prixUnitaire) || 0;
-            calculatedRealCost += neededQty * ingPrice;
-            continue; 
+            // Ingrédient non rattaché au stock : aucune déduction possible
+            continue;
           }
 
-          
           // Convert units if necessary to match inventory unit
-          const ingUnit = ing.unite.toLowerCase();
-          const invUnit = (inventoryItem.unit || '').toLowerCase();
-          
-          if (ingUnit === 'g' && invUnit === 'kg') neededQty = neededQty / 1000;
-          else if (ingUnit === 'kg' && invUnit === 'g') neededQty = neededQty * 1000;
-          else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty = neededQty / 1000;
-          else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty = neededQty * 1000;
-          
-          
-          // Compute cost based on current averageCost or price
-          const itemPrice = parseFloat(inventoryItem.averageCost || inventoryItem.unitPrice || inventoryItem.price || ing.prixUnitaire || 0);
-          calculatedRealCost += neededQty * itemPrice;
-          
+          const converted = convertQuantity(neededQty, ing.unite, inventoryItem.unit);
+          if (converted !== null) neededQty = converted;
+
           const invRef = doc(db, 'inventoryItems', inventoryItem.id);
           const currentQty = parseFloat(inventoryItem.quantity) || 0;
-          
+
           ingredientsUpdates.push({
             ref: invRef,
             newQty: currentQty - neededQty,
@@ -172,7 +161,7 @@ export default function ProductionJournaliere() {
           quantiteProduite: quantiteAProduire,
           chefResponsable,
           status: 'completed',
-          coutMatiereEstime: calculatedRealCost || (recipe.coutMatiere * quantiteAProduire),
+          coutMatiereEstime: calculatedRealCost,
           timestamp: serverTimestamp()
         });
         

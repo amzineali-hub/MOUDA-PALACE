@@ -1,5 +1,6 @@
 import { db } from '../firebase';
 import { runTransaction, doc, collection, serverTimestamp } from 'firebase/firestore';
+import { computeRecipeCost, convertQuantity } from './recipeCost';
 
 export const processUnifiedProduction = async (
   itemName: string,
@@ -24,14 +25,9 @@ export const processUnifiedProduction = async (
           const recipePortions = parseFloat(recipe.portions) || 1;
           let neededQty = (baseQty / recipePortions) * quantity;
           
-          const ingUnit = (ing.unite || '').toLowerCase();
-          const invUnit = (inventoryItem.unit || '').toLowerCase();
-          
-          if (ingUnit === 'g' && invUnit === 'kg') neededQty = neededQty / 1000;
-          else if (ingUnit === 'kg' && invUnit === 'g') neededQty = neededQty * 1000;
-          else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty = neededQty / 1000;
-          else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty = neededQty * 1000;
-          
+          const converted = convertQuantity(neededQty, ing.unite, inventoryItem.unit);
+          if (converted !== null) neededQty = converted;
+
           const invRef = doc(db, 'inventoryItems', inventoryItem.id);
           const currentQty = parseFloat(inventoryItem.quantity) || 0;
           
@@ -88,6 +84,10 @@ export const processUnifiedProduction = async (
       });
       return { orderId };
     } else if (source === 'ProductionJournaliere') {
+      const recipePortions = recipe ? (parseFloat(recipe.portions) || 1) : 1;
+      const coutMatiereEstime = recipe
+        ? (computeRecipeCost(recipe, inventoryItems).totalCost / recipePortions) * quantity
+        : 0;
       const prodRef = doc(collection(db, 'productionOrders'));
       transaction.set(prodRef, {
         recipeId: recipe ? recipe.id : null,
@@ -95,7 +95,7 @@ export const processUnifiedProduction = async (
         quantiteProduite: quantity,
         chefResponsable,
         status: 'completed',
-        coutMatiereEstime: recipe ? (recipe.coutMatiere * quantity) : 0,
+        coutMatiereEstime,
         timestamp: serverTimestamp()
       });
       

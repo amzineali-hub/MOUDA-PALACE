@@ -759,7 +759,9 @@ export default function Accounting() {
                   <th className="px-6 py-4">Bénéficiaire</th>
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Méthode</th>
-                  <th className="px-6 py-4 text-right">Montant</th>
+                  <th className="px-6 py-4 text-right">Montant HT</th>
+                  <th className="px-6 py-4 text-right">TVA</th>
+                  <th className="px-6 py-4 text-right">Montant TTC</th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -771,6 +773,8 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900">{expense.supplier}</td>
                     <td className="px-6 py-4 text-gray-500">{expense.date}</td>
                     <td className="px-6 py-4 text-gray-500">{expense.method}</td>
+                    <td className="px-6 py-4 text-right text-gray-500">{expense.montantHT !== undefined ? `${Number(expense.montantHT).toFixed(2)} MAD` : '—'}</td>
+                    <td className="px-6 py-4 text-right text-gray-500">{expense.tva !== undefined ? `${expense.tva}%` : '—'}</td>
                     <td className="px-6 py-4 font-medium text-red-600 text-right">-{expense.amount}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
@@ -815,16 +819,19 @@ export default function Accounting() {
                                     <thead>
                                       <tr>
                                         <th>Description</th>
-                                        <th style="text-align: right;">Montant</th>
+                                        ${expense.montantHT !== undefined ? '<th style="text-align: right;">Montant HT</th><th style="text-align: right;">TVA</th>' : ''}
+                                        <th style="text-align: right;">${expense.montantHT !== undefined ? 'Montant TTC' : 'Montant'}</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       <tr>
                                         <td>${expense.description || expense.category}</td>
+                                        ${expense.montantHT !== undefined ? `<td style="text-align: right;">${Number(expense.montantHT).toFixed(2)} MAD</td><td style="text-align: right;">${expense.tva}%</td>` : ''}
                                         <td style="text-align: right;">${parseAmount(expense.amount).toFixed(2)} MAD</td>
                                       </tr>
                                       <tr class="total-row">
-                                        <td>Total</td>
+                                        <td>Total${expense.montantHT !== undefined ? ' TTC' : ''}</td>
+                                        ${expense.montantHT !== undefined ? '<td></td><td></td>' : ''}
                                         <td style="text-align: right;">${parseAmount(expense.amount).toFixed(2)} MAD</td>
                                       </tr>
                                     </tbody>
@@ -855,7 +862,7 @@ export default function Accounting() {
                 ))}
                 {filteredExpenses.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                       Aucune dépense trouvée. Les achats apparaîtront ici.
                     </td>
                   </tr>
@@ -1747,11 +1754,23 @@ export default function Accounting() {
             </div>
             <div className="p-6 overflow-y-auto">
               <div className="bg-red-50 text-red-700 p-4 rounded-xl text-center mb-6">
-                <p className="text-sm font-medium mb-1">Montant Décaissé</p>
-                <p className="text-3xl font-bold">{selectedExpense.amount} MAD</p>
+                <p className="text-sm font-medium mb-1">{selectedExpense.montantHT !== undefined ? 'Montant TTC Décaissé' : 'Montant Décaissé'}</p>
+                <p className="text-3xl font-bold">{parseAmount(selectedExpense.amount).toFixed(2)} MAD</p>
               </div>
               
               <div className="space-y-4">
+                {selectedExpense.montantHT !== undefined && (
+                  <>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-500 text-sm">Montant HT</span>
+                      <span className="font-medium text-gray-900">{Number(selectedExpense.montantHT).toFixed(2)} MAD</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-500 text-sm">TVA</span>
+                      <span className="font-medium text-gray-900">{selectedExpense.tva}% ({(Number(selectedExpense.montantHT) * (selectedExpense.tva || 0) / 100).toFixed(2)} MAD)</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between items-center py-2 border-b border-gray-100">
                   <span className="text-gray-500 text-sm">Bénéficiaire</span>
                   <span className="font-medium text-gray-900">{selectedExpense.supplier}</span>

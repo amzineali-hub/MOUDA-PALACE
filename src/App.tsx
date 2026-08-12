@@ -469,7 +469,7 @@ function App() {
     { type: 'Production', text: 'Production cuisine', tab: 'inventory', keywords: ['inventaire', 'produits', 'ingrédients', 'marchandise', 'stock'] },
     { type: 'Production', text: 'Achats fournisseurs', tab: 'achats', keywords: ['commandes', 'dépenses', 'fournitures', 'achats'] },
     { type: 'Production', text: 'Fiches Techniques', tab: 'recettes', keywords: ['cuisine', 'préparation', 'ingrédients', 'recette', 'fiche technique', 'marge', 'food cost'] },
-    { type: 'Production', text: 'Catalogue Produits', tab: 'catalogue_produits', keywords: ['produits', 'origine', 'traçabilité', 'fournisseur', 'achat', 'catalogue'] },
+    { type: 'Production', text: 'Liste des Produits', tab: 'catalogue_produits', keywords: ['produits', 'origine', 'traçabilité', 'fournisseur', 'achat', 'catalogue'] },
     { type: 'Clientèle', text: 'Réservations', tab: 'reservations', keywords: ['clients', 'table', 'dîner', 'déjeuner', 'réserver'] },
     { type: 'Clientèle', text: 'Menus digitaux', tab: 'menu', keywords: ['carte', 'plats', 'boissons', 'desserts', 'tajine', 'couscous', 'pastilla', 'menu'] },
     { type: 'Clientèle', text: 'Tables', tab: 'tables', keywords: ['plan', 'salle', 'service', 'placement'] },
@@ -791,7 +791,7 @@ function App() {
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Fiches Techniques" active={activeTab === 'recettes'} onClick={() => handleTabChange('recettes')} />
             <SubNavItem icon={<Activity size={16} />} label="Ordres de Fabrication" active={activeTab === 'production_jour'} onClick={() => handleTabChange('production_jour')} />
-            <SubNavItem icon={<Truck size={16} />} label="Catalogue Produits" active={activeTab === 'catalogue_produits'} onClick={() => handleTabChange('catalogue_produits')} />
+            <SubNavItem icon={<Truck size={16} />} label="Liste des Produits" active={activeTab === 'catalogue_produits'} onClick={() => handleTabChange('catalogue_produits')} />
           </NavCategory>
 
           <NavCategory 

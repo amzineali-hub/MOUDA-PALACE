@@ -8,6 +8,7 @@ import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, delete
 import { db } from './firebase';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { calculateStockStatus } from './lib/inventory';
+import { resolveItemPrice } from './lib/priceUtils';
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs' | 'previsions' | 'reception'>('commandes');
@@ -1426,7 +1427,7 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
             if (inventoryItem) {
               
               const oldQty = inventoryItem.quantity || 0;
-              const oldPrice = inventoryItem.averageCost || inventoryItem.unitPrice || inventoryItem.price || 0;
+              const oldPrice = resolveItemPrice(inventoryItem);
               const newQty = oldQty + item.quantityReceived;
               
               const newAverageCost = newQty > 0 

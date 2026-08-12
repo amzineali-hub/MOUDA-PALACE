@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
 import { computeRecipeCost } from './lib/recipeCost';
+import { resolveItemPrice } from './lib/priceUtils';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LineChart, Line } from 'recharts';
 import { 
@@ -3544,7 +3545,7 @@ function Inventory() {
                       <td className="px-6 py-4 text-gray-500">{item.category}</td>
                       <td className="px-6 py-4 text-gray-500">{item.supplier}</td>
                       <td className="px-6 py-4 text-gray-900 font-medium whitespace-nowrap">
-                        {item.averageCost || item.price ? `${Number(item.averageCost || item.price).toFixed(2)} DH` : '-'}
+                        {resolveItemPrice(item) ? `${resolveItemPrice(item).toFixed(2)} DH` : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
@@ -3698,7 +3699,7 @@ function Inventory() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center text-gray-500">{item.unit}</td>
-                          <td className="px-6 py-4 text-right text-gray-900">{Number(item.cost || 0).toFixed(2)} MAD</td>
+                          <td className="px-6 py-4 text-right text-gray-900">{resolveItemPrice(item).toFixed(2)} MAD</td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2">
                               <button
@@ -4148,10 +4149,10 @@ function Inventory() {
                           <td className="px-6 py-4 text-gray-900">{tx.supplier || <span className="text-gray-400 italic">Non spécifié</span>}</td>
                           <td className="px-6 py-4 text-right">{tx.amount || tx.quantity} {tx.unit}</td>
                           <td className="px-6 py-4 text-right font-medium">
-                            {tx.unitPrice ? `${Number(tx.unitPrice).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                            {resolveItemPrice(tx) ? `${resolveItemPrice(tx).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
                           <td className="px-6 py-4 text-right font-medium text-[#F4C75B]">
-                            {tx.unitPrice ? `${(Number(tx.unitPrice) * Number(tx.amount || tx.quantity || 0)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
+                            {resolveItemPrice(tx) ? `${(resolveItemPrice(tx) * Number(tx.amount || tx.quantity || 0)).toFixed(2)} MAD` : <span className="text-gray-400 italic">-</span>}
                           </td>
                         </tr>
                       ))
@@ -4700,6 +4701,14 @@ function Inventory() {
                     "Sucre", "Tomates", "Viande de boeuf", "Viande hachée",
                     ...stockItemsData.map((item: any) => item.name)
                   ]}
+                  onValueChange={val => {
+                    const matched = stockItemsData.find((item: any) => item.name === val);
+                    const priceInput = document.getElementById('add-product-price') as HTMLInputElement | null;
+                    const knownPrice = resolveItemPrice(matched);
+                    if (matched && priceInput && !priceInput.value && knownPrice) {
+                      priceInput.value = String(knownPrice);
+                    }
+                  }}
                   className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]"
                   placeholder="Ex: Miel pur"
                 />
@@ -4736,7 +4745,7 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire (MAD)</label>
-                  <input name="unitPrice" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 15.50" />
+                  <input id="add-product-price" name="unitPrice" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 15.50" />
                 </div>
               </div>
               <div>

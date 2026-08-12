@@ -5,6 +5,7 @@ import { useToast } from './context/ToastContext';
 import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { computeRecipeCost, convertQuantity } from './lib/recipeCost';
+import { resolveItemPrice } from './lib/priceUtils';
 
 export default function ProductionJournaliere() {
   const { showToast } = useToast();
@@ -178,7 +179,7 @@ export default function ProductionJournaliere() {
         
         if (producedItem) {
            const oldQty = parseFloat(producedItem.quantity) || 0;
-           const oldPrice = parseFloat(producedItem.averageCost || producedItem.unitPrice || producedItem.price || producedItem.cost || 0);
+           const oldPrice = resolveItemPrice(producedItem);
            const newQty = oldQty + quantiteAProduire;
            
            const newAverageCost = newQty > 0 

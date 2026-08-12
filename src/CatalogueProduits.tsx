@@ -245,7 +245,14 @@ export default function CatalogueProduits() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-gray-700">
-                    {p.lastOrder?.paidPrice ? `${Number(p.lastOrder.paidPrice).toFixed(2)} MAD` : '—'}
+                    {p.lastOrder?.paidPrice ? (
+                      `${Number(p.lastOrder.paidPrice).toFixed(2)} MAD`
+                    ) : (p.averageCost || p.price || p.cost) ? (
+                      <span className="text-gray-500">
+                        {Number(p.averageCost || p.price || p.cost).toFixed(2)} MAD
+                        <span className="text-[10px] text-gray-400 ml-1">(stock)</span>
+                      </span>
+                    ) : '—'}
                   </td>
                   <td className="px-6 py-4">
                     {p.hasSupplier && p.hasLinkedOrder ? (

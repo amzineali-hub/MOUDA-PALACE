@@ -14,6 +14,9 @@ interface ComboboxProps {
   onChange?: (value: string) => void;
   // Mode non contrôlé (formulaire lu via FormData / getElementById au submit)
   defaultValue?: string;
+  // Appelé à chaque changement de valeur, dans les deux modes (utile pour des effets
+  // de bord comme pré-remplir un autre champ sans rendre celui-ci contrôlé)
+  onValueChange?: (value: string) => void;
 }
 
 /**
@@ -33,7 +36,8 @@ export default function Combobox({
   type = 'text',
   value,
   onChange,
-  defaultValue
+  defaultValue,
+  onValueChange
 }: ComboboxProps) {
   const isControlled = value !== undefined;
   const [text, setText] = useState(defaultValue || '');
@@ -81,6 +85,7 @@ export default function Combobox({
       }
       setText(opt);
     }
+    onValueChange?.(opt);
     setIsOpen(false);
   };
 
@@ -97,7 +102,7 @@ export default function Combobox({
           placeholder={placeholder}
           className={className}
           value={value}
-          onChange={e => onChange?.(e.target.value)}
+          onChange={e => { onChange?.(e.target.value); onValueChange?.(e.target.value); }}
           onFocus={() => setIsOpen(true)}
           autoComplete="off"
         />
@@ -112,7 +117,7 @@ export default function Combobox({
           placeholder={placeholder}
           className={className}
           defaultValue={defaultValue}
-          onChange={e => setText(e.target.value)}
+          onChange={e => { setText(e.target.value); onValueChange?.(e.target.value); }}
           onFocus={() => setIsOpen(true)}
           autoComplete="off"
         />

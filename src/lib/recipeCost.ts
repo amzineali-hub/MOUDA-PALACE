@@ -2,6 +2,8 @@
 // (Fiches Techniques, Tableau de Bord, POS, Production) pour éviter les 4 implémentations
 // dupliquées et incohérentes qui existaient auparavant.
 
+import { resolveItemPrice } from './priceUtils';
+
 export interface Ingredient {
   nom?: string;
   name?: string;
@@ -16,6 +18,7 @@ export interface InventoryItemLike {
   name?: string;
   unit?: string;
   averageCost?: number | string;
+  unitPrice?: number | string;
   price?: number | string;
   cost?: number | string;
 }
@@ -111,9 +114,7 @@ export function computeIngredientCost(
   let priceSource: PriceSource;
   let matched = false;
 
-  const stockPrice = matchedItem
-    ? Number(matchedItem.averageCost ?? matchedItem.price ?? matchedItem.cost)
-    : NaN;
+  const stockPrice = resolveItemPrice(matchedItem);
 
   if (matchedItem && stockPrice > 0) {
     unitPrice = stockPrice;

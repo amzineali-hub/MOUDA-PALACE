@@ -9,6 +9,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 // Doit rester synchronisé avec la liste dans firestore.rules.
 export const AUTHORIZED_EMAILS = ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com'];
 
+// Propriétaire — seul compte pouvant voir les sections réservées (ex: historique des connexions).
+export const OWNER_EMAIL = 'amzine.ali@gmail.com';
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;

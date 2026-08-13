@@ -101,10 +101,10 @@ import {
   BarChart2,
 AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
-import { useAuth, AUTHORIZED_EMAILS } from './context/AuthContext';
+import { useAuth, AUTHORIZED_EMAILS, OWNER_EMAIL } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider, auth, signOut, db } from './firebase';
-import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch, limit } from 'firebase/firestore';
 const Accounting = lazy(() => import('./Accounting'));
 const BlogWriterAI = lazy(() => import('./BlogWriterAI'));
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
@@ -456,6 +456,21 @@ const AutoSaveForm = ({ formId, children, ...props }: any) => {
   );
 };
 
+const logLoginEvent = async (user: { email: string | null; displayName: string | null; uid: string }) => {
+  try {
+    await addDoc(collection(db, 'login_events'), {
+      email: user.email,
+      displayName: user.displayName || '',
+      uid: user.uid,
+      device: /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent) ? 'Mobile' : 'Ordinateur',
+      userAgent: navigator.userAgent,
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error("Error logging login event", err);
+  }
+};
+
 function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
@@ -471,6 +486,7 @@ function App() {
     getRedirectResult(auth).then(result => {
       if (!result?.user) return;
       if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
+        logLoginEvent(result.user);
         showToast("Connexion réussie");
       } else {
         showToast("Accès non autorisé pour cet email.", "error");
@@ -519,6 +535,7 @@ function App() {
       }
       const result = await signInWithPopup(auth, googleProvider);
       if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
+        logLoginEvent(result.user);
         showToast("Connexion réussie");
       } else {
         showToast("Accès non autorisé pour cet email.", "error");
@@ -6335,6 +6352,8 @@ function Inventory() {
   );
 }
 function Configuration() {
+  const { user } = useAuth();
+  const isOwner = user?.email === OWNER_EMAIL;
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
   const [websiteConfig, setWebsiteConfig] = useState({
@@ -6458,7 +6477,9 @@ function Configuration() {
           <SettingsTab active={activeSettingsTab === 'website'} onClick={() => setActiveSettingsTab('website')} icon={<Globe size={18} />} label="Site Web (moudapalace.com)" />
           <SettingsTab active={activeSettingsTab === 'billing'} onClick={() => setActiveSettingsTab('billing')} icon={<CreditCard size={18} />} label="Facturation & Stripe" />
           <SettingsTab active={activeSettingsTab === 'notifications'} onClick={() => setActiveSettingsTab('notifications')} icon={<Bell size={18} />} label="Notifications" />
-          <SettingsTab active={activeSettingsTab === 'security'} onClick={() => setActiveSettingsTab('security')} icon={<Shield size={18} />} label="Sécurité & Accès" />
+          {isOwner && (
+            <SettingsTab active={activeSettingsTab === 'security'} onClick={() => setActiveSettingsTab('security')} icon={<Shield size={18} />} label="Sécurité & Accès" />
+          )}
         </div>
 
         {/* Settings Content */}
@@ -6753,16 +6774,65 @@ function Configuration() {
             </motion.div>
           )}
 
-          {activeSettingsTab === 'security' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-12 border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[400px] text-gray-400 text-center">
-              <div className="p-4 bg-gray-50 rounded-full mb-4">
-                <Clock size={32} className="text-gray-300" />
+          {activeSettingsTab === 'security' && isOwner && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-serif font-medium text-[#265C6D] mb-1">Comptes autorisés</h3>
+                <p className="text-gray-500 text-sm mb-6">Seuls ces emails peuvent se connecter à l'application.</p>
+                <div className="flex flex-wrap gap-2">
+                  {AUTHORIZED_EMAILS.map(email => (
+                    <span key={email} className="px-3 py-1.5 bg-[#FDFBF7] border border-gray-200 rounded-lg text-sm text-gray-700 font-medium">
+                      {email}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <h4 className="text-lg font-medium text-gray-900 mb-2">Section en construction</h4>
-              <p className="max-w-xs">Cette partie des paramètres sera disponible dans la prochaine mise à jour.</p>
+              <LoginHistoryPanel />
             </motion.div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginHistoryPanel() {
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'login_events'), orderBy('createdAt', 'desc'), limit(50)),
+      snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-gray-100">
+        <h3 className="text-xl font-serif font-medium text-[#265C6D]">Dernières connexions</h3>
+        <p className="text-gray-500 text-sm mt-1">Historique des connexions réussies à l'espace administration.</p>
+      </div>
+      <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+        {events.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm">Aucune connexion enregistrée pour l'instant.</div>
+        ) : events.map(ev => (
+          <div key={ev.id} className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#265C6D]/10 text-[#265C6D] flex items-center justify-center shrink-0">
+                {ev.device === 'Mobile' ? <Smartphone size={16} /> : <Monitor size={16} />}
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 text-sm">{ev.displayName || ev.email}</p>
+                <p className="text-xs text-gray-500">{ev.email}</p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-sm text-gray-700">{ev.createdAt?.toDate ? ev.createdAt.toDate().toLocaleString('fr-FR') : '—'}</p>
+              <p className="text-xs text-gray-400">{ev.device || 'Inconnu'}</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

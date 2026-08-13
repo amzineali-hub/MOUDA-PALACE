@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import Combobox from './components/Combobox';
+import { logActivity } from './lib/activityLog';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
@@ -94,6 +95,11 @@ export default function Accounting() {
   const [reportPeriod, setReportPeriod] = useState('Mois en cours');
 
   const handleDownloadReport = (type: string, format: string) => {
+    if (type === 'Bilan Comptable' || type === 'Livre Journal') {
+      showToast(`${type} : fonctionnalité pas encore disponible (nécessite un plan comptable complet), aucun fichier généré.`, "error");
+      return;
+    }
+
     let finalFormat = format;
     if (format.includes('PDF') || format.includes('XML')) {
       showToast(`Format ${format} simulé, téléchargement au format CSV.`);
@@ -102,32 +108,11 @@ export default function Accounting() {
     
     let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
     csvContent += `Rapport:;${type}\n`;
-    
-    if (type === 'Bilan Comptable') {
-      csvContent += "\n";
-      csvContent += "ACTIF;;PASSIF;\n";
-      csvContent += "Rubrique;Montant;Rubrique;Montant\n";
-      csvContent += "Actif Immobilisé;895000.00;Financement Permanent;1245400.00\n";
-      csvContent += "Actif Circulant;165700.00;Passif Circulant;151500.00\n";
-      csvContent += "Trésorerie Actif;336200.00;Trésorerie Passif;0.00\n";
-      csvContent += "\n";
-      csvContent += "TOTAL ACTIF;1396900.00;TOTAL PASSIF;1396900.00\n";
-    } else if (type === 'Livre Journal') {
-      csvContent += "\n";
-      csvContent += "Date;Compte;Libellé;Débit;Crédit\n";
-      csvContent += "01/11/2026;5141;Banque (Solde initial);320400.00;\n";
-      csvContent += "02/11/2026;7111;Ventes de marchandises;45200.00;\n";
-      csvContent += "02/11/2026;4455;TVA facturée;;9040.00\n";
-      csvContent += "03/11/2026;6111;Achats de marchandises;;15000.00\n";
-      csvContent += "03/11/2026;3455;TVA récupérable;3000.00;\n";
-      csvContent += "04/11/2026;5161;Caisse (Recettes du jour);15800.00;\n";
-    } else {
-      csvContent += `Mois;Revenus;Depenses\n`;
-      monthlyRevenueData.forEach((data: any) => {
-        csvContent += `${data.name};${data.revenus};${data.depenses}\n`;
-      });
-    }
-    
+    csvContent += `Mois;Revenus;Depenses\n`;
+    monthlyRevenueData.forEach((data: any) => {
+      csvContent += `${data.name};${data.revenus};${data.depenses}\n`;
+    });
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -177,6 +162,7 @@ export default function Accounting() {
         } else {
            await deleteDoc(doc(db, "expenses", expense.id));
         }
+        logActivity({ action: 'delete', entity: 'expense', entityId: expense.id, summary: `Suppression dépense ${expense.category || ''} - ${expense.amount || ''}`.trim(), before: expense });
         showToast("Dépense supprimée avec succès");
       } catch (error) {
         console.error(error);
@@ -189,6 +175,7 @@ export default function Accounting() {
     if (window.confirm(`Voulez-vous vraiment supprimer la facture ${invoice.id} ?`)) {
       try {
         await deleteDoc(doc(db, "invoices", invoice.id));
+        logActivity({ action: 'delete', entity: 'invoice', entityId: invoice.id, summary: `Suppression facture ${invoice.id} - ${invoice.client || ''} - ${invoice.amount || ''}`, before: invoice });
         showToast("Facture supprimée avec succès");
       } catch (error) {
         console.error(error);
@@ -200,7 +187,9 @@ export default function Accounting() {
   const handleDeleteReceipt = async (id: string) => {
     if (window.confirm("Voulez-vous vraiment supprimer cet encaissement ?")) {
       try {
+        const receipt = receipts.find((r: any) => r.id === id);
         await deleteDoc(doc(db, "cash_receipts", id));
+        logActivity({ action: 'delete', entity: 'cash_receipt', entityId: id, summary: `Suppression encaissement ${receipt?.amount || ''}`.trim(), before: receipt });
         showToast("Encaissement supprimé avec succès");
       } catch (error) {
         console.error(error);
@@ -217,6 +206,7 @@ export default function Accounting() {
         amount: parseFloat(editReceiptAmount),
         method: editReceiptMethod
       });
+      logActivity({ action: 'update', entity: 'cash_receipt', entityId: editingReceipt.id, summary: `Modification encaissement (${editingReceipt.amount} → ${editReceiptAmount})`, before: editingReceipt });
       showToast("Encaissement mis à jour");
       setIsEditReceiptModalOpen(false);
       setEditingReceipt(null);
@@ -227,12 +217,7 @@ export default function Accounting() {
   };
 
 
-  const [invoices, setInvoices] = useState<any[]>([
-    { id: 'FAC-2026-001', client: 'Riad Al Andalous', ice: '001538629000041', date: '12 Nov 2026', amount: '1 250 MAD', status: 'Payée' },
-    { id: 'FAC-2026-002', client: 'Atlas Voyages', ice: '002148574000034', date: '14 Nov 2026', amount: '4 500 MAD', status: 'En attente' },
-    { id: 'FAC-2026-003', client: 'LocaCar Marrakech', ice: '001937482000021', date: '15 Nov 2026', amount: '850 MAD', status: 'Payée' },
-    { id: 'FAC-2026-004', client: 'Hôtel La Medina', ice: '002594837000067', date: '18 Nov 2026', amount: '3 200 MAD', status: 'Retard' }
-  ]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'invoices'), (snapshot) => {
@@ -270,12 +255,7 @@ export default function Accounting() {
     return all.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
   }, [manualExpenses, commandes]);
 
-  const [financialReports, setFinancialReports] = useState<any[]>([
-    { id: 'RPT-2026-11', type: 'Bilan Comptable', date: '30 Nov 2026', status: 'Généré', format: 'PDF' },
-    { id: 'RPT-2026-T3', type: 'Déclaration TVA (Maroc)', date: '15 Oct 2026', status: 'Soumis', format: 'PDF / XML' },
-    { id: 'RPT-2026-10', type: 'CPC (Compte de Produits et Charges)', date: '31 Oct 2026', status: 'Généré', format: 'Excel' },
-    { id: 'RPT-2026-09', type: 'Bilan Comptable', date: '30 Sep 2026', status: 'Généré', format: 'PDF' },
-  ]);
+  const [financialReports, setFinancialReports] = useState<any[]>([]);
 
   const [receipts, setReceipts] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
@@ -955,92 +935,6 @@ export default function Accounting() {
           </div>
         )}
 
-        {/* Journal Comptable */}
-        {activeTab === 'journal' && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-medium">Journal des Écritures</h2>
-              <div className="flex gap-2">
-                <button className="border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2"><Download size={16}/> Exporter</button>
-                <button className="bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2"><Plus size={16}/> Saisie manuelle</button>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto border border-gray-100 rounded-xl">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4">Date</th>
-                    <th className="px-6 py-4">N° Pièce</th>
-                    <th className="px-6 py-4">Compte</th>
-                    <th className="px-6 py-4">Libellé</th>
-                    <th className="px-6 py-4 text-right">Débit</th>
-                    <th className="px-6 py-4 text-right">Crédit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-gray-500">12/07/2026</td>
-                    <td className="px-6 py-4 font-medium">ACH-245</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">6111 - Achats march.</span></td>
-                    <td className="px-6 py-4">Facture Boucherie Centrale</td>
-                    <td className="px-6 py-4 text-right text-gray-900">4,500.00</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors bg-gray-50/30">
-                    <td className="px-6 py-4 text-gray-500">12/07/2026</td>
-                    <td className="px-6 py-4 font-medium">ACH-245</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">3455 - TVA Réc. chg</span></td>
-                    <td className="px-6 py-4">TVA s/ Fact Boucherie Centrale</td>
-                    <td className="px-6 py-4 text-right text-gray-900">900.00</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors bg-gray-50/30">
-                    <td className="px-6 py-4 text-gray-500">12/07/2026</td>
-                    <td className="px-6 py-4 font-medium">ACH-245</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">4411 - Fournisseurs</span></td>
-                    <td className="px-6 py-4">Facture Boucherie Centrale</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                    <td className="px-6 py-4 text-right font-medium">5,400.00</td>
-                  </tr>
-                  
-                  <tr className="hover:bg-gray-50 transition-colors border-t-2 border-gray-200">
-                    <td className="px-6 py-4 text-gray-500">15/07/2026</td>
-                    <td className="px-6 py-4 font-medium">VTE-992</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">5141 - Banques</span></td>
-                    <td className="px-6 py-4">Ventes du 15/07 POS</td>
-                    <td className="px-6 py-4 text-right font-medium">12,500.00</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors bg-gray-50/30">
-                    <td className="px-6 py-4 text-gray-500">15/07/2026</td>
-                    <td className="px-6 py-4 font-medium">VTE-992</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">7111 - Ventes march.</span></td>
-                    <td className="px-6 py-4">Ventes du 15/07 POS</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                    <td className="px-6 py-4 text-right text-gray-900">10,416.67</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 transition-colors bg-gray-50/30">
-                    <td className="px-6 py-4 text-gray-500">15/07/2026</td>
-                    <td className="px-6 py-4 font-medium">VTE-992</td>
-                    <td className="px-6 py-4"><span className="text-xs bg-gray-100 px-2 py-1 rounded">4455 - TVA Fact.</span></td>
-                    <td className="px-6 py-4">TVA s/ Ventes du 15/07 POS</td>
-                    <td className="px-6 py-4 text-right text-gray-400">-</td>
-                    <td className="px-6 py-4 text-right text-gray-900">2,083.33</td>
-                  </tr>
-                </tbody>
-                <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-medium">
-                  <tr>
-                    <td colSpan={4} className="px-6 py-4 text-right">Total Période</td>
-                    <td className="px-6 py-4 text-right text-[#F4C75B]">17,900.00</td>
-                    <td className="px-6 py-4 text-right text-[#F4C75B]">17,900.00</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'reports' && (
           <div className="p-6">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
@@ -1264,6 +1158,7 @@ export default function Accounting() {
               };
               try {
                 await updateDoc(doc(db, 'invoices', editingInvoice.id), updatedInvoice);
+                logActivity({ action: 'update', entity: 'invoice', entityId: editingInvoice.id, summary: `Modification facture ${editingInvoice.id}`, before: editingInvoice });
                 showToast("Facture mise à jour avec succès");
                 setIsEditInvoiceModalOpen(false);
                 setEditingInvoice(null);

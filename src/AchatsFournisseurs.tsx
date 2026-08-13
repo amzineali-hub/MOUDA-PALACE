@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar , ArrowUpDown } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { calculateStockStatus } from './lib/inventory';
@@ -858,19 +858,19 @@ Détails <ChevronRight size={16} />
 
               const computedTTC = computeTTC(computedHT, tva);
               const tvaAmount = computedTTC - computedHT;
-              
+
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
-              
+
               const newCmd = {
                   id: selectedCommande ? selectedCommande.id : 'CMD-' + Date.now(),
                   fournisseur: supplierName,
                   fournisseurId: supplierId,
                   date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
                   deliveryDate,
-                  montantHT: selectedCommande ? selectedCommande.montantHT : computedHT,
-                  tva: selectedCommande ? selectedCommande.tva : tva,
-                  montant: selectedCommande ? selectedCommande.montant : `${computedTTC.toFixed(2)} MAD`,
+                  montantHT: computedHT,
+                  tva,
+                  montant: `${computedTTC.toFixed(2)} MAD`,
                   status: selectedCommande ? selectedCommande.status : 'En attente',
                   items: selectedProducts,
                   articles: selectedProducts.map(p => `${p.name} - ${p.quantity}`).join(', '),
@@ -881,8 +881,7 @@ Détails <ChevronRight size={16} />
               try {
                 if (selectedCommande) {
                   // Update logic
-                  // Note: In a real app we would await updateDoc(doc(db, 'commandes', selectedCommande.docId), newCmd);
-                  // But here we rely on snapshot updates or simply simulating it
+                  await updateDoc(doc(db, 'commandes', selectedCommande.id), newCmd);
                   showToast("Commande mise à jour avec succès");
                   setIsNewOrderModalOpen(false);
                   setSelectedCommande(null);
@@ -1408,104 +1407,126 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
     try {
       if (status === 'Livrée') {
         const totalActual = receivedItems.reduce((sum, item) => sum + ((item.quantityReceived || 0) * (item.actualPrice || 0)), 0);
-        
-        // 1. Update purchase order
-        await updateDoc(doc(db, 'commandes', orderId), {
-          status: 'Livrée',
-          items: receivedItems,
-          totalActual,
-          receivedAt: serverTimestamp(),
-          invoiceNote
-        });
+        const supplierName = selectedOrder?.fournisseur || selectedOrder?.supplier || 'Fournisseur Inconnu';
+        const todayStr = new Date().toLocaleDateString('fr-FR');
+        const itemsToReceive = receivedItems.filter(item => item.quantityReceived > 0);
 
-        // 2. Update stock & Create transactions
-        const batchPromises = receivedItems.map(async (item) => {
-          if (item.quantityReceived > 0) {
-            // Match inventory item by name (since the original commande might not have inventoryItemId)
-            const inventoryItem = inventoryItems.find(i => i.name.toLowerCase() === item.name.toLowerCase() || i.id === item.inventoryItemId);
-            
-            if (inventoryItem) {
-              
-              const oldQty = inventoryItem.quantity || 0;
-              const oldPrice = resolveItemPrice(inventoryItem);
-              const newQty = oldQty + item.quantityReceived;
-              
-              const newAverageCost = newQty > 0 
-                  ? ((oldQty * oldPrice) + (item.quantityReceived * (item.actualPrice || 0))) / newQty 
-                  : (item.actualPrice || oldPrice);
-
-              const updateData: any = {
-                quantity: newQty,
-                averageCost: newAverageCost,
-                unitPrice: item.actualPrice || inventoryItem.unitPrice,
-                price: item.actualPrice || inventoryItem.price,
-                updatedAt: serverTimestamp()
-              };
-
-              if (item.zone) {
-                updateData.zone = item.zone;
-              }
-              await updateDoc(doc(db, 'inventoryItems', inventoryItem.id), updateData);
-
-              // Add stock transaction
-              await addDoc(collection(db, 'inventoryTransactions'), {
-                item: inventoryItem.name,
-                type: 'in',
-                amount: item.quantityReceived,
-                unit: inventoryItem.unit || item.unit || 'unité',
-                reason: `Réception Commande ${orderId.substring(0,6)}`,
-                user: 'Gestionnaire Achats',
-                date: new Date().toLocaleDateString('fr-FR'),
-                createdAt: serverTimestamp()
-              });
-            } else {
-              // Create new inventory item if it doesn't exist
-              const newItemRef = await addDoc(collection(db, 'inventoryItems'), {
-                name: item.name || 'Produit Inconnu',
-                quantity: item.quantityReceived,
-                unit: item.unit || 'unité',
-                category: 'Matière Première',
-                minStock: 5,
-                price: item.actualPrice || item.expectedPrice || 0,
-                unitPrice: item.actualPrice || item.expectedPrice || 0,
-                averageCost: item.actualPrice || item.expectedPrice || 0,
-                zone: item.zone || '',
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-              });
-              
-              // Add stock transaction
-              await addDoc(collection(db, 'inventoryTransactions'), {
-                item: item.name || 'Produit Inconnu',
-                type: 'in',
-                amount: item.quantityReceived,
-                unit: item.unit || 'unité',
-                reason: `Réception Commande ${orderId.substring(0,6)} (Nouveau Produit)`,
-                user: 'Gestionnaire Achats',
-                date: new Date().toLocaleDateString('fr-FR'),
-                createdAt: serverTimestamp()
-              });
-            }
+        // Résout à l'avance quel article de stock existant correspond à chaque ligne reçue
+        // (juste pour obtenir sa référence — la quantité/prix actuels sont relus en direct
+        // dans la transaction ci-dessous, pas depuis ce state potentiellement périmé).
+        const existingGroups = new Map<string, { items: any[]; totalQtyReceived: number; totalActualCost: number }>();
+        const newItems: any[] = [];
+        itemsToReceive.forEach(item => {
+          const inventoryItem = inventoryItems.find(i => i.name.toLowerCase() === item.name.toLowerCase() || i.id === item.inventoryItemId);
+          if (inventoryItem) {
+            const g = existingGroups.get(inventoryItem.id) || { items: [], totalQtyReceived: 0, totalActualCost: 0 };
+            g.items.push(item);
+            g.totalQtyReceived += item.quantityReceived || 0;
+            g.totalActualCost += (item.quantityReceived || 0) * (item.actualPrice || 0);
+            existingGroups.set(inventoryItem.id, g);
+          } else {
+            newItems.push(item);
           }
         });
-        
-        await Promise.all(batchPromises);
+        const existingIds = Array.from(existingGroups.keys());
 
-        // 3. Create accounting transaction (Expense)
-        if (totalActual > 0) {
-          const supplierName = selectedOrder?.fournisseur || selectedOrder?.supplier || 'Fournisseur Inconnu';
-          const newExpRef = await addDoc(collection(db, 'expenses'), {
-            supplier: supplierName,
-            amount: totalActual.toFixed(2) + ' MAD',
-            category: 'Achats / Marchandises',
-            date: new Date().toISOString().split('T')[0],
-            method: 'Virement', // par defaut
-            description: `Achat Marchandises (BC: ${orderId.substring(0,8)})`,
-            createdAt: serverTimestamp()
+        // 1-3. Écriture atomique : commande + stock + comptabilité, protégée par transaction
+        // pour éviter toute perte silencieuse en cas de réception/vente simultanée.
+        await runTransaction(db, async (transaction) => {
+          const refs = existingIds.map(id => doc(db, 'inventoryItems', id));
+          const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
+
+          transaction.update(doc(db, 'commandes', orderId), {
+            status: 'Livrée',
+            items: receivedItems,
+            totalActual,
+            receivedAt: serverTimestamp(),
+            invoiceNote
           });
-          await updateDoc(newExpRef, { id: 'EXP-' + newExpRef.id.substring(0,6).toUpperCase() });
-        }
-        
+
+          refs.forEach((ref, idx) => {
+            const id = existingIds[idx];
+            const group = existingGroups.get(id)!;
+            const snap = snaps[idx];
+            const data: any = snap.exists() ? snap.data() : {};
+            const oldQty = Number(data.quantity) || 0;
+            const oldPrice = resolveItemPrice(data);
+            const newQty = oldQty + group.totalQtyReceived;
+            const avgActualPrice = group.totalQtyReceived > 0 ? group.totalActualCost / group.totalQtyReceived : 0;
+            const newAverageCost = newQty > 0
+              ? ((oldQty * oldPrice) + (group.totalQtyReceived * avgActualPrice)) / newQty
+              : (avgActualPrice || oldPrice);
+            const lastItem = group.items[group.items.length - 1];
+
+            const updateData: any = {
+              quantity: newQty,
+              averageCost: newAverageCost,
+              unitPrice: lastItem.actualPrice || data.unitPrice,
+              price: lastItem.actualPrice || data.price,
+              updatedAt: serverTimestamp()
+            };
+            if (lastItem.zone) updateData.zone = lastItem.zone;
+            transaction.update(ref, updateData);
+
+            group.items.forEach(item => {
+              const txRef = doc(collection(db, 'inventoryTransactions'));
+              transaction.set(txRef, {
+                item: data.name || item.name,
+                type: 'in',
+                amount: item.quantityReceived,
+                unit: data.unit || item.unit || 'unité',
+                reason: `Réception Commande ${orderId.substring(0,6)}`,
+                user: 'Gestionnaire Achats',
+                date: todayStr,
+                createdAt: serverTimestamp()
+              });
+            });
+          });
+
+          newItems.forEach(item => {
+            const newItemRef = doc(collection(db, 'inventoryItems'));
+            transaction.set(newItemRef, {
+              name: item.name || 'Produit Inconnu',
+              quantity: item.quantityReceived,
+              unit: item.unit || 'unité',
+              category: 'Matière Première',
+              minStock: 5,
+              price: item.actualPrice || item.expectedPrice || 0,
+              unitPrice: item.actualPrice || item.expectedPrice || 0,
+              averageCost: item.actualPrice || item.expectedPrice || 0,
+              zone: item.zone || '',
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+
+            const txRef = doc(collection(db, 'inventoryTransactions'));
+            transaction.set(txRef, {
+              item: item.name || 'Produit Inconnu',
+              type: 'in',
+              amount: item.quantityReceived,
+              unit: item.unit || 'unité',
+              reason: `Réception Commande ${orderId.substring(0,6)} (Nouveau Produit)`,
+              user: 'Gestionnaire Achats',
+              date: todayStr,
+              createdAt: serverTimestamp()
+            });
+          });
+
+          if (totalActual > 0) {
+            const newExpRef = doc(collection(db, 'expenses'));
+            transaction.set(newExpRef, {
+              id: 'EXP-' + newExpRef.id.substring(0, 6).toUpperCase(),
+              supplier: supplierName,
+              amount: totalActual.toFixed(2) + ' MAD',
+              category: 'Achats / Marchandises',
+              date: new Date().toISOString().split('T')[0],
+              method: 'Virement', // par defaut
+              description: `Achat Marchandises (BC: ${orderId.substring(0,8)})`,
+              createdAt: serverTimestamp()
+            });
+          }
+        });
+
         showToast("Réception validée, stock et comptabilité mis à jour !");
       } else {
         await updateDoc(doc(db, 'commandes', orderId), {

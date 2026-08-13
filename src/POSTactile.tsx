@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, addDoc, getDocs, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import Combobox from './components/Combobox';
@@ -334,67 +334,79 @@ export default function POSTactile() {
         client: 'Client Comptoir (POS)',
         ice: 'N/A',
         date: today,
+        montantHT: subtotal,
+        tva: 10,
         amount: `${total.toFixed(2)} MAD`,
         status: 'Payée',
         method: method,
         createdAt: now
       });
 
-      // 3. Stocks (simplified to avoid bugs)
+      // 3. Stocks — écriture atomique (transaction) pour éviter toute perte de déduction
+      // en cas de ventes simultanées sur plusieurs postes POS.
       try {
         const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
         const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
+        const deductions: { id: string; name: string; unit: string; qtyToDeduct: number; reasonItem: string }[] = [];
+
         for (const cartItem of cart) {
           if (!cartItem || !cartItem.name) continue;
-          
+
           const matchingRecipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === cartItem.name.toLowerCase());
-          
+
           if (matchingRecipe && matchingRecipe.ingredients && Array.isArray(matchingRecipe.ingredients)) {
             for (const ingredient of matchingRecipe.ingredients) {
               if (!ingredient || !ingredient.name) continue;
-              
-              let invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.name.toLowerCase());
+
+              const invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.name.toLowerCase());
+              if (!invItem) continue;
 
               const portions = matchingRecipe.portions || 1;
               const qtyToDeduct = ((ingredient.quantity || 0) / portions) * (cartItem.qty || 1);
-
-              if (invItem && typeof invItem.quantity !== 'undefined') {
-                const newQty = Math.max(0, Number(invItem.quantity) - qtyToDeduct);
-                await updateDoc(doc(db, 'inventoryItems', invItem.id), { quantity: newQty, updatedAt: now });
-                await addDoc(collection(db, 'inventoryTransactions'), {
-                  item: invItem.name,
-                  type: 'out',
-                  amount: qtyToDeduct,
-                  unit: invItem.unit || 'kg',
-                  reason: `Vente POS: ${cartItem.name} (${displayId})`,
-                  user: 'POS',
-                  date: today,
-                  createdAt: now
-                });
-              }
+              deductions.push({ id: invItem.id, name: invItem.name, unit: invItem.unit || 'kg', qtyToDeduct, reasonItem: cartItem.name });
             }
           } else {
-            const matchingItem = inventoryItems.find((inv: any) => 
+            const matchingItem = inventoryItems.find((inv: any) =>
               (inv.name || '').toLowerCase() === cartItem.name.toLowerCase()
             );
+            if (!matchingItem) continue;
+            deductions.push({ id: matchingItem.id, name: matchingItem.name, unit: matchingItem.unit || 'pièce', qtyToDeduct: cartItem.qty || 1, reasonItem: cartItem.name });
+          }
+        }
 
-            if (matchingItem && typeof matchingItem.quantity !== 'undefined') {
-              const newQty = Math.max(0, Number(matchingItem.quantity) - (cartItem.qty || 1));
-              const deductedQty = cartItem.qty || 1;
-              await updateDoc(doc(db, 'inventoryItems', matchingItem.id), { quantity: newQty, updatedAt: now });
-              await addDoc(collection(db, 'inventoryTransactions'), {
-                item: matchingItem.name,
+        if (deductions.length > 0) {
+          const uniqueIds = Array.from(new Set(deductions.map(d => d.id)));
+          await runTransaction(db, async (transaction) => {
+            const refs = uniqueIds.map(id => doc(db, 'inventoryItems', id));
+            const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
+
+            const totalDeductById = new Map<string, number>();
+            deductions.forEach(d => totalDeductById.set(d.id, (totalDeductById.get(d.id) || 0) + d.qtyToDeduct));
+
+            refs.forEach((ref, idx) => {
+              const snap = snaps[idx];
+              if (!snap.exists()) return;
+              const id = uniqueIds[idx];
+              const currentQty = Number(snap.data().quantity) || 0;
+              const newQty = Math.max(0, currentQty - (totalDeductById.get(id) || 0));
+              transaction.update(ref, { quantity: newQty, updatedAt: now });
+            });
+
+            deductions.forEach(d => {
+              const txRef = doc(collection(db, 'inventoryTransactions'));
+              transaction.set(txRef, {
+                item: d.name,
                 type: 'out',
-                amount: deductedQty,
-                unit: matchingItem.unit || 'pièce',
-                reason: `Vente POS: ${cartItem.name} (${displayId})`,
+                amount: d.qtyToDeduct,
+                unit: d.unit,
+                reason: `Vente POS: ${d.reasonItem} (${displayId})`,
                 user: 'POS',
                 date: today,
                 createdAt: now
               });
-            }
-          }
+            });
+          });
         }
       } catch (stockErr) {
         console.error("Stock deduction error", stockErr);

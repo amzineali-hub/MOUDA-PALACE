@@ -2370,12 +2370,7 @@ function B2BPortal() {
   const [isEditPartnerModalOpen, setIsEditPartnerModalOpen] = useState(false);
 
   const [partnerToDelete, setPartnerToDelete] = useState<string | null>(null);
-  const [partners, setPartners] = useState<any[]>([
-    { id: 'P-001', name: 'Riad Al Andalous', type: 'Riad', commission: 5, revenue: '12 500 MAD', active: true, clients: 45 },
-    { id: 'P-002', name: 'Atlas Voyages', type: 'Agence', commission: 5, revenue: '34 200 MAD', active: true, clients: 120 },
-    { id: 'P-003', name: 'LocaCar Marrakech', type: 'Location Auto', commission: 5, revenue: '4 800 MAD', active: true, clients: 15 },
-    { id: 'P-004', name: 'Hôtel La Medina', type: 'Hôtel', commission: 5, revenue: '8 900 MAD', active: false, clients: 32 }
-  ]);
+  const [partners, setPartners] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubPartners = onSnapshot(collection(db, 'partners'), (snapshot) => {
@@ -6788,6 +6783,7 @@ function Configuration() {
                 </div>
               </div>
               <LoginHistoryPanel />
+              <ActivityLogPanel />
             </motion.div>
           )}
         </div>
@@ -6831,6 +6827,45 @@ function LoginHistoryPanel() {
               <p className="text-sm text-gray-700">{ev.createdAt?.toDate ? ev.createdAt.toDate().toLocaleString('fr-FR') : '—'}</p>
               <p className="text-xs text-gray-400">{ev.device || 'Inconnu'}</p>
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActivityLogPanel() {
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      query(collection(db, 'activity_log'), orderBy('createdAt', 'desc'), limit(50)),
+      snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+    return () => unsub();
+  }, []);
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="p-6 border-b border-gray-100">
+        <h3 className="text-xl font-serif font-medium text-[#265C6D]">Journal d'activité</h3>
+        <p className="text-gray-500 text-sm mt-1">Suppressions et modifications de factures, dépenses et encaissements.</p>
+      </div>
+      <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+        {events.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm">Aucune action enregistrée pour l'instant.</div>
+        ) : events.map(ev => (
+          <div key={ev.id} className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${ev.action === 'delete' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                {ev.action === 'delete' ? <Trash2 size={16} /> : <Edit3 size={16} />}
+              </div>
+              <div>
+                <p className="font-medium text-gray-900 text-sm">{ev.summary}</p>
+                <p className="text-xs text-gray-500">{ev.userEmail}</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-700 shrink-0">{ev.createdAt?.toDate ? ev.createdAt.toDate().toLocaleString('fr-FR') : '—'}</p>
           </div>
         ))}
       </div>

@@ -101,60 +101,60 @@ export default function ProductionJournaliere() {
     try {
       // Transaction to decrement inventory and create order
       await runTransaction(db, async (transaction) => {
-        const ingredientsUpdates = [];
         const recipePortions = parseFloat(recipe.portions) || 1;
         // Coût réel calculé via le module partagé (même logique que Fiches Techniques / Tableau de Bord / POS)
         const { totalCost: recipeCostForPortions } = computeRecipeCost(recipe, inventoryItems);
         const calculatedRealCost = (recipeCostForPortions / recipePortions) * quantiteAProduire;
 
-        // 1. Calculate needed quantities and find inventory docs (déduction de stock uniquement)
+        // 1. Résout les références des documents concernés (le "qui", pas le "combien" —
+        // les quantités/prix actuels sont relus en direct ci-dessous via transaction.get(),
+        // pas depuis ce state React potentiellement périmé).
+        const ingredientTargets: { ref: any; neededQty: number; itemMeta: any }[] = [];
         for (const ing of recipe.ingredients || []) {
-          // Find the corresponding inventory item
-          // Normally we'd use an ID, but we match by name as fallback (case-insensitive)
           const inventoryItem = inventoryItems.find(i => (i.name || '').toLowerCase() === (ing.nom || '').toLowerCase());
+          if (!inventoryItem) continue; // Ingrédient non rattaché au stock : aucune déduction possible
 
           const baseQty = parseFloat(ing.quantite) || 0;
           let neededQty = (baseQty / recipePortions) * quantiteAProduire;
-
-          if (!inventoryItem) {
-            // Ingrédient non rattaché au stock : aucune déduction possible
-            continue;
-          }
-
-          // Convert units if necessary to match inventory unit
           const converted = convertQuantity(neededQty, ing.unite, inventoryItem.unit);
           if (converted !== null) neededQty = converted;
 
-          const invRef = doc(db, 'inventoryItems', inventoryItem.id);
-          const currentQty = parseFloat(inventoryItem.quantity) || 0;
-
-          ingredientsUpdates.push({
-            ref: invRef,
-            newQty: currentQty - neededQty,
-            item: inventoryItem,
-            neededQty
-          });
+          ingredientTargets.push({ ref: doc(db, 'inventoryItems', inventoryItem.id), neededQty, itemMeta: inventoryItem });
         }
-        
-        // 2. Perform updates
+
+        let isProducedSemi = false;
+        let producedItemMeta = inventoryItems.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
+        if (!producedItemMeta) {
+          producedItemMeta = semiFinished.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
+          if (producedItemMeta) isProducedSemi = true;
+        }
+        const producedItemRef = producedItemMeta ? doc(db, isProducedSemi ? 'semi_finished' : 'inventoryItems', producedItemMeta.id) : null;
+
+        // 2. Toutes les lectures d'abord (obligatoire dans une transaction Firestore)
+        const ingredientSnaps = await Promise.all(ingredientTargets.map(t => transaction.get(t.ref)));
+        const producedSnap = producedItemRef ? await transaction.get(producedItemRef) : null;
+
+        // 3. Puis toutes les écritures, calculées à partir des valeurs fraîchement lues
         const dateStr = new Date().toLocaleDateString('fr-FR');
-        for (const update of ingredientsUpdates) {
-          transaction.update(update.ref, { quantity: update.newQty });
-          // Log out transaction for ingredient
+        ingredientTargets.forEach((t, idx) => {
+          const data: any = ingredientSnaps[idx].exists() ? ingredientSnaps[idx].data() : {};
+          const currentQty = parseFloat(data.quantity) || 0;
+          const newQty = Math.max(0, currentQty - t.neededQty);
+          transaction.update(t.ref, { quantity: newQty });
           const outTxRef = doc(collection(db, 'inventoryTransactions'));
           transaction.set(outTxRef, {
-            item: update.item.name,
+            item: data.name || t.itemMeta.name,
             type: 'out',
-            amount: update.neededQty,
-            unit: update.item.unit || 'kg',
+            amount: t.neededQty,
+            unit: data.unit || t.itemMeta.unit || 'kg',
             reason: `Production: ${recipe.nom}`,
             user: chefResponsable,
             date: dateStr,
             createdAt: serverTimestamp()
           });
-        }
-        
-        // 3. Create production order
+        });
+
+        // 4. Create production order
         const newOrderRef = doc(collection(db, 'productionOrders'));
         transaction.set(newOrderRef, {
           recipeId: recipe.id,
@@ -165,30 +165,23 @@ export default function ProductionJournaliere() {
           coutMatiereEstime: calculatedRealCost,
           timestamp: serverTimestamp()
         });
-        
-        
-        // 4. Credit the produced item in inventory or semi_finished
-        let isProducedSemi = false;
-        let producedItem = inventoryItems.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
-        if (!producedItem) {
-           producedItem = semiFinished.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
-           if (producedItem) isProducedSemi = true;
-        }
-        
+
+
+        // 5. Credit the produced item in inventory or semi_finished
         const unitCost = quantiteAProduire > 0 ? (calculatedRealCost / quantiteAProduire) : 0;
-        
-        if (producedItem) {
-           const oldQty = parseFloat(producedItem.quantity) || 0;
-           const oldPrice = resolveItemPrice(producedItem);
+
+        if (producedItemRef && producedItemMeta) {
+           const data: any = producedSnap?.exists() ? producedSnap.data() : {};
+           const oldQty = parseFloat(data.quantity) || 0;
+           const oldPrice = resolveItemPrice(data);
            const newQty = oldQty + quantiteAProduire;
-           
-           const newAverageCost = newQty > 0 
-               ? ((oldQty * oldPrice) + (quantiteAProduire * unitCost)) / newQty 
+
+           const newAverageCost = newQty > 0
+               ? ((oldQty * oldPrice) + (quantiteAProduire * unitCost)) / newQty
                : (unitCost || oldPrice);
 
-           const colName = isProducedSemi ? 'semi_finished' : 'inventoryItems';
-           const updateData: any = { 
-             quantity: newQty, 
+           const updateData: any = {
+             quantity: newQty,
              updatedAt: serverTimestamp(),
              zone: targetZone,
              subZone: targetSubZone
@@ -199,17 +192,17 @@ export default function ProductionJournaliere() {
               updateData.averageCost = newAverageCost;
            }
 
-           transaction.update(doc(db, colName, producedItem.id), updateData);
-           
+           transaction.update(producedItemRef, updateData);
+
            const inTxRef = doc(collection(db, 'inventoryTransactions'));
            transaction.set(inTxRef, {
-             item: producedItem.name,
+             item: data.name || producedItemMeta.name,
              type: 'in',
              amount: quantiteAProduire,
-             unit: producedItem.unit || 'portion',
+             unit: data.unit || producedItemMeta.unit || 'portion',
              reason: `Production: ${recipe.nom}`,
              user: chefResponsable,
-             date: new Date().toLocaleDateString('fr-FR'),
+             date: dateStr,
              createdAt: serverTimestamp()
            });
         } else {

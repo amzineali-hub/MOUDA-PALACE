@@ -101,7 +101,7 @@ import {
   BarChart2,
 AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
-import { useAuth } from './context/AuthContext';
+import { useAuth, AUTHORIZED_EMAILS } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -494,8 +494,12 @@ function App() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-      showToast("Connexion réussie");
+      const result = await signInWithPopup(auth, googleProvider);
+      if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
+        showToast("Connexion réussie");
+      } else {
+        showToast("Accès non autorisé pour cet email.", "error");
+      }
     } catch (error: any) {
       console.error("Login failed", error);
       
@@ -529,6 +533,37 @@ function App() {
 
   if (appMode === 'partner') {
     return <PartnerPortal onBack={() => setAppMode('selection')} />;
+  }
+
+  if (appMode === 'admin' && !user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#1A1A1A] flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl text-center">
+            <h1 className="text-3xl font-serif text-[#265C6D] font-semibold tracking-wide mb-1">MOUDA PALACE</h1>
+            <p className="text-xs text-gray-400 tracking-[0.2em] uppercase mb-8">Espace Administration</p>
+            <p className="text-gray-500 text-sm mb-8">Connexion requise pour accéder au tableau de bord.</p>
+            <button
+              onClick={handleLogin}
+              className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors mb-4"
+            >
+              <LogIn size={18} />
+              <span>Connexion avec Google</span>
+            </button>
+            <button
+              onClick={() => setAppMode('selection')}
+              className="w-full text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium"
+            >
+              Retour à l'accueil
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
   }
 
   const handleTabChange = (tab: string) => {

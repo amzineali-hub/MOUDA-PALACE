@@ -1,5 +1,8 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  }
+  "firestore": [
+    {
+      "database": "ai-studio-moudapalacesaas-4dac6993-224c-4a7d-9a21-1588a2dfdc68",
+      "rules": "firestore.rules"
+    }
+  ]
 }

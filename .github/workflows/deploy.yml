@@ -41,11 +41,12 @@ jobs:
           # Les variables d'environnement injectées lors du build (Next.js / Vite)
           VITE_FIREBASE_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
-      - name: Deploy to Firebase Hosting & Functions
+      - name: Deploy Firestore Rules
         uses: w9jds/firebase-action@master
         with:
-          # Déploie vers le projet spécifique en fonction de la branche
-          args: deploy --project ${{ github.ref == 'refs/heads/main' && 'prod-restaurant-fes' || 'staging-restaurant-fes' }}
+          # Seul projet Firebase réellement utilisé par l'application (voir firebase-applet-config.json).
+          # "prod-restaurant-fes"/"staging-restaurant-fes" ne correspondaient à aucun projet réel.
+          args: deploy --project clever-datum-pjlsj --only firestore:rules
         env:
           # Token stocké de manière sécurisée dans les GitHub Secrets
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

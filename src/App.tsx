@@ -103,7 +103,7 @@ AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User,
 import { isCriticalStock } from './lib/inventory';
 import { useAuth, AUTHORIZED_EMAILS } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
-import { signInWithPopup, googleProvider, auth, signOut, db } from './firebase';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 const Accounting = lazy(() => import('./Accounting'));
 const BlogWriterAI = lazy(() => import('./BlogWriterAI'));
@@ -465,6 +465,22 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
 
+  // Sur mobile, signInWithPopup échoue souvent (popup bloquée / cookies tiers) : on utilise
+  // signInWithRedirect à la place, dont le résultat n'arrive qu'après le retour sur la page.
+  useEffect(() => {
+    getRedirectResult(auth).then(result => {
+      if (!result?.user) return;
+      if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
+        showToast("Connexion réussie");
+      } else {
+        showToast("Accès non autorisé pour cet email.", "error");
+      }
+    }).catch(error => {
+      console.error("Redirect sign-in failed", error);
+      showToast(error.message || "Erreur de connexion", "error");
+    });
+  }, []);
+
   const searchItems = [
     { type: 'Navigation', text: 'Vue d\'ensemble', tab: 'overview', keywords: ['dashboard', 'accueil', 'home', 'statistiques'] },
     { type: 'Production', text: 'Production cuisine', tab: 'inventory', keywords: ['inventaire', 'produits', 'ingrédients', 'marchandise', 'stock'] },
@@ -493,7 +509,14 @@ function App() {
     : [];
 
   const handleLogin = async () => {
+    const isMobileDevice = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
     try {
+      if (isMobileDevice) {
+        // La page va être quittée puis rechargée ; le résultat est traité par le useEffect
+        // getRedirectResult ci-dessus au retour de Google.
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
       const result = await signInWithPopup(auth, googleProvider);
       if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
         showToast("Connexion réussie");
@@ -502,10 +525,17 @@ function App() {
       }
     } catch (error: any) {
       console.error("Login failed", error);
-      
+
       // Amélioration du message d'erreur
       if (error.code === 'auth/unauthorized-domain') {
         showToast("Domaine non autorisé. Veuillez ouvrir l'application dans un nouvel onglet.", "error");
+      } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/operation-not-supported-in-this-environment') {
+        // Repli sur redirection si la popup est bloquée, même sur desktop
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError: any) {
+          showToast(redirectError.message || "Erreur de connexion", "error");
+        }
       } else if (error.message?.includes('cross-origin')) {
         showToast("Erreur iframe. Veuillez ouvrir l'application dans un nouvel onglet.", "error");
       } else {

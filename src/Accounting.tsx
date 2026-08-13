@@ -27,13 +27,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
-
-
-const parseAmount = (val: any) => {
-  if (typeof val === 'number') return val;
-  if (!val) return 0;
-  return parseFloat(val.toString().replace(/[^0-9.-]+/g, '')) || 0;
-};
+import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -293,32 +287,14 @@ export default function Accounting() {
 
 
   const monthlyRevenueData = useMemo(() => {
-    const data: Record<string, { name: string, revenus: number, depenses: number, sortKey: number }> = {};
-    const months = ['Janv', 'Fév', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
-    const d = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const past = new Date(d.getFullYear(), d.getMonth() - i, 1);
-      const mName = months[past.getMonth()];
-      data[`${past.getFullYear()}-${past.getMonth()}`] = { name: mName, revenus: 0, depenses: 0, sortKey: past.getTime() };
-    }
-
-    receipts.forEach((r: any) => {
-      const date = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      if (data[key]) {
-        data[key].revenus += parseAmount(r.amount) || 0;
-      }
-    });
-
-    expenses.forEach((e: any) => {
-      const date = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      if (data[key]) {
-        data[key].depenses += parseAmount(e.amount) || 0;
-      }
-    });
-
-    return Object.values(data).sort((a,b) => a.sortKey - b.sortKey);
+    const revenueByMonth = groupAmountsByMonth(receipts);
+    const expensesByMonth = groupAmountsByMonth(expenses);
+    return revenueByMonth.map((month, idx) => ({
+      name: month.name,
+      revenus: month.total,
+      depenses: expensesByMonth[idx]?.total || 0,
+      sortKey: month.sortKey
+    }));
   }, [receipts, expenses]);
 
   const expensesByCategoryData = useMemo(() => {
@@ -334,29 +310,14 @@ export default function Accounting() {
 
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  
-  const currentMonthRevenue = receipts.reduce((sum, r) => {
-    const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) return sum + (parseAmount(r.amount) || 0);
-    return sum;
-  }, 0);
-  const lastMonthRevenue = receipts.reduce((sum, r) => {
-    const d = r.createdAt?.toDate ? r.createdAt.toDate() : new Date(r.date || Date.now());
-    if (d.getMonth() === (currentMonth === 0 ? 11 : currentMonth - 1) && d.getFullYear() === (currentMonth === 0 ? currentYear - 1 : currentYear)) return sum + (parseAmount(r.amount) || 0);
-    return sum;
-  }, 0);
+  const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
+
+  const currentMonthRevenue = sumAmountsInMonth(receipts, currentMonth, currentYear);
+  const lastMonthRevenue = sumAmountsInMonth(receipts, lastMonthDate.getMonth(), lastMonthDate.getFullYear());
   const revenueGrowth = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 100;
 
-  const currentMonthExpenses = expenses.reduce((sum, e) => {
-    const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) return sum + (parseAmount(e.amount) || 0);
-    return sum;
-  }, 0);
-  const lastMonthExpenses = expenses.reduce((sum, e) => {
-    const d = e.createdAt?.toDate ? e.createdAt.toDate() : new Date(e.date || Date.now());
-    if (d.getMonth() === (currentMonth === 0 ? 11 : currentMonth - 1) && d.getFullYear() === (currentMonth === 0 ? currentYear - 1 : currentYear)) return sum + (parseAmount(e.amount) || 0);
-    return sum;
-  }, 0);
+  const currentMonthExpenses = sumAmountsInMonth(expenses, currentMonth, currentYear);
+  const lastMonthExpenses = sumAmountsInMonth(expenses, lastMonthDate.getMonth(), lastMonthDate.getFullYear());
   const expensesGrowth = lastMonthExpenses > 0 ? ((currentMonthExpenses - lastMonthExpenses) / lastMonthExpenses) * 100 : 100;
 
 
@@ -773,7 +734,14 @@ export default function Accounting() {
                     <td className="px-6 py-4 text-gray-900">{expense.category}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{expense.supplier}</td>
                     <td className="px-6 py-4 text-gray-500">{expense.date}</td>
-                    <td className="px-6 py-4 text-gray-500">{expense.method}</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {expense.method}
+                      {expense.paymentStatus && (
+                        <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${expense.paymentStatus === 'Payée' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {expense.paymentStatus}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right text-gray-500">{expense.montantHT !== undefined ? `${Number(expense.montantHT).toFixed(2)} MAD` : '—'}</td>
                     <td className="px-6 py-4 text-right text-gray-500">{expense.tva !== undefined ? `${expense.tva}%` : '—'}</td>
                     <td className="px-6 py-4 font-medium text-red-600 text-right">-{expense.amount}</td>

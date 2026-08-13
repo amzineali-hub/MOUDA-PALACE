@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { computeRecipeCost } from './lib/recipeCost';
+import { groupAmountsByDay } from './lib/revenueUtils';
 
 export default function TableauDeBord() {
   const [inventory, setInventory] = useState<any[]>([]);
@@ -151,28 +152,12 @@ export default function TableauDeBord() {
   // --- Charts Data ---
   
   // Recipe Food Cost Comparison
-  const revByDate = cashReceipts.reduce((acc, cr) => {
-    const d = cr.date || 'Inconnu';
-    if (!acc[d]) acc[d] = 0;
-    acc[d] += Number(cr.amount) || 0;
-    return acc;
-  }, {});
+  const evolutionData = groupAmountsByDay(cashReceipts).map(({ date, total }) => ({
+    name: date,
+    CA: total
+  }));
 
-  const evolutionData = Object.entries(revByDate)
-    .sort((a, b) => {
-      // sort dates assuming format like '07 oct. 2023' or '2023-10-07'
-      // For simplicity, string sort or parse to Date if it works.
-      // If dates are DD MMM YYYY, it's tricky, but let's just reverse or keep as is.
-      // Actually, let's just sort by key if it's sortable, or use original order.
-      const dateA = new Date(a[0]).getTime();
-      const dateB = new Date(b[0]).getTime();
-      if (!isNaN(dateA) && !isNaN(dateB)) return dateA - dateB;
-      return a[0].localeCompare(b[0]);
-    })
-    .map(([date, revenue]) => ({
-      name: date,
-      CA: revenue
-    }));  const recipeChartData = recipes.slice(0, 5).map(r => {
+  const recipeChartData = recipes.slice(0, 5).map(r => {
     const { totalCost, margin } = computeRecipeCost(r, inventory);
     return {
       name: r.nom.substring(0, 15),

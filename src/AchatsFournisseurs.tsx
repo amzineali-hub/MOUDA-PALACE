@@ -4,11 +4,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight, Store, X, Sparkles, Brain, TrendingUp, Loader2, Calendar , ArrowUpDown } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc, runTransaction } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc, runTransaction, getDocs, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { calculateStockStatus } from './lib/inventory';
 import { resolveItemPrice } from './lib/priceUtils';
+import { computeUpdatedSupplierRating } from './lib/supplierRating';
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs' | 'previsions' | 'reception'>('commandes');
@@ -187,6 +188,14 @@ export default function AchatsFournisseurs() {
       await updateDoc(doc(db, 'commandes', cmdId), {
         status: newStatus
       });
+
+      if (newStatus === 'Payée') {
+        // Répercute le paiement sur la dépense liée générée à la réception, pour que
+        // Comptabilité et Achats restent cohérents.
+        const linkedExpenses = await getDocs(query(collection(db, 'expenses'), where('commandeId', '==', cmdId)));
+        await Promise.all(linkedExpenses.docs.map(d => updateDoc(doc(db, 'expenses', d.id), { paymentStatus: 'Payée' })));
+      }
+
       showToast(`Statut mis à jour : ${newStatus}`);
     } catch (error) {
       console.error("Error updating status:", error);
@@ -194,12 +203,33 @@ export default function AchatsFournisseurs() {
     }
   };
 
+  // Cycle de vie complet : En attente → Envoyée → Validée → Livrée/Refusée (réception) → Facturée → Payée,
+  // avec Annulée disponible tant que la commande n'est pas livrée. On ne propose dans le sélecteur que
+  // les transitions qui ont du sens depuis le statut courant, pour éviter un saut incohérent.
+  const getAvailableStatusOptions = (currentStatus: string): string[] => {
+    switch (currentStatus) {
+      case 'En attente': return ['En attente', 'Envoyée', 'Annulée'];
+      case 'Envoyée': return ['Envoyée', 'Validée', 'Annulée'];
+      case 'Validée': return ['Validée', 'Livrée', 'Annulée'];
+      case 'Livrée': return ['Livrée', 'Facturée'];
+      case 'Facturée': return ['Facturée', 'Payée'];
+      case 'Payée': return ['Payée'];
+      case 'Refusée': return ['Refusée'];
+      case 'Annulée': return ['Annulée'];
+      default: return ['En attente', 'Envoyée', 'Validée', 'Annulée'];
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'Payée': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case 'Facturée': return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'Livrée': return 'bg-green-100 text-green-700 border-green-200';
+      case 'Envoyée': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       case 'Validée': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'En attente': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'Annulée': return 'bg-red-100 text-red-700 border-red-200';
+      case 'Refusée': return 'bg-red-100 text-red-700 border-red-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -231,7 +261,7 @@ export default function AchatsFournisseurs() {
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Commandes en cours</p>
-            <p className="text-2xl font-bold text-[#1A1A1A]">{commandes.filter(c => c.status !== "Livrée" && c.status !== "Annulée").length}</p>
+            <p className="text-2xl font-bold text-[#1A1A1A]">{commandes.filter(c => ['En attente', 'Envoyée', 'Validée'].includes(c.status)).length}</p>
           </div>
         </motion.div>
         
@@ -359,10 +389,9 @@ export default function AchatsFournisseurs() {
                           onChange={(e) => updateOrderStatus(cmd.id, e.target.value)}
                           className={`appearance-none w-full px-3 py-1 rounded-full text-xs font-medium border cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${getStatusColor(cmd.status)}`}
                         >
-                          <option value="En attente" className="bg-white text-gray-900">En attente</option>
-                          <option value="Validée" className="bg-white text-gray-900">Validée</option>
-                          <option value="Livrée" className="bg-white text-gray-900">Livrée</option>
-                          <option value="Annulée" className="bg-white text-gray-900">Annulée</option>
+                          {getAvailableStatusOptions(cmd.status).map(opt => (
+                            <option key={opt} value={opt} className="bg-white text-gray-900">{opt}</option>
+                          ))}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2">
                           <svg className={`h-3 w-3 ${getStatusColor(cmd.status).includes('text') ? getStatusColor(cmd.status).split(' ').find(c => c.startsWith('text-')) : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -551,7 +580,7 @@ Détails <ChevronRight size={16} />
 
           {activeTab === 'reception' && (
             <div className="p-4">
-              <ReceptionAchats commandes={commandes} inventoryItems={inventoryItems} showToast={showToast} />
+              <ReceptionAchats commandes={commandes} inventoryItems={inventoryItems} fournisseurs={fournisseurs} showToast={showToast} />
             </div>
           )}
           
@@ -1398,10 +1427,10 @@ Détails <ChevronRight size={16} />
 }
 
 
-function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: any[], inventoryItems: any[], showToast: any }) {
+function ReceptionAchats({ commandes, inventoryItems, fournisseurs, showToast }: { commandes: any[], inventoryItems: any[], fournisseurs: any[], showToast: any }) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
-  const pendingOrders = commandes.filter(c => c.status === "En attente" || c.status === "Validée");
+  const pendingOrders = commandes.filter(c => ['En attente', 'Envoyée', 'Validée'].includes(c.status));
 
   const handleValidate = async (orderId: string, receivedItems: any[], status: 'Livrée' | 'Refusée', invoiceNote: string) => {
     try {
@@ -1516,6 +1545,8 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
             const newExpRef = doc(collection(db, 'expenses'));
             transaction.set(newExpRef, {
               id: 'EXP-' + newExpRef.id.substring(0, 6).toUpperCase(),
+              commandeId: orderId,
+              paymentStatus: 'À payer',
               supplier: supplierName,
               amount: totalActual.toFixed(2) + ' MAD',
               category: 'Achats / Marchandises',
@@ -1524,6 +1555,14 @@ function ReceptionAchats({ commandes, inventoryItems, showToast }: { commandes: 
               description: `Achat Marchandises (BC: ${orderId.substring(0,8)})`,
               createdAt: serverTimestamp()
             });
+          }
+
+          // Note fournisseur recalculée à partir de la qualité constatée à la réception,
+          // au lieu du 5.0 figé à la création jamais retouché depuis.
+          const supplier = fournisseurs.find(f => (f.name || f.nom || '').toLowerCase() === supplierName.toLowerCase());
+          if (supplier && itemsToReceive.length > 0) {
+            const newRating = computeUpdatedSupplierRating(supplier.rating, itemsToReceive);
+            transaction.update(doc(db, 'fournisseurs', supplier.id), { rating: newRating });
           }
         });
 

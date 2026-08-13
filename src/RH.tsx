@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter, Timer, CalendarRange, Banknote, Shield, UserCheck, Printer, Trash2 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from './firebase';import PlanningScheduler from './components/PlanningScheduler';
+import { db } from './firebase';
+import PlanningScheduler from './components/PlanningScheduler';
+import { computePayroll } from './lib/payroll';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -36,25 +38,8 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
     }
   }, [selectedStaffName, staffData]);
   
-  // Calculs Code du Travail Marocain (simplifiés)
-  // CNSS Salariale: 4.48% plafonné à 6000 MAD
-  const cnss = Math.min(baseSalary, 6000) * 0.0448;
-  // AMO Salariale: 2.26% sans plafond
-  const amo = baseSalary * 0.0226;
-  // Frais Pro: 20% plafonné à 2500 MAD (pour IGR, on simplifie)
-  const fraisPro = Math.min(baseSalary * 0.2, 2500);
-  const sni = baseSalary - cnss - amo - fraisPro; // Salaire Net Imposable
-  
-  // Barème IGR (simplifié, annuel / 12)
-  let igr = 0;
-  if (sni > 2500 && sni <= 4166) igr = sni * 0.1 - 250;
-  else if (sni > 4166 && sni <= 5000) igr = sni * 0.2 - 666.67;
-  else if (sni > 5000 && sni <= 6666) igr = sni * 0.3 - 1166.67;
-  else if (sni > 6666 && sni <= 15000) igr = sni * 0.34 - 1433.33;
-  else if (sni > 15000) igr = sni * 0.38 - 2033.33;
-  igr = Math.max(0, igr);
-
-  const netSalary = baseSalary - cnss - amo - igr;
+  // Calculs Code du Travail Marocain (simplifiés) — voir src/lib/payroll.ts
+  const { cnss, amo, igr, netSalary } = computePayroll(baseSalary);
 
   if (!isOpen) return null;
 

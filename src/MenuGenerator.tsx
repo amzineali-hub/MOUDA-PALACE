@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat } from 'lucide-react';
 import { useToast } from './context/ToastContext';
@@ -6,6 +6,8 @@ import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { computeRecipeCost } from './lib/recipeCost';
+import { parseAmount } from './lib/revenueUtils';
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -13,6 +15,8 @@ import jsPDF from 'jspdf';
 export default function MenuGenerator() {
   const { showToast } = useToast();
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [recettes, setRecettes] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [isPrintView, setIsPrintView] = useState(false);
@@ -51,6 +55,28 @@ export default function MenuGenerator() {
 
   return () => unsubscribe();
   }, []);
+
+  // Fiches techniques + stock, pour afficher le coût matière/marge réels à titre informatif
+  useEffect(() => {
+    const unsubRecettes = onSnapshot(collection(db, 'fiches_techniques'), snapshot => {
+      setRecettes(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+    const unsubInventory = onSnapshot(collection(db, 'inventoryItems'), snapshot => {
+      setInventoryItems(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+    return () => {
+      unsubRecettes();
+      unsubInventory();
+    };
+  }, []);
+
+  const matchedRecipeCost = useMemo(() => {
+    const recipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === name.trim().toLowerCase());
+    if (!recipe) return null;
+    const priceValue = parseAmount(price);
+    const result = computeRecipeCost({ ...recipe, prixVente: priceValue || recipe.prixVente }, inventoryItems);
+    return result;
+  }, [name, price, recettes, inventoryItems]);
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -491,14 +517,22 @@ if (isPrintView) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tarif (ex: 220 MAD)</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="220" 
-                    required 
-                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]" 
+                    placeholder="220"
+                    required
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                   />
+                  {matchedRecipeCost && (
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      Coût matière : <span className="font-medium text-gray-700">{matchedRecipeCost.totalCost.toFixed(2)} MAD</span>
+                      {' · '}Food Cost : <span className={`font-medium ${matchedRecipeCost.foodCostPct <= 35 ? 'text-green-600' : 'text-red-600'}`}>{matchedRecipeCost.foodCostPct.toFixed(1)}%</span>
+                      {' · '}Marge : <span className="font-medium text-gray-700">{matchedRecipeCost.margin.toFixed(2)} MAD</span>
+                      <span className="text-gray-400"> (info, d'après la fiche technique)</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

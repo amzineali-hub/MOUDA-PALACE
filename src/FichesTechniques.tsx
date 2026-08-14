@@ -260,7 +260,10 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   };
 
   const addIngredient = () => {
-    if (!newIng.nom || !newIng.quantite) return;
+    if (!newIng.nom || !newIng.quantite) {
+      showToast('Veuillez indiquer le nom et la quantité de l\'ingrédient', 'error');
+      return;
+    }
     const q = Number(newIng.quantite);
     const p = Number(newIng.prixUnitaire) || 0;
     const c = computeIngredientCost({ nom: newIng.nom, quantite: q, unite: newIng.unite, prixUnitaire: p, unitePrix: newIng.unitePrix }, inventoryItems).cost;
@@ -596,10 +599,9 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                     {computeIngredientCost({ nom: newIng.nom, quantite: Number(newIng.quantite), unite: newIng.unite, prixUnitaire: Number(newIng.prixUnitaire), unitePrix: newIng.unitePrix }, inventoryItems).cost.toFixed(2)} DH
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <button 
+                    <button
                       onClick={addIngredient}
-                      disabled={!newIng.nom || !newIng.quantite}
-                      className="bg-[#265C6D] text-white p-1.5 rounded hover:bg-[#1D4A58] disabled:opacity-50 transition-colors"
+                      className="bg-[#265C6D] text-white p-1.5 rounded hover:bg-[#1D4A58] transition-colors"
                     >
                       <Plus size={16} />
                     </button>

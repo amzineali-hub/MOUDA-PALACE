@@ -210,6 +210,12 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   }, []);
 
   const UNITES = ['g', 'kg', 'ml', 'cl', 'L', 'pièce', 'boîte', 'bouteille', 'sachet', 'carton', 'botte', 'cannette', 'bidon', 'plateau', 'pincée', 'c.à.s', 'c.à.c', 'portion'];
+
+  // Catégories de stock qui ne sont jamais des ingrédients de recette (matériel, prestations,
+  // produits d'entretien, boissons vendues telles quelles) — exclues des suggestions ci-dessous
+  // pour ne pas polluer la liste avec des articles hors cuisine.
+  const NON_INGREDIENT_CATEGORIES = ['Matériel', 'Services', 'Hygiène & Entretien', 'Boissons', 'Boissons Alcoolisées'];
+  const ingredientInventoryItems = inventoryItems.filter(i => !NON_INGREDIENT_CATEGORIES.includes(i.category));
   const [newIng, setNewIng] = useState({
     nom: '',
     quantite: '',
@@ -470,7 +476,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                   <tr key={ing.id} className="hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <Combobox
-                        options={inventoryItems.map(item => item.name).filter(Boolean)}
+                        options={ingredientInventoryItems.map(item => item.name).filter(Boolean)}
                         value={ing.nom}
                         onChange={val => selectIngredientFromInventory(ing.id, val)}
                         className="w-full border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
@@ -541,7 +547,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 <tr className="bg-gray-50/30">
                   <td className="px-4 py-2">
                     <Combobox
-                      options={inventoryItems.map(item => item.name).filter(Boolean)}
+                      options={ingredientInventoryItems.map(item => item.name).filter(Boolean)}
                       placeholder="Nom (ex: Sel) ou depuis l'inventaire"
                       className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50"
                       value={newIng.nom}

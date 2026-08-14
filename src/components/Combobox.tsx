@@ -17,6 +17,9 @@ interface ComboboxProps {
   // Appelé à chaque changement de valeur, dans les deux modes (utile pour des effets
   // de bord comme pré-remplir un autre champ sans rendre celui-ci contrôlé)
   onValueChange?: (value: string) => void;
+  // Ouvre la liste vers le haut au lieu du bas — utile quand le champ est proche du
+  // bord inférieur d'un conteneur avec overflow-hidden (ex: dernière ligne d'un tableau).
+  dropUp?: boolean;
 }
 
 /**
@@ -37,7 +40,8 @@ export default function Combobox({
   value,
   onChange,
   defaultValue,
-  onValueChange
+  onValueChange,
+  dropUp = false
 }: ComboboxProps) {
   const isControlled = value !== undefined;
   const [text, setText] = useState(defaultValue || '');
@@ -123,7 +127,7 @@ export default function Combobox({
         />
       )}
       {isOpen && filteredOptions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+        <div className={`absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           {filteredOptions.map((opt, idx) => (
             <button
               key={idx}

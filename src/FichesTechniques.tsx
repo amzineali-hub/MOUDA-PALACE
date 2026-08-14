@@ -475,6 +475,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                         onChange={val => selectIngredientFromInventory(ing.id, val)}
                         className="w-full border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
                         placeholder="Nom ou depuis l'inventaire"
+                        dropUp
                       />
                       {ingResult.matched ? (
                         <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>
@@ -544,6 +545,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                       placeholder="Nom (ex: Sel) ou depuis l'inventaire"
                       className="w-full border border-gray-200 rounded p-1.5 text-sm focus:outline-none focus:border-[#F4C75B] bg-gray-50"
                       value={newIng.nom}
+                      dropUp
                       onChange={val => {
                         const matchedItem = inventoryItems.find(i => i.name === val);
                         if (matchedItem) {

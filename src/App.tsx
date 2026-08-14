@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { calculateStockStatus } from './lib/inventoryUtils';
 import { computeRecipeCost } from './lib/recipeCost';
 import { resolveItemPrice } from './lib/priceUtils';
+import { TVA_RATES, computeTTC } from './lib/tva';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LineChart, Line } from 'recharts';
 import { 
@@ -3090,7 +3091,6 @@ function Inventory() {
     return () => unsub();
   }, []);
 
-  const [txType, setTxType] = useState<'in' | 'out'>('in');
   const [newRecipeForm, setNewRecipeForm] = useAutoSave('form_newRecipeForm', { name: '', category: 'Entrée', portions: 1 });
   const [newRecipeIngredients, setNewRecipeIngredients] = useAutoSave<any[]>('form_newRecipeIngredients', []);
   const [selectedIngredient, setSelectedIngredient] = useState('');
@@ -3118,7 +3118,26 @@ function Inventory() {
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
   const [wasteForm, setWasteForm] = useAutoSave('form_wasteForm', { item: '', qty: '', unit: '', reason: '', cost: '', user: '', date: new Date().toISOString().split('T')[0] });
-  const [txForm, setTxForm] = useAutoSave('form_txForm', { type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
+  const [txForm, setTxForm] = useAutoSave('form_txForm', { type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', tva: 20, supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
+
+  // Ouvre la modale "Nouveau Mouvement" pré-remplie pour un produit déjà connu (ligne du tableau,
+  // scan code-barres...), pour ne pas devoir re-rechercher l'article dans le champ de la modale.
+  const openStockMovementModal = (item: any, type: 'in' | 'out') => {
+    setTxForm({
+      type,
+      item: item.name,
+      amount: '',
+      unit: item.unit || 'kg',
+      reason: type === 'in' ? 'Achat' : 'Consommation',
+      user: 'Admin',
+      unitPrice: type === 'in' ? String(resolveItemPrice(item) || '') : '',
+      tva: 20,
+      supplier: item.supplier && item.supplier !== 'Non renseigné' ? item.supplier : '',
+      destination: '',
+      date: new Date().toISOString().split('T')[0]
+    });
+    setIsTxModalOpen(true);
+  };
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
@@ -3668,9 +3687,7 @@ function Inventory() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setSelectedProduct(item);
-                              setTxType('out');
-                              setIsTxModalOpen(true);
+                              openStockMovementModal(item, 'out');
                             }}
                             className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors flex items-center gap-1"
                             title="Sortie (Consommation)"
@@ -3683,9 +3700,7 @@ function Inventory() {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              setSelectedProduct(item);
-                              setTxType('in');
-                              setIsTxModalOpen(true);
+                              openStockMovementModal(item, 'in');
                             }}
                             className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex items-center gap-1"
                             title="Entrée (Achat)"
@@ -4033,7 +4048,7 @@ function Inventory() {
                   </select>
                   <button 
                     onClick={() => {
-                      setTxForm({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
+                      setTxForm({ type: 'in', item: '', amount: '', unit: 'kg', reason: 'Achat', user: 'Admin', unitPrice: '', tva: 20, supplier: '', destination: '', date: new Date().toISOString().split('T')[0] });
                       setIsTxModalOpen(true);
                     }}
                     className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2 whitespace-nowrap"
@@ -4279,9 +4294,7 @@ function Inventory() {
                       setIsScannerModalOpen(false);
                       if (existingProduct) {
                         showToast(`Produit trouvé : ${existingProduct.name}`, "success");
-                        setIsTxModalOpen(true);
-                        setSelectedProduct(existingProduct);
-                        setTxType('in');
+                        openStockMovementModal(existingProduct, 'in');
                       } else {
                         showToast(`Nouveau code scanné : ${decodedText}. Redirection vers création...`, "success");
                         setScannedBarcode(decodedText);
@@ -4380,9 +4393,7 @@ function Inventory() {
                     onClick={() => {
                       showToast("Simulation : Code scanné avec succès");
                       setIsScannerModalOpen(false);
-                      setIsTxModalOpen(true);
-                      setSelectedProduct(stockItems[0]); // Simulate picking a product
-                      setTxType('in');
+                      openStockMovementModal(stockItems[0], 'in'); // Simulate picking a product
                     }}
                     className="w-full bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors shadow-sm"
                   >
@@ -4840,170 +4851,6 @@ function Inventory() {
         </div>
       )}
 
-      {/* Transaction Modal */}
-      {isTxModalOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">
-                {txType === 'in' ? 'Entrée de Stock' : 'Sortie de Stock'}
-              </h3>
-              <button onClick={() => setIsTxModalOpen(false)} className="text-gray-400 hover:text-gray-900">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="mb-6">
-              <p className="text-sm text-gray-500 mb-1">Produit</p>
-              <p className="font-medium text-gray-900">{selectedProduct.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Stock actuel: {selectedProduct.quantity} {selectedProduct.unit}</p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité ({selectedProduct.unit})</label>
-                <input id="tx-qty" type="number" min="0" step="0.1" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {txType === 'out' ? 'Destinataire' : 'Raison / Commentaire'}
-                </label>
-                {txType === 'out' ? (
-                  <select id="tx-reason" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
-                    <option value="">Sélectionner une destination</option>
-                    <option value="Cuisine">Cuisine</option>
-                    <option value="Bar">Bar</option>
-                    <option value="Entretien">Entretien</option>
-                    <option value="Ménage">Ménage</option>
-                  </select>
-                ) : (
-                  <input id="tx-reason" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Achat du jour" />
-                )}
-              </div>
-              {fichesTechniques.some(r => (r.nom || '').toLowerCase() === selectedProduct.name.toLowerCase()) && (
-                <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                  <input type="checkbox" id="tx-sync-recipe" defaultChecked={txType === 'out'} className="w-4 h-4 text-[#265C6D] bg-white border-gray-300 rounded focus:ring-[#265C6D]" />
-                  <label htmlFor="tx-sync-recipe" className="text-sm font-medium text-blue-900">
-                    Déduire les ingrédients (Fiche technique)
-                  </label>
-                </div>
-              )}
-              {txType === 'in' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
-                    <Combobox id="tx-supplier" options={suppliersList} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Marché Central" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix U. (MAD)</label>
-                    <input id="tx-price" type="number" step="any" min="0" defaultValue={selectedProduct?.price || selectedProduct?.averageCost || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
-                  </div>
-                </div>
-              )}
-              <button 
-                onClick={async () => {
-                  const qtyInput = document.getElementById('tx-qty') as HTMLInputElement;
-                  const reasonInput = document.getElementById('tx-reason') as HTMLInputElement;
-                  const supplierInput = document.getElementById('tx-supplier') as HTMLInputElement;
-                  const priceInput = document.getElementById('tx-price') as HTMLInputElement;
-                  
-                  const qty = Number(qtyInput?.value || 0);
-                  if (qty <= 0) {
-                    showToast("Veuillez entrer une quantité valide", "error");
-                    return;
-                  }
-                  
-                  try {
-                    const newQuantity = txType === 'in' ? selectedProduct.quantity + qty : selectedProduct.quantity - qty;
-                    
-                    if (newQuantity < 0) {
-                      showToast("Stock insuffisant pour cette sortie", "error");
-                      return;
-                    }
-
-                    const updateData: any = {
-                      quantity: newQuantity,
-                      updatedAt: serverTimestamp()
-                    };
-
-                    const priceInput = document.getElementById('tx-price') as HTMLInputElement;
-                    if (txType === 'in' && priceInput && priceInput.value) {
-                       const inQty = qty;
-                       const inPrice = parseFloat(priceInput.value);
-                       const currentQty = parseFloat(selectedProduct.quantity || 0);
-                       const currentPrice = parseFloat(selectedProduct.averageCost || selectedProduct.price || 0);
-                       
-                       let newAverageCost = inPrice;
-                       if (newQuantity > 0) {
-                          newAverageCost = ((currentQty * currentPrice) + (inQty * inPrice)) / newQuantity;
-                       }
-                       updateData.averageCost = newAverageCost;
-                       updateData.price = inPrice;
-                    }
-                    
-                    await updateDoc(doc(db, 'inventoryItems', selectedProduct.id), updateData);
-                    
-                    const syncCheckbox = document.getElementById('tx-sync-recipe') as HTMLInputElement;
-                    const shouldSync = syncCheckbox?.checked;
-                    if (shouldSync) {
-                         const recipe = fichesTechniques.find(r => (r.nom || '').toLowerCase() === selectedProduct.name.toLowerCase());
-                         if (recipe && recipe.ingredients) {
-                             const recipePortions = parseFloat(recipe.portions) || 1;
-                             for (const ing of recipe.ingredients) {
-                                 let neededQty = (parseFloat(ing.quantite) || 0) * (qty / recipePortions);
-                                 const ingUnit = (ing.unite || '').toLowerCase();
-                                 
-                                 const matchedInv = stockItemsData.find(i => i.name.toLowerCase() === ing.nom.toLowerCase());
-                                 if (matchedInv && matchedInv.id) {
-                                     const invUnit = (matchedInv.unit || '').toLowerCase();
-                                     if (ingUnit === 'g' && invUnit === 'kg') neededQty /= 1000;
-                                     else if (ingUnit === 'kg' && invUnit === 'g') neededQty *= 1000;
-                                     else if (ingUnit === 'ml' && (invUnit === 'l' || invUnit === 'litre')) neededQty /= 1000;
-                                     else if ((ingUnit === 'l' || ingUnit === 'litre') && invUnit === 'ml') neededQty *= 1000;
-                                     
-                                     const newInvQty = Math.max(0, parseFloat(matchedInv.quantity || 0) - neededQty);
-                                     await updateDoc(doc(db, 'inventoryItems', matchedInv.id), { quantity: newInvQty });
-                                 }
-                             }
-                         }
-                    }
-
-                    const txData: any = {
-                      itemId: selectedProduct.id,
-                      itemName: selectedProduct.name,
-                      type: txType,
-                      quantity: qty,
-                      reason: reasonInput?.value || '',
-                      date: new Date().toLocaleDateString('fr-FR'),
-                      user: 'Admin',
-                      amount: qty, // legacy support
-                      unit: selectedProduct.unit, // legacy support
-                      item: selectedProduct.name, // legacy support
-                      createdAt: serverTimestamp()
-                    };
-                    
-                    if (txType === 'in') {
-                      txData.supplier = supplierInput?.value || '';
-                      txData.unitPrice = Number(priceInput?.value || 0);
-                    }
-                    
-                    await addDoc(collection(db, 'inventoryTransactions'), txData);
-
-                    showToast(`Transaction enregistrée avec succès`);
-                    setIsTxModalOpen(false);
-                    if (qtyInput) qtyInput.value = '';
-                    if (reasonInput) reasonInput.value = '';
-                  } catch (err) {
-                    console.error("Erreur lors de la transaction", err);
-                    showToast("Erreur lors de la mise à jour du stock", "error");
-                  }
-                }}
-                className={`w-full py-3 rounded-xl font-medium mt-4 text-white transition-colors ${txType === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-              >
-                Valider {txType === 'in' ? "l'entrée" : "la sortie"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Settings Modal */}
       {isSettingsModalOpen && selectedProduct && (
@@ -5488,17 +5335,39 @@ function Inventory() {
               </div>
 
               {txForm.type === 'in' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire (MAD)</label>
-                    <input 
-                      type="number" 
-                      value={txForm.unitPrice}
-                      onChange={e => setTxForm({...txForm, unitPrice: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                      placeholder="Ex: 45"
-                    />
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire HT (MAD)</label>
+                      <input
+                        type="number"
+                        value={txForm.unitPrice}
+                        onChange={e => setTxForm({...txForm, unitPrice: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
+                        placeholder="Ex: 45"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
+                      <select
+                        value={txForm.tva ?? 20}
+                        onChange={e => setTxForm({...txForm, tva: Number(e.target.value)})}
+                        className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"
+                      >
+                        {TVA_RATES.map(rate => (
+                          <option key={rate} value={rate}>{rate}%</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                  {Number(txForm.unitPrice) > 0 && (
+                    <p className="text-xs text-gray-500 -mt-2">
+                      Prix Unitaire TTC : <span className="font-medium text-gray-700">{computeTTC(Number(txForm.unitPrice), Number(txForm.tva ?? 20)).toFixed(2)} MAD</span>
+                      {txForm.amount && (
+                        <> · Montant total TTC : <span className="font-medium text-gray-700">{(computeTTC(Number(txForm.unitPrice), Number(txForm.tva ?? 20)) * Number(txForm.amount)).toFixed(2)} MAD</span></>
+                      )}
+                    </p>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
                     <Combobox
@@ -5509,7 +5378,7 @@ function Inventory() {
                       placeholder="Ex: Marché Central"
                     />
                   </div>
-                </div>
+                </>
               )}
 
               <div>

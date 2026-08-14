@@ -209,7 +209,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     };
   }, []);
 
-  const UNITES = ['g', 'kg', 'ml', 'L', 'pièce', 'pincée', 'c.à.s', 'c.à.c', 'portion'];
+  const UNITES = ['g', 'kg', 'ml', 'cl', 'L', 'pièce', 'boîte', 'bouteille', 'sachet', 'carton', 'botte', 'cannette', 'bidon', 'plateau', 'pincée', 'c.à.s', 'c.à.c', 'portion'];
   const [newIng, setNewIng] = useState({
     nom: '',
     quantite: '',
@@ -285,8 +285,22 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
     setIngredients(ingredients.filter(i => i.id !== id));
   };
 
-  const updateIngredient = (id: string, field: string, value: any) => {
-    setIngredients(ingredients.map(ing => ing.id === id ? { ...ing, [field]: value } : ing));
+  const updateIngredient = (id: string, updates: Record<string, any>) => {
+    setIngredients(ingredients.map(ing => ing.id === id ? { ...ing, ...updates } : ing));
+  };
+
+  const selectIngredientFromInventory = (id: string, name: string) => {
+    const matchedItem = inventoryItems.find(i => i.name === name);
+    if (matchedItem) {
+      updateIngredient(id, {
+        nom: name,
+        unite: matchedItem.unit || 'g',
+        unitePrix: matchedItem.unit || 'kg',
+        prixUnitaire: matchedItem.averageCost ? String(matchedItem.averageCost) : (matchedItem.price ? String(matchedItem.price) : (matchedItem.cost ? String(matchedItem.cost) : ''))
+      });
+    } else {
+      updateIngredient(id, { nom: name });
+    }
   };
 
   return (
@@ -452,7 +466,13 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                   return (
                   <tr key={ing.id} className="hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium text-gray-900">
-                      {ing.nom}
+                      <Combobox
+                        options={inventoryItems.map(item => item.name).filter(Boolean)}
+                        value={ing.nom}
+                        onChange={val => selectIngredientFromInventory(ing.id, val)}
+                        className="w-full border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
+                        placeholder="Nom ou depuis l'inventaire"
+                      />
                       {ingResult.matched ? (
                         <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">Stock</span>
                       ) : (
@@ -463,17 +483,17 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      <input 
+                      <input
                         type="number" step="any"
                         value={ing.quantite}
-                        onChange={e => updateIngredient(ing.id, 'quantite', e.target.value)}
+                        onChange={e => updateIngredient(ing.id, { quantite: e.target.value })}
                         className="w-20 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
                       />
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      <select 
+                      <select
                         value={ing.unite}
-                        onChange={e => updateIngredient(ing.id, 'unite', e.target.value)}
+                        onChange={e => updateIngredient(ing.id, { unite: e.target.value })}
                         className="w-full border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B] bg-white"
                       >
                         {UNITES.map(u => <option key={u} value={u}>{u}</option>)}
@@ -484,16 +504,16 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                         <span>{currentPrice ? `${Number(currentPrice).toFixed(2)} DH / ${currentPriceUnit}` : '-'}</span>
                       ) : (
                         <>
-                          <input 
+                          <input
                             type="number" step="any"
                             value={ing.prixUnitaire}
-                            onChange={e => updateIngredient(ing.id, 'prixUnitaire', e.target.value)}
+                            onChange={e => updateIngredient(ing.id, { prixUnitaire: e.target.value })}
                             className="w-16 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B]"
                           />
                           <span className="text-gray-500 text-xs">DH /</span>
-                          <select 
+                          <select
                             value={ing.unitePrix}
-                            onChange={e => updateIngredient(ing.id, 'unitePrix', e.target.value)}
+                            onChange={e => updateIngredient(ing.id, { unitePrix: e.target.value })}
                             className="w-16 border border-gray-200 rounded p-1 text-sm focus:outline-none focus:border-[#F4C75B] bg-white"
                           >
                             {UNITES.map(u => <option key={u} value={u}>{u}</option>)}

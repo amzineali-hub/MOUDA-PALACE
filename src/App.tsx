@@ -86,7 +86,6 @@ import {
   BookText,
   Scale,
   TrendingDown,
-  ClipboardList,
   Truck,
   Phone,
   CalendarRange,
@@ -3036,9 +3035,6 @@ function Inventory() {
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
-  const [isProdTaskModalOpen, setIsProdTaskModalOpen] = useState(false);
-  const [editingProdTask, setEditingProdTask] = useState<any>(null);
-  const [prodTaskForm, setProdTaskForm] = useAutoSave('form_prodTaskForm', { item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
   const [recipes, setRecipes] = useState<any[]>([]);
   const [fichesTechniques, setFichesTechniques] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -3111,9 +3107,7 @@ function Inventory() {
     setSortConfig({ key, direction });
   };
   
-  const [productionTasks, setProductionTasks] = useState<any[]>([]);
   const [wasteRecords, setWasteRecords] = useState<any[]>([]);
-  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [wasteToDelete, setWasteToDelete] = useState<string | null>(null);
   const [isWasteModalOpen, setIsWasteModalOpen] = useState(false);
   const [editingWaste, setEditingWaste] = useState<any>(null);
@@ -3142,15 +3136,6 @@ function Inventory() {
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'wasteRecords'), orderBy('createdAt', 'desc')), (snapshot) => {
       setWasteRecords(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setProductionTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    }, (error) => {
-      console.error("Error fetching productionTasks", error);
     });
     return () => unsub();
   }, []);
@@ -3482,7 +3467,7 @@ function Inventory() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Tabs */}
         <div className="bg-gradient-to-r from-[#265C6D] to-[#2F6B7F] flex overflow-x-auto hide-scrollbar p-2 gap-2">
-          {['stocks', 'production_orders', 'production', 'semi_finished', 'transactions', 'waste', 'price_history'].map(tab => (
+          {['stocks', 'production_orders', 'semi_finished', 'transactions', 'waste', 'price_history'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -3492,7 +3477,6 @@ function Inventory() {
               {tab === 'production_orders' && 'Ordre de fabrication'}
               
               {tab === 'semi_finished' && 'Plats Semi-finis'}
-              {tab === 'production' && 'Production Journalière'}
               {tab === 'waste' && 'Pertes & Gaspillage'}
               {tab === 'transactions' && 'Entrées & Sorties'}
               {tab === 'suppliers' && 'Fournisseurs'}
@@ -3829,119 +3813,6 @@ function Inventory() {
                         </tr>
                       ))
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'production' && (
-            <div className="p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Plan de Production Journalier</h3>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={async () => {
-                      if (fichesTechniques.length === 0) {
-                        showToast("Aucune fiche technique disponible pour générer un plan de production.", "error");
-                        return;
-                      }
-                      const tasksToCreate = fichesTechniques.slice(0, 5).map((f: any) => ({
-                        item: f.nom,
-                        qty: `${f.portions || 1} portion(s)`,
-                        progress: 0,
-                        status: "À faire",
-                        priority: "Moyenne",
-                        createdAt: serverTimestamp()
-                      }));
-                      for (const t of tasksToCreate) {
-                        await addDoc(collection(db, 'productionTasks'), t);
-                      }
-                      showToast(`${tasksToCreate.length} tâche(s) de production générée(s) à partir de vos fiches techniques.`);
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                  >
-                    <ClipboardList size={16} /> Auto-générer
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setEditingProdTask(null);
-                      setProdTaskForm({ item: '', qty: '', priority: 'Moyenne', progress: 0, status: 'À faire' });
-                      setIsProdTaskModalOpen(true);
-                    }}
-                    className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
-                  >
-                    <Plus size={16} /> Nouvelle Tâche
-                  </button>
-                </div>
-              </div>
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-gray-50/50 border-b border-gray-200 text-gray-500 font-medium">
-                    <tr>
-                      <th className="px-6 py-4">Plats semi finis</th>
-                      <th className="px-6 py-4">Quantité Requise</th>
-                      <th className="px-6 py-4">Priorité</th>
-                      <th className="px-6 py-4">Progression</th>
-                      <th className="px-6 py-4">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {productionTasks.map((task, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 group">
-                        <td className="px-6 py-4 font-medium text-gray-900">{task.item}</td>
-                        <td className="px-6 py-4 text-gray-500">{task.qty}</td>
-                        <td className="px-6 py-4">
-                          <select 
-                            value={task.priority}
-                            onChange={async (e) => {
-                              if (task.id) {
-                                await updateDoc(doc(db, 'productionTasks', task.id), { priority: e.target.value });
-                              }
-                            }}
-                            className={`border rounded-lg text-sm p-1.5 focus:outline-none focus:ring-1 focus:ring-[#F4C75B] ${
-                              task.priority === 'Haute' ? 'bg-red-50 text-red-700 border-red-200' : 
-                              task.priority === 'Moyenne' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
-                              'bg-green-50 text-green-700 border-green-200'
-                            }`}
-                          >
-                            <option value="Basse">Basse</option>
-                            <option value="Moyenne">Moyenne</option>
-                            <option value="Haute">Haute</option>
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 w-48">
-                          <div className="w-full bg-gray-100 rounded-full h-2">
-                            <div className={`h-2 rounded-full ${task.progress === 100 ? 'bg-green-500' : task.progress > 0 ? 'bg-blue-500' : 'bg-gray-300'}`} style={{ width: `${task.progress}%` }}></div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${task.status === 'Terminé' ? 'bg-green-50 text-green-700' : task.status === 'En cours' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                            {task.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => {
-                              setEditingProdTask(task);
-                              setProdTaskForm({
-                                item: task.item || '',
-                                qty: task.qty || '',
-                                priority: task.priority || 'Moyenne',
-                                progress: task.progress || 0,
-                                status: task.status || 'À faire'
-                              });
-                              setIsProdTaskModalOpen(true);
-                            }} className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50" title="Modifier">
-                              <Edit2 size={16} />
-                            </button>
-                            <button onClick={() => setTaskToDelete(task.id)} className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50" title="Supprimer">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
                   </tbody>
                 </table>
               </div>
@@ -6034,149 +5905,6 @@ function Inventory() {
           </motion.div>
         </div>
       )}
-
-
-      {isProdTaskModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold text-gray-900">
-                {editingProdTask ? "Modifier la tâche" : "Nouvelle Tâche de Production"}
-              </h3>
-              <button onClick={() => setIsProdTaskModalOpen(false)} className="text-gray-400 hover:text-gray-900">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Plats semi finis</label>
-                <select 
-                  value={prodTaskForm.item}
-                  onChange={e => setProdTaskForm({...prodTaskForm, item: e.target.value})}
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                >
-                  <option value="">Sélectionner un plat</option>
-                  {Array.from(new Set([
-                    ...recipes.map(r => r.name),
-                    ...fichesTechniques.map(f => f.nom || f.name),
-                    ...semiFinished.map(s => s.name)
-                  ])).filter(Boolean).map((name: any, idx) => (
-                    <option key={idx} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantité requise</label>
-                <input 
-                  type="text" 
-                  value={prodTaskForm.qty}
-                  onChange={e => setProdTaskForm({...prodTaskForm, qty: e.target.value})}
-                  className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]" 
-                  placeholder="Ex: 10 pièces"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
-                  <select 
-                    value={prodTaskForm.priority}
-                    onChange={e => setProdTaskForm({...prodTaskForm, priority: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="Basse">Basse</option>
-                    <option value="Moyenne">Moyenne</option>
-                    <option value="Haute">Haute</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
-                  <select 
-                    value={prodTaskForm.status}
-                    onChange={e => setProdTaskForm({...prodTaskForm, status: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    <option value="À faire">À faire</option>
-                    <option value="En cours">En cours</option>
-                    <option value="Terminé">Terminé</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Progression: {prodTaskForm.progress}%</label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={prodTaskForm.progress}
-                  onChange={e => setProdTaskForm({...prodTaskForm, progress: parseInt(e.target.value)})}
-                  className="w-full accent-[#F4C75B]"
-                />
-              </div>
-              
-              <div className="pt-4 mt-6 border-t border-gray-100 flex gap-3">
-                <button 
-                  onClick={() => setIsProdTaskModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={async () => {
-                    if (!prodTaskForm.item) {
-                      showToast("Veuillez entrer le nom de l'article", "error");
-                      return;
-                    }
-                    try {
-                      if (editingProdTask) {
-                        await updateDoc(doc(db, 'productionTasks', editingProdTask.id), {
-                          ...prodTaskForm,
-                          updatedAt: serverTimestamp()
-                        });
-                        showToast("Tâche modifiée avec succès");
-                      } else {
-                        await addDoc(collection(db, 'productionTasks'), {
-                          ...prodTaskForm,
-                          createdAt: serverTimestamp()
-                        });
-                        showToast("Tâche ajoutée avec succès");
-                      }
-                      setIsProdTaskModalOpen(false);
-                    } catch (e) {
-                      showToast("Erreur lors de la sauvegarde", "error");
-                      console.error(e);
-                    }
-                  }}
-                  className="flex-1 px-4 py-2 bg-[#265C6D] text-white rounded-lg font-medium hover:bg-[#2F6B7F] transition-colors"
-                >
-                  {editingProdTask ? 'Mettre à jour' : 'Sauvegarder'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ConfirmModal
-        isOpen={!!taskToDelete}
-        title="Supprimer la tâche"
-        message="Êtes-vous sûr de vouloir supprimer cette tâche de production ?"
-        onConfirm={async () => {
-          try {
-            await deleteDoc(doc(db, 'productionTasks', taskToDelete as string));
-            showToast("Tâche supprimée");
-          } catch (e) {
-            console.error(e);
-            showToast("Erreur lors de la suppression", "error");
-          }
-          setTaskToDelete(null);
-        }}
-        onCancel={() => setTaskToDelete(null)}
-      />
 
       <ConfirmModal
         isOpen={!!wasteToDelete}

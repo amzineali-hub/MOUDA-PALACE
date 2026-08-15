@@ -380,6 +380,7 @@ export default function ProductionJournaliere() {
                   >
                     <option value="economat">Économat</option>
                     <option value="chambre_froide">Chambre Froide</option>
+                    <option value="chambre_negative">Chambre Négative</option>
                     <option value="cave">Cave</option>
                     <option value="consommables">Consommables</option>
                   </select>

@@ -5960,6 +5960,10 @@ function Configuration() {
     address: 'Fès, Maroc',
     email: 'contact@moudapalace.com',
     phone: '+212 524 00 00 00',
+    ice: '002898284000015',
+    patente: '',
+    rc: '',
+    identifiantFiscal: '',
     currency: 'MAD (Dirham)',
     timezone: 'UTC+1 (Casablanca)'
   });
@@ -6116,9 +6120,25 @@ function Configuration() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
                     <input type="text" value={generalConfig.phone} onChange={(e) => setGeneralConfig({...generalConfig, phone: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ICE</label>
+                    <input type="text" value={generalConfig.ice} onChange={(e) => setGeneralConfig({...generalConfig, ice: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" placeholder="002898284000015" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Patente</label>
+                    <input type="text" value={generalConfig.patente} onChange={(e) => setGeneralConfig({...generalConfig, patente: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Registre de Commerce (RC)</label>
+                    <input type="text" value={generalConfig.rc} onChange={(e) => setGeneralConfig({...generalConfig, rc: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant Fiscal (IF)</label>
+                    <input type="text" value={generalConfig.identifiantFiscal} onChange={(e) => setGeneralConfig({...generalConfig, identifiantFiscal: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                  </div>
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 mb-6 text-[#265C6D]">Localisation & Devise</h3>
                 

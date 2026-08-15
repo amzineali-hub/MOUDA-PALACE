@@ -23,7 +23,7 @@ import {
 import { useToast } from './context/ToastContext';
 import Combobox from './components/Combobox';
 import { logActivity } from './lib/activityLog';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
@@ -166,10 +166,10 @@ export default function Accounting() {
   };
 
   const handleDeleteInvoice = async (invoice: any) => {
-    if (window.confirm(`Voulez-vous vraiment supprimer la facture ${invoice.id} ?`)) {
+    if (window.confirm(`Voulez-vous vraiment supprimer la facture ${formatInvoiceNumber(invoice)} ?`)) {
       try {
         await deleteDoc(doc(db, "invoices", invoice.id));
-        logActivity({ action: 'delete', entity: 'invoice', entityId: invoice.id, summary: `Suppression facture ${invoice.id} - ${invoice.client || ''} - ${invoice.amount || ''}`, before: invoice });
+        logActivity({ action: 'delete', entity: 'invoice', entityId: invoice.id, summary: `Suppression facture ${formatInvoiceNumber(invoice)} - ${invoice.client || ''} - ${invoice.amount || ''}`, before: invoice });
         showToast("Facture supprimée avec succès");
       } catch (error) {
         console.error(error);
@@ -212,7 +212,7 @@ export default function Accounting() {
 
 
   const [invoices, setInvoices] = useState<any[]>([]);
-  
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'invoices'), (snapshot) => {
       if (!snapshot.empty) {
@@ -223,6 +223,108 @@ export default function Accounting() {
     });
     return () => unsub();
   }, []);
+
+  // Informations légales de l'établissement (Configuration > Général), utilisées pour
+  // l'en-tête des factures imprimées — plutôt que des valeurs figées dans le code.
+  const [companyInfo, setCompanyInfo] = useState<any>({});
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo(snap.data());
+    }, (error) => {
+      console.error("Error fetching company settings", error);
+    });
+    return () => unsub();
+  }, []);
+
+  // Formate le numéro de facture séquentiel (FAC-0001, FAC-0002...). Les factures créées
+  // avant l'ajout de cette numérotation n'ont pas de champ `numero` : on retombe sur
+  // l'identifiant Firestore pour ne pas leur faire perdre toute référence affichable.
+  const formatInvoiceNumber = (invoice: any) => invoice.numero ? `FAC-${String(invoice.numero).padStart(4, '0')}` : invoice.id;
+
+  const buildInvoiceHtml = (invoice: any) => {
+    const legalLine = [
+      companyInfo.ice ? `ICE: ${companyInfo.ice}` : '',
+      companyInfo.patente ? `Patente: ${companyInfo.patente}` : '',
+      companyInfo.rc ? `RC: ${companyInfo.rc}` : '',
+      companyInfo.identifiantFiscal ? `IF: ${companyInfo.identifiantFiscal}` : ''
+    ].filter(Boolean).join(' - ');
+    const contactLine = [companyInfo.address, companyInfo.phone, companyInfo.email].filter(Boolean).join(' · ');
+
+    return `
+      <html>
+        <head>
+          <title>Facture ${formatInvoiceNumber(invoice)}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
+            .logo-mark { height: 60px; margin-bottom: 10px; }
+            .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
+            .sub-text { color: #666; font-size: 14px; margin-top: 5px; }
+            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
+            .client-info { text-align: right; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+            td { border-bottom: 1px solid #eee; padding: 10px; }
+            .totals { width: 50%; float: right; }
+            .totals table { border: none; }
+            .totals th, .totals td { padding: 5px 10px; }
+            .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <img class="logo-mark" src="${window.location.origin}/mouda-1-1-1.png" alt="${companyInfo.name || 'Mouda Palace'}" />
+            <div class="logo-text">${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</div>
+            <div class="sub-text">${companyInfo.category || 'Restaurant Traditionnel Marocain'}</div>
+            ${contactLine ? `<div class="sub-text">${contactLine}</div>` : ''}
+            ${legalLine ? `<div class="sub-text">${legalLine}</div>` : ''}
+          </div>
+          <div class="invoice-info">
+            <div>
+              <h2>FACTURE</h2>
+              <p><strong>N°:</strong> ${formatInvoiceNumber(invoice)}</p>
+              <p><strong>Date:</strong> ${invoice.date}</p>
+              <p><strong>Statut:</strong> ${invoice.status || ''}</p>
+            </div>
+            <div class="client-info">
+              <h3>Client</h3>
+              <p><strong>${invoice.client}</strong></p>
+              ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Prestation de services de restauration</td>
+                <td style="text-align: right;">${invoice.amount}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="totals">
+            <table>
+              <tr class="grand-total">
+                <th style="text-align: left;">NET A PAYER</th>
+                <td style="text-align: right;">${invoice.amount}</td>
+              </tr>
+            </table>
+          </div>
+          <div style="clear: both; margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px dashed #ccc; padding-top: 20px;">
+            Merci pour votre confiance.<br/>
+            ${companyInfo.name || 'Mouda Palace'}${legalLine ? ' - ' + legalLine : ''}
+          </div>
+          <script>
+            window.onload = () => { window.print(); };
+          </script>
+        </body>
+      </html>
+    `;
+  };
 
   const [manualExpenses, setManualExpenses] = useState<any[]>([]);
   const [commandes, setCommandes] = useState<any[]>([]);
@@ -547,7 +649,7 @@ export default function Accounting() {
               <tbody className="divide-y divide-gray-100">
                 {filteredInvoices.map((invoice, idx) => (
                   <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-gray-900">{invoice.id}</td>
+                    <td className="px-6 py-4 font-mono text-gray-900">{formatInvoiceNumber(invoice)}</td>
                     <td className="px-6 py-4 font-medium text-gray-900">{invoice.client}</td>
                     <td className="px-6 py-4 font-mono text-xs text-gray-500">{invoice.ice}</td>
                     <td className="px-6 py-4 text-gray-500">{invoice.date}</td>
@@ -565,77 +667,7 @@ export default function Accounting() {
                         <button onClick={() => {
                           let printWindow = window.open('', '', 'width=800,height=900');
                           if (printWindow) {
-                            printWindow.document.write(`
-                              <html>
-                                <head>
-                                  <title>Facture ${invoice.id}</title>
-                                  <style>
-                                    body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
-                                    .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
-                                    .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
-                                    .sub-text { color: #666; font-size: 14px; margin-top: 5px; }
-                                    .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
-                                    .client-info { text-align: right; }
-                                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                                    th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
-                                    td { border-bottom: 1px solid #eee; padding: 10px; }
-                                    .totals { width: 50%; float: right; }
-                                    .totals table { border: none; }
-                                    .totals th, .totals td { padding: 5px 10px; }
-                                    .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
-                                  </style>
-                                </head>
-                                <body>
-                                  <div class="header">
-                                    <div class="logo-text">MOUDA PALACE</div>
-                                    <div class="sub-text">Restaurant Traditionnel Marocain</div>
-                                    <div class="sub-text">Fès, Maroc</div>
-                                  </div>
-                                  <div class="invoice-info">
-                                    <div>
-                                      <h2>FACTURE</h2>
-                                      <p><strong>N°:</strong> ${invoice.id}</p>
-                                      <p><strong>Date:</strong> ${invoice.date}</p>
-                                      <p><strong>Statut:</strong> ${invoice.status}</p>
-                                    </div>
-                                    <div class="client-info">
-                                      <h3>Client</h3>
-                                      <p><strong>${invoice.client}</strong></p>
-                                      ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
-                                    </div>
-                                  </div>
-                                  <table>
-                                    <thead>
-                                      <tr>
-                                        <th>Description</th>
-                                        <th style="text-align: right;">Total</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                        <td>Prestation de services de restauration</td>
-                                        <td style="text-align: right;">${invoice.amount}</td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                  <div class="totals">
-                                    <table>
-                                      <tr class="grand-total">
-                                        <th style="text-align: left;">NET A PAYER</th>
-                                        <td style="text-align: right;">${invoice.amount}</td>
-                                      </tr>
-                                    </table>
-                                  </div>
-                                  <div style="clear: both; margin-top: 50px; text-align: center; color: #666; font-size: 12px; border-top: 1px dashed #ccc; padding-top: 20px;">
-                                    Merci pour votre confiance.<br/>
-                                    Mouda Palace - RC: XXXXX - Patente: XXXXX - IF: XXXXX
-                                  </div>
-                                  <script>
-                                    window.onload = () => { window.print(); };
-                                  </script>
-                                </body>
-                              </html>
-                            `);
+                            printWindow.document.write(buildInvoiceHtml(invoice));
                             printWindow.document.close();
                           }
                         }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
@@ -1052,15 +1084,24 @@ export default function Accounting() {
                 createdAt: serverTimestamp()
               };
 
-              // Optimistic update
-              setInvoices([{ id: 'FAC-NOUVEAU', ...newInvoice }, ...invoices]);
+              // Optimistic update — le numéro définitif est attribué de façon atomique
+              // ci-dessous (compteur partagé), celui-ci n'est qu'un aperçu local.
+              const optimisticNumero = invoices.reduce((max, inv) => Math.max(max, inv.numero || 0), 0) + 1;
+              setInvoices([{ id: 'FAC-NOUVEAU', numero: optimisticNumero, ...newInvoice }, ...invoices]);
               setIsNewModalOpen(false);
               setInvoiceHT('');
               setInvoiceTva(20);
               showToast("Facture créée avec succès");
 
               try {
-                await addDoc(collection(db, 'invoices'), newInvoice);
+                const invoiceRef = doc(collection(db, 'invoices'));
+                const counterRef = doc(db, 'counters', 'invoices');
+                await runTransaction(db, async (tx) => {
+                  const counterSnap = await tx.get(counterRef);
+                  const next = (counterSnap.exists() ? (counterSnap.data().value || 0) : 0) + 1;
+                  tx.set(counterRef, { value: next }, { merge: true });
+                  tx.set(invoiceRef, { ...newInvoice, numero: next });
+                });
               } catch (err) {
                 console.error("Error creating invoice", err);
               }
@@ -1561,7 +1602,7 @@ export default function Accounting() {
               <div className="flex justify-between mb-6">
                 <div>
                   <p className="text-sm text-gray-500 font-medium">Numéro</p>
-                  <p className="font-mono text-lg">{selectedInvoice.id}</p>
+                  <p className="font-mono text-lg">{formatInvoiceNumber(selectedInvoice)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500 font-medium">Date</p>
@@ -1601,75 +1642,12 @@ export default function Accounting() {
               >
                 Fermer
               </button>
-              <button 
+              <button
                 onClick={() => {
                   let printWindow = window.open('', '', 'width=800,height=900');
                   if (printWindow) {
-                    printWindow.document.write(`
-                      <html>
-                        <head>
-                          <title>Facture ${selectedInvoice.id}</title>
-                          <style>
-                            body { font-family: 'Times New Roman', serif; padding: 40px; color: #1a1a1a; }
-                            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #F4C75B; padding-bottom: 20px; }
-                            .logo-text { font-size: 32px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
-                            .sub-text { color: #666; font-size: 14px; margin-top: 5px; }
-                            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
-                            .client-info { text-align: right; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                            th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
-                            td { border-bottom: 1px solid #eee; padding: 10px; }
-                            .totals { width: 50%; float: right; }
-                            .totals table { border: none; }
-                            .totals th, .totals td { padding: 5px 10px; }
-                            .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
-                          </style>
-                        </head>
-                        <body>
-                          <div class="header">
-                            <div class="logo-text">MOUDA PALACE</div>
-                            <div class="sub-text">Restaurant Traditionnel Marocain</div>
-                            <div class="sub-text">Fès, Maroc</div>
-                          </div>
-                          <div class="invoice-info">
-                            <div>
-                              <h2>FACTURE</h2>
-                              <p><strong>N°:</strong> ${selectedInvoice.id}</p>
-                              <p><strong>Date:</strong> ${selectedInvoice.date}</p>
-                            </div>
-                            <div class="client-info">
-                              <h3>Client</h3>
-                              <p><strong>${selectedInvoice.client}</strong></p>
-                              ${selectedInvoice.ice ? `<p>ICE: ${selectedInvoice.ice}</p>` : ''}
-                            </div>
-                          </div>
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Description</th>
-                                <th style="text-align: right;">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td>Prestation de services de restauration</td>
-                                <td style="text-align: right;">${selectedInvoice.amount}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                          <div class="totals">
-                            <table>
-                              <tr class="grand-total">
-                                <th style="text-align: left;">NET A PAYER</th>
-                                <td style="text-align: right;">${selectedInvoice.amount}</td>
-                              </tr>
-                            </table>
-                          </div>
-                        </body>
-                      </html>
-                    `);
+                    printWindow.document.write(buildInvoiceHtml(selectedInvoice));
                     printWindow.document.close();
-                    printWindow.onload = () => { printWindow.print(); };
                   }
                 }}
                 className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"

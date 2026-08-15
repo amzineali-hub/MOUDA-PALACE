@@ -6097,6 +6097,7 @@ function Configuration() {
                     <select value={generalConfig.category} onChange={(e) => setGeneralConfig({...generalConfig, category: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white">
                       <option>Restaurant</option>
                       <option>Restaurant Gastronomique</option>
+                      <option>Restaurant - Lounge - Rooftop</option>
                       <option>Café / Lounge</option>
                       <option>Hôtel 5 étoiles</option>
                       <option>Riad</option>

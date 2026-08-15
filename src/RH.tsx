@@ -205,6 +205,17 @@ export default function RH() {
     return () => unsub();
   }, []);
 
+  const handleDeletePayslip = async (id: string) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer cette fiche de paie ?')) return;
+    try {
+      await deleteDoc(doc(db, 'payroll', id));
+      showToast("Fiche de paie supprimée");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
@@ -425,9 +436,14 @@ export default function RH() {
                        <td className="p-4 font-bold text-green-600">{item.net}</td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
-                         <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg">
-                           <FileText size={16} />
-                         </button>
+                         <div className="flex justify-end gap-2">
+                           <button onClick={() => { setSelectedPayslip(item); setIsPayslipDocOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg" title="Voir la fiche">
+                             <FileText size={16} />
+                           </button>
+                           <button onClick={() => handleDeletePayslip(item.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
+                             <Trash2 size={16} />
+                           </button>
+                         </div>
                        </td>
                      </tr>
                    ))}

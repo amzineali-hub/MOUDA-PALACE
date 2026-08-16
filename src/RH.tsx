@@ -5,7 +5,7 @@ import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
-import { computePayroll } from './lib/payroll';
+import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -42,10 +42,13 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
   // Calculs Code du Travail Marocain (simplifiés) — voir src/lib/payroll.ts
   const { cnss, amo, igr, netSalary } = computePayroll(baseSalary);
 
-  // Absences non encore déduites pour cet employé, au prorata temporis (base / 26 jours ouvrés).
+  // Absences non encore déduites pour cet employé, au prorata temporis : taux horaire
+  // (base / 191) pour une absence partielle avec des heures saisies, sinon taux journalier
+  // (base / 26) pour une journée complète — voir src/lib/payroll.ts.
   const pendingAbsences = absencesList.filter(a => a.employeeId === selectedStaffId && !a.payslipId);
-  const dailyRate = baseSalary / 26;
-  const absenceDeduction = dailyRate * pendingAbsences.length;
+  const absenceFullDays = pendingAbsences.filter(a => !a.hours).length;
+  const absenceHours = pendingAbsences.filter(a => a.hours > 0).reduce((sum, a) => sum + a.hours, 0);
+  const absenceDeduction = computeAbsenceDeduction(baseSalary, pendingAbsences);
   const finalNet = netSalary - avance - absenceDeduction;
 
   if (!isOpen) return null;
@@ -78,7 +81,8 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
             igr,
             net: netSalary,
             avance,
-            absenceDays: pendingAbsences.length,
+            absenceFullDays,
+            absenceHours,
             absenceDeduction,
             absenceIds: pendingAbsences.map(a => a.id)
           });
@@ -125,8 +129,8 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
             {pendingAbsences.length > 0 && (
               <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">
                 <p className="font-medium mb-1">{pendingAbsences.length} absence(s) non déduite(s) pour cet employé :</p>
-                <p>{pendingAbsences.map(a => a.date).join(', ')}</p>
-                <p className="mt-1">Déduction au prorata (base ÷ 26 × {pendingAbsences.length}) : <strong>-{absenceDeduction.toFixed(2)} MAD</strong> — sera appliquée automatiquement à la génération.</p>
+                <p>{pendingAbsences.map(a => `${a.date}${a.hours > 0 ? ` (${a.hours}h)` : ''}`).join(', ')}</p>
+                <p className="mt-1">Déduction au prorata{absenceFullDays > 0 ? ` (${absenceFullDays} j complet(s))` : ''}{absenceHours > 0 ? ` (${absenceHours}h partielles)` : ''} : <strong>-{absenceDeduction.toFixed(2)} MAD</strong> — sera appliquée automatiquement à la génération.</p>
               </div>
             )}
 
@@ -152,7 +156,7 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
               )}
               {absenceDeduction > 0 && (
                 <div className="flex justify-between text-gray-600">
-                  <span>Absences ({pendingAbsences.length} j)</span>
+                  <span>Absences ({pendingAbsences.length})</span>
                   <span className="font-medium text-red-600">-{absenceDeduction.toFixed(2)}</span>
                 </div>
               )}
@@ -274,6 +278,7 @@ export default function RH() {
         employeeId,
         employeeName: staff.name,
         date: formData.get('date') as string,
+        hours: Number(formData.get('hours')) || 0,
         reason: formData.get('reason') as string || '',
         payslipId: null,
         createdAt: serverTimestamp()
@@ -482,7 +487,7 @@ export default function RH() {
                        <p>
                          <span className="font-medium text-gray-900">Absences en attente:</span>{' '}
                          {getPendingAbsences(staff.id).length > 0 ? (
-                           <span className="text-red-600 font-medium">{getPendingAbsences(staff.id).length} jour(s)</span>
+                           <span className="text-red-600 font-medium">{getPendingAbsences(staff.id).length} absence(s)</span>
                          ) : (
                            <span className="text-gray-400">Aucune</span>
                          )}
@@ -579,7 +584,11 @@ export default function RH() {
                        <td className="p-4 font-bold text-green-600">
                          {netAPayer.toFixed(2)} MAD
                          {(avance > 0 || absenceDeduction > 0) && <div className="text-xs font-normal text-gray-400">Brut : {grossNet.toFixed(2)} MAD</div>}
-                         {absenceDeduction > 0 && <div className="text-xs font-normal text-red-500">Absences ({item.absenceDays} j) : -{absenceDeduction.toFixed(2)} MAD</div>}
+                         {absenceDeduction > 0 && (
+                           <div className="text-xs font-normal text-red-500">
+                             Absences ({[item.absenceFullDays > 0 ? `${item.absenceFullDays}j` : '', item.absenceHours > 0 ? `${item.absenceHours}h` : ''].filter(Boolean).join(' + ')}) : -{absenceDeduction.toFixed(2)} MAD
+                           </div>
+                         )}
                        </td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
@@ -729,7 +738,7 @@ export default function RH() {
                         <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
-                        <div>{Number(selectedPayslip.absenceDays) || 0} j</div>
+                        <div>{[Number(selectedPayslip.absenceFullDays) > 0 ? `${selectedPayslip.absenceFullDays}j` : '', Number(selectedPayslip.absenceHours) > 0 ? `${selectedPayslip.absenceHours}h` : ''].filter(Boolean).join(' + ') || '-'}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -743,7 +752,7 @@ export default function RH() {
                         <div>-</div>
                         <div>2.26</div>
                         <div>10.00</div>
-                        <div>{(Number(selectedPayslip.base) / 26).toFixed(2)}</div>
+                        <div className="text-[9px]">26j/191h</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -972,7 +981,7 @@ export default function RH() {
                 <div className="space-y-1.5 mb-2">
                   {getPendingAbsences(absenceStaffTarget.id).map(a => (
                     <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                      <span className="text-gray-700">{a.date}{a.reason ? ` — ${a.reason}` : ''}</span>
+                      <span className="text-gray-700">{a.date}{a.hours > 0 ? ` (${a.hours}h)` : ' (journée complète)'}{a.reason ? ` — ${a.reason}` : ''}</span>
                       <button type="button" onClick={() => handleDeleteAbsence(a.id)} className="text-red-500 hover:text-red-700">
                         <Trash2 size={14} />
                       </button>
@@ -995,10 +1004,14 @@ export default function RH() {
                   <input type="date" name="date" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Heures d'absence (si absence partielle)</label>
+                  <input type="number" name="hours" min="0" max="23" step="0.5" placeholder="Laisser vide = journée complète" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
                   <input type="text" name="reason" placeholder="Ex: Absence injustifiée" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
-                <p className="text-xs text-gray-400">Cette absence sera automatiquement déduite (au prorata du salaire journalier, base ÷ 26) lors de la prochaine fiche de paie de cet employé.</p>
+                <p className="text-xs text-gray-400">Journée complète : retenue au prorata du salaire journalier (base ÷ 26). Absence partielle : retenue au prorata du taux horaire (base ÷ 191) × heures saisies.</p>
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => { setIsAbsenceModalOpen(false); setAbsenceStaffTarget(null); }} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
@@ -1244,7 +1257,8 @@ export default function RH() {
             amo: data.amo,
             igr: data.igr,
             avance: data.avance || 0,
-            absenceDays: data.absenceDays || 0,
+            absenceFullDays: data.absenceFullDays || 0,
+            absenceHours: data.absenceHours || 0,
             absenceDeduction: data.absenceDeduction || 0,
             createdAt: serverTimestamp()
           };

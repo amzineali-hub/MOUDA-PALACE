@@ -36,3 +36,23 @@ export function computePayroll(baseSalary: number): PayrollBreakdown {
 
   return { baseSalary, cnss, amo, fraisPro, sni, igr, netSalary };
 }
+
+// Base horaire mensuelle utilisée ailleurs sur le bulletin de paie (191h ≈ 44h/semaine).
+export const MONTHLY_HOURS_BASIS = 191;
+// Base "jours ouvrés" mensuelle standard pour une retenue journalière (convention courante).
+export const MONTHLY_WORKING_DAYS_BASIS = 26;
+
+export interface AbsenceRecord {
+  hours?: number; // absence partielle (quelques heures) — sinon journée complète
+}
+
+/**
+ * Calcule la retenue au prorata temporis pour une liste d'absences : au taux horaire
+ * (base / 191h) pour une absence partielle avec des heures renseignées, au taux
+ * journalier (base / 26j) pour une journée complète sans heures renseignées.
+ */
+export function computeAbsenceDeduction(baseSalary: number, absences: AbsenceRecord[]): number {
+  const dailyRate = baseSalary / MONTHLY_WORKING_DAYS_BASIS;
+  const hourlyRate = baseSalary / MONTHLY_HOURS_BASIS;
+  return absences.reduce((sum, a) => sum + ((a.hours && a.hours > 0) ? hourlyRate * a.hours : dailyRate), 0);
+}

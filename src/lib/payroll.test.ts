@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePayroll } from './payroll';
+import { computePayroll, computeAbsenceDeduction } from './payroll';
 
 describe('payroll - computePayroll', () => {
   it('computes CNSS at 4.48% below the ceiling', () => {
@@ -33,5 +33,26 @@ describe('payroll - computePayroll', () => {
     expect(high.netSalary).toBeGreaterThan(low.netSalary);
     // the net/base ratio should shrink as salary grows (progressive taxation)
     expect(high.netSalary / high.baseSalary).toBeLessThan(low.netSalary / low.baseSalary);
+  });
+});
+
+describe('payroll - computeAbsenceDeduction', () => {
+  it('charges a full daily rate (base / 26) for an absence with no hours specified', () => {
+    const deduction = computeAbsenceDeduction(5200, [{}]);
+    expect(deduction).toBeCloseTo(5200 / 26);
+  });
+
+  it('charges the hourly rate (base / 191) when hours are specified (partial absence)', () => {
+    const deduction = computeAbsenceDeduction(5200, [{ hours: 3 }]);
+    expect(deduction).toBeCloseTo((5200 / 191) * 3);
+  });
+
+  it('sums a mix of full-day and partial-hour absences', () => {
+    const deduction = computeAbsenceDeduction(5200, [{}, { hours: 4 }]);
+    expect(deduction).toBeCloseTo(5200 / 26 + (5200 / 191) * 4);
+  });
+
+  it('returns 0 for no absences', () => {
+    expect(computeAbsenceDeduction(5200, [])).toBe(0);
   });
 });

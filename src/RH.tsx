@@ -28,9 +28,20 @@ function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: str
 }
 
 function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], absencesList: any[], onGenerate: (data: any) => void }) {
+  const { showToast } = useToast();
   const [selectedStaffId, setSelectedStaffId] = useState(staffData[0]?.id || '');
   const [baseSalary, setBaseSalary] = useState<number>(staffData[0]?.baseSalary || 4000);
   const [avance, setAvance] = useState<number>(0);
+
+  // staffData se charge en asynchrone (Firestore) : si la sélection initiale (faite avant
+  // que la liste ne soit prête) ne correspond à aucun employé réel, on bascule sur le
+  // premier disponible dès que possible — sinon le nom de l'employé restait vide sur la
+  // fiche de paie générée alors que la liste déroulante semblait pourtant pré-remplie.
+  useEffect(() => {
+    if (staffData.length > 0 && !staffData.find(s => s.id === selectedStaffId)) {
+      setSelectedStaffId(staffData[0].id);
+    }
+  }, [staffData, selectedStaffId]);
 
   useEffect(() => {
     const staff = staffData.find(s => s.id === selectedStaffId);
@@ -72,6 +83,10 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
           const staff = staffData.find(s => s.id === selectedStaffId);
+          if (!staff) {
+            showToast('Veuillez sélectionner un employé', 'error');
+            return;
+          }
           onGenerate({
             period: formData.get('period'),
             staffName: staff?.name || '',

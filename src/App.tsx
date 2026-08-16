@@ -3041,7 +3041,7 @@ function Inventory() {
 
   const [semiFinished, setSemiFinished] = useState<any[]>([]);
   const [isSemiFinishedModalOpen, setIsSemiFinishedModalOpen] = useState(false);
-  const [semiFinishedForm, setSemiFinishedForm] = useState<any>({ name: '', unit: 'kg', cost: '', quantity: 0 });
+  const [semiFinishedForm, setSemiFinishedForm] = useState<any>({ name: '', unit: 'kg', cost: '', quantity: 0, minStock: 0 });
   const [isSemiFinishedAdjustModalOpen, setIsSemiFinishedAdjustModalOpen] = useState(false);
   const [semiFinishedAdjustData, setSemiFinishedAdjustData] = useState<any>({id: '', name: '', quantity: 0, adjustment: ''});
   const [isSemiFinishedDeleteModalOpen, setIsSemiFinishedDeleteModalOpen] = useState(false);
@@ -3601,7 +3601,7 @@ function Inventory() {
                       <div className="flex items-center gap-1">Fournisseur {sortConfig.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
                     </th>
                     <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('price')}>
-                      <div className="flex items-center gap-1">Prix U. {sortConfig.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
+                      <div className="flex items-center gap-1">Prix U. TTC {sortConfig.key === 'price' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
                     </th>
                     <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
                       <div className="flex items-center gap-1">Quantité {sortConfig.key === 'quantity' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</div>
@@ -3625,7 +3625,12 @@ function Inventory() {
                       <td className="px-6 py-4 text-gray-500">{item.category}</td>
                       <td className="px-6 py-4 text-gray-500">{item.supplier}</td>
                       <td className="px-6 py-4 text-gray-900 font-medium whitespace-nowrap">
-                        {resolveItemPrice(item) ? `${resolveItemPrice(item).toFixed(2)} DH` : '-'}
+                        {resolveItemPrice(item) ? (
+                          <>
+                            {computeTTC(resolveItemPrice(item), item.tva ?? 20).toFixed(2)} DH
+                            <span className="ml-1 text-xs text-gray-400 font-normal">(TVA {item.tva ?? 20}%)</span>
+                          </>
+                        ) : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
@@ -3738,7 +3743,7 @@ function Inventory() {
                 <h3 className="text-lg font-medium text-gray-900">Plats Semi-finis</h3>
                 <button 
                   onClick={() => {
-                    setSemiFinishedForm({ name: '', unit: 'kg', cost: '', quantity: 0 });
+                    setSemiFinishedForm({ name: '', unit: 'kg', cost: '', quantity: 0, minStock: 0 });
                     setIsSemiFinishedModalOpen(true);
                   }}
                   className="px-4 py-2 bg-[#F4C75B] text-[#265C6D] rounded-lg text-sm font-medium hover:bg-[#E5B745] transition-colors flex items-center gap-2"
@@ -3753,6 +3758,7 @@ function Inventory() {
                     <tr>
                       <th className="px-6 py-4">Nom du plat</th>
                       <th className="px-6 py-4 text-center">Quantité en stock</th>
+                      <th className="px-6 py-4 text-center">Stock minimum</th>
                       <th className="px-6 py-4 text-center">Unité</th>
                       <th className="px-6 py-4 text-right">Coût Unitaire (MAD)</th>
                       <th className="px-6 py-4 text-right">Actions</th>
@@ -3761,19 +3767,27 @@ function Inventory() {
                   <tbody className="divide-y divide-gray-100">
                     {semiFinished.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                           Aucun plat semi-fini enregistré.
                         </td>
                       </tr>
                     ) : (
-                      semiFinished.map((item, idx) => (
+                      semiFinished.map((item, idx) => {
+                        const isLowStock = Number(item.quantity) <= Number(item.minStock || 0);
+                        return (
                         <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
                           <td className="px-6 py-4 text-center font-medium">
-                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs ${item.quantity <= 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                            <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs ${isLowStock ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
                               {item.quantity}
                             </span>
+                            {isLowStock && (
+                              <span title="Stock au ou sous le seuil minimum — production à prévoir">
+                                <AlertTriangle size={14} className="inline ml-1.5 text-red-500 align-text-bottom" />
+                              </span>
+                            )}
                           </td>
+                          <td className="px-6 py-4 text-center text-gray-500">{item.minStock || 0}</td>
                           <td className="px-6 py-4 text-center text-gray-500">{item.unit}</td>
                           <td className="px-6 py-4 text-right text-gray-900">{resolveItemPrice(item).toFixed(2)} MAD</td>
                           <td className="px-6 py-4 text-right">
@@ -3811,7 +3825,8 @@ function Inventory() {
                             </div>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -4617,6 +4632,7 @@ function Inventory() {
               const unit = formData.get('unit') as string;
               const quantity = Number(formData.get('quantity') || 0);
               const unitPrice = Number(formData.get('unitPrice') || 0);
+              const tva = Number(formData.get('tva') || 20);
               const expirationDate = formData.get('expirationDate') as string;
               
               if (!categories.includes(category)) {
@@ -4635,6 +4651,7 @@ function Inventory() {
                 unit,
                 price: unitPrice,
                 averageCost: unitPrice,
+                tva,
                 minStock: 10,
                 expirationDate: expirationDate || null,
                 createdAt: serverTimestamp()
@@ -4703,9 +4720,17 @@ function Inventory() {
                   <input name="quantity" required type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 50" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire (MAD)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix Unitaire HT (MAD)</label>
                   <input id="add-product-price" name="unitPrice" type="number" step="0.01" min="0" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 15.50" />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
+                <select name="tva" defaultValue={20} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
+                  {TVA_RATES.map(rate => (
+                    <option key={rate} value={rate}>{rate}%</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration (Optionnel)</label>
@@ -4783,9 +4808,17 @@ function Inventory() {
                   <Combobox id="edit-sup" options={suppliersList} defaultValue={selectedProduct.supplier} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire (DH)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire HT (DH)</label>
                   <input id="edit-price" type="number" step="any" defaultValue={selectedProduct.price || selectedProduct.averageCost || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
+                <select id="edit-tva" defaultValue={selectedProduct.tva ?? 20} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white">
+                  {TVA_RATES.map(rate => (
+                    <option key={rate} value={rate}>{rate}%</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration</label>
@@ -4805,7 +4838,8 @@ function Inventory() {
                   const newExp = (document.getElementById('edit-exp') as HTMLInputElement)?.value;
                   const priceStr = (document.getElementById('edit-price') as HTMLInputElement)?.value;
                   const newPrice = priceStr ? Number(priceStr) : (selectedProduct.price || 0);
-                  
+                  const newTva = Number((document.getElementById('edit-tva') as HTMLSelectElement)?.value ?? 20);
+
                   if (selectedProduct.id) {
                     try {
                       await updateDoc(doc(db, "inventoryItems", selectedProduct.id), {
@@ -4817,6 +4851,7 @@ function Inventory() {
                         supplier: newSup,
                         price: newPrice,
                         averageCost: newPrice,
+                        tva: newTva,
                         expirationDate: newExp || null,
                         updatedAt: serverTimestamp()
                       });
@@ -5362,8 +5397,9 @@ function Inventory() {
                            }
                            updateData.averageCost = newAverageCost;
                            updateData.price = inPrice; // Also update the last purchase price
+                           updateData.tva = Number(txForm.tva ?? 20); // Taux de TVA du dernier achat, reporté sur l'article
                         }
-                        
+
                         await updateDoc(doc(db, 'inventoryItems', itemToUpdate.id), updateData);
                         
                         const shouldSync = (document.getElementById('global-tx-sync-recipe') as HTMLInputElement)?.checked;
@@ -5855,14 +5891,25 @@ function Inventory() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{semiFinishedForm.id ? 'Quantité en stock' : 'Stock initial'}</label>
-                <input
-                  type="number"
-                  value={semiFinishedForm.quantity}
-                  onChange={(e) => setSemiFinishedForm({...semiFinishedForm, quantity: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{semiFinishedForm.id ? 'Quantité en stock' : 'Stock initial'}</label>
+                  <input
+                    type="number"
+                    value={semiFinishedForm.quantity}
+                    onChange={(e) => setSemiFinishedForm({...semiFinishedForm, quantity: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock minimum</label>
+                  <input
+                    type="number"
+                    value={semiFinishedForm.minStock}
+                    onChange={(e) => setSemiFinishedForm({...semiFinishedForm, minStock: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
+                  />
+                </div>
               </div>
             </div>
             
@@ -5881,6 +5928,7 @@ function Inventory() {
                       unit: semiFinishedForm.unit,
                       cost: Number(semiFinishedForm.cost) || 0,
                       quantity: Number(semiFinishedForm.quantity) || 0,
+                      minStock: Number(semiFinishedForm.minStock) || 0,
                       updatedAt: serverTimestamp()
                     };
                     if (semiFinishedForm.id) {

@@ -68,7 +68,8 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
             cnss,
             amo,
             igr,
-            net: netSalary
+            net: netSalary,
+            avance: Number(formData.get('avance')) || 0
           });
         }} className="p-6">
           <div className="space-y-4">
@@ -90,15 +91,27 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de Base (MAD)</label>
-              <input 
-                type="number" 
-                value={baseSalary || ''} 
+              <input
+                type="number"
+                value={baseSalary || ''}
                 onChange={(e) => setBaseSalary(Number(e.target.value))}
-                required 
-                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" 
+                required
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
               />
             </div>
-            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Avance sur salaire (MAD)</label>
+              <input
+                type="number"
+                name="avance"
+                min="0"
+                step="0.01"
+                defaultValue={0}
+                className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
+                placeholder="0"
+              />
+            </div>
+
             {/* Calculs Live */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100 text-sm">
               <div className="flex justify-between text-gray-600">
@@ -185,15 +198,6 @@ export default function RH() {
 
   const [scheduleData, setScheduleData] = useState<any[]>([]);
 
-  const [attendanceList, setAttendanceList] = useState<any[]>([]);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'attendance'), (snapshot) => {
-      setAttendanceList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-    return () => unsub();
-  }, []);
-
   const [payrollList, setPayrollList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -204,6 +208,11 @@ export default function RH() {
     });
     return () => unsub();
   }, []);
+
+  const [payrollSearchQuery, setPayrollSearchQuery] = useState('');
+  const filteredPayrollList = payrollList.filter(item =>
+    !payrollSearchQuery || (item.period || '').toLowerCase().includes(payrollSearchQuery.toLowerCase())
+  );
 
   const handleDeletePayslip = async (id: string) => {
     if (!window.confirm('Voulez-vous vraiment supprimer cette fiche de paie ?')) return;
@@ -227,7 +236,6 @@ export default function RH() {
   const [editingRole, setEditingRole] = useState<any>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<{empId: number, dayKey: string, current: string} | null>(null);
-  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
   const [isPayslipDocOpen, setIsPayslipDocOpen] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
@@ -263,6 +271,7 @@ export default function RH() {
       photo: photoDataUrl,
       cin: formData.get('cin') as string,
       cnss: formData.get('cnss') as string,
+      carteSanitaire: formData.get('carteSanitaire') as string,
       hireDate: formData.get('hireDate') as string,
       language: formData.get('language') as string,
       updatedAt: serverTimestamp()
@@ -386,6 +395,7 @@ export default function RH() {
                        <p><span className="font-medium text-gray-900">Département:</span> {staff.department}</p>
                        <p><span className="font-medium text-gray-900">Email:</span> {staff.email}</p>
                        <p><span className="font-medium text-gray-900">Tél:</span> {staff.phone}</p>
+                       <p><span className="font-medium text-gray-900">Carte Sanitaire:</span> {staff.carteSanitaire || <span className="text-amber-600">Non renseignée</span>}</p>
                     </div>
                     <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${staff.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{staff.status}</span>
@@ -407,13 +417,25 @@ export default function RH() {
 
       {activeTab === 'payroll' && (
         <div className="space-y-6">
-           <div className="flex justify-between items-center">
+           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl font-bold text-gray-900">Historique des Paies</h3>
-              <button onClick={() => setIsPayrollModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
-                 <Calculator size={18} /> Générer une fiche
-              </button>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Rechercher une période (ex: Juil 2026)..."
+                    value={payrollSearchQuery}
+                    onChange={(e) => setPayrollSearchQuery(e.target.value)}
+                    className="w-full sm:w-64 pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#F4C75B]"
+                  />
+                </div>
+                <button onClick={() => setIsPayrollModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors whitespace-nowrap">
+                   <Calculator size={18} /> Générer une fiche
+                </button>
+              </div>
            </div>
-           
+
            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
              <div className="overflow-x-auto">
                <table className="w-full text-left border-collapse">
@@ -422,17 +444,19 @@ export default function RH() {
                      <th className="p-4 font-medium text-gray-600">Employé</th>
                      <th className="p-4 font-medium text-gray-600">Période</th>
                      <th className="p-4 font-medium text-gray-600">Base</th>
+                     <th className="p-4 font-medium text-gray-600">Avance/Salaire</th>
                      <th className="p-4 font-medium text-gray-600">Net</th>
                      <th className="p-4 font-medium text-gray-600">Statut</th>
                      <th className="p-4 font-medium text-gray-600 text-right">Action</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
-                   {payrollList.map((item, idx) => (
+                   {filteredPayrollList.map((item, idx) => (
                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
                        <td className="p-4 font-medium text-gray-900">{item.name}</td>
                        <td className="p-4 text-gray-600">{item.period}</td>
                        <td className="p-4 text-gray-600">{item.base} MAD</td>
+                       <td className="p-4 text-gray-600">{item.avance ? `-${Number(item.avance).toFixed(2)} MAD` : '—'}</td>
                        <td className="p-4 font-bold text-green-600">{item.net}</td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
@@ -447,9 +471,9 @@ export default function RH() {
                        </td>
                      </tr>
                    ))}
-                   {payrollList.length === 0 && (
+                   {filteredPayrollList.length === 0 && (
                      <tr>
-                       <td colSpan={6} className="p-8 text-center text-gray-500">Aucune fiche de paie générée.</td>
+                       <td colSpan={7} className="p-8 text-center text-gray-500">{payrollSearchQuery ? 'Aucune fiche ne correspond à cette recherche.' : 'Aucune fiche de paie générée.'}</td>
                      </tr>
                    )}
                  </tbody>
@@ -710,6 +734,10 @@ export default function RH() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">CNSS</label>
                   <input name="cnss" defaultValue={editingStaff?.cnss} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 123456789" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Carte Sanitaire (N°)</label>
+                  <input name="carteSanitaire" defaultValue={editingStaff?.carteSanitaire} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: CS-2026-0123" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
@@ -1068,66 +1096,6 @@ export default function RH() {
         </div>
       )}
 
-      {/* Attendance Modal */}
-      {isAttendanceModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900">
-                Saisir un Pointage
-              </h3>
-              <button onClick={() => setIsAttendanceModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              addDoc(collection(db, 'attendance'), {
-                name: formData.get('staffName') as string,
-                in: formData.get('timeIn') as string || "-",
-                out: formData.get('timeOut') as string || "-",
-                status: formData.get('timeOut') ? "Terminé" : "En poste",
-                createdAt: serverTimestamp()
-              }).then(() => {
-                showToast("Pointage enregistré");
-                setIsAttendanceModalOpen(false);
-              }).catch(e => {
-                console.error(e);
-                showToast("Erreur d'enregistrement", "error");
-              });
-            }} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
-                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure d'arrivée</label>
-                    <input type="time" name="timeIn" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure de départ (Optionnel)</label>
-                    <input type="time" name="timeOut" className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsAttendanceModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-
       {/* Payroll Modal */}
       <PayrollModal 
         isOpen={isPayrollModalOpen} 
@@ -1143,6 +1111,7 @@ export default function RH() {
             cnss: data.cnss,
             amo: data.amo,
             igr: data.igr,
+            avance: data.avance || 0,
             createdAt: serverTimestamp()
           };
           

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface Employee {
@@ -20,6 +20,8 @@ interface Shift {
   endTime: string; // HH:mm
   hours: number;
   colorType: 'blue' | 'orange' | 'pink' | 'purple' | 'green';
+  actualHours?: number | null; // pointage manuel — heures réellement travaillées
+  actualMinutes?: number | null; // pointage manuel — minutes réellement travaillées
 }
 
 const generateWeekDays = (startDate: Date) => {
@@ -162,6 +164,8 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{empId: string | null, date: string} | null>(null);
+  const [isPointageModalOpen, setIsPointageModalOpen] = useState(false);
+  const [selectedShiftForPointage, setSelectedShiftForPointage] = useState<Shift | null>(null);
 
   const prevWeek = () => {
     const d = new Date(currentDate);
@@ -222,6 +226,30 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       setIsShiftModalOpen(false);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const openPointageModal = (shift: Shift, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedShiftForPointage(shift);
+    setIsPointageModalOpen(true);
+  };
+
+  const savePointage = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedShiftForPointage) return;
+    const formData = new FormData(e.currentTarget);
+    const actualHours = Number(formData.get('actualHours')) || 0;
+    const actualMinutes = Number(formData.get('actualMinutes')) || 0;
+
+    try {
+      await updateDoc(doc(db, 'shifts', selectedShiftForPointage.id), { actualHours, actualMinutes });
+      showToast("Pointage enregistré");
+      setIsPointageModalOpen(false);
+      setSelectedShiftForPointage(null);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur d'enregistrement du pointage", "error");
     }
   };
 
@@ -313,9 +341,23 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   className="p-2 border-r border-gray-100 min-h-[80px] group-hover:bg-gray-50 hover:bg-gray-100 cursor-pointer flex flex-col gap-2 transition-colors"
                 >
                   {getShiftsForCell(emp.id, day.dateStr).map(shift => (
-                    <div key={shift.id} className={`p-2 rounded-lg border text-xs font-medium flex flex-col ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}>
+                    <div
+                      key={shift.id}
+                      onClick={(e) => openPointageModal(shift, e)}
+                      title="Cliquer pour saisir le pointage"
+                      className={`p-2 rounded-lg border text-xs font-medium flex flex-col cursor-pointer ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}
+                    >
                       <span>{shift.startTime} - {shift.endTime}</span>
-                      <span className="opacity-80">{shift.hours}h</span>
+                      <span className="opacity-80">{shift.hours}h prévu(es)</span>
+                      {shift.actualHours != null ? (
+                        <span className="flex items-center gap-1 mt-1 pt-1 border-t border-black/10 text-emerald-700">
+                          <CheckCircle2 size={12} /> Pointé : {shift.actualHours}h{String(shift.actualMinutes || 0).padStart(2, '0')}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 mt-1 pt-1 border-t border-black/10 opacity-60">
+                          <Clock size={12} /> Non pointé
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -426,6 +468,45 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 </button>
                 <button type="submit" className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg font-medium hover:bg-[#E5B745]">
                   Créer le shift
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {isPointageModalOpen && selectedShiftForPointage && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-semibold text-gray-900">Saisir le pointage</h3>
+              <button onClick={() => setIsPointageModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={savePointage} className="p-6 space-y-4">
+              <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                <p><span className="font-medium text-gray-900">Employé :</span> {employees.find(e => e.id === selectedShiftForPointage.employeeId)?.name || '—'}</p>
+                <p><span className="font-medium text-gray-900">Jour :</span> {selectedShiftForPointage.date}</p>
+                <p><span className="font-medium text-gray-900">Prévu :</span> {selectedShiftForPointage.startTime} - {selectedShiftForPointage.endTime} ({selectedShiftForPointage.hours}h)</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Heures travaillées</label>
+                  <input type="number" name="actualHours" min="0" max="23" required defaultValue={selectedShiftForPointage.actualHours ?? selectedShiftForPointage.hours} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minutes</label>
+                  <input type="number" name="actualMinutes" min="0" max="59" required defaultValue={selectedShiftForPointage.actualMinutes ?? 0} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3 justify-end">
+                <button type="button" onClick={() => setIsPointageModalOpen(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+                  Annuler
+                </button>
+                <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
+                  Enregistrer le pointage
                 </button>
               </div>
             </form>

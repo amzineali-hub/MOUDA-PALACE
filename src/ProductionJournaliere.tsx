@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs, where, runTransaction, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users } from 'lucide-react';
+import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { computeRecipeCost, convertQuantity } from './lib/recipeCost';
 import { resolveItemPrice } from './lib/priceUtils';
@@ -268,7 +268,7 @@ export default function ProductionJournaliere() {
             <p className="text-gray-500">Ordres de fabrication et décrémentation automatique des stocks</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="bg-[#265C6D] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a4250] transition-colors flex items-center gap-2 shadow-sm"
         >
@@ -276,6 +276,30 @@ export default function ProductionJournaliere() {
           Nouvel Ordre
         </button>
       </div>
+
+      {(() => {
+        const lowStockItems = semiFinished.filter(i => Number(i.quantity) <= Number(i.minStock || 0) && Number(i.minStock || 0) > 0);
+        if (lowStockItems.length === 0) return null;
+        return (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-start gap-4">
+            <div className="p-2 bg-red-100 text-red-600 rounded-lg shrink-0">
+              <AlertTriangle size={20} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-800">Plats semi-finis sous le stock minimum — production à prévoir</h3>
+              <p className="text-sm text-red-700/80 mt-1">
+                {lowStockItems.map(i => `${i.name} (${i.quantity} ${i.unit || ''} / seuil ${i.minStock})`).join(' · ')}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="shrink-0 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            >
+              Nouvel Ordre
+            </button>
+          </div>
+        );
+      })()}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100">

@@ -6026,14 +6026,14 @@ function Configuration() {
   });
   const [generalConfig, setGeneralConfig] = useState({
     name: 'Mouda Palace',
-    category: 'Restaurant Gastronomique',
-    address: 'Fès, Maroc',
-    email: 'contact@moudapalace.com',
-    phone: '+212 524 00 00 00',
+    category: 'Restaurant - Lounge - Rooftop',
+    address: '7 Derb Agoual Sefli, Talaa Sghira, Fès Médina',
+    email: 'moudapalace@gmail.com',
+    phone: '+212 5 35 63 78 80 / +212 6 61 35 71 91',
     ice: '002898284000015',
-    patente: '',
+    patente: '13900549',
     rc: '',
-    identifiantFiscal: '',
+    identifiantFiscal: '50520780',
     currency: 'MAD (Dirham)',
     timezone: 'UTC+1 (Casablanca)'
   });

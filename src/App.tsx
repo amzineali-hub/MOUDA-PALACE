@@ -3787,7 +3787,26 @@ function Inventory() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-4 text-center text-gray-500">{item.minStock || 0}</td>
+                          <td className="px-6 py-4 text-center text-gray-500">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              defaultValue={item.minStock || 0}
+                              onBlur={async (e) => {
+                                const newMin = Number(e.target.value) || 0;
+                                if (newMin === (item.minStock || 0)) return;
+                                try {
+                                  await updateDoc(doc(db, 'semi_finished', item.id), { minStock: newMin, updatedAt: serverTimestamp() });
+                                  showToast('Stock minimum mis à jour');
+                                } catch (err) {
+                                  console.error(err);
+                                  showToast('Erreur lors de la mise à jour', 'error');
+                                }
+                              }}
+                              className="w-20 text-center border border-gray-200 rounded-lg p-1.5 focus:outline-none focus:border-[#F4C75B]"
+                            />
+                          </td>
                           <td className="px-6 py-4 text-center text-gray-500">{item.unit}</td>
                           <td className="px-6 py-4 text-right text-gray-900">{resolveItemPrice(item).toFixed(2)} MAD</td>
                           <td className="px-6 py-4 text-right">

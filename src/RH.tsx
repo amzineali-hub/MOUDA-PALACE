@@ -451,13 +451,40 @@ export default function RH() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
-                   {filteredPayrollList.map((item, idx) => (
+                   {filteredPayrollList.map((item, idx) => {
+                     const grossNet = parseFloat(item.net) || 0;
+                     const avance = Number(item.avance) || 0;
+                     const netAPayer = grossNet - avance;
+                     return (
                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
                        <td className="p-4 font-medium text-gray-900">{item.name}</td>
                        <td className="p-4 text-gray-600">{item.period}</td>
                        <td className="p-4 text-gray-600">{item.base} MAD</td>
-                       <td className="p-4 text-gray-600">{item.avance ? `-${Number(item.avance).toFixed(2)} MAD` : '—'}</td>
-                       <td className="p-4 font-bold text-green-600">{item.net}</td>
+                       <td className="p-4 text-gray-600">
+                         <input
+                           type="number"
+                           min="0"
+                           step="0.01"
+                           defaultValue={avance || ''}
+                           placeholder="0"
+                           onBlur={async (e) => {
+                             const newAvance = Number(e.target.value) || 0;
+                             if (newAvance === avance) return;
+                             try {
+                               await updateDoc(doc(db, 'payroll', item.id), { avance: newAvance });
+                               showToast('Avance mise à jour');
+                             } catch (err) {
+                               console.error(err);
+                               showToast('Erreur lors de la mise à jour', 'error');
+                             }
+                           }}
+                           className="w-24 border border-gray-200 rounded-lg p-1.5 text-sm focus:outline-none focus:border-[#F4C75B]"
+                         />
+                       </td>
+                       <td className="p-4 font-bold text-green-600">
+                         {netAPayer.toFixed(2)} MAD
+                         {avance > 0 && <div className="text-xs font-normal text-gray-400">Brut : {grossNet.toFixed(2)} MAD</div>}
+                       </td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
                          <div className="flex justify-end gap-2">
@@ -470,7 +497,8 @@ export default function RH() {
                          </div>
                        </td>
                      </tr>
-                   ))}
+                     );
+                   })}
                    {filteredPayrollList.length === 0 && (
                      <tr>
                        <td colSpan={7} className="p-8 text-center text-gray-500">{payrollSearchQuery ? 'Aucune fiche ne correspond à cette recherche.' : 'Aucune fiche de paie générée.'}</td>
@@ -684,7 +712,7 @@ export default function RH() {
                     </tr>
                     <tr>
                       <td className="border border-black font-bold py-1 text-right pr-4 text-sm" colSpan={2}>
-                        {Number(selectedPayslip.net.replace(/[^0-9.-]+/g,"")).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        {(Number(selectedPayslip.net.replace(/[^0-9.-]+/g,"")) - (Number(selectedPayslip.avance) || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                     </tr>
                   </tbody>

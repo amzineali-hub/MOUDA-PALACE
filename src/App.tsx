@@ -767,6 +767,9 @@ function App() {
           <a href="https://moudapalace.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 mt-2 block uppercase tracking-widest hover:text-[#F4C75B] transition-colors">
             moudapalace.com
           </a>
+          <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">
+            Restaurant - Lounge - Rooftop
+          </p>
         </div>
 
         <div className="mb-6 relative">

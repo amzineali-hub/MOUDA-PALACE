@@ -27,19 +27,26 @@ function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: str
   );
 }
 
-function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], onGenerate: (data: any) => void }) {
-  const [selectedStaffName, setSelectedStaffName] = useState(staffData[0]?.name || '');
+function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: { isOpen: boolean, onClose: () => void, staffData: any[], absencesList: any[], onGenerate: (data: any) => void }) {
+  const [selectedStaffId, setSelectedStaffId] = useState(staffData[0]?.id || '');
   const [baseSalary, setBaseSalary] = useState<number>(staffData[0]?.baseSalary || 4000);
+  const [avance, setAvance] = useState<number>(0);
 
   useEffect(() => {
-    const staff = staffData.find(s => s.name === selectedStaffName);
+    const staff = staffData.find(s => s.id === selectedStaffId);
     if (staff && staff.baseSalary) {
       setBaseSalary(staff.baseSalary);
     }
-  }, [selectedStaffName, staffData]);
-  
+  }, [selectedStaffId, staffData]);
+
   // Calculs Code du Travail Marocain (simplifiés) — voir src/lib/payroll.ts
   const { cnss, amo, igr, netSalary } = computePayroll(baseSalary);
+
+  // Absences non encore déduites pour cet employé, au prorata temporis (base / 26 jours ouvrés).
+  const pendingAbsences = absencesList.filter(a => a.employeeId === selectedStaffId && !a.payslipId);
+  const dailyRate = baseSalary / 26;
+  const absenceDeduction = dailyRate * pendingAbsences.length;
+  const finalNet = netSalary - avance - absenceDeduction;
 
   if (!isOpen) return null;
 
@@ -61,28 +68,31 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
         <form onSubmit={(e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
+          const staff = staffData.find(s => s.id === selectedStaffId);
           onGenerate({
             period: formData.get('period'),
-            staffName: formData.get('staffName'),
+            staffName: staff?.name || '',
             base: baseSalary,
             cnss,
             amo,
             igr,
             net: netSalary,
-            avance: Number(formData.get('avance')) || 0
+            avance,
+            absenceDays: pendingAbsences.length,
+            absenceDeduction,
+            absenceIds: pendingAbsences.map(a => a.id)
           });
         }} className="p-6">
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-              <select 
-                name="staffName" 
-                required 
-                value={selectedStaffName}
-                onChange={(e) => setSelectedStaffName(e.target.value)}
+              <select
+                required
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
                 className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
               >
-                {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
@@ -103,14 +113,22 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
               <label className="block text-sm font-medium text-gray-700 mb-1">Avance sur salaire (MAD)</label>
               <input
                 type="number"
-                name="avance"
                 min="0"
                 step="0.01"
-                defaultValue={0}
+                value={avance || ''}
+                onChange={(e) => setAvance(Number(e.target.value) || 0)}
                 className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
                 placeholder="0"
               />
             </div>
+
+            {pendingAbsences.length > 0 && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">
+                <p className="font-medium mb-1">{pendingAbsences.length} absence(s) non déduite(s) pour cet employé :</p>
+                <p>{pendingAbsences.map(a => a.date).join(', ')}</p>
+                <p className="mt-1">Déduction au prorata (base ÷ 26 × {pendingAbsences.length}) : <strong>-{absenceDeduction.toFixed(2)} MAD</strong> — sera appliquée automatiquement à la génération.</p>
+              </div>
+            )}
 
             {/* Calculs Live */}
             <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100 text-sm">
@@ -126,9 +144,21 @@ function PayrollModal({ isOpen, onClose, staffData, onGenerate }: { isOpen: bool
                 <span>Retenue IR (Impôt)</span>
                 <span className="font-medium text-red-600">-{igr.toFixed(2)}</span>
               </div>
+              {avance > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Avance sur salaire</span>
+                  <span className="font-medium text-red-600">-{avance.toFixed(2)}</span>
+                </div>
+              )}
+              {absenceDeduction > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Absences ({pendingAbsences.length} j)</span>
+                  <span className="font-medium text-red-600">-{absenceDeduction.toFixed(2)}</span>
+                </div>
+              )}
               <div className="pt-2 mt-2 border-t border-gray-200 flex justify-between items-center">
                 <span className="font-medium text-gray-900">Salaire Net à Payer</span>
-                <span className="font-bold text-[#F4C75B] text-lg">{netSalary.toFixed(2)} MAD</span>
+                <span className="font-bold text-[#F4C75B] text-lg">{finalNet.toFixed(2)} MAD</span>
               </div>
             </div>
           </div>
@@ -214,6 +244,60 @@ export default function RH() {
     !payrollSearchQuery || (item.period || '').toLowerCase().includes(payrollSearchQuery.toLowerCase())
   );
 
+  // Absences non justifiées, à déduire du salaire au prorata temporis (base / 26 jours ouvrés
+  // par mois — convention de paie marocaine courante) lors de la prochaine fiche de paie de
+  // l'employé concerné. `payslipId` reste null tant que l'absence n'a pas encore été déduite.
+  const [absencesList, setAbsencesList] = useState<any[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'absences'), orderBy('date', 'desc')), (snapshot) => {
+      setAbsencesList(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    }, (error) => {
+      console.error("Error fetching absences", error);
+    });
+    return () => unsub();
+  }, []);
+
+  const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
+  const [absenceStaffTarget, setAbsenceStaffTarget] = useState<any>(null);
+
+  const getPendingAbsences = (employeeId: string) =>
+    absencesList.filter(a => a.employeeId === employeeId && !a.payslipId);
+
+  const handleSaveAbsence = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const employeeId = formData.get('employeeId') as string;
+    const staff = staffData.find(s => s.id === employeeId);
+    if (!staff) return;
+    try {
+      await addDoc(collection(db, 'absences'), {
+        employeeId,
+        employeeName: staff.name,
+        date: formData.get('date') as string,
+        reason: formData.get('reason') as string || '',
+        payslipId: null,
+        createdAt: serverTimestamp()
+      });
+      showToast('Absence enregistrée');
+      setIsAbsenceModalOpen(false);
+      setAbsenceStaffTarget(null);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'enregistrement", 'error');
+    }
+  };
+
+  const handleDeleteAbsence = async (id: string) => {
+    if (!window.confirm('Supprimer cette absence ?')) return;
+    try {
+      await deleteDoc(doc(db, 'absences', id));
+      showToast('Absence supprimée');
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de la suppression', 'error');
+    }
+  };
+
   const handleDeletePayslip = async (id: string) => {
     if (!window.confirm('Voulez-vous vraiment supprimer cette fiche de paie ?')) return;
     try {
@@ -229,7 +313,6 @@ export default function RH() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
   
-  const [isLeaveBalanceModalOpen, setIsLeaveBalanceModalOpen] = useState(false);
   const [isEvalModalOpen, setIsEvalModalOpen] = useState(false);
   const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -396,10 +479,21 @@ export default function RH() {
                        <p><span className="font-medium text-gray-900">Email:</span> {staff.email}</p>
                        <p><span className="font-medium text-gray-900">Tél:</span> {staff.phone}</p>
                        <p><span className="font-medium text-gray-900">Carte Sanitaire:</span> {staff.carteSanitaire || <span className="text-amber-600">Non renseignée</span>}</p>
+                       <p>
+                         <span className="font-medium text-gray-900">Absences en attente:</span>{' '}
+                         {getPendingAbsences(staff.id).length > 0 ? (
+                           <span className="text-red-600 font-medium">{getPendingAbsences(staff.id).length} jour(s)</span>
+                         ) : (
+                           <span className="text-gray-400">Aucune</span>
+                         )}
+                       </p>
                     </div>
                     <div className="mt-auto flex justify-between items-center pt-4 border-t border-gray-100">
                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${staff.status === 'Actif' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{staff.status}</span>
                        <div className="flex gap-2">
+                         <button onClick={() => { setAbsenceStaffTarget(staff); setIsAbsenceModalOpen(true); }} className="text-orange-500 hover:text-orange-700 p-2 bg-orange-50 rounded-lg" title="Signaler une absence">
+                            <CalendarCheck size={16} />
+                         </button>
                          <button onClick={() => { setEditingStaff(staff); setIsModalOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg">
                             <Edit2 size={16} />
                          </button>
@@ -454,7 +548,8 @@ export default function RH() {
                    {filteredPayrollList.map((item, idx) => {
                      const grossNet = parseFloat(item.net) || 0;
                      const avance = Number(item.avance) || 0;
-                     const netAPayer = grossNet - avance;
+                     const absenceDeduction = Number(item.absenceDeduction) || 0;
+                     const netAPayer = grossNet - avance - absenceDeduction;
                      return (
                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
                        <td className="p-4 font-medium text-gray-900">{item.name}</td>
@@ -483,7 +578,8 @@ export default function RH() {
                        </td>
                        <td className="p-4 font-bold text-green-600">
                          {netAPayer.toFixed(2)} MAD
-                         {avance > 0 && <div className="text-xs font-normal text-gray-400">Brut : {grossNet.toFixed(2)} MAD</div>}
+                         {(avance > 0 || absenceDeduction > 0) && <div className="text-xs font-normal text-gray-400">Brut : {grossNet.toFixed(2)} MAD</div>}
+                         {absenceDeduction > 0 && <div className="text-xs font-normal text-red-500">Absences ({item.absenceDays} j) : -{absenceDeduction.toFixed(2)} MAD</div>}
                        </td>
                        <td className="p-4"><span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">{item.status}</span></td>
                        <td className="p-4 text-right">
@@ -619,6 +715,7 @@ export default function RH() {
                         <div>RETRAITE CIMR</div>
                         <div>AMO</div>
                         <div>PRELEVEMENT IGR</div>
+                        <div>ABSENCE</div>
                         <div>AVANTAGE EN NATURE</div>
                         <div>AVANCE</div>
                         <div>PRÊT</div>
@@ -632,6 +729,7 @@ export default function RH() {
                         <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
+                        <div>{Number(selectedPayslip.absenceDays) || 0} j</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -645,6 +743,7 @@ export default function RH() {
                         <div>-</div>
                         <div>2.26</div>
                         <div>10.00</div>
+                        <div>{(Number(selectedPayslip.base) / 26).toFixed(2)}</div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -654,6 +753,7 @@ export default function RH() {
                         <div>-</div>
                         <div>-</div>
                         <div>{(Number(selectedPayslip.base) || 0).toFixed(2)}</div>
+                        <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
                         <div className="h-4"></div>
@@ -671,8 +771,9 @@ export default function RH() {
                         <div>-</div>
                         <div>{(Number(selectedPayslip.amo) || 0).toFixed(2)}</div>
                         <div>{(Number(selectedPayslip.igr) || 0).toFixed(2)}</div>
+                        <div>{(Number(selectedPayslip.absenceDeduction) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
-                        <div className="h-4"></div>
+                        <div>{(Number(selectedPayslip.avance) || 0).toFixed(2)}</div>
                         <div className="h-4"></div>
                       </td>
                     </tr>
@@ -712,7 +813,7 @@ export default function RH() {
                     </tr>
                     <tr>
                       <td className="border border-black font-bold py-1 text-right pr-4 text-sm" colSpan={2}>
-                        {(Number(selectedPayslip.net.replace(/[^0-9.-]+/g,"")) - (Number(selectedPayslip.avance) || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        {(Number(selectedPayslip.net.replace(/[^0-9.-]+/g,"")) - (Number(selectedPayslip.avance) || 0) - (Number(selectedPayslip.absenceDeduction) || 0)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                     </tr>
                   </tbody>
@@ -851,57 +952,59 @@ export default function RH() {
         </div>
       )}
 
-      {/* Leave Balance Modal */}
-      {isLeaveBalanceModalOpen && (
+      {/* Absence Modal */}
+      {isAbsenceModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900">
-                Gestion des soldes de congés
-              </h3>
-              <button onClick={() => setIsLeaveBalanceModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+              <h3 className="text-xl font-serif font-medium text-gray-900">Signaler une absence</h3>
+              <button onClick={() => { setIsAbsenceModalOpen(false); setAbsenceStaffTarget(null); }} className="text-gray-400 hover:text-gray-900 transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <div className={`p-6 ${isPayslipDocOpen ? "print:hidden" : ""}`}>
-              <p className="text-sm text-gray-500 mb-6">Mettez à jour le solde de congés annuels pour les employés.</p>
-              <div className="space-y-4">
-                {staffData.map(staff => (
-                  <div key={staff.id} className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
-                    <span className="font-medium text-gray-900">{staff.name}</span>
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="number" 
-                        defaultValue={21}
-                        className="w-20 p-2 text-center border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" 
-                      />
-                      <span className="text-sm text-gray-500">jours</span>
+            {absenceStaffTarget && getPendingAbsences(absenceStaffTarget.id).length > 0 && (
+              <div className="px-6 pt-4">
+                <p className="text-xs font-medium text-gray-500 mb-2">Absences en attente de déduction</p>
+                <div className="space-y-1.5 mb-2">
+                  {getPendingAbsences(absenceStaffTarget.id).map(a => (
+                    <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
+                      <span className="text-gray-700">{a.date}{a.reason ? ` — ${a.reason}` : ''}</span>
+                      <button type="button" onClick={() => handleDeleteAbsence(a.id)} className="text-red-500 hover:text-red-700">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+            )}
+            <form onSubmit={handleSaveAbsence} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select name="employeeId" required defaultValue={absenceStaffTarget?.id || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    <option value="" disabled>Sélectionner...</option>
+                    {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date d'absence</label>
+                  <input type="date" name="date" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
+                  <input type="text" name="reason" placeholder="Ex: Absence injustifiée" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <p className="text-xs text-gray-400">Cette absence sera automatiquement déduite (au prorata du salaire journalier, base ÷ 26) lors de la prochaine fiche de paie de cet employé.</p>
               </div>
               <div className="mt-8 flex justify-end gap-3">
-                <button 
-                  onClick={() => setIsLeaveBalanceModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={() => {
-                    showToast("Soldes mis à jour");
-                    setIsLeaveBalanceModalOpen(false);
-                  }}
-                  className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors"
-                >
-                  Enregistrer
-                </button>
+                <button type="button" onClick={() => { setIsAbsenceModalOpen(false); setAbsenceStaffTarget(null); }} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
               </div>
-            </div>
+            </form>
           </motion.div>
         </div>
       )}
@@ -1125,10 +1228,11 @@ export default function RH() {
       )}
 
       {/* Payroll Modal */}
-      <PayrollModal 
-        isOpen={isPayrollModalOpen} 
+      <PayrollModal
+        isOpen={isPayrollModalOpen}
         onClose={() => setIsPayrollModalOpen(false)}
         staffData={staffData}
+        absencesList={absencesList}
         onGenerate={async (data) => {
           const newPayslip = {
             period: data.period as string,
@@ -1140,11 +1244,20 @@ export default function RH() {
             amo: data.amo,
             igr: data.igr,
             avance: data.avance || 0,
+            absenceDays: data.absenceDays || 0,
+            absenceDeduction: data.absenceDeduction || 0,
             createdAt: serverTimestamp()
           };
-          
+
           try {
             const docRef = await addDoc(collection(db, 'payroll'), newPayslip);
+            // Réconcilie les absences déduites pour qu'elles ne soient pas comptées deux fois
+            // sur la prochaine fiche de paie de cet employé.
+            if (data.absenceIds && data.absenceIds.length > 0) {
+              await Promise.all(data.absenceIds.map((absenceId: string) =>
+                updateDoc(doc(db, 'absences', absenceId), { payslipId: docRef.id })
+              ));
+            }
             showToast("Fiche de paie générée (Normes Marocaines)");
             setIsPayrollModalOpen(false);
             setSelectedPayslip({ id: docRef.id, ...newPayslip });

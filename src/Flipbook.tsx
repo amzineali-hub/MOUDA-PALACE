@@ -86,8 +86,8 @@ export default function Flipbook() {
   const totalPages = pages.length;
 
   return (
-    <div className="p-4 md:p-8 w-full h-full flex flex-col items-center">
-      <div className="mb-6 text-center">
+    <div className="p-4 md:p-6 w-full h-[calc(100vh-2rem)] flex flex-col items-center">
+      <div className="mb-4 text-center shrink-0">
         <h2 className="text-3xl font-serif text-[#265C6D]">Flipbook des Plats</h2>
         <p className="text-gray-500 mt-1">Aperçu feuilletable de votre carte, généré depuis Menus digitaux.</p>
       </div>
@@ -98,11 +98,11 @@ export default function Flipbook() {
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-6">
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center gap-6">
             <button
               onClick={() => bookRef.current?.pageFlip()?.flipPrev()}
               disabled={currentPage <= 0}
-              className="p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Page précédente"
             >
               <ChevronLeft size={20} />
@@ -113,10 +113,10 @@ export default function Flipbook() {
               width={280}
               height={400}
               size="stretch"
-              minWidth={240}
-              maxWidth={360}
-              minHeight={340}
-              maxHeight={520}
+              minWidth={320}
+              maxWidth={900}
+              minHeight={440}
+              maxHeight={1100}
               showCover={true}
               maxShadowOpacity={0.3}
               className="shadow-xl"
@@ -141,13 +141,13 @@ export default function Flipbook() {
             <button
               onClick={() => bookRef.current?.pageFlip()?.flipNext()}
               disabled={currentPage >= totalPages - 1}
-              className="p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               aria-label="Page suivante"
             >
               <ChevronRight size={20} />
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-4">Page {currentPage + 1} / {totalPages}</p>
+          <p className="text-xs text-gray-400 mt-2 shrink-0">Page {currentPage + 1} / {totalPages}</p>
         </>
       )}
     </div>

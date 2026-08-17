@@ -86,8 +86,8 @@ export default function Flipbook() {
   const totalPages = pages.length;
 
   return (
-    <div className="p-4 md:p-6 w-full h-[calc(100vh-2rem)] flex flex-col items-center">
-      <div className="mb-4 text-center shrink-0">
+    <div className="p-4 md:p-8 w-full flex flex-col items-center relative z-10">
+      <div className="mb-6 text-center">
         <h2 className="text-3xl font-serif text-[#265C6D]">Flipbook des Plats</h2>
         <p className="text-gray-500 mt-1">Aperçu feuilletable de votre carte, généré depuis Menus digitaux.</p>
       </div>
@@ -98,7 +98,7 @@ export default function Flipbook() {
         </div>
       ) : (
         <>
-          <div className="flex-1 min-h-0 w-full flex items-center justify-center gap-6">
+          <div className="w-full max-w-3xl flex items-center justify-center gap-6">
             <button
               onClick={() => bookRef.current?.pageFlip()?.flipPrev()}
               disabled={currentPage <= 0}
@@ -110,13 +110,13 @@ export default function Flipbook() {
 
             <HTMLFlipBook
               ref={bookRef}
-              width={280}
-              height={400}
+              width={420}
+              height={600}
               size="stretch"
               minWidth={320}
-              maxWidth={900}
-              minHeight={440}
-              maxHeight={1100}
+              maxWidth={600}
+              minHeight={460}
+              maxHeight={860}
               showCover={true}
               maxShadowOpacity={0.3}
               className="shadow-xl"
@@ -126,7 +126,7 @@ export default function Flipbook() {
               flippingTime={600}
               usePortrait={true}
               startZIndex={0}
-              autoSize={true}
+              autoSize={false}
               mobileScrollSupport={true}
               clickEventForward={true}
               useMouseEvents={true}
@@ -147,7 +147,7 @@ export default function Flipbook() {
               <ChevronRight size={20} />
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-2 shrink-0">Page {currentPage + 1} / {totalPages}</p>
+          <p className="text-xs text-gray-400 mt-4">Page {currentPage + 1} / {totalPages}</p>
         </>
       )}
     </div>

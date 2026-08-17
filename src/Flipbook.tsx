@@ -133,6 +133,7 @@ export default function Flipbook() {
               swipeDistance={30}
               showPageCorners={true}
               disableFlipByClick={false}
+              renderOnlyPageLengthChange={true}
               onFlip={(e: any) => setCurrentPage(e.data)}
             >
               {pages}

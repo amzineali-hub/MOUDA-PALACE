@@ -98,7 +98,7 @@ import {
   Info,
   ChevronDown,
   BarChart2,
-AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard } from 'lucide-react';
+AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard, BookImage } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
 import { useAuth, AUTHORIZED_EMAILS, OWNER_EMAIL } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
@@ -106,6 +106,7 @@ import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider,
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch, limit } from 'firebase/firestore';
 const Accounting = lazy(() => import('./Accounting'));
 const MenuGenerator = lazy(() => import('./MenuGenerator'));
+const Flipbook = lazy(() => import('./Flipbook'));
 const BlogWriterAI = lazy(() => import('./BlogWriterAI'));
 import SeoAnalyticsContainer from './components/SeoAnalyticsContainer';
 const Documentation = lazy(() => import('./Documentation'));
@@ -649,6 +650,8 @@ function App() {
         return <SeoAnalyticsContainer />;
       case 'menu':
         return <MenuGenerator />;
+      case 'flipbook':
+        return <Flipbook />;
       case 'kds':
         return <EcranCuisine />;
       case 'inventory':
@@ -892,8 +895,17 @@ function App() {
             <SubNavItem icon={<Globe size={16} />} label="Partenaires B2B" active={activeTab === 'b2b'} onClick={() => handleTabChange('b2b')} />
           </NavCategory>
 
-          <NavCategory 
-            title="Gestion comptabilité" 
+          <NavCategory
+            title="Flipbook"
+            icon={<BookImage size={18} />}
+            isExpanded={expandedCategory === 'flipbook_cat'}
+            onClick={() => setExpandedCategory(expandedCategory === 'flipbook_cat' ? null : 'flipbook_cat')}
+          >
+            <SubNavItem icon={<BookImage size={16} />} label="Carte des Plats" active={activeTab === 'flipbook'} onClick={() => handleTabChange('flipbook')} />
+          </NavCategory>
+
+          <NavCategory
+            title="Gestion comptabilité"
             icon={<Briefcase size={18} />} 
             isExpanded={expandedCategory === 'gestion'} 
             onClick={() => setExpandedCategory(expandedCategory === 'gestion' ? null : 'gestion')}

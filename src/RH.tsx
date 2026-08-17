@@ -6,6 +6,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { db } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
 import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
+import { buildLetterheadHtml } from './lib/letterhead';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -342,7 +343,232 @@ export default function RH() {
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
   const [isPayslipDocOpen, setIsPayslipDocOpen] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
-  
+
+  // Informations légales de l'établissement, pour l'en-tête unifiée des documents RH
+  // imprimés (même source que les factures — Configuration > Général + Site Web).
+  const [companyInfo, setCompanyInfo] = useState<any>({});
+  useEffect(() => {
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, ...snap.data() }));
+    }, (error) => console.error("Error fetching company settings", error));
+    const unsubWebsite = onSnapshot(doc(db, 'settings', 'website'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
+    }, (error) => console.error("Error fetching website settings", error));
+    return () => { unsubGeneral(); unsubWebsite(); };
+  }, []);
+
+  // Documents RH — génération instantanée (Fiche individuelle, Attestation, Certificat,
+  // Solde de tout compte) à partir des données déjà présentes sur la fiche employé.
+  const [isHrDocModalOpen, setIsHrDocModalOpen] = useState(false);
+  const [hrDocType, setHrDocType] = useState<'fiche' | 'attestation' | 'certificat' | 'solde'>('attestation');
+  const [hrDocStaffId, setHrDocStaffId] = useState('');
+
+  const HR_DOC_LABELS: Record<string, string> = {
+    fiche: 'Fiche individuelle du salarié',
+    attestation: 'Attestation de travail',
+    certificat: 'Certificat de travail',
+    solde: 'Solde de tout compte'
+  };
+
+  const openHrDocModal = (type: typeof hrDocType) => {
+    setHrDocType(type);
+    setHrDocStaffId(staffData[0]?.id || '');
+    setIsHrDocModalOpen(true);
+  };
+
+  const todayFr = () => new Date().toLocaleDateString('fr-FR');
+
+  const generateHrDocument = (formData: FormData) => {
+    const staff = staffData.find(s => s.id === hrDocStaffId);
+    if (!staff) { showToast('Veuillez sélectionner un employé', 'error'); return; }
+
+    let title = HR_DOC_LABELS[hrDocType];
+    let bodyHtml = '';
+
+    if (hrDocType === 'fiche') {
+      const rows: [string, string][] = [
+        ['Nom et prénom', staff.name || '-'],
+        ['CIN', staff.cin || '-'],
+        ['CNSS', staff.cnss || '-'],
+        ['Poste', staff.role || '-'],
+        ['Service / Département', staff.department || '-'],
+        ["Date d'embauche", staff.hireDate || '-'],
+        ['Type de contrat', staff.contractType || '-'],
+        ['Salaire de base', staff.baseSalary ? `${staff.baseSalary} MAD` : '-'],
+        ['Téléphone', staff.phone || '-'],
+        ['Email', staff.email || '-'],
+        ['Adresse', staff.address || '-'],
+        ["Contact d'urgence", staff.emergencyContact || '-'],
+        ['Carte Sanitaire', staff.carteSanitaire || '-']
+      ];
+      bodyHtml = `
+        <h2 style="text-align:center;">FICHE INDIVIDUELLE DU SALARIÉ</h2>
+        <table class="hr-table">
+          ${rows.map(([label, value]) => `<tr><th>${label}</th><td>${value}</td></tr>`).join('')}
+        </table>
+      `;
+    } else if (hrDocType === 'attestation') {
+      bodyHtml = `
+        <h2 style="text-align:center;">ATTESTATION DE TRAVAIL</h2>
+        <p class="hr-letter">
+          Je soussigné(e), agissant en qualité de Direction de la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>,
+          atteste que <strong>${staff.name}</strong>, titulaire de la CIN n° <strong>${staff.cin || '-'}</strong>,
+          travaille au sein de notre établissement en qualité de <strong>${staff.role || '-'}</strong>
+          depuis le <strong>${staff.hireDate || '-'}</strong>.
+        </p>
+        <p class="hr-letter">La présente attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.</p>
+        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
+        <p class="hr-sign">Signature et cachet de l'entreprise</p>
+      `;
+    } else if (hrDocType === 'certificat') {
+      const endDate = (formData.get('endDate') as string) || todayFr();
+      bodyHtml = `
+        <h2 style="text-align:center;">CERTIFICAT DE TRAVAIL</h2>
+        <p class="hr-letter">
+          Je soussigné(e), agissant en qualité de Direction de la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>,
+          certifie que <strong>${staff.name}</strong>, titulaire de la CIN n° <strong>${staff.cin || '-'}</strong>,
+          a travaillé au sein de notre établissement en qualité de <strong>${staff.role || '-'}</strong>
+          du <strong>${staff.hireDate || '-'}</strong> au <strong>${endDate}</strong>.
+        </p>
+        <p class="hr-letter">Le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.</p>
+        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
+        <p class="hr-sign">Signature et cachet de l'entreprise</p>
+      `;
+    } else if (hrDocType === 'solde') {
+      const extra = Number(formData.get('soldeExtra')) || 0;
+      const extraLabel = (formData.get('soldeExtraLabel') as string) || 'Indemnités complémentaires';
+      const base = Number(staff.baseSalary) || 0;
+      const total = base + extra;
+      bodyHtml = `
+        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant remise au salarié — ce montant ne constitue pas un calcul légal définitif.</div>
+        <h2 style="text-align:center;">SOLDE DE TOUT COMPTE</h2>
+        <table class="hr-table">
+          <tr><th>Salarié</th><td>${staff.name}</td></tr>
+          <tr><th>CIN</th><td>${staff.cin || '-'}</td></tr>
+          <tr><th>Poste</th><td>${staff.role || '-'}</td></tr>
+          <tr><th>Date d'embauche</th><td>${staff.hireDate || '-'}</td></tr>
+          <tr><th>Dernier salaire de base</th><td>${base.toFixed(2)} MAD</td></tr>
+          <tr><th>${extraLabel}</th><td>${extra.toFixed(2)} MAD</td></tr>
+          <tr class="hr-total-row"><th>TOTAL NET</th><td>${total.toFixed(2)} MAD</td></tr>
+        </table>
+        <p class="hr-letter">Le salarié reconnaît avoir reçu, à titre de solde de tout compte, la somme indiquée ci-dessus.</p>
+        <p class="hr-sign">Signature salarié : ___________________ &nbsp;&nbsp;&nbsp; Signature employeur : ___________________</p>
+      `;
+    }
+
+    const html = buildLetterheadHtml(companyInfo, window.location.origin, {
+      title: `${title} - ${staff.name}`,
+      bodyHtml,
+      extraStyles: `
+        .hr-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .hr-table th { text-align: left; padding: 10px; border: 1px solid #eee; background: #f9f9f9; width: 40%; }
+        .hr-table td { padding: 10px; border: 1px solid #eee; }
+        .hr-total-row th, .hr-total-row td { font-weight: bold; background: #FDF6E7; }
+        .hr-letter { line-height: 2; font-size: 15px; margin: 20px 0; }
+        .hr-sign { margin-top: 60px; text-align: right; font-size: 14px; }
+        .hr-warning { background: #FEF2F2; border: 1px solid #FCA5A5; color: #B91C1C; padding: 10px 16px; border-radius: 6px; font-size: 12px; margin-bottom: 20px; }
+      `
+    });
+
+    const printWindow = window.open('', '', 'width=800,height=900');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
+    setIsHrDocModalOpen(false);
+  };
+
+  // Demandes de congé — distinctes des absences (non planifiées, déduites du salaire) :
+  // un congé est une demande d'absence planifiée, soumise à acceptation/refus.
+  const [congesList, setCongesList] = useState<any[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'conges'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setCongesList(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    }, (error) => console.error("Error fetching conges", error));
+    return () => unsub();
+  }, []);
+
+  const [isCongeModalOpen, setIsCongeModalOpen] = useState(false);
+
+  const handleSaveConge = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const employeeId = formData.get('employeeId') as string;
+    const staff = staffData.find(s => s.id === employeeId);
+    if (!staff) return;
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
+    const days = Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1;
+    try {
+      await addDoc(collection(db, 'conges'), {
+        employeeId,
+        employeeName: staff.name,
+        startDate,
+        endDate,
+        days: days > 0 ? days : 1,
+        motif: (formData.get('motif') as string) || '',
+        status: 'En attente',
+        createdAt: serverTimestamp()
+      });
+      showToast('Demande de congé enregistrée');
+      setIsCongeModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'enregistrement", 'error');
+    }
+  };
+
+  const handleCongeDecision = async (id: string, status: 'Acceptée' | 'Refusée') => {
+    try {
+      await updateDoc(doc(db, 'conges', id), { status, decisionAt: serverTimestamp() });
+      showToast(`Demande ${status.toLowerCase()}`);
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de la mise à jour', 'error');
+    }
+  };
+
+  const handleDeleteConge = async (id: string) => {
+    if (!window.confirm('Supprimer cette demande de congé ?')) return;
+    try {
+      await deleteDoc(doc(db, 'conges', id));
+      showToast('Demande supprimée');
+    } catch (err) {
+      console.error(err);
+      showToast('Erreur lors de la suppression', 'error');
+    }
+  };
+
+  const printConge = (conge: any) => {
+    const bodyHtml = `
+      <h2 style="text-align:center;">DEMANDE DE CONGÉ</h2>
+      <table class="hr-table">
+        <tr><th>Nom et prénom</th><td>${conge.employeeName}</td></tr>
+        <tr><th>Date de la demande</th><td>${conge.createdAt?.toDate ? conge.createdAt.toDate().toLocaleDateString('fr-FR') : '-'}</td></tr>
+        <tr><th>Période demandée</th><td>Du ${conge.startDate} au ${conge.endDate} (${conge.days} jour(s))</td></tr>
+        <tr><th>Motif</th><td>${conge.motif || '-'}</td></tr>
+        <tr><th>Décision</th><td><strong>${conge.status}</strong></td></tr>
+      </table>
+      <p class="hr-sign">Signature du salarié : ___________________ &nbsp;&nbsp;&nbsp; Signature responsable : ___________________</p>
+    `;
+    const html = buildLetterheadHtml(companyInfo, window.location.origin, {
+      title: `Demande de congé - ${conge.employeeName}`,
+      bodyHtml,
+      extraStyles: `
+        .hr-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .hr-table th { text-align: left; padding: 10px; border: 1px solid #eee; background: #f9f9f9; width: 40%; }
+        .hr-table td { padding: 10px; border: 1px solid #eee; }
+        .hr-sign { margin-top: 60px; text-align: right; font-size: 14px; }
+      `
+    });
+    const printWindow = window.open('', '', 'width=800,height=900');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
+  };
+
+
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterDept, setFilterDept] = useState('Tous');
@@ -377,6 +603,9 @@ export default function RH() {
       carteSanitaire: formData.get('carteSanitaire') as string,
       hireDate: formData.get('hireDate') as string,
       language: formData.get('language') as string,
+      address: formData.get('address') as string,
+      emergencyContact: formData.get('emergencyContact') as string,
+      contractType: formData.get('contractType') as string || 'CDI',
       updatedAt: serverTimestamp()
     };
 
@@ -443,6 +672,7 @@ export default function RH() {
           { id: 'directory', label: 'Annuaire & Staff', icon: Users },
           { id: 'schedule', label: 'Plannings', icon: CalendarRange },
           { id: 'payroll', label: 'Paie & Fiches', icon: Banknote },
+          { id: 'hr_docs', label: 'Documents RH', icon: FileText },
         ].map(tab => (
           <button 
             key={tab.id}
@@ -632,6 +862,204 @@ export default function RH() {
       )}
       
       {activeTab === 'schedule' && ( <div className='mt-6'><PlanningScheduler staffData={staffData} /></div> )}
+
+      {activeTab === 'hr_docs' && (
+        <div className="space-y-8">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Documents RH</h3>
+            <p className="text-sm text-gray-500 mb-4">Générés automatiquement depuis les données de la fiche employé, sur le papier en-tête officiel.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(['fiche', 'attestation', 'certificat', 'solde'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => openHrDocModal(type)}
+                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#F4C75B]/50 transition-all text-left flex flex-col gap-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#F4C75B]/10 text-[#265C6D] flex items-center justify-center">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{HR_DOC_LABELS[type]}</p>
+                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et imprimer</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Demandes de congé</h3>
+                <p className="text-sm text-gray-500">Distinctes des absences non justifiées — un congé est planifié et soumis à décision.</p>
+              </div>
+              <button onClick={() => setIsCongeModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
+                <Plus size={18} /> Nouvelle demande
+              </button>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="p-4 font-medium text-gray-600">Employé</th>
+                      <th className="p-4 font-medium text-gray-600">Période</th>
+                      <th className="p-4 font-medium text-gray-600">Jours</th>
+                      <th className="p-4 font-medium text-gray-600">Motif</th>
+                      <th className="p-4 font-medium text-gray-600">Statut</th>
+                      <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {congesList.map((conge, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4 font-medium text-gray-900">{conge.employeeName}</td>
+                        <td className="p-4 text-gray-600">{conge.startDate} → {conge.endDate}</td>
+                        <td className="p-4 text-gray-600">{conge.days}</td>
+                        <td className="p-4 text-gray-600">{conge.motif || '—'}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            conge.status === 'Acceptée' ? 'bg-green-100 text-green-700' :
+                            conge.status === 'Refusée' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>{conge.status}</span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {conge.status === 'En attente' && (
+                              <>
+                                <button onClick={() => handleCongeDecision(conge.id, 'Acceptée')} className="text-green-600 hover:text-green-700 p-2 bg-green-50 rounded-lg" title="Accepter">
+                                  <CheckCircle size={16} />
+                                </button>
+                                <button onClick={() => handleCongeDecision(conge.id, 'Refusée')} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Refuser">
+                                  <X size={16} />
+                                </button>
+                              </>
+                            )}
+                            <button onClick={() => printConge(conge)} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg" title="Imprimer">
+                              <Printer size={16} />
+                            </button>
+                            <button onClick={() => handleDeleteConge(conge.id)} className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg" title="Supprimer">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {congesList.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-gray-500">Aucune demande de congé.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HR Document Generation Modal */}
+      {isHrDocModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">{HR_DOC_LABELS[hrDocType]}</h3>
+              <button onClick={() => setIsHrDocModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); generateHrDocument(new FormData(e.currentTarget)); }} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select required value={hrDocStaffId} onChange={(e) => setHrDocStaffId(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                {hrDocType === 'certificat' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin de contrat</label>
+                    <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                  </div>
+                )}
+                {hrDocType === 'solde' && (
+                  <>
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">
+                      Modèle à faire valider par votre comptable ou conseil juridique avant remise au salarié.
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Libellé du montant complémentaire</label>
+                      <input type="text" name="soldeExtraLabel" defaultValue="Indemnités complémentaires" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Montant complémentaire (MAD)</label>
+                      <input type="number" name="soldeExtra" min="0" step="0.01" defaultValue={0} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsHrDocModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2">
+                  <Printer size={16} /> Générer & Imprimer
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Congé Request Modal */}
+      {isCongeModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+          >
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-medium text-gray-900">Nouvelle demande de congé</h3>
+              <button onClick={() => setIsCongeModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveConge} className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
+                  <select name="employeeId" required defaultValue="" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    <option value="" disabled>Sélectionner...</option>
+                    {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Du</label>
+                    <input type="date" name="startDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Au</label>
+                    <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motif (optionnel)</label>
+                  <input type="text" name="motif" placeholder="Ex: Congé annuel" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+              </div>
+              <div className="mt-8 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsCongeModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
+                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Payslip Document Modal */}
       {isPayslipDocOpen && selectedPayslip && (
@@ -891,6 +1319,22 @@ export default function RH() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Carte Sanitaire (N°)</label>
                   <input name="carteSanitaire" defaultValue={editingStaff?.carteSanitaire} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: CS-2026-0123" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de contrat</label>
+                  <select name="contractType" defaultValue={editingStaff?.contractType || 'CDI'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    <option value="CDI">CDI</option>
+                    <option value="CDD">CDD</option>
+                    <option value="Stage">Stage</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                  <input name="address" defaultValue={editingStaff?.address} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 12 Rue des Fleurs, Fès" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact d'urgence</label>
+                  <input name="emergencyContact" defaultValue={editingStaff?.emergencyContact} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Fatima (sœur) — 06 XX XX XX XX" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>

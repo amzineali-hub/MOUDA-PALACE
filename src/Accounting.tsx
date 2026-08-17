@@ -28,6 +28,7 @@ import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
+import { buildLetterheadHtml } from './lib/letterhead';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -247,104 +248,61 @@ export default function Accounting() {
   const formatInvoiceNumber = (invoice: any) => invoice.numero ? `FAC-${String(invoice.numero).padStart(4, '0')}` : invoice.id;
 
   const buildInvoiceHtml = (invoice: any) => {
-    // En-tête unifiée sur le papier en-tête officiel Mouda Palace (bandeau teal + coordonnées,
-    // liseré doré, pied de page avec ICE/IF/Patente) plutôt qu'un en-tête générique.
-    const phones = (companyInfo.phone || '').split('/').map((p: string) => p.trim()).filter(Boolean);
-    const website = (companyInfo.website || 'www.moudapalace.com').replace(/^https?:\/\//, '');
-
-    return `
-      <html>
-        <head>
-          <title>Facture ${formatInvoiceNumber(invoice)}</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; color: #1a1a1a; margin: 0; }
-            .letterhead { background: #265C6D; color: #fff; padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; }
-            .lh-brand { display: flex; align-items: center; gap: 14px; }
-            .lh-brand img { height: 46px; }
-            .lh-brand-name { font-size: 22px; letter-spacing: 3px; color: #F4C75B; font-weight: bold; }
-            .lh-contact { text-align: right; font-size: 11px; line-height: 1.7; }
-            .lh-divider { height: 8px; background: #D8A353; }
-            .content { padding: 30px 40px 0 40px; }
-            .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
-            .client-info { text-align: right; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
-            td { border-bottom: 1px solid #eee; padding: 10px; }
-            .totals { width: 50%; float: right; }
-            .totals table { border: none; }
-            .totals th, .totals td { padding: 5px 10px; }
-            .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
-            .thanks { clear: both; text-align: center; color: #666; font-size: 12px; padding-top: 100px; padding-bottom: 20px; }
-            .lh-footer-bar { background: #D8A353; padding: 10px 40px; margin-top: 20px; }
-            .lh-footer-box { background: #fff; border: 1px solid #D8A353; display: flex; justify-content: space-around; padding: 8px 16px; font-size: 10.5px; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <div class="letterhead">
-            <div class="lh-brand">
-              <img src="${window.location.origin}/mouda-1-1-1.png" alt="${companyInfo.name || 'Mouda Palace'}" />
-              <div class="lh-brand-name">${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</div>
-            </div>
-            <div class="lh-contact">
-              ${phones.map((p: string) => `<div>${p}</div>`).join('')}
-              ${companyInfo.address ? `<div>${companyInfo.address}</div>` : ''}
-              ${companyInfo.email ? `<div>${companyInfo.email}</div>` : ''}
-              <div>${website}</div>
-            </div>
-          </div>
-          <div class="lh-divider"></div>
-
-          <div class="content">
-            <div class="invoice-info">
-              <div>
-                <h2>FACTURE</h2>
-                <p><strong>N°:</strong> ${formatInvoiceNumber(invoice)}</p>
-                <p><strong>Date:</strong> ${invoice.date}</p>
-                <p><strong>Statut:</strong> ${invoice.status || ''}</p>
-              </div>
-              <div class="client-info">
-                <h3>Client</h3>
-                <p><strong>${invoice.client}</strong></p>
-                ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th style="text-align: right;">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Prestation de services de restauration</td>
-                  <td style="text-align: right;">${invoice.amount}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="totals">
-              <table>
-                <tr class="grand-total">
-                  <th style="text-align: left;">NET A PAYER</th>
-                  <td style="text-align: right;">${invoice.amount}</td>
-                </tr>
-              </table>
-            </div>
-            <div class="thanks">Merci pour votre confiance.</div>
-          </div>
-
-          <div class="lh-footer-bar">
-            <div class="lh-footer-box">
-              <div>${companyInfo.ice ? `ICE : ${companyInfo.ice}` : ''}${companyInfo.identifiantFiscal ? `<br/>IF : ${companyInfo.identifiantFiscal}` : ''}</div>
-              <div>${companyInfo.address ? `Adresse : ${companyInfo.address}` : ''}${companyInfo.patente ? `<br/>Taxe professionnelle N° : ${companyInfo.patente}` : ''}</div>
-            </div>
-          </div>
-          <script>
-            window.onload = () => { window.print(); };
-          </script>
-        </body>
-      </html>
+    const bodyHtml = `
+      <div class="invoice-info">
+        <div>
+          <h2>FACTURE</h2>
+          <p><strong>N°:</strong> ${formatInvoiceNumber(invoice)}</p>
+          <p><strong>Date:</strong> ${invoice.date}</p>
+          <p><strong>Statut:</strong> ${invoice.status || ''}</p>
+        </div>
+        <div class="client-info">
+          <h3>Client</h3>
+          <p><strong>${invoice.client}</strong></p>
+          ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th style="text-align: right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Prestation de services de restauration</td>
+            <td style="text-align: right;">${invoice.amount}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="totals">
+        <table>
+          <tr class="grand-total">
+            <th style="text-align: left;">NET A PAYER</th>
+            <td style="text-align: right;">${invoice.amount}</td>
+          </tr>
+        </table>
+      </div>
+      <div class="thanks">Merci pour votre confiance.</div>
     `;
+
+    return buildLetterheadHtml(companyInfo, window.location.origin, {
+      title: `Facture ${formatInvoiceNumber(invoice)}`,
+      bodyHtml,
+      extraStyles: `
+        .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
+        .client-info { text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+        td { border-bottom: 1px solid #eee; padding: 10px; }
+        .totals { width: 50%; float: right; }
+        .totals table { border: none; }
+        .totals th, .totals td { padding: 5px 10px; }
+        .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+        .thanks { clear: both; text-align: center; color: #666; font-size: 12px; padding-top: 100px; padding-bottom: 20px; }
+      `
+    });
   };
 
   const [manualExpenses, setManualExpenses] = useState<any[]>([]);

@@ -110,13 +110,13 @@ export default function Flipbook() {
 
             <HTMLFlipBook
               ref={bookRef}
-              width={420}
-              height={470}
-              size="stretch"
-              minWidth={320}
-              maxWidth={600}
-              minHeight={360}
-              maxHeight={620}
+              width={380}
+              height={540}
+              size="fixed"
+              minWidth={380}
+              maxWidth={380}
+              minHeight={540}
+              maxHeight={540}
               showCover={true}
               maxShadowOpacity={0.3}
               className="shadow-xl"

@@ -326,7 +326,7 @@ if (isPrintView) {
             >
               <div className="relative z-10 pt-10 sm:pt-16 md:pt-32 px-2 sm:px-4 md:px-12">
                 <div
-                  className="text-center mb-12 md:mb-16 flex flex-col items-center py-10 md:py-14 px-4 bg-[#1B4D3E] rounded-sm shadow-md -mx-2 sm:-mx-4 md:-mx-12"
+                  className="text-center mb-12 md:mb-16 flex flex-col items-center py-10 md:py-14 px-4 bg-green-700 rounded-sm shadow-md -mx-2 sm:-mx-4 md:-mx-12"
                   style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                 >
                   <div

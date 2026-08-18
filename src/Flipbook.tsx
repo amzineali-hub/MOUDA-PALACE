@@ -104,7 +104,7 @@ export default function Flipbook() {
         </div>
       ) : (
         <>
-          <div className="w-full max-w-3xl flex items-center justify-center gap-6">
+          <div className="w-full max-w-6xl flex items-center justify-center gap-6">
             <button
               onClick={() => bookRef.current?.pageFlip()?.flipPrev()}
               disabled={currentPage <= 0}
@@ -118,11 +118,11 @@ export default function Flipbook() {
               ref={bookRef}
               width={380}
               height={540}
-              size="fixed"
-              minWidth={380}
-              maxWidth={380}
-              minHeight={540}
-              maxHeight={540}
+              size="stretch"
+              minWidth={320}
+              maxWidth={500}
+              minHeight={460}
+              maxHeight={700}
               showCover={true}
               maxShadowOpacity={0.3}
               className="shadow-xl"
@@ -132,7 +132,7 @@ export default function Flipbook() {
               flippingTime={600}
               usePortrait={true}
               startZIndex={0}
-              autoSize={false}
+              autoSize={true}
               mobileScrollSupport={true}
               clickEventForward={true}
               useMouseEvents={true}

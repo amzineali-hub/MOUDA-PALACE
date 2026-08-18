@@ -7,28 +7,32 @@ import { ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react';
 const CATEGORIES = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
 const CoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
-  <div ref={ref} className="w-full h-full bg-[#265C6D] text-white flex flex-col items-center justify-center p-8 text-center">
-    <div
-      className="h-20 w-24 mb-6 bg-[#F4C75B]"
-      style={{
-        maskImage: 'url(/mouda-1-1-1.png)',
-        maskSize: 'contain',
-        maskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        WebkitMaskImage: 'url(/mouda-1-1-1.png)',
-        WebkitMaskSize: 'contain',
-        WebkitMaskRepeat: 'no-repeat',
-        WebkitMaskPosition: 'center'
-      }}
-    />
-    <h1 className="text-3xl font-serif tracking-[0.2em] uppercase mb-2">Mouda Palace</h1>
-    <p className="text-xs tracking-[0.3em] uppercase text-[#F4C75B]">Carte des Plats</p>
+  <div ref={ref} className="relative w-full h-full bg-[#265C6D] text-white overflow-hidden">
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex flex-col items-center p-8 text-center">
+      <div
+        className="h-20 w-24 mb-6 bg-[#F4C75B]"
+        style={{
+          maskImage: 'url(/mouda-1-1-1.png)',
+          maskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskImage: 'url(/mouda-1-1-1.png)',
+          WebkitMaskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'center'
+        }}
+      />
+      <h1 className="text-3xl font-serif tracking-[0.2em] uppercase mb-2">Mouda Palace</h1>
+      <p className="text-xs tracking-[0.3em] uppercase text-[#F4C75B]">Carte des Plats</p>
+    </div>
   </div>
 ));
 
 const CategoryDividerPage = React.forwardRef<HTMLDivElement, { category: string }>(({ category }, ref) => (
-  <div ref={ref} className="w-full h-full bg-[#FDFBF7] flex items-center justify-center p-8 text-center border border-gray-100">
-    <h2 className="text-2xl font-serif text-[#265C6D] uppercase tracking-widest">{category}</h2>
+  <div ref={ref} className="relative w-full h-full bg-[#FDFBF7] border border-gray-100 overflow-hidden">
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full px-8 text-center">
+      <h2 className="text-2xl font-serif text-[#265C6D] uppercase tracking-widest">{category}</h2>
+    </div>
   </div>
 ));
 
@@ -53,9 +57,11 @@ const DishPage = React.forwardRef<HTMLDivElement, { item: any }>(({ item }, ref)
 ));
 
 const BackCoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
-  <div ref={ref} className="w-full h-full bg-[#265C6D] text-white flex flex-col items-center justify-center p-8 text-center">
-    <p className="text-sm tracking-widest uppercase text-[#F4C75B] mb-2">Merci de votre visite</p>
-    <p className="text-xs text-white/70">moudapalace.com</p>
+  <div ref={ref} className="relative w-full h-full bg-[#265C6D] text-white overflow-hidden">
+    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex flex-col items-center p-8 text-center">
+      <p className="text-sm tracking-widest uppercase text-[#F4C75B] mb-2">Merci de votre visite</p>
+      <p className="text-xs text-white/70">moudapalace.com</p>
+    </div>
   </div>
 ));
 

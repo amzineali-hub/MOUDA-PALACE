@@ -260,14 +260,27 @@ if (isPrintView) {
           <div id="printable-menu">
           {printTemplate === 'moderne' ? (
             <div className="print:p-4">
-              <div className="text-center mb-16 border-b-2 border-[#F4C75B] pb-10">
+              <div
+                className="text-center mb-16 py-14 px-4 bg-[#265C6D]"
+                style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+              >
                 <div className="flex justify-center mb-6">
-                  <div className="w-20 h-20 rounded-full border border-[#F4C75B] flex items-center justify-center overflow-hidden bg-white p-2">
-                    <img src="/mouda-1-1-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
-                  </div>
+                  <div
+                    className="h-20 w-24 bg-[#F4C75B]"
+                    style={{
+                      maskImage: 'url(/mouda-1-1-1.png)',
+                      maskSize: 'contain',
+                      maskRepeat: 'no-repeat',
+                      maskPosition: 'center',
+                      WebkitMaskImage: 'url(/mouda-1-1-1.png)',
+                      WebkitMaskSize: 'contain',
+                      WebkitMaskRepeat: 'no-repeat',
+                      WebkitMaskPosition: 'center'
+                    }}
+                  />
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-gray-900 mb-4 uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
-                <p className="text-2xl text-gray-500 font-serif italic tracking-wider">La Carte</p>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-4 uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
+                <p className="text-2xl text-[#F4C75B] font-serif italic tracking-wider">La Carte</p>
               </div>
 
               <div className="space-y-16">

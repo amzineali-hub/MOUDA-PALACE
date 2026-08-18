@@ -325,14 +325,27 @@ if (isPrintView) {
               style={{ backgroundImage: "url('/menu_traditionnel.jpeg')", backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
             >
               <div className="relative z-10 pt-10 sm:pt-16 md:pt-32 px-2 sm:px-4 md:px-12">
-                <div className="text-center mb-12 md:mb-16 flex flex-col items-center">
-                  <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-[#5c2d16]/30 flex items-center justify-center overflow-hidden bg-white/80 backdrop-blur p-3 mb-6 shadow-md">
-                    <img src="/mouda-1-1-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-[#5c2d16] mb-2 uppercase tracking-[0.1em] md:tracking-[0.15em] drop-shadow-sm">
+                <div
+                  className="text-center mb-12 md:mb-16 flex flex-col items-center py-10 md:py-14 px-4 bg-[#1B4D3E] rounded-sm shadow-md -mx-2 sm:-mx-4 md:-mx-12"
+                  style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+                >
+                  <div
+                    className="h-20 w-24 md:h-24 md:w-28 bg-[#d4af37] mb-4"
+                    style={{
+                      maskImage: 'url(/mouda-1-1-1.png)',
+                      maskSize: 'contain',
+                      maskRepeat: 'no-repeat',
+                      maskPosition: 'center',
+                      WebkitMaskImage: 'url(/mouda-1-1-1.png)',
+                      WebkitMaskSize: 'contain',
+                      WebkitMaskRepeat: 'no-repeat',
+                      WebkitMaskPosition: 'center'
+                    }}
+                  />
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-2 uppercase tracking-[0.1em] md:tracking-[0.15em]">
                     MOUDA PALACE
                   </h1>
-                  <p className="text-xl md:text-2xl text-[#7a1c15] font-serif italic tracking-wider">La Carte</p>
+                  <p className="text-xl md:text-2xl text-[#d4af37] font-serif italic tracking-wider">La Carte</p>
                 </div>
 
                 <div className="relative z-10">

@@ -326,11 +326,11 @@ if (isPrintView) {
             >
               <div className="relative z-10 pt-10 sm:pt-16 md:pt-32 px-2 sm:px-4 md:px-12">
                 <div
-                  className="text-center mb-12 md:mb-16 flex flex-col items-center py-10 md:py-14 px-4 bg-green-700 rounded-sm shadow-md -mx-2 sm:-mx-4 md:-mx-12"
+                  className="text-center mb-12 md:mb-16 flex flex-col items-center py-10 md:py-14 px-4 bg-[#265C6D] rounded-sm shadow-md -mx-2 sm:-mx-4 md:-mx-12"
                   style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
                 >
                   <div
-                    className="h-20 w-24 md:h-24 md:w-28 bg-[#d4af37] mb-4"
+                    className="h-20 w-24 md:h-24 md:w-28 bg-[#F4C75B] mb-4"
                     style={{
                       maskImage: 'url(/mouda-1-1-1.png)',
                       maskSize: 'contain',
@@ -345,7 +345,7 @@ if (isPrintView) {
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-2 uppercase tracking-[0.1em] md:tracking-[0.15em]">
                     MOUDA PALACE
                   </h1>
-                  <p className="text-xl md:text-2xl text-[#d4af37] font-serif italic tracking-wider">La Carte</p>
+                  <p className="text-xl md:text-2xl text-[#F4C75B] font-serif italic tracking-wider">La Carte</p>
                 </div>
 
                 <div className="relative z-10">

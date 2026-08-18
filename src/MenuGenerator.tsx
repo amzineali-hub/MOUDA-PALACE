@@ -263,7 +263,7 @@ if (isPrintView) {
               <div className="text-center mb-16 border-b-2 border-[#F4C75B] pb-10">
                 <div className="flex justify-center mb-6">
                   <div className="w-20 h-20 rounded-full border border-[#F4C75B] flex items-center justify-center overflow-hidden bg-white p-2">
-                    <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
+                    <img src="/mouda-1-1-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
                   </div>
                 </div>
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-gray-900 mb-4 uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
@@ -314,7 +314,7 @@ if (isPrintView) {
               <div className="relative z-10 pt-10 sm:pt-16 md:pt-32 px-2 sm:px-4 md:px-12">
                 <div className="text-center mb-12 md:mb-16 flex flex-col items-center">
                   <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-[#5c2d16]/30 flex items-center justify-center overflow-hidden bg-white/80 backdrop-blur p-3 mb-6 shadow-md">
-                    <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
+                    <img src="/mouda-1-1-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain" />
                   </div>
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-[#5c2d16] mb-2 uppercase tracking-[0.1em] md:tracking-[0.15em] drop-shadow-sm">
                     MOUDA PALACE
@@ -399,7 +399,7 @@ if (isPrintView) {
       <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-[#F4C75B]/20 border border-[#F4C75B]/40 flex items-center justify-center overflow-hidden p-2">
-            <img src="/mouda-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain drop-shadow-sm" />
+            <img src="/mouda-1-1-1.png" alt="Mouda Palace Logo" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -686,7 +686,7 @@ if (isPrintView) {
               >
                 <div className="w-full aspect-[1/1.4] bg-[#FAF3E0] rounded-xl mb-4 border border-[#e8d5a5] flex flex-col items-center p-4 relative overflow-hidden group-hover:bg-[#f5ebd0] transition-colors">
                    <div className="w-10 h-10 rounded-full border border-[#5c2d16]/30 flex items-center justify-center mb-3 bg-white">
-                     <img src="/mouda-1.png" alt="Logo" className="w-6 h-6 object-contain opacity-50" />
+                     <img src="/mouda-1-1-1.png" alt="Logo" className="w-6 h-6 object-contain opacity-50" />
                    </div>
                    <div className="w-2/3 h-2 bg-[#5c2d16] rounded mb-1"></div>
                    <div className="w-1/3 h-1.5 bg-[#7a1c15] rounded mb-6"></div>

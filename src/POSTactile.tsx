@@ -4,7 +4,7 @@ import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle, MessageSquare, Send } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
 import Combobox from './components/Combobox';
@@ -65,6 +65,10 @@ export default function POSTactile() {
   const [isMixedPaymentOpen, setIsMixedPaymentOpen] = useState(false);
   const [mixedCashAmount, setMixedCashAmount] = useState('');
   const [mixedCardAmount, setMixedCardAmount] = useState('');
+  const [activeShift, setActiveShift] = useState<any>(null);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [shiftMode, setShiftMode] = useState<'open' | 'close'>('open');
+  const [shiftCashAmount, setShiftCashAmount] = useState('');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -82,6 +86,69 @@ export default function POSTactile() {
     });
     return () => unsub();
   }, [showToast]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'pos_shifts')), snapshot => {
+      const openShifts: any[] = snapshot.docs
+        .map(shift => ({ ...shift.data(), id: shift.id }))
+        .filter((shift: any) => shift.status === 'Ouvert')
+        .sort((a: any, b: any) => (b.openedAt?.seconds || 0) - (a.openedAt?.seconds || 0));
+      setActiveShift(openShifts[0] || null);
+    }, error => {
+      console.error('POS shift error:', error);
+      showToast('Impossible de charger la caisse active', 'error');
+    });
+    return () => unsub();
+  }, [showToast]);
+
+  const openShift = async () => {
+    if (activeShift) {
+      showToast('Une caisse est déjà ouverte.', 'error');
+      return;
+    }
+    const openingCash = parsePosPrice(shiftCashAmount);
+    if (openingCash < 0) return;
+    try {
+      await addDoc(collection(db, 'pos_shifts'), {
+        status: 'Ouvert',
+        openingCash,
+        expectedCash: openingCash,
+        cashSales: 0,
+        cardSales: 0,
+        totalSales: 0,
+        paymentCount: 0,
+        openedBy: auth.currentUser?.email || 'POS',
+        openedAt: serverTimestamp()
+      });
+      setShiftCashAmount('');
+      setIsShiftModalOpen(false);
+      showToast('Caisse ouverte');
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'ouverture de caisse", 'error');
+    }
+  };
+
+  const closeShift = async () => {
+    if (!activeShift) return;
+    const countedCash = parsePosPrice(shiftCashAmount);
+    const expectedCash = Number(activeShift.expectedCash) || 0;
+    try {
+      await updateDoc(doc(db, 'pos_shifts', activeShift.id), {
+        status: 'Fermé',
+        countedCash,
+        variance: countedCash - expectedCash,
+        closedBy: auth.currentUser?.email || 'POS',
+        closedAt: serverTimestamp()
+      });
+      setShiftCashAmount('');
+      setIsShiftModalOpen(false);
+      showToast(`Caisse fermée. Écart : ${(countedCash - expectedCash).toFixed(2)} MAD`);
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la fermeture de caisse', 'error');
+    }
+  };
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'pos_messages')), (snapshot) => {
@@ -514,6 +581,13 @@ export default function POSTactile() {
       return;
     }
     if (isProcessingPayment) return;
+    if (!activeShift) {
+      showToast('Ouvrez la caisse avant d\'encaisser.', 'error');
+      setShiftMode('open');
+      setShiftCashAmount('');
+      setIsShiftModalOpen(true);
+      return;
+    }
     setIsProcessingPayment(true);
     
     try {
@@ -558,6 +632,11 @@ export default function POSTactile() {
         const orderRef = doc(db, 'orders', orderId);
         const receiptRef = doc(collection(db, 'cash_receipts'));
         const invoiceRef = doc(collection(db, 'invoices'));
+        const shiftRef = doc(db, 'pos_shifts', activeShift.id);
+        const shiftSnapshot = await transaction.get(shiftRef);
+        if (!shiftSnapshot.exists() || shiftSnapshot.data().status !== 'Ouvert') {
+          throw new Error('La caisse active a été fermée.');
+        }
 
         const totalDeductById = new Map<string, number>();
         deductions.forEach(d => totalDeductById.set(d.id, (totalDeductById.get(d.id) || 0) + d.qtyToDeduct));
@@ -587,6 +666,7 @@ export default function POSTactile() {
 
         transaction.set(receiptRef, {
           orderId,
+          shiftId: activeShift.id,
           displayId,
           tableId: kitchenTableId || selectedTable || null,
           amount: total,
@@ -602,6 +682,7 @@ export default function POSTactile() {
         transaction.set(invoiceRef, {
           id: `FAC-${orderId.replace('CMD-', '').slice(-8)}`,
           orderId,
+          shiftId: activeShift.id,
           client: 'Client Comptoir (POS)',
           ice: 'N/A',
           date: today,
@@ -614,8 +695,22 @@ export default function POSTactile() {
           createdAt: serverTimestamp()
         });
 
+        const cashSale = method === 'Espèces' ? total : method === 'Mixte' ? (paymentDetails.paymentBreakdown?.cash || 0) : 0;
+        const cashTendered = method === 'Espèces' ? (paymentDetails.cashReceived ?? total) : method === 'Mixte' ? (paymentDetails.paymentBreakdown?.cash || 0) : 0;
+        const cardSale = method === 'Carte Bancaire' ? total : method === 'Mixte' ? (paymentDetails.paymentBreakdown?.card || 0) : 0;
+        const currentShift = shiftSnapshot.data();
+        transaction.update(shiftRef, {
+          expectedCash: (Number(currentShift.expectedCash) || 0) + cashTendered,
+          cashSales: (Number(currentShift.cashSales) || 0) + cashSale,
+          cardSales: (Number(currentShift.cardSales) || 0) + cardSale,
+          totalSales: (Number(currentShift.totalSales) || 0) + total,
+          paymentCount: (Number(currentShift.paymentCount) || 0) + 1,
+          updatedAt: serverTimestamp()
+        });
+
         transaction.set(orderRef, {
           orderId,
+          shiftId: activeShift.id,
           tableId: kitchenTableId || selectedTable || null,
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item) })),
           subtotal,
@@ -687,6 +782,17 @@ export default function POSTactile() {
                 <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShiftMode(activeShift ? 'close' : 'open');
+                    setShiftCashAmount('');
+                    setIsShiftModalOpen(true);
+                  }}
+                  className={`px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+                >
+                  {activeShift ? `Caisse ouverte · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : 'Caisse fermée'}
+                </button>
                 <div className="relative flex-1 md:w-72">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
@@ -1098,6 +1204,30 @@ export default function POSTactile() {
         </div>
       </div>
       
+      {/* Shift modal */}
+      {isShiftModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{shiftMode === 'open' ? 'Ouvrir la caisse' : 'Fermer la caisse'}</h3>
+                <p className="text-sm text-gray-500 mt-1">{shiftMode === 'open' ? 'Saisissez le fond de caisse initial.' : `Espèces théoriques : ${Number(activeShift?.expectedCash || 0).toFixed(2)} MAD`}</p>
+              </div>
+              <button type="button" onClick={() => setIsShiftModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); shiftMode === 'open' ? openShift() : closeShift(); }}>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">{shiftMode === 'open' ? 'Fond de caisse (MAD)' : 'Espèces comptées (MAD)'}</label>
+              <input autoFocus type="text" inputMode="decimal" value={shiftCashAmount} onChange={(event) => setShiftCashAmount(event.target.value)} placeholder="0.00" className="w-full p-4 text-2xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]" />
+              {shiftMode === 'close' && <p className="mt-3 text-sm text-gray-500">Écart estimé : <strong>{(parsePosPrice(shiftCashAmount) - Number(activeShift?.expectedCash || 0)).toFixed(2)} MAD</strong></p>}
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setIsShiftModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
+                <button type="submit" className="flex-1 py-3 rounded-xl bg-[#265C6D] text-white font-bold">{shiftMode === 'open' ? 'Ouvrir' : 'Fermer'}</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
       {/* Cash payment modal */}
       {isCashPaymentOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">

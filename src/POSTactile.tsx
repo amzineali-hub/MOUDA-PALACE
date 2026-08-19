@@ -617,6 +617,12 @@ export default function POSTactile() {
     return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   };
 
+  const getItemImageUrl = (item: any): string => {
+    if (item.imageUrl) return item.imageUrl;
+    const matchingRecipe = recettes.find(r => normalizeString(r.nom || r.name) === normalizeString(item.name));
+    return matchingRecipe?.photo || matchingRecipe?.image || '';
+  };
+
   const filteredItems = (() => {
     if (searchQuery) {
       const q = normalizeString(searchQuery);
@@ -1466,7 +1472,7 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
                 <AnimatePresence mode="popLayout">
                   {/* Bouton d'ajout */}
                   <motion.button
@@ -1475,17 +1481,18 @@ export default function POSTactile() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 #d1d5db, 0 8px 10px rgba(0,0,0,0.1)" }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-2 sm:p-4 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_8px_0_#d1d5db,0_12px_20px_rgba(0,0,0,0.1)] transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_6px_0_#d1d5db,0_10px_16px_rgba(0,0,0,0.1)] transition-all"
                   >
-                    <Plus size={32} className="mb-2" />
-                    <span className="font-bold text-sm">Ajouter un article</span>
+                    <Plus size={22} className="mb-1" />
+                    <span className="font-bold text-[10px] sm:text-xs text-center">Ajouter un article</span>
                   </motion.button>
-                  
+
                   {filteredItems.map(item => {
                     const colorClass = getCategoryColor(item.category);
                     const textColor = colorClass.includes('text-white') ? 'text-white/90' : 'text-[#1A1A1A]/80';
                     const priceColor = colorClass.includes('text-white') ? 'text-white' : 'text-[#1A1A1A]';
-                    
+                    const resolvedImage = getItemImageUrl(item);
+
                     return (
                       <motion.div
                         layout
@@ -1496,37 +1503,37 @@ export default function POSTactile() {
                         whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 rgba(0,0,0,0.25), 0 8px 10px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2)" }}
                         key={item.id}
                         onClick={() => !isEditMode && openModifierPanel(item)}
-                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_0_rgba(0,0,0,0.25),0_12px_20px_rgba(0,0,0,0.3),inset_0_3px_0_rgba(255,255,255,0.4),inset_0_-3px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
+                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-xl sm:rounded-2xl p-2 sm:p-2.5 text-left bg-gradient-to-br ${colorClass} shadow-[0_6px_0_rgba(0,0,0,0.25),0_10px_16px_rgba(0,0,0,0.3),inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
                       >
                         {/* Full Image Background if available */}
-                        {item.imageUrl ? (
+                        {resolvedImage ? (
                           <>
                             <div className="absolute inset-0">
-                              <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                              <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 rounded-3xl" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 rounded-2xl" />
                           </>
                         ) : (
-                          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-3xl" />
+                          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-2xl" />
                         )}
-                        
+
                         {isEditMode && (
-                          <div 
+                          <div
                             onClick={(e) => handleDeleteItem(e, item.id)}
-                            className="absolute top-2 right-2 z-20 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                            className="absolute top-1 right-1 z-20 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={12} />
                           </div>
                         )}
                         <div className="relative z-10 flex flex-col h-full justify-between">
-                          <span className={`font-bold text-sm sm:text-lg leading-tight flex-1 drop-shadow-sm break-words line-clamp-3 ${item.imageUrl ? 'text-white' : priceColor}`}>
+                          <span className={`font-bold text-[11px] sm:text-sm leading-tight flex-1 drop-shadow-sm break-words line-clamp-3 ${resolvedImage ? 'text-white' : priceColor}`}>
                             {item.name}
                           </span>
                           <div className="mt-auto flex flex-wrap items-baseline">
-                            <span className={`font-black text-lg sm:text-2xl drop-shadow-md ${item.imageUrl ? 'text-white' : priceColor}`}>
+                            <span className={`font-black text-sm sm:text-lg drop-shadow-md ${resolvedImage ? 'text-white' : priceColor}`}>
                               {item.numPrice}
                             </span>
-                            <span className={`font-bold text-[10px] sm:text-xs ml-1 ${item.imageUrl ? 'text-white/80' : textColor}`}>MAD</span>
+                            <span className={`font-bold text-[9px] sm:text-[10px] ml-1 ${resolvedImage ? 'text-white/80' : textColor}`}>MAD</span>
                           </div>
                         </div>
                       </motion.div>

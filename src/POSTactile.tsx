@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle, MessageSquare, Send } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
@@ -87,6 +87,18 @@ export default function POSTactile() {
   const [isCancelOrderModalOpen, setIsCancelOrderModalOpen] = useState(false);
   const [cancelOrderReason, setCancelOrderReason] = useState('');
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' || navigator.onLine);
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -706,8 +718,7 @@ export default function POSTactile() {
       const displayId = `TKT-${orderId.replace('CMD-', '').slice(-8)}`;
       const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
       const now = new Date();
-      const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
-      const currentInventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+      const currentInventoryItems = inventoryItems;
 
       const deductions: { id: string; name: string; unit: string; qtyToDeduct: number; reasonItem: string }[] = [];
 
@@ -923,6 +934,12 @@ export default function POSTactile() {
               <div>
                 <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
                 <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
+                {!isOnline && (
+                  <div className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Hors ligne — les actions seront synchronisées à la reconnexion
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 w-full md:w-auto">
                 <button

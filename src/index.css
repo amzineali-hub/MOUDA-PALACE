@@ -33,6 +33,24 @@
   }
 }
 
+@media print {
+  body:has(#printable-ticket) * {
+    visibility: hidden;
+  }
+  #printable-ticket, #printable-ticket * {
+    visibility: visible;
+  }
+  #printable-ticket {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm;
+    max-height: none;
+    overflow: visible;
+    padding: 4mm;
+  }
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }

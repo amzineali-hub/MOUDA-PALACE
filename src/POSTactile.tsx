@@ -1539,7 +1539,25 @@ export default function POSTactile() {
               </div>
               
               <div className="border-t border-dashed border-gray-300 pt-4 mb-6">
-                <div className="flex justify-between items-center text-lg font-bold">
+                {ticketToPrint.subtotal !== undefined && (
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Sous-total</span>
+                    <span>{ticketToPrint.subtotal.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {ticketToPrint.discountPercent > 0 && (
+                  <div className="flex justify-between text-sm text-amber-700 font-medium mt-1">
+                    <span>Remise ({ticketToPrint.discountPercent}%)</span>
+                    <span>-{ticketToPrint.discountAmount.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                {ticketToPrint.tax !== undefined && (
+                  <div className="flex justify-between text-sm text-gray-500 mt-1">
+                    <span>TVA ({ticketToPrint.taxRate}%)</span>
+                    <span>{ticketToPrint.tax.toFixed(2)} MAD</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-lg font-bold mt-2 pt-2 border-t border-dashed border-gray-200">
                   <span>TOTAL</span>
                   <span>{ticketToPrint.total.toFixed(2)} MAD</span>
                 </div>
@@ -1580,17 +1598,8 @@ export default function POSTactile() {
               >
                 Fermer
               </button>
-              <button 
-                onClick={() => {
-                  const printContent = document.getElementById('printable-ticket');
-                  if (printContent) {
-                    const originalContents = document.body.innerHTML;
-                    document.body.innerHTML = printContent.innerHTML;
-                    window.print();
-                    document.body.innerHTML = originalContents;
-                    window.location.reload();
-                  }
-                }}
+              <button
+                onClick={() => window.print()}
                 className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 <Receipt size={18} />

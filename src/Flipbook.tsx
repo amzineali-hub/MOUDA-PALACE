@@ -126,11 +126,11 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
   }, [brochureUrl]);
 
   if (loading) {
-    return <div className="h-[620px] flex items-center justify-center text-gray-500">Chargement des pages de la brochure...</div>;
+    return <div className="h-[520px] flex items-center justify-center text-gray-500">Chargement des pages de la brochure...</div>;
   }
 
   if (error || pageImages.length === 0) {
-    return <div className="h-[620px] flex flex-col items-center justify-center gap-3 text-center text-gray-500 px-6"><FileText size={36} className="text-gray-300" /><p>{error || 'Aucune page trouvée dans ce PDF.'}</p></div>;
+    return <div className="h-[520px] flex flex-col items-center justify-center gap-3 text-center text-gray-500 px-6"><FileText size={36} className="text-gray-300" /><p>{error || 'Aucune page trouvée dans ce PDF.'}</p></div>;
   }
 
   const pages = pageImages.map((imageUrl, index) => (
@@ -139,7 +139,7 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
 
   return (
     <>
-      <div className="w-full max-w-6xl flex items-center justify-center gap-6 px-4 py-8">
+      <div className="w-full max-w-6xl flex items-center justify-center gap-4 px-4 py-4">
         <button
           onClick={() => bookRef.current?.pageFlip()?.flipPrev()}
           disabled={currentPage <= 0}
@@ -152,12 +152,12 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
         <HTMLFlipBook
           ref={bookRef}
           width={380}
-          height={540}
+          height={500}
           size="stretch"
           minWidth={320}
           maxWidth={500}
-          minHeight={460}
-          maxHeight={700}
+          minHeight={420}
+          maxHeight={600}
           showCover={true}
           maxShadowOpacity={0.3}
           className="shadow-xl"
@@ -189,7 +189,7 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
           <ChevronRight size={20} />
         </button>
       </div>
-      <p className="text-xs text-gray-400 pb-6">Page {currentPage + 1} / {pageImages.length}</p>
+      <p className="text-xs text-gray-400 pb-3">Page {currentPage + 1} / {pageImages.length}</p>
     </>
   );
 }
@@ -232,8 +232,8 @@ export default function Flipbook() {
   const totalPages = pages.length;
 
   return (
-    <div className="p-4 md:p-8 w-full flex flex-col items-center relative z-10">
-      <div className="mb-6 text-center">
+    <div className="p-4 md:p-6 w-full flex flex-col items-center relative z-10">
+      <div className="mb-4 text-center">
         <h2 className="text-3xl font-serif text-[#265C6D]">Flipbook des Plats</h2>
         <p className="text-gray-500 mt-1">Aperçu feuilletable de votre carte, généré depuis Menus digitaux.</p>
       </div>
@@ -257,12 +257,12 @@ export default function Flipbook() {
             <HTMLFlipBook
               ref={bookRef}
               width={380}
-              height={540}
+              height={500}
               size="stretch"
               minWidth={320}
               maxWidth={500}
-              minHeight={460}
-              maxHeight={700}
+              minHeight={420}
+              maxHeight={600}
               showCover={true}
               maxShadowOpacity={0.3}
               className="shadow-xl"
@@ -294,12 +294,12 @@ export default function Flipbook() {
               <ChevronRight size={20} />
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-4">Page {currentPage + 1} / {totalPages}</p>
+          <p className="text-xs text-gray-400 mt-2">Page {currentPage + 1} / {totalPages}</p>
         </>
       )}
 
-      <section className="w-full max-w-6xl mt-14 pt-10 border-t border-gray-200">
-        <div className="mb-6 text-center">
+      <section className="w-full max-w-6xl mt-8 pt-6 border-t border-gray-200">
+        <div className="mb-4 text-center">
           <h2 className="text-3xl font-serif text-[#265C6D]">Flipbook des Brochures</h2>
           <p className="text-gray-500 mt-1">Brochures Plats Marocains</p>
         </div>

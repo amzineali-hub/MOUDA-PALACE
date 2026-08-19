@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Clock, Utensils, AlertCircle } from 'lucide-react';
@@ -7,10 +7,11 @@ import { useToast } from './context/ToastContext';
 
 export default function EcranCuisine() {
   const [tasks, setTasks] = useState<any[]>([]);
+  const [updatingTasks, setUpdatingTasks] = useState<Set<string>>(new Set());
   const { showToast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'productionTasks'), orderBy('createdAt', 'desc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
@@ -18,18 +19,56 @@ export default function EcranCuisine() {
   }, []);
 
   const updateStatus = async (id: string, currentStatus: string) => {
+    if (updatingTasks.has(id)) return;
     const nextStatus = currentStatus === 'À faire' ? 'En cours' : 'Terminé';
+    const task = tasks.find(item => item.id === id);
+    setUpdatingTasks(prev => new Set(prev).add(id));
     try {
       await updateDoc(doc(db, 'productionTasks', id), {
         status: nextStatus,
-        progress: nextStatus === 'En cours' ? 50 : 100
+        progress: nextStatus === 'En cours' ? 50 : 100,
+        ...(nextStatus === 'En cours' ? { startedAt: new Date() } : { completedAt: new Date() }),
+        updatedAt: new Date()
       });
+
+      if (nextStatus === 'Terminé' && task?.orderId) {
+        const remainingTasks = tasks.some(item => item.orderId === task.orderId && item.id !== id && item.status !== 'Terminé');
+        if (!remainingTasks) {
+          await updateDoc(doc(db, 'orders', task.orderId), {
+            status: 'Prête',
+            kitchenStatus: 'Prête',
+            updatedAt: new Date()
+          }).catch(error => console.warn('Order status update skipped:', error));
+        }
+      }
       if (nextStatus === 'Terminé') {
         showToast("Plat marqué comme terminé !");
       }
     } catch (e) {
       console.error(e);
       showToast("Erreur de mise à jour", "error");
+    } finally {
+      setUpdatingTasks(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const clearDemoTasks = async () => {
+    if (tasks.length === 0) {
+      showToast('Aucun bon à supprimer.');
+      return;
+    }
+    if (!window.confirm(`Supprimer les ${tasks.length} bons affichés dans l'écran cuisine ? Cette action est réservée au nettoyage des démonstrations.`)) return;
+
+    try {
+      await Promise.all(tasks.map(task => deleteDoc(doc(db, 'productionTasks', task.id))));
+      showToast('Écran cuisine vidé.');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors du nettoyage des bons', 'error');
     }
   };
 
@@ -72,7 +111,8 @@ export default function EcranCuisine() {
       {task.status !== 'Terminé' && (
         <button 
           onClick={() => updateStatus(task.id, task.status)}
-          className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors \${
+          disabled={updatingTasks.has(task.id)}
+          className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-wait transition-colors \${
             task.status === 'À faire' 
               ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' 
               : 'bg-green-50 text-green-600 hover:bg-green-100'
@@ -99,7 +139,15 @@ export default function EcranCuisine() {
           <h2 className="text-2xl font-serif font-bold text-[#1A1A1A]">Écran Cuisine (KDS)</h2>
           <p className="text-gray-500">Gestion des bons de commande en temps réel</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3 items-center">
+          <button
+            type="button"
+            onClick={clearDemoTasks}
+            disabled={tasks.length === 0}
+            className="px-3 py-2 rounded-xl border border-red-200 bg-white text-red-600 text-sm font-semibold hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Vider les démonstrations
+          </button>
           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
             <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
             <span className="font-bold text-gray-700">{aFaire.length} En attente</span>

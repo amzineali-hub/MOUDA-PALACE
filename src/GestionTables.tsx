@@ -59,11 +59,15 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
 
   const handleAddTable = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTable.id) return showToast("Veuillez saisir un identifiant pour la table");
+    const tableId = newTable.id.trim().toUpperCase();
+    if (!tableId) return showToast("Veuillez saisir un identifiant pour la table");
+    if (tables.some(table => String(table.id || '').trim().toUpperCase() === tableId)) {
+      return showToast("Cet identifiant de table existe déjà", "error");
+    }
     
     try {
       await addDoc(collection(db, 'tables'), {
-        id: newTable.id,
+        id: tableId,
         zone: activeZone,
         capacity: newTable.capacity,
         shape: newTable.shape,
@@ -84,8 +88,12 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
 
 
   const handleUpdateStatus = async (fbId: string, newStatus: string) => {
+    if (!fbId) {
+      showToast("Cette table n'est pas synchronisée", "error");
+      return;
+    }
     try {
-      await updateDoc(doc(db, 'tables', fbId), { status: newStatus });
+      await updateDoc(doc(db, 'tables', fbId), { status: newStatus, updatedAt: serverTimestamp() });
       showToast("Statut de la table mis à jour");
     } catch (err) {
       console.error("Error updating table", err);
@@ -193,7 +201,16 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                   <span className="text-lg font-bold">{table.id}</span>
                 </div>
                 <button 
+                  type="button"
                   onClick={() => {
+                    if (!table.fbId) {
+                      showToast("Cette table n'est pas synchronisée", "error");
+                      return;
+                    }
+                    if (table.status === 'occupee' || table.status === 'reservee') {
+                      showToast("Libérez ou transférez cette table avant suppression", "error");
+                      return;
+                    }
                     if (window.confirm(`Voulez-vous vraiment supprimer la table ${table.id} ?`)) {
                       deleteDoc(doc(db, 'tables', table.fbId)).then(() => showToast('Table supprimée')).catch(() => showToast('Erreur lors de la suppression', 'error'));
                     }

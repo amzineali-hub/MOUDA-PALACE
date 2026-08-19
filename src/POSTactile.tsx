@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
@@ -55,6 +55,7 @@ export default function POSTactile() {
   const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
   const [kitchenTableId, setKitchenTableId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isTransferringTable, setIsTransferringTable] = useState(false);
   const [isCashPaymentOpen, setIsCashPaymentOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
   const [isMixedPaymentOpen, setIsMixedPaymentOpen] = useState(false);
@@ -156,6 +157,41 @@ export default function POSTactile() {
         const { totalCost } = computeRecipeCost(matchedRecette, inventoryItems);
         if (totalCost > 0) setNewItemPrice(String(Math.round(totalCost * 1.3)));
       }
+    }
+  };
+
+  const transferTable = async (targetTable: string) => {
+    if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
+      setSelectedTable(targetTable);
+      setIsTableModalOpen(false);
+      return;
+    }
+    if (isTransferringTable) return;
+    if (!window.confirm(`Transférer la commande de ${selectedTable} vers ${targetTable} ?`)) return;
+
+    setIsTransferringTable(true);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'orders', kitchenOrderId), {
+        tableId: targetTable,
+        updatedAt: serverTimestamp()
+      });
+      kitchenOrders
+        .filter(task => task.orderId === kitchenOrderId)
+        .forEach(task => batch.update(doc(db, 'productionTasks', task.id), {
+          tableId: targetTable,
+          updatedAt: serverTimestamp()
+        }));
+      await batch.commit();
+      setSelectedTable(targetTable);
+      setKitchenTableId(targetTable);
+      setIsTableModalOpen(false);
+      showToast(`Commande transférée vers ${targetTable}`);
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors du transfert de table', 'error');
+    } finally {
+      setIsTransferringTable(false);
     }
   };
 
@@ -1305,10 +1341,8 @@ export default function POSTactile() {
                 {tables.map((table) => (
                   <button
                     key={table.id || table.fbId}
-                    onClick={() => {
-                      setSelectedTable(table.id);
-                      setIsTableModalOpen(false);
-                    }}
+                    onClick={() => transferTable(table.id)}
+                    disabled={isTransferringTable}
                     className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.id ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
                   >
                     <span className="text-xl mb-1">{table.id}</span>

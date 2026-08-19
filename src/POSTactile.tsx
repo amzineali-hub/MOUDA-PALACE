@@ -6,6 +6,7 @@ import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
+import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity } from './lib/posUtils';
 import Combobox from './components/Combobox';
 
 const CATEGORIES = [
@@ -23,6 +24,9 @@ export default function POSTactile() {
   const handleClearCart = () => {
     if (cart.length > 0) {
       setCart([]);
+      setKitchenSent(false);
+      setKitchenOrderId(null);
+      setKitchenTableId(null);
       showToast("Ticket annulé");
     }
   };
@@ -46,6 +50,10 @@ export default function POSTactile() {
   const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen'>('cart');
   const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [kitchenSent, setKitchenSent] = useState(false);
+  const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
+  const [kitchenTableId, setKitchenTableId] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -239,6 +247,9 @@ export default function POSTactile() {
   })();
 
   const addToCart = (item: any) => {
+    setKitchenSent(false);
+    setKitchenOrderId(null);
+    setKitchenTableId(null);
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
@@ -249,6 +260,9 @@ export default function POSTactile() {
   };
 
   const updateQty = (id: string, delta: number) => {
+    setKitchenSent(false);
+    setKitchenOrderId(null);
+    setKitchenTableId(null);
     setCart(prev => {
       return prev.map(item => {
         if (item.id === id) {
@@ -260,7 +274,7 @@ export default function POSTactile() {
     });
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + ((Number.isNaN(item.numPrice) ? 0 : (item.numPrice || 0)) * (item.qty || 1)), 0);
+  const subtotal = calculatePosSubtotal(cart);
   const tax = subtotal * 0.10;
   const total = subtotal + tax;
 
@@ -269,23 +283,50 @@ export default function POSTactile() {
       showToast("Le ticket est vide.", "error");
       return;
     }
+    if (kitchenSent) {
+      showToast("Cette commande est déjà envoyée en cuisine.", "error");
+      return;
+    }
     
     try {
       showToast("Envoi en cuisine...", "success");
-      const orderId = 'CMD-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const orderId = createPosOrderId();
+      const orderRef = doc(db, 'orders', orderId);
       
-      for (const item of cart) {
-        await addDoc(collection(db, 'productionTasks'), {
+      await runTransaction(db, async (transaction) => {
+        transaction.set(orderRef, {
           orderId,
-          item: item.name || 'Inconnu',
-          qty: item.qty || 1,
-          status: 'À faire',
-          progress: 0,
+          tableId: selectedTable || null,
+          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item) })),
+          subtotal,
+          tax,
+          total,
+          status: 'En cuisine',
+          paymentStatus: 'Non payée',
           createdAt: serverTimestamp(),
-          source: 'POS',
-          priority: 'Haute'
+          updatedAt: serverTimestamp(),
+          source: 'POS'
         });
-      }
+
+        cart.forEach((item, index) => {
+          const taskRef = doc(db, 'productionTasks', `${orderId}-${index}`);
+          transaction.set(taskRef, {
+            orderId,
+            tableId: selectedTable || null,
+            item: item.name || 'Inconnu',
+            qty: getLineQuantity(item),
+            status: 'À faire',
+            progress: 0,
+            createdAt: serverTimestamp(),
+            source: 'POS',
+            priority: 'Haute'
+          });
+        });
+      });
+
+      setKitchenSent(true);
+      setKitchenOrderId(orderId);
+      setKitchenTableId(selectedTable);
       showToast("Commande envoyée en cuisine !", "success");
       const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
       const now = new Date();
@@ -301,7 +342,6 @@ export default function POSTactile() {
       
     } catch (e: any) {
       console.error(e);
-      alert("Erreur cuisine: " + e.message);
       showToast("Erreur lors de l'envoi en cuisine", "error");
     }
   };
@@ -311,106 +351,117 @@ export default function POSTactile() {
       showToast("Le ticket est vide.", "error");
       return;
     }
+    if (isProcessingPayment) return;
+    setIsProcessingPayment(true);
     
     try {
-      const displayId = 'TKT-' + Date.now().toString().slice(-6);
+      const orderId = kitchenOrderId || createPosOrderId();
+      const displayId = `TKT-${orderId.replace('CMD-', '').slice(-8)}`;
       const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
       const now = new Date();
-      
-      // 1. Ajouter aux recettes caisses
-      await addDoc(collection(db, 'cash_receipts'), {
-        displayId,
-        amount: total,
-        method: method,
-        items: cart.map(item => ({ name: item.name || 'Inconnu', qty: item.qty || 1, price: item.price || 0 })),
-        date: today,
-        createdAt: now
-      });
+      const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
+      const currentInventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
 
-      // 2. Facture
-      const invoiceId = 'FAC-' + Date.now().toString().slice(-6);
-      await addDoc(collection(db, 'invoices'), {
-        id: invoiceId,
-        client: 'Client Comptoir (POS)',
-        ice: 'N/A',
-        date: today,
-        montantHT: subtotal,
-        tva: 10,
-        amount: `${total.toFixed(2)} MAD`,
-        status: 'Payée',
-        method: method,
-        createdAt: now
-      });
+      const deductions: { id: string; name: string; unit: string; qtyToDeduct: number; reasonItem: string }[] = [];
 
-      // 3. Stocks — écriture atomique (transaction) pour éviter toute perte de déduction
-      // en cas de ventes simultanées sur plusieurs postes POS.
-      try {
-        const inventorySnapshot = await getDocs(collection(db, 'inventoryItems'));
-        const inventoryItems = inventorySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
-
-        const deductions: { id: string; name: string; unit: string; qtyToDeduct: number; reasonItem: string }[] = [];
-
-        for (const cartItem of cart) {
+      for (const cartItem of cart) {
           if (!cartItem || !cartItem.name) continue;
 
-          const matchingRecipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === cartItem.name.toLowerCase());
+          const matchingRecipe = recettes.find(r => normalizeString(r.nom || r.name) === normalizeString(cartItem.name));
 
           if (matchingRecipe && matchingRecipe.ingredients && Array.isArray(matchingRecipe.ingredients)) {
             for (const ingredient of matchingRecipe.ingredients) {
               if (!ingredient || !ingredient.name) continue;
 
-              const invItem = inventoryItems.find((inv: any) => (inv.name || '').toLowerCase() === ingredient.name.toLowerCase());
+              const invItem = currentInventoryItems.find((inv: any) => normalizeString(inv.name) === normalizeString(ingredient.name));
               if (!invItem) continue;
 
               const portions = matchingRecipe.portions || 1;
-              const qtyToDeduct = ((ingredient.quantity || 0) / portions) * (cartItem.qty || 1);
+              const qtyToDeduct = ((Number(ingredient.quantity) || 0) / portions) * getLineQuantity(cartItem);
               deductions.push({ id: invItem.id, name: invItem.name, unit: invItem.unit || 'kg', qtyToDeduct, reasonItem: cartItem.name });
             }
           } else {
-            const matchingItem = inventoryItems.find((inv: any) =>
-              (inv.name || '').toLowerCase() === cartItem.name.toLowerCase()
+            const matchingItem = currentInventoryItems.find((inv: any) =>
+              normalizeString(inv.name) === normalizeString(cartItem.name)
             );
             if (!matchingItem) continue;
-            deductions.push({ id: matchingItem.id, name: matchingItem.name, unit: matchingItem.unit || 'pièce', qtyToDeduct: cartItem.qty || 1, reasonItem: cartItem.name });
+            deductions.push({ id: matchingItem.id, name: matchingItem.name, unit: matchingItem.unit || 'pièce', qtyToDeduct: getLineQuantity(cartItem), reasonItem: cartItem.name });
           }
-        }
-
-        if (deductions.length > 0) {
-          const uniqueIds = Array.from(new Set(deductions.map(d => d.id)));
-          await runTransaction(db, async (transaction) => {
-            const refs = uniqueIds.map(id => doc(db, 'inventoryItems', id));
-            const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
-
-            const totalDeductById = new Map<string, number>();
-            deductions.forEach(d => totalDeductById.set(d.id, (totalDeductById.get(d.id) || 0) + d.qtyToDeduct));
-
-            refs.forEach((ref, idx) => {
-              const snap = snaps[idx];
-              if (!snap.exists()) return;
-              const id = uniqueIds[idx];
-              const currentQty = Number(snap.data().quantity) || 0;
-              const newQty = Math.max(0, currentQty - (totalDeductById.get(id) || 0));
-              transaction.update(ref, { quantity: newQty, updatedAt: now });
-            });
-
-            deductions.forEach(d => {
-              const txRef = doc(collection(db, 'inventoryTransactions'));
-              transaction.set(txRef, {
-                item: d.name,
-                type: 'out',
-                amount: d.qtyToDeduct,
-                unit: d.unit,
-                reason: `Vente POS: ${d.reasonItem} (${displayId})`,
-                user: 'POS',
-                date: today,
-                createdAt: now
-              });
-            });
-          });
-        }
-      } catch (stockErr) {
-        console.error("Stock deduction error", stockErr);
       }
+
+      const uniqueIds = Array.from(new Set(deductions.map(d => d.id)));
+      await runTransaction(db, async (transaction) => {
+        const refs = uniqueIds.map(id => doc(db, 'inventoryItems', id));
+        const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
+        const orderRef = doc(db, 'orders', orderId);
+        const receiptRef = doc(collection(db, 'cash_receipts'));
+        const invoiceRef = doc(collection(db, 'invoices'));
+
+        const totalDeductById = new Map<string, number>();
+        deductions.forEach(d => totalDeductById.set(d.id, (totalDeductById.get(d.id) || 0) + d.qtyToDeduct));
+
+        refs.forEach((ref, idx) => {
+          const snap = snaps[idx];
+          if (!snap.exists()) return;
+          const id = uniqueIds[idx];
+          const currentQty = Number(snap.data().quantity) || 0;
+          const newQty = Math.max(0, currentQty - (totalDeductById.get(id) || 0));
+          transaction.update(ref, { quantity: newQty, updatedAt: serverTimestamp() });
+        });
+
+        deductions.forEach(d => {
+          const txRef = doc(collection(db, 'inventoryTransactions'));
+          transaction.set(txRef, {
+            item: d.name,
+            type: 'out',
+            amount: d.qtyToDeduct,
+            unit: d.unit,
+            reason: `Vente POS: ${d.reasonItem} (${displayId})`,
+            user: 'POS',
+            date: today,
+            createdAt: serverTimestamp()
+          });
+        });
+
+        transaction.set(receiptRef, {
+          orderId,
+          displayId,
+          tableId: kitchenTableId || selectedTable || null,
+          amount: total,
+          method,
+          items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item) })),
+          date: today,
+          createdAt: serverTimestamp()
+        });
+
+        transaction.set(invoiceRef, {
+          id: `FAC-${orderId.replace('CMD-', '').slice(-8)}`,
+          orderId,
+          client: 'Client Comptoir (POS)',
+          ice: 'N/A',
+          date: today,
+          montantHT: subtotal,
+          tva: 10,
+          amount: `${total.toFixed(2)} MAD`,
+          status: 'Payée',
+          method,
+          createdAt: serverTimestamp()
+        });
+
+        transaction.set(orderRef, {
+          orderId,
+          tableId: kitchenTableId || selectedTable || null,
+          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item) })),
+          subtotal,
+          tax,
+          total,
+          status: 'Clôturée',
+          paymentStatus: 'Payée',
+          paymentMethod: method,
+          updatedAt: serverTimestamp(),
+          source: 'POS'
+        }, { merge: true });
+      });
 
       setTicketToPrint({
         id: displayId,
@@ -422,11 +473,15 @@ export default function POSTactile() {
       });
       setIsTicketModalOpen(true);
       setCart([]);
+      setKitchenSent(false);
+      setKitchenOrderId(null);
+      setKitchenTableId(null);
       
     } catch (err: any) {
       console.error("Checkout Error:", err);
-      alert("Erreur caisse: " + err.message + "\n" + JSON.stringify(err, Object.getOwnPropertyNames(err)));
       showToast("Erreur: " + (err.message || "Erreur inconnue lors de l'encaissement"), "error");
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -689,7 +744,8 @@ export default function POSTactile() {
 
             <button 
               onClick={handleSendKitchen}
-              className="w-full py-4 bg-gray-100 text-gray-800 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 transition-all shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] active:translate-y-0.5 active:shadow-none mb-3"
+              disabled={kitchenSent || isProcessingPayment}
+              className="w-full py-4 bg-gray-100 text-gray-800 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] active:translate-y-0.5 active:shadow-none mb-3"
             >
               <Utensils size={20} />
               Envoyer en Cuisine
@@ -698,14 +754,16 @@ export default function POSTactile() {
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => handleCheckout('Espèces')}
-                className="py-4 bg-emerald-500 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-emerald-600 transition-all shadow-[0_6px_15px_-5px_rgba(16,185,129,0.5),inset_0_-3px_0_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-[inset_0_3px_0_rgba(0,0,0,0.2)]"
+                disabled={isProcessingPayment}
+                className="py-4 bg-emerald-500 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_6px_15px_-5px_rgba(16,185,129,0.5),inset_0_-3px_0_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-[inset_0_3px_0_rgba(0,0,0,0.2)]"
               >
                 <Banknote size={24} />
                 <span className="text-sm">Espèces</span>
               </button>
               <button 
                 onClick={() => handleCheckout('Carte Bancaire')}
-                className="py-4 bg-[#1A1A1A] text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-black transition-all shadow-[0_6px_15px_-5px_rgba(0,0,0,0.4),inset_0_-3px_0_rgba(255,255,255,0.2)] active:translate-y-1 active:shadow-[inset_0_3px_0_rgba(0,0,0,0.5)]"
+                disabled={isProcessingPayment}
+                className="py-4 bg-[#1A1A1A] text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_6px_15px_-5px_rgba(0,0,0,0.4),inset_0_-3px_0_rgba(255,255,255,0.2)] active:translate-y-1 active:shadow-[inset_0_3px_0_rgba(0,0,0,0.5)]"
               >
                 <CreditCard size={24} />
                 <span className="text-sm">Carte B.</span>
@@ -797,7 +855,7 @@ export default function POSTactile() {
                     <div>
                       <span className="font-medium">{item.qty}x</span> {item.name}
                     </div>
-                    <div className="text-gray-700">{(item.price * item.qty).toFixed(2)} MAD</div>
+                    <div className="text-gray-700">{getLineTotal(item).toFixed(2)} MAD</div>
                   </div>
                 ))}
               </div>

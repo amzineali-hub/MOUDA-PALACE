@@ -1722,12 +1722,14 @@ export default function POSTactile() {
               <button type="button" onClick={() => setModifierItem(null)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
             </div>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cuisson</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Bleu', 'Saignant', 'À point', 'Bien cuit'].map(option => <button key={option} type="button" onClick={() => setModifierCooking(modifierCooking === option ? '' : option)} className={`p-3 rounded-xl border font-semibold ${modifierCooking === option ? 'bg-[#265C6D] text-white border-[#265C6D]' : 'border-gray-200 text-gray-700'}`}>{option}</button>)}
+              {modifierItem.category === 'Plats Principaux' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Cuisson</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Bleu', 'Saignant', 'À point', 'Bien cuit'].map(option => <button key={option} type="button" onClick={() => setModifierCooking(modifierCooking === option ? '' : option)} className={`p-3 rounded-xl border font-semibold ${modifierCooking === option ? 'bg-[#265C6D] text-white border-[#265C6D]' : 'border-gray-200 text-gray-700'}`}>{option}</button>)}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Supplément / accompagnement</label>
                 <select value={modifierExtra} onChange={event => setModifierExtra(event.target.value)} className="w-full p-3 rounded-xl border border-gray-200">

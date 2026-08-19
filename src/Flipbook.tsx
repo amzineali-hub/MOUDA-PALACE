@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import HTMLFlipBook from 'react-pageflip';
+import * as pdfjsLib from 'pdfjs-dist';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, UtensilsCrossed } from 'lucide-react';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 const CATEGORIES = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
@@ -64,6 +67,125 @@ const BackCoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
     </div>
   </div>
 ));
+
+const BrochurePage = React.forwardRef<HTMLDivElement, { imageUrl: string; pageNumber: number }>(({ imageUrl, pageNumber }, ref) => (
+  <div ref={ref} className="w-full h-full bg-white border border-gray-100 overflow-hidden flex items-center justify-center">
+    <img src={imageUrl} alt={`Page ${pageNumber} de la brochure`} className="w-full h-full object-contain" />
+  </div>
+));
+
+function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
+  const [pageImages, setPageImages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const bookRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPdfPages = async () => {
+      setLoading(true);
+      setError(null);
+      setPageImages([]);
+      setCurrentPage(0);
+
+      try {
+        const pdf = await pdfjsLib.getDocument({ url: brochureUrl }).promise;
+        const images: string[] = [];
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+          const page = await pdf.getPage(pageNumber);
+          const viewport = page.getViewport({ scale: 1.6 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Canvas non disponible');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvas, canvasContext: context, viewport }).promise;
+          images.push(canvas.toDataURL('image/jpeg', 0.92));
+        }
+
+        if (!cancelled) setPageImages(images);
+      } catch (loadError) {
+        console.error('Brochure PDF error:', loadError);
+        if (!cancelled) setError('Impossible de charger la brochure. Ouvrez le PDF dans un nouvel onglet pour vérifier son accès.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadPdfPages();
+    return () => { cancelled = true; };
+  }, [brochureUrl]);
+
+  if (loading) {
+    return <div className="h-[620px] flex items-center justify-center text-gray-500">Chargement des pages de la brochure...</div>;
+  }
+
+  if (error || pageImages.length === 0) {
+    return <div className="h-[620px] flex flex-col items-center justify-center gap-3 text-center text-gray-500 px-6"><FileText size={36} className="text-gray-300" /><p>{error || 'Aucune page trouvée dans ce PDF.'}</p></div>;
+  }
+
+  const pages = pageImages.map((imageUrl, index) => (
+    <BrochurePage key={`${brochureUrl}-${index}`} imageUrl={imageUrl} pageNumber={index + 1} />
+  ));
+
+  return (
+    <>
+      <div className="w-full max-w-6xl flex items-center justify-center gap-6 px-4 py-8">
+        <button
+          onClick={() => bookRef.current?.pageFlip()?.flipPrev()}
+          disabled={currentPage <= 0}
+          className="shrink-0 p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          aria-label="Page précédente de la brochure"
+        >
+          <ChevronLeft size={20} />
+        </button>
+
+        <HTMLFlipBook
+          ref={bookRef}
+          width={380}
+          height={540}
+          size="stretch"
+          minWidth={320}
+          maxWidth={500}
+          minHeight={460}
+          maxHeight={700}
+          showCover={true}
+          maxShadowOpacity={0.3}
+          className="shadow-xl"
+          style={{}}
+          startPage={0}
+          drawShadow={true}
+          flippingTime={600}
+          usePortrait={true}
+          startZIndex={0}
+          autoSize={true}
+          mobileScrollSupport={true}
+          clickEventForward={true}
+          useMouseEvents={true}
+          swipeDistance={30}
+          showPageCorners={true}
+          disableFlipByClick={false}
+          renderOnlyPageLengthChange={true}
+          onFlip={(event: any) => setCurrentPage(event.data)}
+        >
+          {pages}
+        </HTMLFlipBook>
+
+        <button
+          onClick={() => bookRef.current?.pageFlip()?.flipNext()}
+          disabled={currentPage >= pageImages.length - 1}
+          className="shrink-0 p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          aria-label="Page suivante de la brochure"
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 pb-6">Page {currentPage + 1} / {pageImages.length}</p>
+    </>
+  );
+}
 
 export default function Flipbook() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -191,7 +313,7 @@ export default function Flipbook() {
                 </a>
               </div>
             </div>
-            <iframe src={`${brochureUrl}#view=FitH`} title="Flipbook des Brochures" className="w-full h-[720px] border-0 bg-gray-100" />
+            <BrochureFlipbook brochureUrl={brochureUrl} />
           </div>
         ) : (
           <div className="bg-white border border-dashed border-gray-200 rounded-2xl py-16 px-6 text-center text-gray-400">

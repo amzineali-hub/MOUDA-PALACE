@@ -170,6 +170,7 @@ export default function POSTactile() {
   const [refundTicketId, setRefundTicketId] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+  const [refundSelections, setRefundSelections] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -715,6 +716,38 @@ export default function POSTactile() {
     }
   };
 
+  const getRefundReceipt = () => {
+    const ticketId = refundTicketId.trim();
+    if (!ticketId) return null;
+    return recentReceipts.find(r => r.displayId === ticketId || r.id === ticketId) || null;
+  };
+
+  const getRefundedQtyForIndex = (receipt: any, idx: number): number => {
+    const refundedQtyByIndex = Array.isArray(receipt?.refundedQtyByIndex) ? receipt.refundedQtyByIndex : [];
+    return Number(refundedQtyByIndex[idx]) || 0;
+  };
+
+  const getRemainingQtyForIndex = (receipt: any, idx: number): number => {
+    const item = receipt?.items?.[idx];
+    if (!item) return 0;
+    return Math.max(0, (Number(item.qty) || 0) - getRefundedQtyForIndex(receipt, idx));
+  };
+
+  const computeRefundAmount = (receipt: any, selections: Record<number, number>): number => {
+    const items = Array.isArray(receipt?.items) ? receipt.items : [];
+    const rawSubtotal = Object.entries(selections).reduce((sum, [idxStr, qty]) => {
+      const idx = Number(idxStr);
+      const item = items[idx];
+      if (!item || !qty) return sum;
+      const unitPrice = Number(item.price) || (Number(item.lineTotal || 0) / (Number(item.qty) || 1));
+      return sum + unitPrice * qty;
+    }, 0);
+    const discountPercentOnReceipt = Number(receipt?.discountPercent) || 0;
+    const taxRateOnReceipt = Number(receipt?.taxRate) || 0;
+    const afterDiscount = rawSubtotal * (1 - discountPercentOnReceipt / 100);
+    return Math.round(afterDiscount * (1 + taxRateOnReceipt / 100) * 100) / 100;
+  };
+
   const confirmRefund = async () => {
     const ticketId = refundTicketId.trim();
     const reason = refundReason.trim();
@@ -736,6 +769,121 @@ export default function POSTactile() {
       return;
     }
     if (isProcessingRefund) return;
+
+    const items = Array.isArray(receipt.items) ? receipt.items : [];
+
+    // Legacy receipts created before item-level detail was stored: keep the old whole-ticket refund behavior.
+    if (items.length === 0) {
+      setIsProcessingRefund(true);
+      try {
+        let invoiceId: string | null = null;
+        if (receipt.orderId) {
+          const invoiceQuery = await getDocs(query(collection(db, 'invoices'), where('orderId', '==', receipt.orderId)));
+          if (!invoiceQuery.empty) invoiceId = invoiceQuery.docs[0].id;
+        }
+
+        await runTransaction(db, async (transaction) => {
+          const receiptRef = doc(db, 'cash_receipts', receipt.id);
+          const receiptSnap = await transaction.get(receiptRef);
+          if (!receiptSnap.exists()) throw new Error('Ticket introuvable.');
+          if (receiptSnap.data().status === 'Remboursée') throw new Error('Ce ticket a déjà été remboursé.');
+
+          const amount = Number(receipt.amount) || 0;
+          let shiftRef = null;
+          let shiftSnap = null;
+          if (activeShift && receipt.shiftId === activeShift.id) {
+            shiftRef = doc(db, 'pos_shifts', activeShift.id);
+            shiftSnap = await transaction.get(shiftRef);
+          }
+
+          transaction.update(receiptRef, {
+            status: 'Remboursée',
+            refundedAmount: amount,
+            refundReason: reason,
+            refundedAt: serverTimestamp()
+          });
+
+          if (receipt.orderId) {
+            transaction.update(doc(db, 'orders', receipt.orderId), {
+              paymentStatus: 'Remboursée',
+              updatedAt: serverTimestamp()
+            });
+          }
+
+          if (invoiceId) {
+            transaction.update(doc(db, 'invoices', invoiceId), {
+              status: 'Remboursée',
+              refundReason: reason,
+              updatedAt: serverTimestamp()
+            });
+          }
+
+          if (shiftRef && shiftSnap?.exists()) {
+            const shiftData = shiftSnap.data();
+            const cashPart = receipt.method === 'Espèces' ? amount : receipt.method === 'Mixte' ? (receipt.paymentBreakdown?.cash || 0) : 0;
+            const cardPart = receipt.method === 'Carte Bancaire' ? amount : receipt.method === 'Mixte' ? (receipt.paymentBreakdown?.card || 0) : 0;
+            transaction.update(shiftRef, {
+              expectedCash: Math.max(0, (Number(shiftData.expectedCash) || 0) - cashPart),
+              cashSales: Math.max(0, (Number(shiftData.cashSales) || 0) - cashPart),
+              cardSales: Math.max(0, (Number(shiftData.cardSales) || 0) - cardPart),
+              totalSales: Math.max(0, (Number(shiftData.totalSales) || 0) - amount),
+              refundCount: (Number(shiftData.refundCount) || 0) + 1,
+              updatedAt: serverTimestamp()
+            });
+          }
+
+          const auditRef = doc(collection(db, 'pos_audit_logs'));
+          transaction.set(auditRef, {
+            action: 'order_refunded',
+            orderId: receipt.orderId || null,
+            receiptId: receipt.id,
+            displayId: receipt.displayId || null,
+            amount,
+            partial: false,
+            reason,
+            shiftId: receipt.shiftId || null,
+            source: 'POS',
+            createdAt: serverTimestamp()
+          });
+        });
+
+        showToast(`Ticket ${receipt.displayId || receipt.id} remboursé.`);
+        setIsRefundModalOpen(false);
+        setRefundTicketId('');
+        setRefundReason('');
+        setRefundSelections({});
+      } catch (error: any) {
+        console.error(error);
+        showToast(error.message || 'Erreur lors du remboursement', 'error');
+      } finally {
+        setIsProcessingRefund(false);
+      }
+      return;
+    }
+
+    // Itemized receipts: refund only the selected quantity per article.
+    const selections = Object.entries(refundSelections)
+      .map(([idxStr, qty]) => ({ idx: Number(idxStr), qty: Number(qty) || 0 }))
+      .filter(s => s.qty > 0);
+
+    if (selections.length === 0) {
+      showToast('Sélectionnez au moins un article à rembourser.', 'error');
+      return;
+    }
+
+    for (const s of selections) {
+      const item = items[s.idx];
+      if (!item) {
+        showToast('Article introuvable sur ce ticket.', 'error');
+        return;
+      }
+      const remaining = getRemainingQtyForIndex(receipt, s.idx);
+      if (s.qty > remaining + 1e-9) {
+        showToast(`Quantité invalide pour ${item.name} (max ${remaining}).`, 'error');
+        return;
+      }
+    }
+
     setIsProcessingRefund(true);
     try {
       let invoiceId: string | null = null;
@@ -744,13 +892,34 @@ export default function POSTactile() {
         if (!invoiceQuery.empty) invoiceId = invoiceQuery.docs[0].id;
       }
 
+      const refundAmount = computeRefundAmount(receipt, refundSelections);
+      const refundedItemsSummary = selections.map(s => ({ name: items[s.idx]?.name || 'Inconnu', qty: s.qty }));
+
       await runTransaction(db, async (transaction) => {
         const receiptRef = doc(db, 'cash_receipts', receipt.id);
         const receiptSnap = await transaction.get(receiptRef);
         if (!receiptSnap.exists()) throw new Error('Ticket introuvable.');
-        if (receiptSnap.data().status === 'Remboursée') throw new Error('Ce ticket a déjà été remboursé.');
+        const freshData = receiptSnap.data();
+        if (freshData.status === 'Remboursée') throw new Error('Ce ticket a déjà été remboursé.');
 
-        const amount = Number(receipt.amount) || 0;
+        const freshItems = Array.isArray(freshData.items) ? freshData.items : items;
+        const freshRefundedQtyByIndex: number[] = Array.isArray(freshData.refundedQtyByIndex) ? [...freshData.refundedQtyByIndex] : [];
+        for (const s of selections) {
+          const already = Number(freshRefundedQtyByIndex[s.idx]) || 0;
+          const remaining = (Number(freshItems[s.idx]?.qty) || 0) - already;
+          if (s.qty > remaining + 1e-9) {
+            throw new Error(`Quantité déjà remboursée entre-temps pour ${freshItems[s.idx]?.name || 'un article'}.`);
+          }
+          freshRefundedQtyByIndex[s.idx] = already + s.qty;
+        }
+
+        const totalOriginalQty = freshItems.reduce((sum: number, it: any) => sum + (Number(it.qty) || 0), 0);
+        const totalRefundedQty = freshRefundedQtyByIndex.reduce((sum, q) => sum + (Number(q) || 0), 0);
+        const isFullyRefunded = totalOriginalQty > 0 && totalRefundedQty >= totalOriginalQty - 1e-9;
+
+        const priorRefundedAmount = Number(freshData.refundedAmount) || 0;
+        const newRefundedAmount = Math.round((priorRefundedAmount + refundAmount) * 100) / 100;
+
         let shiftRef = null;
         let shiftSnap = null;
         if (activeShift && receipt.shiftId === activeShift.id) {
@@ -759,21 +928,23 @@ export default function POSTactile() {
         }
 
         transaction.update(receiptRef, {
-          status: 'Remboursée',
+          status: isFullyRefunded ? 'Remboursée' : 'Partiellement remboursée',
+          refundedQtyByIndex: freshRefundedQtyByIndex,
+          refundedAmount: newRefundedAmount,
           refundReason: reason,
           refundedAt: serverTimestamp()
         });
 
         if (receipt.orderId) {
           transaction.update(doc(db, 'orders', receipt.orderId), {
-            paymentStatus: 'Remboursée',
+            paymentStatus: isFullyRefunded ? 'Remboursée' : 'Partiellement remboursée',
             updatedAt: serverTimestamp()
           });
         }
 
         if (invoiceId) {
           transaction.update(doc(db, 'invoices', invoiceId), {
-            status: 'Remboursée',
+            status: isFullyRefunded ? 'Remboursée' : 'Partiellement remboursée',
             refundReason: reason,
             updatedAt: serverTimestamp()
           });
@@ -781,13 +952,14 @@ export default function POSTactile() {
 
         if (shiftRef && shiftSnap?.exists()) {
           const shiftData = shiftSnap.data();
-          const cashPart = receipt.method === 'Espèces' ? amount : receipt.method === 'Mixte' ? (receipt.paymentBreakdown?.cash || 0) : 0;
-          const cardPart = receipt.method === 'Carte Bancaire' ? amount : receipt.method === 'Mixte' ? (receipt.paymentBreakdown?.card || 0) : 0;
+          const originalAmount = Number(receipt.amount) || 1;
+          const cashPart = receipt.method === 'Espèces' ? refundAmount : receipt.method === 'Mixte' ? refundAmount * ((receipt.paymentBreakdown?.cash || 0) / originalAmount) : 0;
+          const cardPart = receipt.method === 'Carte Bancaire' ? refundAmount : receipt.method === 'Mixte' ? refundAmount * ((receipt.paymentBreakdown?.card || 0) / originalAmount) : 0;
           transaction.update(shiftRef, {
             expectedCash: Math.max(0, (Number(shiftData.expectedCash) || 0) - cashPart),
             cashSales: Math.max(0, (Number(shiftData.cashSales) || 0) - cashPart),
             cardSales: Math.max(0, (Number(shiftData.cardSales) || 0) - cardPart),
-            totalSales: Math.max(0, (Number(shiftData.totalSales) || 0) - amount),
+            totalSales: Math.max(0, (Number(shiftData.totalSales) || 0) - refundAmount),
             refundCount: (Number(shiftData.refundCount) || 0) + 1,
             updatedAt: serverTimestamp()
           });
@@ -799,7 +971,9 @@ export default function POSTactile() {
           orderId: receipt.orderId || null,
           receiptId: receipt.id,
           displayId: receipt.displayId || null,
-          amount,
+          amount: refundAmount,
+          partial: !isFullyRefunded,
+          items: refundedItemsSummary,
           reason,
           shiftId: receipt.shiftId || null,
           source: 'POS',
@@ -807,10 +981,11 @@ export default function POSTactile() {
         });
       });
 
-      showToast(`Ticket ${receipt.displayId || receipt.id} remboursé.`);
+      showToast(`Ticket ${receipt.displayId || receipt.id} : ${refundAmount.toFixed(2)} MAD remboursés.`);
       setIsRefundModalOpen(false);
       setRefundTicketId('');
       setRefundReason('');
+      setRefundSelections({});
     } catch (error: any) {
       console.error(error);
       showToast(error.message || 'Erreur lors du remboursement', 'error');
@@ -1171,6 +1346,7 @@ export default function POSTactile() {
                   onClick={() => {
                     setRefundTicketId('');
                     setRefundReason('');
+                    setRefundSelections({});
                     setIsRefundModalOpen(true);
                   }}
                   className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
@@ -1674,44 +1850,111 @@ export default function POSTactile() {
       )}
 
       {/* Refund modal */}
-      {isRefundModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Rembourser un ticket</h3>
-                <p className="text-sm text-gray-500 mt-1">Remboursement total, validation manager requise</p>
+      {isRefundModalOpen && (() => {
+        const refundReceipt = getRefundReceipt();
+        const refundItems = Array.isArray(refundReceipt?.items) ? refundReceipt.items : [];
+        const isItemized = !!refundReceipt && refundItems.length > 0;
+        const isLegacy = !!refundReceipt && refundItems.length === 0;
+        const previewAmount = refundReceipt ? computeRefundAmount(refundReceipt, refundSelections) : 0;
+        const allSelected = isItemized && refundItems.every((_, idx) => (refundSelections[idx] || 0) >= getRemainingQtyForIndex(refundReceipt, idx));
+
+        const setItemQty = (idx: number, qty: number) => {
+          const remaining = getRemainingQtyForIndex(refundReceipt, idx);
+          const clamped = Math.max(0, Math.min(remaining, qty));
+          setRefundSelections(prev => {
+            const next = { ...prev };
+            if (clamped <= 0) delete next[idx];
+            else next[idx] = clamped;
+            return next;
+          });
+        };
+
+        const selectAll = () => {
+          const next: Record<number, number> = {};
+          refundItems.forEach((_, idx) => {
+            const remaining = getRemainingQtyForIndex(refundReceipt, idx);
+            if (remaining > 0) next[idx] = remaining;
+          });
+          setRefundSelections(next);
+        };
+
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Rembourser un ticket</h3>
+                  <p className="text-sm text-gray-500 mt-1">Remboursement partiel par article, validation manager requise</p>
+                </div>
+                <button type="button" onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
               </div>
-              <button type="button" onClick={() => setIsRefundModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
-            </div>
-            <form onSubmit={(event) => { event.preventDefault(); confirmRefund(); }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Numéro de ticket</label>
-                <input
-                  list="refund-recent-tickets"
-                  value={refundTicketId}
-                  onChange={(event) => setRefundTicketId(event.target.value)}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]"
-                  placeholder="Ex. TKT-A1B2C3D4"
-                />
-                <datalist id="refund-recent-tickets">
-                  {recentReceipts.filter(r => r.status !== 'Remboursée').map(r => (
-                    <option key={r.id} value={r.displayId || r.id}>{Number(r.amount || 0).toFixed(2)} MAD — {r.method}</option>
-                  ))}
-                </datalist>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
-                <textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. erreur de paiement, client mécontent" />
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setIsRefundModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>
-                <button type="submit" disabled={isProcessingRefund} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">Confirmer le remboursement</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
+              <form onSubmit={(event) => { event.preventDefault(); confirmRefund(); }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Numéro de ticket</label>
+                  <input
+                    list="refund-recent-tickets"
+                    value={refundTicketId}
+                    onChange={(event) => { setRefundTicketId(event.target.value); setRefundSelections({}); }}
+                    className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]"
+                    placeholder="Ex. TKT-A1B2C3D4"
+                  />
+                  <datalist id="refund-recent-tickets">
+                    {recentReceipts.filter(r => r.status !== 'Remboursée').map(r => (
+                      <option key={r.id} value={r.displayId || r.id}>{Number(r.amount || 0).toFixed(2)} MAD — {r.method}</option>
+                    ))}
+                  </datalist>
+                </div>
+
+                {isItemized && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold text-gray-700">Articles à rembourser</label>
+                      <button type="button" onClick={allSelected ? () => setRefundSelections({}) : selectAll} className="text-xs font-semibold text-[#0B6E5E] hover:underline">
+                        {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                      </button>
+                    </div>
+                    <div className="space-y-2 border border-gray-200 rounded-xl p-3 max-h-56 overflow-y-auto">
+                      {refundItems.map((item: any, idx: number) => {
+                        const remaining = getRemainingQtyForIndex(refundReceipt, idx);
+                        const selectedQty = refundSelections[idx] || 0;
+                        return (
+                          <div key={idx} className={`flex items-center justify-between gap-2 ${remaining <= 0 ? 'opacity-40' : ''}`}>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                              <p className="text-xs text-gray-500">{Number(item.price || 0).toFixed(2)} MAD · {remaining} restant(s) sur {item.qty}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button type="button" disabled={remaining <= 0 || selectedQty <= 0} onClick={() => setItemQty(idx, selectedQty - 1)} className="w-8 h-8 rounded-lg bg-gray-100 text-gray-700 font-bold disabled:opacity-40">-</button>
+                              <span className="w-6 text-center text-sm font-semibold">{selectedQty}</span>
+                              <button type="button" disabled={remaining <= 0 || selectedQty >= remaining} onClick={() => setItemQty(idx, selectedQty + 1)} className="w-8 h-8 rounded-lg bg-gray-100 text-gray-700 font-bold disabled:opacity-40">+</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 mt-2 text-right">Montant à rembourser : {previewAmount.toFixed(2)} MAD</p>
+                  </div>
+                )}
+
+                {isLegacy && (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    Ce ticket ne contient pas le détail des articles (ancien format) — seul le remboursement total ({Number(refundReceipt?.amount || 0).toFixed(2)} MAD) est possible.
+                  </p>
+                )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
+                  <textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. erreur de paiement, client mécontent" />
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsRefundModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>
+                  <button type="submit" disabled={isProcessingRefund || (isItemized && previewAmount <= 0)} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">Confirmer le remboursement</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        );
+      })()}
 
       {/* Shift modal */}
       {modifierItem && (

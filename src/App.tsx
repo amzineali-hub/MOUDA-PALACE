@@ -118,6 +118,7 @@ const ProductionJournaliere = lazy(() => import('./ProductionJournaliere'));
 const TableauDeBord = lazy(() => import('./TableauDeBord'));
 const GestionTables = lazy(() => import('./GestionTables'));
 const POSTactile = lazy(() => import('./POSTactile'));
+const PosRapports = lazy(() => import('./PosRapports'));
 const EcranCuisine = lazy(() => import('./EcranCuisine'));
 const DeviceManagement = lazy(() => import('./DeviceManagement'));
 const DeviceSimulator = lazy(() => import('./DeviceSimulator'));
@@ -660,6 +661,8 @@ function App() {
         return <RH />;
       case 'finance':
         return <POSTactile />;
+      case 'pos_rapports':
+        return <PosRapports />;
       case 'accounting':
         return <Accounting />;
       case 'documents':
@@ -850,6 +853,7 @@ function App() {
             onClick={() => setExpandedCategory(expandedCategory === 'ecrans' ? null : 'ecrans')}
           >
             <SubNavItem icon={<Wallet size={16} />} label="Caisse / POS Tactile" active={activeTab === 'finance'} onClick={() => handleTabChange('finance')} />
+            <SubNavItem icon={<BarChart2 size={16} />} label="Rapports POS" active={activeTab === 'pos_rapports'} onClick={() => handleTabChange('pos_rapports')} />
             <SubNavItem icon={<Monitor size={16} />} label="Gestion des Appareils" active={activeTab === 'docs_devices'} onClick={() => handleTabChange('docs_devices')} />
             <SubNavItem icon={<ChefHat size={16} />} label="Écran Cuisine (KDS)" active={activeTab === 'kds'} onClick={() => handleTabChange('kds')} />
           </NavCategory>

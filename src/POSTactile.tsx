@@ -23,16 +23,19 @@ export default function POSTactile() {
   const [cart, setCart] = useState<any[]>([]);
 
   const handleClearCart = () => {
-    if (cart.length > 0) {
-      setCart([]);
-      setDiscountPercent(0);
-      setDiscountReason('');
-      setTaxRate(10);
-      setKitchenSent(false);
-      setKitchenOrderId(null);
-      setKitchenTableId(null);
-      showToast("Ticket annulé");
+    if (cart.length === 0) return;
+    if (kitchenSent && kitchenOrderId) {
+      setIsCancelOrderModalOpen(true);
+      return;
     }
+    setCart([]);
+    setDiscountPercent(0);
+    setDiscountReason('');
+    setTaxRate(10);
+    setKitchenSent(false);
+    setKitchenOrderId(null);
+    setKitchenTableId(null);
+    showToast("Ticket annulé");
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -81,6 +84,9 @@ export default function POSTactile() {
   const [discountReason, setDiscountReason] = useState('');
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [taxRate, setTaxRate] = useState<number>(10);
+  const [isCancelOrderModalOpen, setIsCancelOrderModalOpen] = useState(false);
+  const [cancelOrderReason, setCancelOrderReason] = useState('');
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -559,6 +565,52 @@ export default function POSTactile() {
     setDiscountPercent(percent);
     setIsDiscountModalOpen(false);
     showToast(percent > 0 ? `Remise de ${percent}% appliquée` : 'Remise retirée');
+  };
+
+  const confirmCancelOrder = async () => {
+    if (!kitchenOrderId) return;
+    if (!cancelOrderReason.trim()) {
+      showToast('Un motif est requis pour annuler une commande envoyée en cuisine.', 'error');
+      return;
+    }
+    if (isCancellingOrder) return;
+    setIsCancellingOrder(true);
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'orders', kitchenOrderId), {
+        status: 'Annulée',
+        cancelReason: cancelOrderReason.trim(),
+        updatedAt: serverTimestamp()
+      });
+      kitchenOrders
+        .filter(task => task.orderId === kitchenOrderId)
+        .forEach(task => batch.delete(doc(db, 'productionTasks', task.id)));
+      const auditRef = doc(collection(db, 'pos_audit_logs'));
+      batch.set(auditRef, {
+        action: 'order_cancelled',
+        orderId: kitchenOrderId,
+        reason: cancelOrderReason.trim(),
+        source: 'POS',
+        createdAt: serverTimestamp()
+      });
+      await batch.commit();
+
+      setCart([]);
+      setDiscountPercent(0);
+      setDiscountReason('');
+      setTaxRate(10);
+      setKitchenSent(false);
+      setKitchenOrderId(null);
+      setKitchenTableId(null);
+      setCancelOrderReason('');
+      setIsCancelOrderModalOpen(false);
+      showToast('Commande annulée.');
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'annulation de la commande", 'error');
+    } finally {
+      setIsCancellingOrder(false);
+    }
   };
 
   const handleSendKitchen = async () => {
@@ -1347,6 +1399,31 @@ export default function POSTactile() {
               <div className="flex gap-3">
                 <button type="button" onClick={() => setIsDiscountModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
                 <button type="submit" className="flex-1 py-3 rounded-xl bg-[#265C6D] text-white font-bold">Appliquer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Cancel sent order modal */}
+      {isCancelOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Annuler la commande</h3>
+                <p className="text-sm text-gray-500 mt-1">Déjà envoyée en cuisine — la cuisine sera prévenue</p>
+              </div>
+              <button type="button" onClick={() => setIsCancelOrderModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); confirmCancelOrder(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
+                <textarea value={cancelOrderReason} onChange={(event) => setCancelOrderReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. client parti, erreur de commande" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsCancelOrderModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>
+                <button type="submit" disabled={isCancellingOrder} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">Confirmer l'annulation</button>
               </div>
             </form>
           </motion.div>

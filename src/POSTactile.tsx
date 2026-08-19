@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle, MessageSquare, Send } from 'lucide-react';
@@ -16,6 +17,82 @@ const CATEGORIES = [
   { id: 'Desserts', name: 'Desserts', icon: <Coffee size={18} /> },
   { id: 'Boissons', name: 'Boissons', icon: <GlassWater size={18} /> },
 ];
+
+const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
+  <>
+    <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
+      <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
+      <p className="text-xs text-gray-500 uppercase tracking-wider">Restaurant & Salon de thé</p>
+      <div className="mt-4 text-sm text-gray-600 space-y-1">
+        <p>Ticket: {ticket.id}</p>
+        <p>{ticket.date} à {ticket.time}</p>
+      </div>
+    </div>
+
+    <div className="space-y-3 mb-6">
+      {ticket.items.map((item: any, idx: number) => (
+        <div key={idx} className="flex justify-between text-sm">
+          <div>
+            <span className="font-medium">{item.qty}x</span> {item.name}
+          </div>
+          <div className="text-gray-700">{getLineTotal(item).toFixed(2)} MAD</div>
+        </div>
+      ))}
+    </div>
+
+    <div className="border-t border-dashed border-gray-300 pt-4 mb-6">
+      {ticket.subtotal !== undefined && (
+        <div className="flex justify-between text-sm text-gray-500">
+          <span>Sous-total</span>
+          <span>{ticket.subtotal.toFixed(2)} MAD</span>
+        </div>
+      )}
+      {ticket.discountPercent > 0 && (
+        <div className="flex justify-between text-sm text-amber-700 font-medium mt-1">
+          <span>Remise ({ticket.discountPercent}%)</span>
+          <span>-{ticket.discountAmount.toFixed(2)} MAD</span>
+        </div>
+      )}
+      {ticket.tax !== undefined && (
+        <div className="flex justify-between text-sm text-gray-500 mt-1">
+          <span>TVA ({ticket.taxRate}%)</span>
+          <span>{ticket.tax.toFixed(2)} MAD</span>
+        </div>
+      )}
+      <div className="flex justify-between items-center text-lg font-bold mt-2 pt-2 border-t border-dashed border-gray-200">
+        <span>TOTAL</span>
+        <span>{ticket.total.toFixed(2)} MAD</span>
+      </div>
+      <div className="flex justify-between text-sm text-gray-500 mt-2">
+        <span>Paiement</span>
+        <span>{ticket.method}</span>
+      </div>
+      {ticket.cashReceived !== undefined && (
+        <>
+          <div className="flex justify-between text-sm text-gray-500 mt-1">
+            <span>Reçu</span>
+            <span>{ticket.cashReceived.toFixed(2)} MAD</span>
+          </div>
+          <div className="flex justify-between text-sm font-semibold text-emerald-700 mt-1">
+            <span>Monnaie</span>
+            <span>{ticket.changeDue.toFixed(2)} MAD</span>
+          </div>
+        </>
+      )}
+      {ticket.paymentBreakdown && (
+        <div className="mt-2 pt-2 border-t border-dashed border-gray-200 text-sm text-gray-500 space-y-1">
+          <div className="flex justify-between"><span>Part espèces</span><span>{ticket.paymentBreakdown.cash.toFixed(2)} MAD</span></div>
+          <div className="flex justify-between"><span>Part carte</span><span>{ticket.paymentBreakdown.card.toFixed(2)} MAD</span></div>
+        </div>
+      )}
+    </div>
+
+    <div className="text-center text-xs text-gray-400 mt-8">
+      <p>Merci de votre visite !</p>
+      <p>À très bientôt chez Mouda Palace</p>
+    </div>
+  </>
+);
 
 export default function POSTactile() {
   const { showToast } = useToast();
@@ -975,6 +1052,25 @@ export default function POSTactile() {
           source: 'POS'
         }, { merge: true });
 
+        if (!kitchenSent) {
+          cart.forEach((item, index) => {
+            const taskRef = doc(db, 'productionTasks', `${orderId}-${index}`);
+            transaction.set(taskRef, {
+              orderId,
+              tableId: kitchenTableId || selectedTable || null,
+              item: item.name || 'Inconnu',
+              category: item.category || 'Autres',
+              modifiers: item.modifiers || null,
+              qty: getLineQuantity(item),
+              status: 'À faire',
+              progress: 0,
+              createdAt: serverTimestamp(),
+              source: 'POS',
+              priority: 'Haute'
+            });
+          });
+        }
+
         if (discountPercent > 0) {
           const auditRef = doc(collection(db, 'pos_audit_logs'));
           transaction.set(auditRef, {
@@ -1781,80 +1877,10 @@ export default function POSTactile() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto bg-white flex-1" id="printable-ticket">
-              <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
-                <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">Restaurant & Salon de thé</p>
-                <div className="mt-4 text-sm text-gray-600 space-y-1">
-                  <p>Ticket: {ticketToPrint.id}</p>
-                  <p>{ticketToPrint.date} à {ticketToPrint.time}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3 mb-6">
-                {ticketToPrint.items.map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <div>
-                      <span className="font-medium">{item.qty}x</span> {item.name}
-                    </div>
-                    <div className="text-gray-700">{getLineTotal(item).toFixed(2)} MAD</div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="border-t border-dashed border-gray-300 pt-4 mb-6">
-                {ticketToPrint.subtotal !== undefined && (
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Sous-total</span>
-                    <span>{ticketToPrint.subtotal.toFixed(2)} MAD</span>
-                  </div>
-                )}
-                {ticketToPrint.discountPercent > 0 && (
-                  <div className="flex justify-between text-sm text-amber-700 font-medium mt-1">
-                    <span>Remise ({ticketToPrint.discountPercent}%)</span>
-                    <span>-{ticketToPrint.discountAmount.toFixed(2)} MAD</span>
-                  </div>
-                )}
-                {ticketToPrint.tax !== undefined && (
-                  <div className="flex justify-between text-sm text-gray-500 mt-1">
-                    <span>TVA ({ticketToPrint.taxRate}%)</span>
-                    <span>{ticketToPrint.tax.toFixed(2)} MAD</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center text-lg font-bold mt-2 pt-2 border-t border-dashed border-gray-200">
-                  <span>TOTAL</span>
-                  <span>{ticketToPrint.total.toFixed(2)} MAD</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-500 mt-2">
-                  <span>Paiement</span>
-                  <span>{ticketToPrint.method}</span>
-                </div>
-                {ticketToPrint.cashReceived !== undefined && (
-                  <>
-                    <div className="flex justify-between text-sm text-gray-500 mt-1">
-                      <span>Reçu</span>
-                      <span>{ticketToPrint.cashReceived.toFixed(2)} MAD</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-semibold text-emerald-700 mt-1">
-                      <span>Monnaie</span>
-                      <span>{ticketToPrint.changeDue.toFixed(2)} MAD</span>
-                    </div>
-                  </>
-                )}
-                {ticketToPrint.paymentBreakdown && (
-                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200 text-sm text-gray-500 space-y-1">
-                    <div className="flex justify-between"><span>Part espèces</span><span>{ticketToPrint.paymentBreakdown.cash.toFixed(2)} MAD</span></div>
-                    <div className="flex justify-between"><span>Part carte</span><span>{ticketToPrint.paymentBreakdown.card.toFixed(2)} MAD</span></div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="text-center text-xs text-gray-400 mt-8">
-                <p>Merci de votre visite !</p>
-                <p>À très bientôt chez Mouda Palace</p>
-              </div>
+            <div className="p-6 overflow-y-auto bg-white flex-1">
+              <TicketReceiptBody ticket={ticketToPrint} />
             </div>
-            
+
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
               <button 
                 onClick={() => setIsTicketModalOpen(false)}
@@ -1873,7 +1899,15 @@ export default function POSTactile() {
           </motion.div>
         </div>
       )}
-\n            {/* Add Item Modal */}
+
+      {ticketToPrint && typeof document !== 'undefined' && createPortal(
+        <div id="printable-ticket" className="hidden print:block bg-white p-4">
+          <TicketReceiptBody ticket={ticketToPrint} />
+        </div>,
+        document.body
+      )}
+
+      {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <motion.div 

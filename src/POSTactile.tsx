@@ -1730,12 +1730,14 @@ export default function POSTactile() {
                   </div>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Supplément / accompagnement</label>
-                <select value={modifierExtra} onChange={event => setModifierExtra(event.target.value)} className="w-full p-3 rounded-xl border border-gray-200">
-                  <option value="">Aucun</option><option>Frites maison</option><option>Légumes grillés</option><option>Sauce supplémentaire</option><option>Portion supplémentaire</option>
-                </select>
-              </div>
+              {modifierItem.category !== 'Boissons' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Supplément / accompagnement</label>
+                  <select value={modifierExtra} onChange={event => setModifierExtra(event.target.value)} className="w-full p-3 rounded-xl border border-gray-200">
+                    <option value="">Aucun</option><option>Frites maison</option><option>Légumes grillés</option><option>Sauce supplémentaire</option><option>Portion supplémentaire</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Note cuisine / allergie</label>
                 <textarea value={modifierNote} onChange={event => setModifierNote(event.target.value)} rows={2} placeholder="Ex. sans noix, sauce à part..." className="w-full p-3 rounded-xl border border-gray-200 resize-none" />

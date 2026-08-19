@@ -51,6 +51,10 @@ Both paths must keep working since the deploy target isn't fixed in this repo.
 
 Tailwind CSS v4, configured CSS-first via `@theme` in `src/index.css` (fonts, custom `scan` animation) plus the `@tailwindcss/vite` plugin — there is no `tailwind.config.js`.
 
+## Backlog
+
+`BACKLOG.md` (racine du repo) liste ce qui reste à faire, par module — à consulter en début de session et à tenir à jour au fil des traitements (chaque heure/jour de travail sur l'ERP), pas seulement en fin de tâche.
+
 ## Historique récent
 
 - **3 modules retirés du produit** : Zones et Économat, HACCP et Sous-Vide, Chambre Négative. Décision produit déjà prise et appliquée — ne pas les recréer sans consigne explicite de l'utilisateur.

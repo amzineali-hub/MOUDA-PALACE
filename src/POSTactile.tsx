@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle, MessageSquare, Send } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
@@ -47,7 +47,7 @@ export default function POSTactile() {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
-  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen' | 'suspended'>('cart');
+  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen' | 'suspended' | 'messages'>('cart');
   const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
   const [suspendedTickets, setSuspendedTickets] = useState<any[]>([]);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -55,6 +55,10 @@ export default function POSTactile() {
   const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
   const [kitchenTableId, setKitchenTableId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [posMessages, setPosMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState('');
+  const [messageTarget, setMessageTarget] = useState('Cuisine');
+  const [messagePriority, setMessagePriority] = useState('Normale');
   const [isTransferringTable, setIsTransferringTable] = useState(false);
   const [isCashPaymentOpen, setIsCashPaymentOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
@@ -78,6 +82,47 @@ export default function POSTactile() {
     });
     return () => unsub();
   }, [showToast]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'pos_messages')), (snapshot) => {
+      setPosMessages(snapshot.docs.map(message => ({ ...message.data(), id: message.id })));
+    }, error => {
+      console.error('POS messages error:', error);
+      showToast('Impossible de charger les messages POS', 'error');
+    });
+    return () => unsub();
+  }, [showToast]);
+
+  const sendPosMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const text = messageText.trim();
+    if (!text) return;
+    try {
+      await addDoc(collection(db, 'pos_messages'), {
+        text,
+        target: messageTarget,
+        priority: messagePriority,
+        tableId: selectedTable || null,
+        orderId: kitchenOrderId || null,
+        source: 'POS',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+      setMessageText('');
+      showToast('Message envoyé');
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'envoi du message", 'error');
+    }
+  };
+
+  const markPosMessageRead = async (messageId: string) => {
+    try {
+      await updateDoc(doc(db, 'pos_messages', messageId), { read: true, readAt: serverTimestamp() });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
     const suspendTicket = async () => {
       if (cart.length === 0) {
@@ -792,6 +837,15 @@ export default function POSTactile() {
                 <span className="bg-[#F4C75B] text-[#1A1A1A] text-[10px] px-1.5 py-0.5 rounded-full">{suspendedTickets.length}</span>
               )}
             </button>
+            <button
+              onClick={() => setActiveCartTab('messages')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 ${activeCartTab === 'messages' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <MessageSquare size={15} /> Messages
+              {posMessages.filter(message => !message.read && message.target === 'POS').length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{posMessages.filter(message => !message.read && message.target === 'POS').length}</span>
+              )}
+            </button>
           </div>
           
           {activeCartTab === 'cart' ? (
@@ -984,7 +1038,7 @@ export default function POSTactile() {
               </div>
             )}
           </div>
-          ) : (
+          ) : activeCartTab === 'suspended' ? (
             <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
               {suspendedTickets.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
@@ -1013,6 +1067,32 @@ export default function POSTactile() {
                   ))}
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
+              <form onSubmit={sendPosMessage} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-gray-900 font-bold"><MessageSquare size={19} className="text-[#265C6D]" /> Message entre services</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={messageTarget} onChange={(event) => setMessageTarget(event.target.value)} className="p-2.5 rounded-xl border border-gray-200 text-sm">
+                    <option>Cuisine</option><option>Salle</option><option>Direction</option><option>Stock</option><option>POS</option>
+                  </select>
+                  <select value={messagePriority} onChange={(event) => setMessagePriority(event.target.value)} className="p-2.5 rounded-xl border border-gray-200 text-sm">
+                    <option>Normale</option><option>Importante</option><option>Urgente</option>
+                  </select>
+                </div>
+                <textarea value={messageText} onChange={(event) => setMessageText(event.target.value)} rows={3} placeholder="Écrire un message..." className="w-full p-3 rounded-xl border border-gray-200 resize-none focus:outline-none focus:border-[#F4C75B]" />
+                <button type="submit" disabled={!messageText.trim()} className="w-full py-3 rounded-xl bg-[#265C6D] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40"><Send size={17} /> Envoyer</button>
+              </form>
+
+              <div className="space-y-2">
+                {posMessages.length === 0 ? <p className="text-center text-gray-400 py-8">Aucun message</p> : posMessages.slice().reverse().map(message => (
+                  <button key={message.id} type="button" onClick={() => !message.read && markPosMessageRead(message.id)} className={`w-full text-left bg-white rounded-xl border p-3 shadow-sm ${message.read ? 'border-gray-100' : 'border-[#F4C75B] bg-amber-50/30'}`}>
+                    <div className="flex justify-between gap-2 mb-1"><span className="font-bold text-sm text-[#265C6D]">{message.target}</span><span className={`text-[10px] font-bold uppercase ${message.priority === 'Urgente' ? 'text-red-600' : 'text-gray-400'}`}>{message.priority}</span></div>
+                    <p className="text-sm text-gray-700">{message.text}</p>
+                    {(message.tableId || message.orderId) && <p className="text-[11px] text-gray-400 mt-2">{message.tableId || ''}{message.orderId ? ` · ${message.orderId}` : ''}</p>}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@ import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, d
 import { db, auth } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
+import { TVA_RATES } from './lib/tva';
 import Combobox from './components/Combobox';
 
 const CATEGORIES = [
@@ -26,6 +27,7 @@ export default function POSTactile() {
       setCart([]);
       setDiscountPercent(0);
       setDiscountReason('');
+      setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -78,6 +80,7 @@ export default function POSTactile() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [taxRate, setTaxRate] = useState<number>(10);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -221,6 +224,7 @@ export default function POSTactile() {
           })),
           subtotal: discountedSubtotal,
           tax,
+          taxRate,
           total,
           discountPercent,
           discountAmount,
@@ -232,6 +236,7 @@ export default function POSTactile() {
         setSelectedTable(null);
         setDiscountPercent(0);
         setDiscountReason('');
+        setTaxRate(10);
         setKitchenSent(false);
         setKitchenOrderId(null);
         setKitchenTableId(null);
@@ -250,6 +255,7 @@ export default function POSTactile() {
         setSelectedTable(ticket.tableId || null);
         setDiscountPercent(Number(ticket.discountPercent) || 0);
         setDiscountReason(ticket.discountReason || '');
+        setTaxRate(Number(ticket.taxRate) || 10);
         setKitchenSent(false);
         setKitchenOrderId(null);
         setKitchenTableId(null);
@@ -541,7 +547,7 @@ export default function POSTactile() {
   const subtotal = calculatePosSubtotal(cart);
   const discountAmount = subtotal * (discountPercent / 100);
   const discountedSubtotal = subtotal - discountAmount;
-  const tax = discountedSubtotal * 0.10;
+  const tax = discountedSubtotal * (taxRate / 100);
   const total = discountedSubtotal + tax;
 
   const applyDiscount = () => {
@@ -577,6 +583,7 @@ export default function POSTactile() {
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal: discountedSubtotal,
           tax,
+          taxRate,
           total,
           discountPercent,
           discountAmount,
@@ -722,6 +729,8 @@ export default function POSTactile() {
           tableId: kitchenTableId || selectedTable || null,
           amount: total,
           subtotal: discountedSubtotal,
+          tax,
+          taxRate,
           discountPercent,
           discountAmount,
           method,
@@ -741,7 +750,7 @@ export default function POSTactile() {
           ice: 'N/A',
           date: today,
           montantHT: discountedSubtotal,
-          tva: 10,
+          tva: taxRate,
           amount: `${total.toFixed(2)} MAD`,
           discountPercent,
           discountAmount,
@@ -771,6 +780,7 @@ export default function POSTactile() {
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal: discountedSubtotal,
           tax,
+          taxRate,
           total,
           discountPercent,
           discountAmount,
@@ -806,6 +816,8 @@ export default function POSTactile() {
         items: [...cart],
         total: total,
         subtotal: discountedSubtotal,
+        tax,
+        taxRate,
         discountPercent,
         discountAmount,
         method: method,
@@ -817,6 +829,7 @@ export default function POSTactile() {
       setCart([]);
       setDiscountPercent(0);
       setDiscountReason('');
+      setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -1131,8 +1144,18 @@ export default function POSTactile() {
                   <span>-{discountAmount.toFixed(2)} MAD</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-500 font-medium">
-                <span>TVA (10%)</span>
+              <div className="flex justify-between items-center text-gray-500 font-medium">
+                <span className="flex items-center gap-1.5">
+                  TVA
+                  <select
+                    value={taxRate}
+                    onChange={(event) => setTaxRate(Number(event.target.value))}
+                    disabled={isProcessingPayment}
+                    className="text-xs font-bold border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none focus:border-[#F4C75B]"
+                  >
+                    {TVA_RATES.map(rate => <option key={rate} value={rate}>{rate}%</option>)}
+                  </select>
+                </span>
                 <span>{tax.toFixed(2)} MAD</span>
               </div>
               <div className="flex justify-between items-end pt-4 border-t border-gray-100">

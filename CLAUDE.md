@@ -50,3 +50,9 @@ Both paths must keep working since the deploy target isn't fixed in this repo.
 ## Styling
 
 Tailwind CSS v4, configured CSS-first via `@theme` in `src/index.css` (fonts, custom `scan` animation) plus the `@tailwindcss/vite` plugin — there is no `tailwind.config.js`.
+
+## Historique récent
+
+- **3 modules retirés du produit** : Zones et Économat, HACCP et Sous-Vide, Chambre Négative. Décision produit déjà prise et appliquée — ne pas les recréer sans consigne explicite de l'utilisateur.
+- **Faille de sécurité corrigée** : `firestore.rules` autorisait auparavant `allow read, write: if true` (accès public total). Corrigé — les règles actuelles restreignent l'accès aux emails de `AUTHORIZED_EMAILS` (voir Access Control ci-dessus). Ne jamais réintroduire une règle ouverte.
+- **Mise en production** : l'ERP est en production depuis ce mois-ci. Seul le rôle `manager` est actuellement activé ; les autres rôles seront ouverts progressivement. Tenir compte de cet état en production lors de changements touchant l'auth, les rôles ou les permissions.

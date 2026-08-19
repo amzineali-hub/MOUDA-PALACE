@@ -65,6 +65,10 @@ export default function POSTactile() {
   const [isMixedPaymentOpen, setIsMixedPaymentOpen] = useState(false);
   const [mixedCashAmount, setMixedCashAmount] = useState('');
   const [mixedCardAmount, setMixedCardAmount] = useState('');
+  const [modifierItem, setModifierItem] = useState<any>(null);
+  const [modifierCooking, setModifierCooking] = useState('');
+  const [modifierExtra, setModifierExtra] = useState('');
+  const [modifierNote, setModifierNote] = useState('');
   const [activeShift, setActiveShift] = useState<any>(null);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [shiftMode, setShiftMode] = useState<'open' | 'close'>('open');
@@ -207,7 +211,8 @@ export default function POSTactile() {
             numPrice: getLineUnitPrice(item),
             price: item.price || `${getLineUnitPrice(item)} MAD`,
             category: item.category || 'Autres',
-            imageUrl: item.imageUrl || ''
+            imageUrl: item.imageUrl || '',
+            modifiers: item.modifiers || null
           })),
           subtotal,
           tax,
@@ -475,17 +480,35 @@ export default function POSTactile() {
     return menuItems.filter(item => item.category === activeCategory);
   })();
 
-  const addToCart = (item: any) => {
+  const addToCart = (item: any, modifiers: { cooking?: string; extra?: string; note?: string } = {}) => {
     setKitchenSent(false);
     setKitchenOrderId(null);
     setKitchenTableId(null);
+    const cooking = modifiers.cooking || '';
+    const extra = modifiers.extra || '';
+    const note = modifiers.note?.trim() || '';
+    const modifierSignature = [cooking, extra, note].filter(Boolean).join('|');
+    const lineId = modifierSignature ? `${item.id}::${modifierSignature}` : item.id;
     setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
+      const existing = prev.find(i => i.id === lineId);
       if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+        return prev.map(i => i.id === lineId ? { ...i, qty: i.qty + 1 } : i);
       }
-      return [...prev, { ...item, qty: 1 }];
+      return [...prev, { ...item, id: lineId, baseItemId: item.id, qty: 1, modifiers: { cooking, extra, note } }];
     });
+  };
+
+  const openModifierPanel = (item: any) => {
+    setModifierItem(item);
+    setModifierCooking('');
+    setModifierExtra('');
+    setModifierNote('');
+  };
+
+  const confirmModifiers = () => {
+    if (!modifierItem) return;
+    addToCart(modifierItem, { cooking: modifierCooking, extra: modifierExtra, note: modifierNote });
+    setModifierItem(null);
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -526,7 +549,7 @@ export default function POSTactile() {
         transaction.set(orderRef, {
           orderId,
           tableId: selectedTable || null,
-          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item) })),
+          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal,
           tax,
           total,
@@ -543,6 +566,7 @@ export default function POSTactile() {
             orderId,
             tableId: selectedTable || null,
             item: item.name || 'Inconnu',
+            modifiers: item.modifiers || null,
             qty: getLineQuantity(item),
             status: 'À faire',
             progress: 0,
@@ -674,7 +698,7 @@ export default function POSTactile() {
           cashReceived: paymentDetails.cashReceived ?? null,
           changeDue: paymentDetails.changeDue ?? null,
           paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
-          items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item) })),
+          items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item), modifiers: item.modifiers || null })),
           date: today,
           createdAt: serverTimestamp()
         });
@@ -712,7 +736,7 @@ export default function POSTactile() {
           orderId,
           shiftId: activeShift.id,
           tableId: kitchenTableId || selectedTable || null,
-          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item) })),
+          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal,
           tax,
           total,
@@ -865,7 +889,7 @@ export default function POSTactile() {
                         whileHover={{ scale: 1.05, y: -5 }}
                         whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 rgba(0,0,0,0.25), 0 8px 10px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2)" }}
                         key={item.id}
-                        onClick={() => !isEditMode && addToCart(item)}
+                        onClick={() => !isEditMode && openModifierPanel(item)}
                         className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-2xl sm:rounded-3xl p-3 sm:p-4 text-left bg-gradient-to-br ${colorClass} shadow-[0_8px_0_rgba(0,0,0,0.25),0_12px_20px_rgba(0,0,0,0.3),inset_0_3px_0_rgba(255,255,255,0.4),inset_0_-3px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
                       >
                         {/* Full Image Background if available */}
@@ -1003,6 +1027,11 @@ export default function POSTactile() {
                   >
                     <div className="flex-1 pr-3">
                       <h4 className="font-bold text-[#1A1A1A] leading-tight text-[15px] mb-1 line-clamp-2">{item.name}</h4>
+                      {item.modifiers && Object.values(item.modifiers).some(Boolean) && (
+                        <p className="text-[11px] text-gray-500 mb-1 line-clamp-2">
+                          {[item.modifiers.cooking, item.modifiers.extra, item.modifiers.note].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                       <div className="text-[#F4C75B] font-black text-sm">{item.numPrice * item.qty} MAD</div>
                     </div>
                     
@@ -1204,6 +1233,37 @@ export default function POSTactile() {
         </div>
       </div>
       
+      {/* Shift modal */}
+      {modifierItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[115] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div><h3 className="text-xl font-bold text-gray-900">Personnaliser le plat</h3><p className="text-sm text-gray-500 mt-1">{modifierItem.name}</p></div>
+              <button type="button" onClick={() => setModifierItem(null)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cuisson</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Bleu', 'Saignant', 'À point', 'Bien cuit'].map(option => <button key={option} type="button" onClick={() => setModifierCooking(modifierCooking === option ? '' : option)} className={`p-3 rounded-xl border font-semibold ${modifierCooking === option ? 'bg-[#265C6D] text-white border-[#265C6D]' : 'border-gray-200 text-gray-700'}`}>{option}</button>)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Supplément / accompagnement</label>
+                <select value={modifierExtra} onChange={event => setModifierExtra(event.target.value)} className="w-full p-3 rounded-xl border border-gray-200">
+                  <option value="">Aucun</option><option>Frites maison</option><option>Légumes grillés</option><option>Sauce supplémentaire</option><option>Portion supplémentaire</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Note cuisine / allergie</label>
+                <textarea value={modifierNote} onChange={event => setModifierNote(event.target.value)} rows={2} placeholder="Ex. sans noix, sauce à part..." className="w-full p-3 rounded-xl border border-gray-200 resize-none" />
+              </div>
+              <div className="flex gap-3 pt-2"><button type="button" onClick={() => setModifierItem(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button><button type="button" onClick={confirmModifiers} className="flex-1 py-3 rounded-xl bg-[#F4C75B] text-[#1A1A1A] font-bold">Ajouter au ticket</button></div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Shift modal */}
       {isShiftModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">

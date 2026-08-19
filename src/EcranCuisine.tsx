@@ -108,6 +108,12 @@ export default function EcranCuisine() {
         </div>
       </div>
 
+      {task.modifiers && Object.values(task.modifiers).some(Boolean) && (
+        <div className="mb-4 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-sm text-amber-900">
+          {[task.modifiers.cooking, task.modifiers.extra, task.modifiers.note].filter(Boolean).join(' · ')}
+        </div>
+      )}
+
       {task.status !== 'Terminé' && (
         <button 
           onClick={() => updateStatus(task.id, task.status)}

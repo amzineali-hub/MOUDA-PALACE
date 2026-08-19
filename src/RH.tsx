@@ -382,24 +382,31 @@ export default function RH() {
     const staff = staffData.find(s => s.id === hrDocStaffId);
     if (!staff) { showToast('Veuillez sélectionner un employé', 'error'); return; }
 
+    const value = (field: string, fallback = '-') => (formData.get(field) as string) || fallback;
+    const employeeName = value('name', staff.name || '-');
+    const cin = value('cin', staff.cin || '-');
+    const cnss = value('cnss', staff.cnss || '-');
+    const role = value('role', staff.role || '-');
+    const department = value('department', staff.department || '-');
+    const hireDate = value('hireDate', staff.hireDate || '-');
+    const contractType = value('contractType', staff.contractType || '-');
+    const baseSalary = Number(formData.get('baseSalary')) || 0;
+    const phone = value('phone', staff.phone || '-');
+    const email = value('email', staff.email || '-');
+    const address = value('address', staff.address || '-');
+    const emergencyContact = value('emergencyContact', staff.emergencyContact || '-');
+    const carteSanitaire = value('carteSanitaire', staff.carteSanitaire || '-');
+
     let title = HR_DOC_LABELS[hrDocType];
     let bodyHtml = '';
 
     if (hrDocType === 'fiche') {
       const rows: [string, string][] = [
-        ['Nom et prénom', staff.name || '-'],
-        ['CIN', staff.cin || '-'],
-        ['CNSS', staff.cnss || '-'],
-        ['Poste', staff.role || '-'],
-        ['Service / Département', staff.department || '-'],
-        ["Date d'embauche", staff.hireDate || '-'],
-        ['Type de contrat', staff.contractType || '-'],
-        ['Salaire de base', staff.baseSalary ? `${staff.baseSalary} MAD` : '-'],
-        ['Téléphone', staff.phone || '-'],
-        ['Email', staff.email || '-'],
-        ['Adresse', staff.address || '-'],
-        ["Contact d'urgence", staff.emergencyContact || '-'],
-        ['Carte Sanitaire', staff.carteSanitaire || '-']
+        ['Nom et prénom', employeeName], ['CIN', cin], ['CNSS', cnss], ['Poste', role],
+        ['Service / Département', department], ["Date d'embauche", hireDate],
+        ['Type de contrat', contractType], ['Salaire de base', baseSalary ? `${baseSalary} MAD` : '-'],
+        ['Téléphone', phone], ['Email', email], ['Adresse', address],
+        ["Contact d'urgence", emergencyContact], ['Carte Sanitaire', carteSanitaire]
       ];
       bodyHtml = `
         <h2 style="text-align:center;">FICHE INDIVIDUELLE DU SALARIÉ</h2>
@@ -412,23 +419,23 @@ export default function RH() {
         <h2 style="text-align:center;">ATTESTATION DE TRAVAIL</h2>
         <p class="hr-letter">
           Je soussigné(e), agissant en qualité de Direction de la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>,
-          atteste que <strong>${staff.name}</strong>, titulaire de la CIN n° <strong>${staff.cin || '-'}</strong>,
-          travaille au sein de notre établissement en qualité de <strong>${staff.role || '-'}</strong>
-          depuis le <strong>${staff.hireDate || '-'}</strong>.
+          atteste que <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>,
+          travaille au sein de notre établissement en qualité de <strong>${role}</strong>
+          depuis le <strong>${hireDate}</strong>.
         </p>
         <p class="hr-letter">La présente attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.</p>
         <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
         <p class="hr-sign">Signature et cachet de l'entreprise</p>
       `;
     } else if (hrDocType === 'certificat') {
-      const endDate = (formData.get('endDate') as string) || todayFr();
+      const endDate = value('endDate', todayFr());
       bodyHtml = `
         <h2 style="text-align:center;">CERTIFICAT DE TRAVAIL</h2>
         <p class="hr-letter">
           Je soussigné(e), agissant en qualité de Direction de la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>,
-          certifie que <strong>${staff.name}</strong>, titulaire de la CIN n° <strong>${staff.cin || '-'}</strong>,
-          a travaillé au sein de notre établissement en qualité de <strong>${staff.role || '-'}</strong>
-          du <strong>${staff.hireDate || '-'}</strong> au <strong>${endDate}</strong>.
+          certifie que <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>,
+          a travaillé au sein de notre établissement en qualité de <strong>${role}</strong>
+          du <strong>${hireDate}</strong> au <strong>${endDate}</strong>.
         </p>
         <p class="hr-letter">Le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.</p>
         <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
@@ -436,17 +443,17 @@ export default function RH() {
       `;
     } else if (hrDocType === 'solde') {
       const extra = Number(formData.get('soldeExtra')) || 0;
-      const extraLabel = (formData.get('soldeExtraLabel') as string) || 'Indemnités complémentaires';
-      const base = Number(staff.baseSalary) || 0;
+      const extraLabel = value('soldeExtraLabel', 'Indemnités complémentaires');
+      const base = baseSalary;
       const total = base + extra;
       bodyHtml = `
         <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant remise au salarié — ce montant ne constitue pas un calcul légal définitif.</div>
         <h2 style="text-align:center;">SOLDE DE TOUT COMPTE</h2>
         <table class="hr-table">
-          <tr><th>Salarié</th><td>${staff.name}</td></tr>
-          <tr><th>CIN</th><td>${staff.cin || '-'}</td></tr>
-          <tr><th>Poste</th><td>${staff.role || '-'}</td></tr>
-          <tr><th>Date d'embauche</th><td>${staff.hireDate || '-'}</td></tr>
+          <tr><th>Salarié</th><td>${employeeName}</td></tr>
+          <tr><th>CIN</th><td>${cin}</td></tr>
+          <tr><th>Poste</th><td>${role}</td></tr>
+          <tr><th>Date d'embauche</th><td>${hireDate}</td></tr>
           <tr><th>Dernier salaire de base</th><td>${base.toFixed(2)} MAD</td></tr>
           <tr><th>${extraLabel}</th><td>${extra.toFixed(2)} MAD</td></tr>
           <tr class="hr-total-row"><th>TOTAL NET</th><td>${total.toFixed(2)} MAD</td></tr>
@@ -457,7 +464,7 @@ export default function RH() {
     }
 
     const html = buildLetterheadHtml(companyInfo, window.location.origin, {
-      title: `${title} - ${staff.name}`,
+      title: `${title} - ${employeeName}`,
       bodyHtml,
       extraStyles: `
         .hr-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
@@ -965,7 +972,7 @@ export default function RH() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h3 className="text-xl font-serif font-medium text-gray-900">{HR_DOC_LABELS[hrDocType]}</h3>
@@ -973,13 +980,70 @@ export default function RH() {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); generateHrDocument(new FormData(e.currentTarget)); }} className="p-6">
-              <div className="space-y-4">
+            <form key={hrDocStaffId} onSubmit={(e) => { e.preventDefault(); generateHrDocument(new FormData(e.currentTarget)); }} className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
                   <select required value={hrDocStaffId} onChange={(e) => setHrDocStaffId(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
                     {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom et prénom</label>
+                  <input name="name" required defaultValue={staffData.find(s => s.id === hrDocStaffId)?.name || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CIN</label>
+                  <input name="cin" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.cin || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CNSS</label>
+                  <input name="cnss" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.cnss || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Poste</label>
+                  <input name="role" required defaultValue={staffData.find(s => s.id === hrDocStaffId)?.role || ''} placeholder="Saisie libre" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
+                  <select name="department" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.department || 'Salle'} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    <option value="Salle">Salle</option><option value="Cuisine">Cuisine</option>
+                    <option value="Accueil">Accueil</option><option value="Management">Management</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>
+                  <input name="hireDate" type="date" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.hireDate || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de contrat</label>
+                  <select name="contractType" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.contractType || 'CDI'} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    <option value="CDI">CDI</option><option value="CDD">CDD</option><option value="Stage">Stage</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Salaire de base (MAD)</label>
+                  <input name="baseSalary" type="number" min="0" step="0.01" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.baseSalary || 0} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.phone || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input name="email" type="email" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.email || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                  <input name="address" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact d'urgence</label>
+                  <input name="emergencyContact" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.emergencyContact || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Carte sanitaire</label>
+                  <input name="carteSanitaire" defaultValue={staffData.find(s => s.id === hrDocStaffId)?.carteSanitaire || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                 </div>
                 {hrDocType === 'certificat' && (
                   <div>

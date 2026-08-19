@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import HTMLFlipBook from 'react-pageflip';
-import { ChevronLeft, ChevronRight, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, UtensilsCrossed } from 'lucide-react';
 
 const CATEGORIES = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
@@ -67,12 +67,23 @@ const BackCoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
 
 export default function Flipbook() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [brochureUrl, setBrochureUrl] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const bookRef = useRef<any>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'menu_items'), orderBy('category')), (snapshot) => {
       setMenuItems(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'restaurant_documents'), (snapshot) => {
+      const brochure = snapshot.docs
+        .map(d => d.data() as { name?: string; url?: string })
+        .find(document => document.name?.trim().toLowerCase() === 'brochures plats marocains.pdf');
+      setBrochureUrl(brochure?.url || null);
     });
     return () => unsub();
   }, []);
@@ -99,7 +110,7 @@ export default function Flipbook() {
       </div>
 
       {menuItems.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-gray-400">
+        <div className="flex items-center justify-center text-gray-400 py-12">
           Aucun plat trouvé — ajoutez des plats dans "Menus digitaux" pour les voir apparaître ici.
         </div>
       ) : (
@@ -157,6 +168,38 @@ export default function Flipbook() {
           <p className="text-xs text-gray-400 mt-4">Page {currentPage + 1} / {totalPages}</p>
         </>
       )}
+
+      <section className="w-full max-w-6xl mt-14 pt-10 border-t border-gray-200">
+        <div className="mb-6 text-center">
+          <h2 className="text-3xl font-serif text-[#265C6D]">Flipbook des Brochures</h2>
+          <p className="text-gray-500 mt-1">Brochures Plats Marocains</p>
+        </div>
+
+        {brochureUrl ? (
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={18} className="text-[#265C6D] shrink-0" />
+                <span className="text-sm font-medium text-gray-700 truncate">Brochures Plats Marocains.pdf</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={brochureUrl} target="_blank" rel="noopener noreferrer" title="Ouvrir dans un nouvel onglet" className="p-2 text-[#265C6D] hover:bg-gray-50 rounded-lg">
+                  <ExternalLink size={17} />
+                </a>
+                <a href={brochureUrl} download="Brochures Plats Marocains.pdf" title="Télécharger la brochure" className="p-2 text-[#265C6D] hover:bg-gray-50 rounded-lg">
+                  <Download size={17} />
+                </a>
+              </div>
+            </div>
+            <iframe src={`${brochureUrl}#view=FitH`} title="Flipbook des Brochures" className="w-full h-[720px] border-0 bg-gray-100" />
+          </div>
+        ) : (
+          <div className="bg-white border border-dashed border-gray-200 rounded-2xl py-16 px-6 text-center text-gray-400">
+            <FileText size={36} className="mx-auto mb-3 text-gray-300" />
+            <p>Ajoutez le fichier « Brochures Plats Marocains.pdf » dans « Fichiers & Modèles » pour l&apos;afficher ici.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

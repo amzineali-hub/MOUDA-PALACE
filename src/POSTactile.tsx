@@ -24,6 +24,8 @@ export default function POSTactile() {
   const handleClearCart = () => {
     if (cart.length > 0) {
       setCart([]);
+      setDiscountPercent(0);
+      setDiscountReason('');
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -73,6 +75,9 @@ export default function POSTactile() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [shiftMode, setShiftMode] = useState<'open' | 'close'>('open');
   const [shiftCashAmount, setShiftCashAmount] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountReason, setDiscountReason] = useState('');
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -214,14 +219,19 @@ export default function POSTactile() {
             imageUrl: item.imageUrl || '',
             modifiers: item.modifiers || null
           })),
-          subtotal,
+          subtotal: discountedSubtotal,
           tax,
           total,
+          discountPercent,
+          discountAmount,
+          discountReason: discountReason.trim(),
           createdAt: serverTimestamp(),
           status: 'En attente'
         });
         setCart([]);
         setSelectedTable(null);
+        setDiscountPercent(0);
+        setDiscountReason('');
         setKitchenSent(false);
         setKitchenOrderId(null);
         setKitchenTableId(null);
@@ -238,6 +248,8 @@ export default function POSTactile() {
       try {
         setCart(ticket.items || []);
         setSelectedTable(ticket.tableId || null);
+        setDiscountPercent(Number(ticket.discountPercent) || 0);
+        setDiscountReason(ticket.discountReason || '');
         setKitchenSent(false);
         setKitchenOrderId(null);
         setKitchenTableId(null);
@@ -527,8 +539,21 @@ export default function POSTactile() {
   };
 
   const subtotal = calculatePosSubtotal(cart);
-  const tax = subtotal * 0.10;
-  const total = subtotal + tax;
+  const discountAmount = subtotal * (discountPercent / 100);
+  const discountedSubtotal = subtotal - discountAmount;
+  const tax = discountedSubtotal * 0.10;
+  const total = discountedSubtotal + tax;
+
+  const applyDiscount = () => {
+    const percent = parsePosPrice(discountPercent);
+    if (percent < 0 || percent > 100 || (percent > 0 && !discountReason.trim())) {
+      showToast('Saisissez une remise entre 0 et 100 % avec un motif.', 'error');
+      return;
+    }
+    setDiscountPercent(percent);
+    setIsDiscountModalOpen(false);
+    showToast(percent > 0 ? `Remise de ${percent}% appliquée` : 'Remise retirée');
+  };
 
   const handleSendKitchen = async () => {
     if (cart.length === 0) {
@@ -550,9 +575,11 @@ export default function POSTactile() {
           orderId,
           tableId: selectedTable || null,
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
-          subtotal,
+          subtotal: discountedSubtotal,
           tax,
           total,
+          discountPercent,
+          discountAmount,
           status: 'En cuisine',
           paymentStatus: 'Non payée',
           createdAt: serverTimestamp(),
@@ -694,6 +721,9 @@ export default function POSTactile() {
           displayId,
           tableId: kitchenTableId || selectedTable || null,
           amount: total,
+          subtotal: discountedSubtotal,
+          discountPercent,
+          discountAmount,
           method,
           cashReceived: paymentDetails.cashReceived ?? null,
           changeDue: paymentDetails.changeDue ?? null,
@@ -710,9 +740,11 @@ export default function POSTactile() {
           client: 'Client Comptoir (POS)',
           ice: 'N/A',
           date: today,
-          montantHT: subtotal,
+          montantHT: discountedSubtotal,
           tva: 10,
           amount: `${total.toFixed(2)} MAD`,
+          discountPercent,
+          discountAmount,
           status: 'Payée',
           method,
           paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
@@ -737,9 +769,11 @@ export default function POSTactile() {
           shiftId: activeShift.id,
           tableId: kitchenTableId || selectedTable || null,
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
-          subtotal,
+          subtotal: discountedSubtotal,
           tax,
           total,
+          discountPercent,
+          discountAmount,
           status: 'Clôturée',
           paymentStatus: 'Payée',
           paymentMethod: method,
@@ -749,6 +783,20 @@ export default function POSTactile() {
           updatedAt: serverTimestamp(),
           source: 'POS'
         }, { merge: true });
+
+        if (discountPercent > 0) {
+          const auditRef = doc(collection(db, 'pos_audit_logs'));
+          transaction.set(auditRef, {
+            action: 'discount_applied',
+            orderId,
+            shiftId: activeShift.id,
+            percent: discountPercent,
+            amount: discountAmount,
+            reason: discountReason.trim(),
+            source: 'POS',
+            createdAt: serverTimestamp()
+          });
+        }
       });
 
       setTicketToPrint({
@@ -757,6 +805,9 @@ export default function POSTactile() {
         time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         items: [...cart],
         total: total,
+        subtotal: discountedSubtotal,
+        discountPercent,
+        discountAmount,
         method: method,
         cashReceived: paymentDetails.cashReceived,
         changeDue: paymentDetails.changeDue,
@@ -764,6 +815,8 @@ export default function POSTactile() {
       });
       setIsTicketModalOpen(true);
       setCart([]);
+      setDiscountPercent(0);
+      setDiscountReason('');
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -997,6 +1050,15 @@ export default function POSTactile() {
                   <Trash2 size={18} />
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setIsDiscountModalOpen(true)}
+                disabled={cart.length === 0 || isProcessingPayment}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${discountPercent > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                title="Appliquer une remise"
+              >
+                %
+              </button>
               <button 
                 onClick={() => setIsTableModalOpen(true)}
                 className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
@@ -1063,6 +1125,12 @@ export default function POSTactile() {
                 <span>Sous-total</span>
                 <span>{subtotal.toFixed(2)} MAD</span>
               </div>
+              {discountPercent > 0 && (
+                <div className="flex justify-between text-amber-700 font-medium">
+                  <span>Remise ({discountPercent}%)</span>
+                  <span>-{discountAmount.toFixed(2)} MAD</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-500 font-medium">
                 <span>TVA (10%)</span>
                 <span>{tax.toFixed(2)} MAD</span>
@@ -1233,6 +1301,35 @@ export default function POSTactile() {
         </div>
       </div>
       
+      {/* Discount modal */}
+      {isDiscountModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Remise POS</h3>
+                <p className="text-sm text-gray-500 mt-1">Validation manager requise</p>
+              </div>
+              <button type="button" onClick={() => setIsDiscountModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); applyDiscount(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pourcentage (0 à 100)</label>
+                <input type="number" min="0" max="100" step="0.5" value={discountPercent || ''} onChange={(event) => setDiscountPercent(Number(event.target.value) || 0)} className="w-full p-3 text-xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]" placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
+                <textarea value={discountReason} onChange={(event) => setDiscountReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. geste commercial" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsDiscountModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
+                <button type="submit" className="flex-1 py-3 rounded-xl bg-[#265C6D] text-white font-bold">Appliquer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
       {/* Shift modal */}
       {modifierItem && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[115] flex items-center justify-center p-4">

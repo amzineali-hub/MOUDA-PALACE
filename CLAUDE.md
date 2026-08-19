@@ -56,3 +56,17 @@ Tailwind CSS v4, configured CSS-first via `@theme` in `src/index.css` (fonts, cu
 - **3 modules retirés du produit** : Zones et Économat, HACCP et Sous-Vide, Chambre Négative. Décision produit déjà prise et appliquée — ne pas les recréer sans consigne explicite de l'utilisateur.
 - **Faille de sécurité corrigée** : `firestore.rules` autorisait auparavant `allow read, write: if true` (accès public total). Corrigé — les règles actuelles restreignent l'accès aux emails de `AUTHORIZED_EMAILS` (voir Access Control ci-dessus). Ne jamais réintroduire une règle ouverte.
 - **Mise en production** : l'ERP est en production depuis ce mois-ci. Seul le rôle `manager` est actuellement activé ; les autres rôles seront ouverts progressivement. Tenir compte de cet état en production lors de changements touchant l'auth, les rôles ou les permissions.
+
+### Résumé de la semaine (7 derniers jours)
+
+- **Sécurité & accès** : verrouillage de Firestore/admin aux comptes autorisés, correction du projet Firebase ciblé par le CI, passage à `signInWithRedirect` sur mobile (les popups échouaient), journalisation des connexions réussies avec historique visible par le seul propriétaire.
+- **Revue experte ERP (2 phases)** : correction de bugs silencieux, écritures atomiques, piste d'audit, cycle de vie des commandes, mutualisation des calculs, découpage du code (code splitting).
+- **Module Flipbook** : nouveau catalogue de plats en pages tournantes, puis plusieurs corrections (taille fixe pour arrêter le redimensionnement/jitter, livre qui se réinitialisait à chaque snapshot Firestore, centrage de la couverture/dos, agrandissement pour remplir le viewport).
+- **Générateur de menu (impression)** : corrections des templates imprimables (logo cassé, couleurs d'en-tête alignées sur le vert/sarcelle réel de l'ERP, en-tête du menu traditionnel aligné sur le moderne).
+- **RH** : suivi des absences (jour complet et heures partielles) avec déduction salariale au prorata, correction d'un bulletin de paie généré avec un nom d'employé vide, nouvel onglet Documents RH (congés, modèles légaux téléchargeables), pointage manuel, avance/carte sanitaire, suppression dans l'historique de paie.
+- **Comptabilité** : numérotation séquentielle des factures, en-tête/logo réels de l'entreprise, en-tête de facture unifié, modèles de menu de groupe éditables, détail HT/TVA/TTC dans Dépenses & Achats, édition/suppression de factures.
+- **Stocks & inventaire** : fusion des modales de mouvement de stock dupliquées, ajout prix/TVA, seuil de stock minimum éditable en ligne, alerte stock minimum, suppression du tableau de tâches Production Journalière (redondant), ajout puis retrait de la zone de stockage Chambre Négative (voir décision produit ci-dessus).
+- **Fiches techniques (recettes)** : nom d'ingrédient éditable, remplissage automatique du prix, correction du menu déroulant d'ingrédients (rogné, bouton "+" bloqué), exclusion des catégories non culinaires des suggestions, unification du calcul de coût recette.
+- **Catalogue produits** : renommé en "Liste des Produits", 4 tuiles KPI cliquables comme filtres de statut, actions voir/éditer/supprimer.
+- **Achats/Fournisseurs** : réparation de la suppression des commandes et des fournisseurs, harmonisation des confirmations de suppression.
+- **Autres** : remplacement des menus déroulants natifs par un vrai composant Combobox, catégorie d'établissement "Restaurant - Lounge - Rooftop", fallback automatique de prix appliqué partout où il manquait, création de `CLAUDE.md`.

@@ -14,7 +14,6 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 - [ ] Pas de pourboire (tip) géré sur le paiement.
 - [ ] Pas de partage d'addition (split bill) entre convives.
 - [ ] Remise = pourcentage global du ticket, pas de remise par ligne.
-- [ ] Pas de rapport X/Z formel de caisse (l'ouverture/fermeture de quart calcule un écart mais sans document dédié imprimable).
 
 ## RH
 

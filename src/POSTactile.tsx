@@ -94,6 +94,56 @@ const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
   </>
 );
 
+const formatDateTime = (value: any): string => {
+  const d = value?.toDate ? value.toDate() : value instanceof Date ? value : null;
+  return d ? d.toLocaleString('fr-FR') : '—';
+};
+
+const ShiftReportBody = ({ report }: { report: any }) => {
+  const isZ = report.type === 'Z';
+  return (
+    <>
+      <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
+        <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
+        <p className="text-xs text-gray-500 uppercase tracking-wider">Rapport {isZ ? 'Z — Clôture de caisse' : 'X — État intermédiaire'}</p>
+        <div className="mt-4 text-sm text-gray-600 space-y-1">
+          <p>Caisse : {report.id}</p>
+          <p>Généré le {formatDateTime(report.generatedAt)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1 text-sm mb-4">
+        <div className="flex justify-between"><span>Ouverture</span><span>{formatDateTime(report.openedAt)}</span></div>
+        <div className="flex justify-between"><span>Ouvert par</span><span>{report.openedBy || '—'}</span></div>
+        <div className="flex justify-between"><span>Fond de caisse initial</span><span>{Number(report.openingCash || 0).toFixed(2)} MAD</span></div>
+        {isZ && <div className="flex justify-between"><span>Fermé par</span><span>{report.closedBy || '—'}</span></div>}
+      </div>
+
+      <div className="border-t border-dashed border-gray-300 pt-3 space-y-1 text-sm mb-4">
+        <div className="flex justify-between"><span>Ventes espèces</span><span>{Number(report.cashSales || 0).toFixed(2)} MAD</span></div>
+        <div className="flex justify-between"><span>Ventes carte</span><span>{Number(report.cardSales || 0).toFixed(2)} MAD</span></div>
+        <div className="flex justify-between font-bold pt-1 border-t border-dashed border-gray-200"><span>Total ventes</span><span>{Number(report.totalSales || 0).toFixed(2)} MAD</span></div>
+        <div className="flex justify-between text-gray-500"><span>Nombre de tickets</span><span>{report.paymentCount || 0}</span></div>
+        <div className="flex justify-between text-gray-500"><span>Remboursements</span><span>{report.refundCount || 0}</span></div>
+      </div>
+
+      <div className="border-t border-dashed border-gray-300 pt-3 space-y-1 text-sm">
+        <div className="flex justify-between"><span>Espèces théoriques</span><span>{Number(report.expectedCash || 0).toFixed(2)} MAD</span></div>
+        {isZ && (
+          <>
+            <div className="flex justify-between"><span>Espèces comptées</span><span>{Number(report.countedCash || 0).toFixed(2)} MAD</span></div>
+            <div className={`flex justify-between font-bold ${Number(report.variance || 0) < 0 ? 'text-red-600' : 'text-emerald-700'}`}><span>Écart</span><span>{Number(report.variance || 0).toFixed(2)} MAD</span></div>
+          </>
+        )}
+      </div>
+
+      <div className="text-center text-xs text-gray-400 mt-8">
+        <p>{isZ ? 'Document de clôture — à conserver.' : 'État intermédiaire, sans incidence sur la caisse.'}</p>
+      </div>
+    </>
+  );
+};
+
 export default function POSTactile() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Plats Principaux');
@@ -171,6 +221,8 @@ export default function POSTactile() {
   const [refundReason, setRefundReason] = useState('');
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [refundSelections, setRefundSelections] = useState<Record<number, number>>({});
+  const [shiftReportToPrint, setShiftReportToPrint] = useState<any>(null);
+  const [isShiftReportModalOpen, setIsShiftReportModalOpen] = useState(false);
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -254,17 +306,21 @@ export default function POSTactile() {
     if (!activeShift) return;
     const countedCash = parsePosPrice(shiftCashAmount);
     const expectedCash = Number(activeShift.expectedCash) || 0;
+    const variance = countedCash - expectedCash;
+    const closedBy = auth.currentUser?.email || 'POS';
     try {
       await updateDoc(doc(db, 'pos_shifts', activeShift.id), {
         status: 'Fermé',
         countedCash,
-        variance: countedCash - expectedCash,
-        closedBy: auth.currentUser?.email || 'POS',
+        variance,
+        closedBy,
         closedAt: serverTimestamp()
       });
+      setShiftReportToPrint({ ...activeShift, countedCash, variance, closedBy, type: 'Z', generatedAt: new Date() });
+      setIsShiftReportModalOpen(true);
       setShiftCashAmount('');
       setIsShiftModalOpen(false);
-      showToast(`Caisse fermée. Écart : ${(countedCash - expectedCash).toFixed(2)} MAD`);
+      showToast(`Caisse fermée. Écart : ${variance.toFixed(2)} MAD`);
     } catch (error) {
       console.error(error);
       showToast('Erreur lors de la fermeture de caisse', 'error');
@@ -1354,6 +1410,19 @@ export default function POSTactile() {
                 >
                   Rembourser
                 </button>
+                {activeShift && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShiftReportToPrint({ ...activeShift, type: 'X', generatedAt: new Date() });
+                      setIsShiftReportModalOpen(true);
+                    }}
+                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    title="Rapport intermédiaire de caisse (X)"
+                  >
+                    Rapport X
+                  </button>
+                )}
                 <div className="relative flex-1 md:w-72">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
@@ -2150,6 +2219,51 @@ export default function POSTactile() {
       {ticketToPrint && typeof document !== 'undefined' && createPortal(
         <div id="printable-ticket" className="hidden print:block bg-white p-4">
           <TicketReceiptBody ticket={ticketToPrint} />
+        </div>,
+        document.body
+      )}
+
+      {/* Shift X/Z report modal */}
+      {isShiftReportModalOpen && shiftReportToPrint && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-sm w-full flex flex-col max-h-[90vh]"
+          >
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800">Rapport {shiftReportToPrint.type === 'Z' ? 'Z' : 'X'} de caisse</h3>
+              <button onClick={() => setIsShiftReportModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto bg-white flex-1">
+              <ShiftReportBody report={shiftReportToPrint} />
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setIsShiftReportModalOpen(false)}
+                className="flex-1 py-2.5 text-gray-600 font-medium hover:bg-gray-200 bg-gray-100 rounded-lg transition-colors"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <Receipt size={18} />
+                Imprimer
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {shiftReportToPrint && typeof document !== 'undefined' && createPortal(
+        <div id="printable-shift-report" className="hidden print:block bg-white p-4">
+          <ShiftReportBody report={shiftReportToPrint} />
         </div>,
         document.body
       )}

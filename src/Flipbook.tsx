@@ -74,6 +74,14 @@ const BrochurePage = React.forwardRef<HTMLDivElement, { imageUrl: string; pageNu
   </div>
 ));
 
+const BrochureCoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
+  <div ref={ref} className="relative w-full h-full bg-white border border-gray-100 overflow-hidden flex flex-col items-center justify-center text-center px-8">
+    <img src="/mouda-1-1-1.png" alt="Logo Mouda Palace" className="w-36 h-44 object-contain mb-5" />
+    <h1 className="text-2xl md:text-3xl font-serif tracking-[0.18em] text-[#265C6D] uppercase">Mouda Palace</h1>
+    <p className="mt-2 text-xs md:text-sm tracking-[0.2em] text-[#265C6D] uppercase">Restaurant Lounge - Rooftop</p>
+  </div>
+));
+
 function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
   const [pageImages, setPageImages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -133,9 +141,12 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
     return <div className="h-[520px] flex flex-col items-center justify-center gap-3 text-center text-gray-500 px-6"><FileText size={36} className="text-gray-300" /><p>{error || 'Aucune page trouvée dans ce PDF.'}</p></div>;
   }
 
-  const pages = pageImages.map((imageUrl, index) => (
-    <BrochurePage key={`${brochureUrl}-${index}`} imageUrl={imageUrl} pageNumber={index + 1} />
-  ));
+  const pages = [
+    <BrochureCoverPage key={`${brochureUrl}-cover`} />,
+    ...pageImages.map((imageUrl, index) => (
+      <BrochurePage key={`${brochureUrl}-${index}`} imageUrl={imageUrl} pageNumber={index + 1} />
+    ))
+  ];
 
   return (
     <>
@@ -182,14 +193,14 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
 
         <button
           onClick={() => bookRef.current?.pageFlip()?.flipNext()}
-          disabled={currentPage >= pageImages.length - 1}
+          disabled={currentPage >= pages.length - 1}
           className="shrink-0 p-3 rounded-full bg-white shadow-sm border border-gray-100 text-[#265C6D] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           aria-label="Page suivante de la brochure"
         >
           <ChevronRight size={20} />
         </button>
       </div>
-      <p className="text-xs text-gray-400 pb-3">Page {currentPage + 1} / {pageImages.length}</p>
+      <p className="text-xs text-gray-400 pb-3">Page {currentPage + 1} / {pages.length}</p>
     </>
   );
 }

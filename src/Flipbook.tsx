@@ -75,10 +75,12 @@ const BrochurePage = React.forwardRef<HTMLDivElement, { imageUrl: string; pageNu
 ));
 
 const BrochureCoverPage = React.forwardRef<HTMLDivElement>((_props, ref) => (
-  <div ref={ref} className="relative w-full h-full bg-white border border-gray-100 overflow-hidden flex flex-col items-center justify-center text-center px-8">
-    <img src="/mouda-1-1-1.png" alt="Logo Mouda Palace" className="w-36 h-44 object-contain mb-5" />
-    <h1 className="text-2xl md:text-3xl font-serif tracking-[0.18em] text-[#265C6D] uppercase">Mouda Palace</h1>
-    <p className="mt-2 text-xs md:text-sm tracking-[0.2em] text-[#265C6D] uppercase">Restaurant Lounge - Rooftop</p>
+  <div ref={ref} className="relative w-full h-full bg-white border border-gray-100 overflow-hidden flex flex-col items-center justify-center text-center px-6">
+    <div className="w-full max-w-[92%] flex flex-col items-center -translate-y-1">
+      <img src="/mouda-1-1-1.png" alt="Logo Mouda Palace" className="w-44 h-52 object-contain mb-4" />
+      <h1 className="text-3xl md:text-4xl font-serif tracking-[0.18em] text-[#265C6D] uppercase">Mouda Palace</h1>
+      <p className="mt-2 text-sm md:text-base tracking-[0.2em] text-[#265C6D] uppercase">Restaurant Lounge - Rooftop</p>
+    </div>
   </div>
 ));
 

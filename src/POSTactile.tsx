@@ -57,6 +57,9 @@ export default function POSTactile() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isCashPaymentOpen, setIsCashPaymentOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
+  const [isMixedPaymentOpen, setIsMixedPaymentOpen] = useState(false);
+  const [mixedCashAmount, setMixedCashAmount] = useState('');
+  const [mixedCardAmount, setMixedCardAmount] = useState('');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -424,7 +427,7 @@ export default function POSTactile() {
     }
   };
 
-  const handleCheckout = async (method: string, paymentDetails: { cashReceived?: number; changeDue?: number } = {}) => {
+  const handleCheckout = async (method: string, paymentDetails: { cashReceived?: number; changeDue?: number; paymentBreakdown?: { cash: number; card: number } } = {}) => {
     if (cart.length === 0) {
       showToast("Le ticket est vide.", "error");
       return;
@@ -509,6 +512,7 @@ export default function POSTactile() {
           method,
           cashReceived: paymentDetails.cashReceived ?? null,
           changeDue: paymentDetails.changeDue ?? null,
+          paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
           items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item) })),
           date: today,
           createdAt: serverTimestamp()
@@ -525,6 +529,7 @@ export default function POSTactile() {
           amount: `${total.toFixed(2)} MAD`,
           status: 'Payée',
           method,
+          paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
           createdAt: serverTimestamp()
         });
 
@@ -540,6 +545,7 @@ export default function POSTactile() {
           paymentMethod: method,
           cashReceived: paymentDetails.cashReceived ?? null,
           changeDue: paymentDetails.changeDue ?? null,
+          paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
           updatedAt: serverTimestamp(),
           source: 'POS'
         }, { merge: true });
@@ -553,7 +559,8 @@ export default function POSTactile() {
         total: total,
         method: method,
         cashReceived: paymentDetails.cashReceived,
-        changeDue: paymentDetails.changeDue
+        changeDue: paymentDetails.changeDue,
+        paymentBreakdown: paymentDetails.paymentBreakdown
       });
       setIsTicketModalOpen(true);
       setCart([]);
@@ -582,6 +589,9 @@ export default function POSTactile() {
 
   const cashAmount = parsePosPrice(cashReceived);
   const cashChange = Math.max(0, cashAmount - total);
+  const mixedCash = parsePosPrice(mixedCashAmount);
+  const mixedCard = parsePosPrice(mixedCardAmount);
+  const mixedTotal = mixedCash + mixedCard;
 
   return (
     <div className="flex flex-col h-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F4F5]">
@@ -876,6 +886,17 @@ export default function POSTactile() {
                 <span className="text-sm">Carte B.</span>
               </button>
             </div>
+            <button
+              onClick={() => {
+                setMixedCashAmount('');
+                setMixedCardAmount('');
+                setIsMixedPaymentOpen(true);
+              }}
+              disabled={isProcessingPayment}
+              className="w-full mt-3 py-3 bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl font-bold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Paiement mixte espèces + carte
+            </button>
           </div>
           </>
           ) : activeCartTab === 'kitchen' ? (
@@ -1004,6 +1025,57 @@ export default function POSTactile() {
         </div>
       )}
 
+      {isMixedPaymentOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Paiement mixte</h3>
+                <p className="text-sm text-gray-500 mt-1">Total : <strong>{total.toFixed(2)} MAD</strong></p>
+              </div>
+              <button type="button" onClick={() => setIsMixedPaymentOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (mixedCash < 0 || mixedCard < 0 || Math.abs(mixedTotal - total) > 0.01) {
+                showToast('La répartition espèces + carte doit être égale au total.', 'error');
+                return;
+              }
+              setIsMixedPaymentOpen(false);
+              handleCheckout('Mixte', { paymentBreakdown: { cash: mixedCash, card: mixedCard } });
+            }}>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Part espèces (MAD)</label>
+              <input
+                autoFocus
+                type="text"
+                inputMode="decimal"
+                value={mixedCashAmount}
+                onChange={(event) => setMixedCashAmount(event.target.value)}
+                placeholder="0.00"
+                className="w-full p-3 text-xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B] mb-4"
+              />
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Part carte (MAD)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={mixedCardAmount}
+                onChange={(event) => setMixedCardAmount(event.target.value)}
+                placeholder={total.toFixed(2)}
+                className="w-full p-3 text-xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]"
+              />
+              <div className={`mt-4 rounded-xl p-4 flex justify-between items-center ${Math.abs(mixedTotal - total) <= 0.01 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
+                <span className="font-semibold">Répartition</span>
+                <span className="text-xl font-black">{mixedTotal.toFixed(2)} / {total.toFixed(2)} MAD</span>
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setIsMixedPaymentOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
+                <button type="submit" disabled={Math.abs(mixedTotal - total) > 0.01 || isProcessingPayment} className="flex-1 py-3 rounded-xl bg-[#1A1A1A] text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed">Encaisser</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
       {/* Ticket Modal */}
       {isTicketModalOpen && ticketToPrint && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -1060,6 +1132,12 @@ export default function POSTactile() {
                       <span>{ticketToPrint.changeDue.toFixed(2)} MAD</span>
                     </div>
                   </>
+                )}
+                {ticketToPrint.paymentBreakdown && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200 text-sm text-gray-500 space-y-1">
+                    <div className="flex justify-between"><span>Part espèces</span><span>{ticketToPrint.paymentBreakdown.cash.toFixed(2)} MAD</span></div>
+                    <div className="flex justify-between"><span>Part carte</span><span>{ticketToPrint.paymentBreakdown.card.toFixed(2)} MAD</span></div>
+                  </div>
                 )}
               </div>
               

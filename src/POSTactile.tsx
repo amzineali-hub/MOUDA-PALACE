@@ -6,7 +6,7 @@ import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
-import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity } from './lib/posUtils';
+import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
 import Combobox from './components/Combobox';
 
 const CATEGORIES = [
@@ -55,6 +55,8 @@ export default function POSTactile() {
   const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
   const [kitchenTableId, setKitchenTableId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isCashPaymentOpen, setIsCashPaymentOpen] = useState(false);
+  const [cashReceived, setCashReceived] = useState('');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
@@ -422,7 +424,7 @@ export default function POSTactile() {
     }
   };
 
-  const handleCheckout = async (method: string) => {
+  const handleCheckout = async (method: string, paymentDetails: { cashReceived?: number; changeDue?: number } = {}) => {
     if (cart.length === 0) {
       showToast("Le ticket est vide.", "error");
       return;
@@ -505,6 +507,8 @@ export default function POSTactile() {
           tableId: kitchenTableId || selectedTable || null,
           amount: total,
           method,
+          cashReceived: paymentDetails.cashReceived ?? null,
+          changeDue: paymentDetails.changeDue ?? null,
           items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item) })),
           date: today,
           createdAt: serverTimestamp()
@@ -534,6 +538,8 @@ export default function POSTactile() {
           status: 'Clôturée',
           paymentStatus: 'Payée',
           paymentMethod: method,
+          cashReceived: paymentDetails.cashReceived ?? null,
+          changeDue: paymentDetails.changeDue ?? null,
           updatedAt: serverTimestamp(),
           source: 'POS'
         }, { merge: true });
@@ -545,7 +551,9 @@ export default function POSTactile() {
         time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         items: [...cart],
         total: total,
-        method: method
+        method: method,
+        cashReceived: paymentDetails.cashReceived,
+        changeDue: paymentDetails.changeDue
       });
       setIsTicketModalOpen(true);
       setCart([]);
@@ -571,6 +579,9 @@ export default function POSTactile() {
       default: return 'from-gray-700 to-gray-900 shadow-gray-900/40 text-white';
     }
   };
+
+  const cashAmount = parsePosPrice(cashReceived);
+  const cashChange = Math.max(0, cashAmount - total);
 
   return (
     <div className="flex flex-col h-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F4F5]">
@@ -846,7 +857,10 @@ export default function POSTactile() {
             
             <div className="grid grid-cols-2 gap-3">
               <button 
-                onClick={() => handleCheckout('Espèces')}
+                onClick={() => {
+                  setCashReceived('');
+                  setIsCashPaymentOpen(true);
+                }}
                 disabled={isProcessingPayment}
                 className="py-4 bg-emerald-500 text-white rounded-2xl font-bold flex flex-col items-center justify-center gap-1 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_6px_15px_-5px_rgba(16,185,129,0.5),inset_0_-3px_0_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-[inset_0_3px_0_rgba(0,0,0,0.2)]"
               >
@@ -947,6 +961,49 @@ export default function POSTactile() {
         </div>
       </div>
       
+      {/* Cash payment modal */}
+      {isCashPaymentOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Paiement en espèces</h3>
+                <p className="text-sm text-gray-500 mt-1">Total à encaisser : <strong>{total.toFixed(2)} MAD</strong></p>
+              </div>
+              <button type="button" onClick={() => setIsCashPaymentOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (cashAmount < total) {
+                showToast('Le montant reçu est inférieur au total.', 'error');
+                return;
+              }
+              setIsCashPaymentOpen(false);
+              handleCheckout('Espèces', { cashReceived: cashAmount, changeDue: cashChange });
+            }}>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Montant reçu (MAD)</label>
+              <input
+                autoFocus
+                type="text"
+                inputMode="decimal"
+                value={cashReceived}
+                onChange={(event) => setCashReceived(event.target.value)}
+                placeholder={total.toFixed(2)}
+                className="w-full p-4 text-2xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]"
+              />
+              <div className={`mt-4 rounded-xl p-4 flex justify-between items-center ${cashAmount >= total ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
+                <span className="font-semibold">Monnaie à rendre</span>
+                <span className="text-xl font-black">{cashChange.toFixed(2)} MAD</span>
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button type="button" onClick={() => setIsCashPaymentOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
+                <button type="submit" disabled={cashAmount < total || isProcessingPayment} className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed">Encaisser</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
       {/* Ticket Modal */}
       {isTicketModalOpen && ticketToPrint && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -992,6 +1049,18 @@ export default function POSTactile() {
                   <span>Paiement</span>
                   <span>{ticketToPrint.method}</span>
                 </div>
+                {ticketToPrint.cashReceived !== undefined && (
+                  <>
+                    <div className="flex justify-between text-sm text-gray-500 mt-1">
+                      <span>Reçu</span>
+                      <span>{ticketToPrint.cashReceived.toFixed(2)} MAD</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-semibold text-emerald-700 mt-1">
+                      <span>Monnaie</span>
+                      <span>{ticketToPrint.changeDue.toFixed(2)} MAD</span>
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="text-center text-xs text-gray-400 mt-8">

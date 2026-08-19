@@ -90,7 +90,23 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
       setCurrentPage(0);
 
       try {
-        const pdf = await pdfjsLib.getDocument({ url: brochureUrl }).promise;
+        let arrayBuffer: ArrayBuffer;
+
+        try {
+          // Try proxy first to avoid Storage CORS issues
+          const proxyUrl = `/api/proxy-document?url=${encodeURIComponent(brochureUrl)}`;
+          const resp = await fetch(proxyUrl);
+          if (!resp.ok) throw new Error('Proxy fetch failed');
+          arrayBuffer = await resp.arrayBuffer();
+        } catch (proxyErr) {
+          // Fallback to direct fetch (may fail on CORS-protected URLs)
+          console.warn('Proxy failed, trying direct fetch...', proxyErr);
+          const direct = await fetch(brochureUrl);
+          if (!direct.ok) throw new Error('Direct fetch failed');
+          arrayBuffer = await direct.arrayBuffer();
+        }
+
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const images: string[] = [];
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {

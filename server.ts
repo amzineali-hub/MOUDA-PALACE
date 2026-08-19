@@ -11,6 +11,25 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  app.get('/api/proxy-document', async (req, res) => {
+    try {
+      const url = req.query.url;
+      if (!url || typeof url !== 'string') {
+        return res.status(400).send('Missing URL parameter');
+      }
+      const response = await fetch(url);
+      if (!response.ok) {
+        return res.status(response.status).send(`Failed to fetch document: ${response.status}`);
+      }
+      const contentType = response.headers.get('content-type');
+      if (contentType) res.setHeader('Content-Type', contentType);
+      res.send(Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      console.error('Document proxy error:', error);
+      res.status(500).send('Failed to proxy document');
+    }
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, addDoc, getDocs, doc, serverTimestamp, deleteDoc, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
@@ -47,8 +47,9 @@ export default function POSTactile() {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
-  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen'>('cart');
+  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen' | 'suspended'>('cart');
   const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
+  const [suspendedTickets, setSuspendedTickets] = useState<any[]>([]);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [kitchenSent, setKitchenSent] = useState(false);
   const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
@@ -61,6 +62,81 @@ export default function POSTactile() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'pos_suspended_tickets')), (snapshot) => {
+      setSuspendedTickets(snapshot.docs.map(ticket => ({ ...ticket.data(), id: ticket.id })));
+    }, error => {
+      console.error('Suspended tickets error:', error);
+      showToast('Impossible de charger les tickets en attente', 'error');
+    });
+    return () => unsub();
+  }, [showToast]);
+
+    const suspendTicket = async () => {
+      if (cart.length === 0) {
+        showToast('Le ticket est vide.', 'error');
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, 'pos_suspended_tickets'), {
+          tableId: selectedTable || null,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name || 'Inconnu',
+            qty: getLineQuantity(item),
+            numPrice: getLineUnitPrice(item),
+            price: item.price || `${getLineUnitPrice(item)} MAD`,
+            category: item.category || 'Autres',
+            imageUrl: item.imageUrl || ''
+          })),
+          subtotal,
+          tax,
+          total,
+          createdAt: serverTimestamp(),
+          status: 'En attente'
+        });
+        setCart([]);
+        setSelectedTable(null);
+        setKitchenSent(false);
+        setKitchenOrderId(null);
+        setKitchenTableId(null);
+        showToast('Ticket mis en attente');
+      } catch (error) {
+        console.error(error);
+        showToast('Erreur lors de la mise en attente', 'error');
+      }
+    };
+
+    const recallTicket = async (ticket: any) => {
+      if (cart.length > 0 && !window.confirm('Le ticket actuel sera remplacé. Continuer ?')) return;
+
+      try {
+        setCart(ticket.items || []);
+        setSelectedTable(ticket.tableId || null);
+        setKitchenSent(false);
+        setKitchenOrderId(null);
+        setKitchenTableId(null);
+        await deleteDoc(doc(db, 'pos_suspended_tickets', ticket.id));
+        setActiveCartTab('cart');
+        showToast('Ticket rappelé');
+      } catch (error) {
+        console.error(error);
+        showToast('Erreur lors du rappel du ticket', 'error');
+      }
+    };
+
+    const deleteSuspendedTicket = async (ticketId: string) => {
+      if (!window.confirm('Supprimer ce ticket en attente ?')) return;
+      try {
+        await deleteDoc(doc(db, 'pos_suspended_tickets', ticketId));
+        showToast('Ticket supprimé');
+      } catch (error) {
+        console.error(error);
+        showToast('Erreur lors de la suppression', 'error');
+      }
+    };
   
   
   const handleNameChange = (val: string) => {
@@ -633,7 +709,7 @@ export default function POSTactile() {
         <div className="w-full lg:w-[400px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
           
           <div className="flex bg-gray-100 border-b border-gray-200">
-            <button 
+            <button
               onClick={() => setActiveCartTab('cart')}
               className={`flex-1 py-3 text-sm font-bold ${activeCartTab === 'cart' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
             >
@@ -648,6 +724,15 @@ export default function POSTactile() {
                 <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
                   {kitchenOrders.filter(o => o.status !== 'Terminé').length}
                 </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveCartTab('suspended')}
+              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 ${activeCartTab === 'suspended' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <PauseCircle size={15} /> En attente
+              {suspendedTickets.length > 0 && (
+                <span className="bg-[#F4C75B] text-[#1A1A1A] text-[10px] px-1.5 py-0.5 rounded-full">{suspendedTickets.length}</span>
               )}
             </button>
           </div>
@@ -743,6 +828,14 @@ export default function POSTactile() {
             </div>
 
             <button 
+              onClick={suspendTicket}
+              disabled={cart.length === 0 || isProcessingPayment}
+              className="w-full py-3 mb-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <PauseCircle size={19} /> Mettre en attente
+            </button>
+
+            <button
               onClick={handleSendKitchen}
               disabled={kitchenSent || isProcessingPayment}
               className="w-full py-4 bg-gray-100 text-gray-800 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] active:translate-y-0.5 active:shadow-none mb-3"
@@ -771,7 +864,7 @@ export default function POSTactile() {
             </div>
           </div>
           </>
-          ) : (
+          ) : activeCartTab === 'kitchen' ? (
           <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
             {kitchenOrders.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -820,6 +913,36 @@ export default function POSTactile() {
               </div>
             )}
           </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+              {suspendedTickets.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+                  <PauseCircle size={48} className="opacity-40" />
+                  <p>Aucun ticket en attente</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {suspendedTickets.map(ticket => (
+                    <div key={ticket.id} className="bg-white rounded-2xl border border-amber-100 p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                          <p className="font-bold text-gray-900">{ticket.tableId || 'Comptoir'}</p>
+                          <p className="text-xs text-gray-400">{ticket.items?.length || 0} article(s)</p>
+                        </div>
+                        <span className="font-bold text-[#265C6D]">{Number(ticket.total || 0).toFixed(2)} MAD</span>
+                      </div>
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                        {(ticket.items || []).map((item: any) => `${item.qty}x ${item.name}`).join(', ')}
+                      </p>
+                      <div className="flex gap-2">
+                        <button onClick={() => recallTicket(ticket)} className="flex-1 py-2.5 rounded-xl bg-[#265C6D] text-white font-bold hover:bg-[#1d4a58]">Rappeler</button>
+                        <button onClick={() => deleteSuspendedTicket(ticket.id)} className="p-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100" title="Supprimer le ticket"><Trash2 size={18} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

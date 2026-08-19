@@ -652,6 +652,7 @@ export default function POSTactile() {
             orderId,
             tableId: selectedTable || null,
             item: item.name || 'Inconnu',
+            category: item.category || 'Autres',
             modifiers: item.modifiers || null,
             qty: getLineQuantity(item),
             status: 'À faire',

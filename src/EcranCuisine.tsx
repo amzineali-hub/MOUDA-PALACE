@@ -72,71 +72,105 @@ export default function EcranCuisine() {
     }
   };
 
-  const aFaire = tasks.filter(t => t.status === 'À faire');
-  const enCours = tasks.filter(t => t.status === 'En cours');
-  const termines = tasks.filter(t => t.status === 'Terminé').slice(0, 5); // Show only last 5
+  const STATIONS = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
+  const [stationFilter, setStationFilter] = useState('Toutes');
 
-  const TaskCard = ({ task }: { task: any }) => (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className={`p-4 rounded-xl shadow-sm border-l-4 bg-white \${
-        task.status === 'À faire' ? 'border-red-500' :
-        task.status === 'En cours' ? 'border-blue-500' : 'border-green-500'
-      }`}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-            {task.orderId || 'CMD-???'}
-          </span>
-        </div>
-        <div className="text-sm font-medium text-gray-400 flex items-center gap-1">
-          <Clock size={14} />
-          {task.createdAt ? new Date(task.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-3 mb-4">
-        <div className="bg-gray-100 font-bold text-lg px-3 py-1 rounded-lg">
-          {task.qty}x
-        </div>
-        <div className="text-lg font-bold text-[#1A1A1A]">
-          {task.item}
-        </div>
-      </div>
+  const visibleTasks = stationFilter === 'Toutes'
+    ? tasks
+    : tasks.filter(t => (t.category || 'Autres') === stationFilter);
 
-      {task.modifiers && Object.values(task.modifiers).some(Boolean) && (
-        <div className="mb-4 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-sm text-amber-900">
-          {[task.modifiers.cooking, task.modifiers.extra, task.modifiers.note].filter(Boolean).join(' · ')}
-        </div>
-      )}
+  const aFaire = visibleTasks.filter(t => t.status === 'À faire');
+  const enCours = visibleTasks.filter(t => t.status === 'En cours');
+  const termines = visibleTasks.filter(t => t.status === 'Terminé').slice(0, 5); // Show only last 5
 
-      {task.status !== 'Terminé' && (
-        <button 
-          onClick={() => updateStatus(task.id, task.status)}
-          disabled={updatingTasks.has(task.id)}
-          className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-wait transition-colors \${
-            task.status === 'À faire' 
-              ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' 
-              : 'bg-green-50 text-green-600 hover:bg-green-100'
-          }`}
-        >
-          {task.status === 'À faire' ? (
-            <>
-              <Utensils size={18} /> Commencer
-            </>
-          ) : (
-            <>
-              <Check size={18} /> Terminer
-            </>
-          )}
-        </button>
-      )}
-    </motion.div>
-  );
+  const groupByOrder = (list: any[]) => {
+    const groups: { orderId: string; items: any[] }[] = [];
+    const index = new Map<string, number>();
+    list.forEach(task => {
+      const key = task.orderId || task.id;
+      if (!index.has(key)) {
+        index.set(key, groups.length);
+        groups.push({ orderId: key, items: [] });
+      }
+      groups[index.get(key)!].items.push(task);
+    });
+    return groups;
+  };
+
+  const OrderGroupCard = ({ orderId, items }: { orderId: string; items: any[] }) => {
+    const first = items[0];
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="rounded-xl shadow-sm border border-gray-200 bg-white overflow-hidden"
+      >
+        <div className="flex justify-between items-center px-4 py-2 bg-gray-100/70 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 bg-white px-2 py-1 rounded border border-gray-200">
+              {orderId || 'CMD-???'}
+            </span>
+            {first?.tableId && (
+              <span className="text-xs font-semibold text-gray-500">{first.tableId}</span>
+            )}
+          </div>
+          <div className="text-sm font-medium text-gray-400 flex items-center gap-1">
+            <Clock size={14} />
+            {first?.createdAt ? new Date(first.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
+          </div>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {items.map(task => (
+            <div key={task.id} className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="bg-gray-100 font-bold text-lg px-3 py-1 rounded-lg">
+                  {task.qty}x
+                </div>
+                <div className="text-lg font-bold text-[#1A1A1A] flex-1">
+                  {task.item}
+                </div>
+                {task.category && (
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
+                    {task.category}
+                  </span>
+                )}
+              </div>
+
+              {task.modifiers && Object.values(task.modifiers).some(Boolean) && (
+                <div className="mb-3 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-sm text-amber-900">
+                  {[task.modifiers.cooking, task.modifiers.extra, task.modifiers.note].filter(Boolean).join(' · ')}
+                </div>
+              )}
+
+              {task.status !== 'Terminé' && (
+                <button
+                  onClick={() => updateStatus(task.id, task.status)}
+                  disabled={updatingTasks.has(task.id)}
+                  className={`w-full py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-wait transition-colors ${
+                    task.status === 'À faire'
+                      ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                  }`}
+                >
+                  {task.status === 'À faire' ? (
+                    <>
+                      <Utensils size={16} /> Commencer
+                    </>
+                  ) : (
+                    <>
+                      <Check size={16} /> Terminer
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 h-full lg:overflow-hidden overflow-y-auto flex flex-col">
@@ -161,6 +195,23 @@ export default function EcranCuisine() {
         </div>
       </div>
 
+      <div className="mb-4 flex gap-2 overflow-x-auto">
+        {['Toutes', ...STATIONS].map(station => (
+          <button
+            key={station}
+            type="button"
+            onClick={() => setStationFilter(station)}
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold border whitespace-nowrap transition-colors ${
+              stationFilter === station
+                ? 'bg-[#265C6D] text-white border-[#265C6D]'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {station}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 lg:overflow-hidden">
         {/* À FAIRE */}
         <div className="flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
@@ -172,7 +223,7 @@ export default function EcranCuisine() {
           </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-gray-50/50">
             <AnimatePresence>
-              {aFaire.map(task => <TaskCard key={task.id} task={task} />)}
+              {groupByOrder(aFaire).map(group => <OrderGroupCard key={group.orderId} orderId={group.orderId} items={group.items} />)}
             </AnimatePresence>
             {aFaire.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2 opacity-50">
@@ -193,7 +244,7 @@ export default function EcranCuisine() {
           </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-gray-50/50">
             <AnimatePresence>
-              {enCours.map(task => <TaskCard key={task.id} task={task} />)}
+              {groupByOrder(enCours).map(group => <OrderGroupCard key={group.orderId} orderId={group.orderId} items={group.items} />)}
             </AnimatePresence>
             {enCours.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2 opacity-50">
@@ -214,7 +265,7 @@ export default function EcranCuisine() {
           </div>
           <div className="p-4 flex-1 overflow-y-auto space-y-4 bg-gray-50/50">
             <AnimatePresence>
-              {termines.map(task => <TaskCard key={task.id} task={task} />)}
+              {groupByOrder(termines).map(group => <OrderGroupCard key={group.orderId} orderId={group.orderId} items={group.items} />)}
             </AnimatePresence>
           </div>
         </div>

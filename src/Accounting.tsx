@@ -385,7 +385,7 @@ export default function Accounting() {
 
   const tvaMonthlyData = useMemo(() => {
     const monthsFr = ['Janv', 'Fév', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
-    const data: Record<string, { name: string, caHT: number, tva20: number, tva10: number, tvaDeductible: number, isCurrent: boolean, sortKey: number }> = {};
+    const data: Record<string, { name: string, caHT: number, tva20: number, tva10: number, tvaDeductible: number, isCurrent: boolean, sortKey: number, year: number, month: number }> = {};
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const past = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -393,7 +393,9 @@ export default function Accounting() {
         name: `${monthsFr[past.getMonth()]} ${past.getFullYear()}`,
         caHT: 0, tva20: 0, tva10: 0, tvaDeductible: 0,
         isCurrent: i === 0,
-        sortKey: past.getTime()
+        sortKey: past.getTime(),
+        year: past.getFullYear(),
+        month: past.getMonth()
       };
     }
     invoices.forEach((inv: any) => {
@@ -420,6 +422,36 @@ export default function Accounting() {
   const tvaCollectee = currentTvaPeriod.tva20 + currentTvaPeriod.tva10;
   const tvaDeductibleTotal = currentTvaPeriod.tvaDeductible;
   const tvaADecaisser = tvaCollectee - tvaDeductibleTotal;
+
+  // Supprime toutes les factures et dépenses ayant alimenté la ligne (mêmes critères que
+  // l'agrégation ci-dessus : montantHT/tva renseignés, même mois/année) — utile pour nettoyer
+  // des données de démo/test ou une saisie erronée sans devoir les retrouver une par une dans
+  // les onglets Factures/Dépenses.
+  const handleDeleteTvaPeriod = async (period: any) => {
+    const matchesPeriod = (rec: any) => {
+      if (rec.tva === undefined || rec.montantHT === undefined) return false;
+      const d = rec.createdAt?.toDate ? rec.createdAt.toDate() : new Date(rec.date || Date.now());
+      return d.getFullYear() === period.year && d.getMonth() === period.month;
+    };
+    const invoicesToDelete = invoices.filter(matchesPeriod);
+    const expensesToDelete = expenses.filter(matchesPeriod);
+    const total = invoicesToDelete.length + expensesToDelete.length;
+    if (total === 0) {
+      showToast("Aucune facture ni dépense avec TVA renseignée pour cette période");
+      return;
+    }
+    if (!window.confirm(`Supprimer définitivement ${invoicesToDelete.length} facture(s) et ${expensesToDelete.length} dépense(s) de ${period.name} ? Cette action est irréversible.`)) return;
+    try {
+      await Promise.all([
+        ...invoicesToDelete.map(inv => deleteDoc(doc(db, 'invoices', inv.id))),
+        ...expensesToDelete.map(exp => deleteDoc(doc(db, 'expenses', exp.id)))
+      ]);
+      showToast(`${total} opération(s) supprimée(s) pour ${period.name}`);
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
 
   const pendingInvoicesTotal = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').reduce((sum, i) => sum + (parseAmount(i.amount) || 0), 0);
   const pendingInvoicesCount = invoices.filter(i => i.status === 'En attente' || i.status === 'Retard').length;
@@ -865,6 +897,7 @@ export default function Accounting() {
                     <th className="px-6 py-4 text-right">TVA Déductible</th>
                     <th className="px-6 py-4 text-right">TVA Nette</th>
                     <th className="px-6 py-4 text-center">Statut</th>
+                    <th className="px-6 py-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -882,6 +915,11 @@ export default function Accounting() {
                         ) : (
                           <span className="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">Clôturée</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button onClick={() => handleDeleteTvaPeriod(period)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer les opérations de cette période (démo/erreur)">
+                          <Trash2 size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}

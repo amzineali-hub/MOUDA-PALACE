@@ -1543,12 +1543,19 @@ function ReceptionAchats({ commandes, inventoryItems, fournisseurs, showToast }:
 
           if (totalActual > 0) {
             const newExpRef = doc(collection(db, 'expenses'));
+            // totalActual est un montant HT (somme de actualPrice × qté, même convention que
+            // montantHT calculé à la commande) — on applique le taux de TVA de la commande pour
+            // obtenir le TTC réellement décaissé, sinon la Déclaration TVA ignore cet achat.
+            const orderTva = Number(selectedOrder?.tva) || 20;
+            const montantTTC = computeTTC(totalActual, orderTva);
             transaction.set(newExpRef, {
               id: 'EXP-' + newExpRef.id.substring(0, 6).toUpperCase(),
               commandeId: orderId,
               paymentStatus: 'À payer',
               supplier: supplierName,
-              amount: totalActual.toFixed(2) + ' MAD',
+              montantHT: totalActual,
+              tva: orderTva,
+              amount: montantTTC.toFixed(2) + ' MAD',
               category: 'Achats / Marchandises',
               date: new Date().toISOString().split('T')[0],
               method: 'Virement', // par defaut

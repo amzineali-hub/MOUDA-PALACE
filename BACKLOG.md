@@ -21,12 +21,15 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 
 ## Comptabilité
 
-- [ ] TVA déductible sous-évaluée : les dépenses issues des commandes fournisseurs livrées (`isOrder: true`) n'ont jamais de champ `montantHT`/`tva` renseigné, et la Déclaration TVA ignore silencieusement toute dépense sans ces champs — la quasi-totalité des achats marchandises réels est donc exclue de la TVA déductible (`Accounting.tsx:318-329`, `:432-438`).
+Audité en détail le 2026-08-20 (`Accounting.tsx` 1907 lignes + `AchatsFournisseurs.tsx` 1799 lignes, jamais audité jusque-là). Les 4 points les plus graves (double comptage des achats + mauvais montant, TVA jamais reportée sur les dépenses de réception, faux Bilan Comptable, export dépenses qui crashait) ont été corrigés le soir même — voir `CLAUDE.md > Historique récent`. Restent à traiter :
+
 - [ ] Éditer le montant d'une facture ne recalcule pas `montantHT`/`tva` : la modale d'édition ne touche que le champ `amount` (TTC), désynchronisant la Déclaration TVA (`Accounting.tsx:1136-1157`).
-- [ ] Supprimer une "dépense" liée à une commande fournisseur (`isOrder: true`) supprime le document entier de la collection `commandes` — perte de l'historique d'achat/inventaire, pas juste de l'écriture comptable (`Accounting.tsx:152-166`).
-- [ ] Rapports Financiers trompeurs : "Bilan Comptable" et "Livre Journal" affichent une erreur "pas encore disponible", mais les 4 autres types (CPC, Déclaration TVA, Grand Livre, Balance des Comptes) génèrent tous le même CSV générique, sans rapport avec le type sélectionné (`Accounting.tsx:92-119`).
+- [ ] "Livre Journal" affiche une erreur "pas encore disponible", et les 4 autres types (CPC, Déclaration TVA, Grand Livre, Balance des Comptes) génèrent tous le même CSV générique, sans rapport avec le type sélectionné (`Accounting.tsx:92-119`).
 - [ ] Export "PDF"/"XML" des rapports simulé, retombe silencieusement en CSV avec juste un toast d'avertissement (`Accounting.tsx:98-102`).
-- [ ] `AchatsFournisseurs.tsx` (1799 lignes, lié au point "commandes" ci-dessus) pas encore audité — à couvrir dans une prochaine session.
+- [ ] Le bouton "Générer et télécharger" enregistre toujours le rapport avec le statut "Généré" dans `financialReports`, même quand `handleDownloadReport` vient d'afficher une erreur et de s'arrêter (Bilan/Livre Journal).
+- [ ] `AchatsFournisseurs.tsx` : `console.log('Fetched Commandes:'...)`/`'Fetched Fournisseurs:'...` laissés dans les listeners Firestore (`:156`, `:165`) — bruit en prod, expose le contenu des commandes dans la console de tout utilisateur connecté.
+- [ ] `AchatsFournisseurs.tsx` : le sélecteur de statut de commande (`:182-221`) permet de passer une commande à "Payée" (répercute automatiquement le paiement sur la dépense liée, `:192-197`) sans double validation. Sans risque tant que seul `manager` a accès — à verrouiller avant l'ouverture d'autres rôles (ex. un poste "Achats" qui ne devrait pas pouvoir s'auto-valider "Payée").
+- [ ] `AchatsFournisseurs.tsx` : le sélecteur de statut de commande (`:182-221`) permet de passer une commande à "Payée" (répercute automatiquement le paiement sur la dépense liée, `:192-197`) sans double validation. Sans risque tant que seul `manager` a accès — à verrouiller avant l'ouverture d'autres rôles (ex. un poste "Achats" qui ne devrait pas pouvoir s'auto-valider "Payée").
 
 ## Stocks & Inventaire
 

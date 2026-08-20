@@ -123,12 +123,12 @@ export default function Accounting() {
     if (activeTab === 'invoices') {
       csvContent += "ID;Client;ICE;Date;Montant;Statut\n";
       invoices.forEach(inv => {
-        csvContent += `${inv.id};${inv.client};${inv.ice};${inv.date};${inv.amount.replace(/ /g, '')};${inv.status}\n`;
+        csvContent += `${inv.id};${inv.client};${inv.ice};${inv.date};${parseAmount(inv.amount)};${inv.status}\n`;
       });
     } else if (activeTab === 'expenses') {
       csvContent += "ID;Categorie;Beneficiaire;Date;Methode;Montant\n";
       expenses.forEach(exp => {
-        csvContent += `${exp.id};${exp.category};${exp.supplier};${exp.date};${exp.method};${exp.amount.replace(/ /g, '')}\n`;
+        csvContent += `${exp.id};${exp.category};${exp.supplier};${exp.date};${exp.method};${parseAmount(exp.amount)}\n`;
       });
     } else if (activeTab === 'receipts') {
       csvContent += "ID;Date;Methode;Montant\n";
@@ -152,11 +152,7 @@ export default function Accounting() {
   const handleDeleteExpense = async (expense: any) => {
     if (window.confirm("Voulez-vous vraiment supprimer cette dépense ?")) {
       try {
-        if (expense.isOrder) {
-           await deleteDoc(doc(db, "commandes", expense.id));
-        } else {
-           await deleteDoc(doc(db, "expenses", expense.id));
-        }
+        await deleteDoc(doc(db, "expenses", expense.id));
         logActivity({ action: 'delete', entity: 'expense', entityId: expense.id, summary: `Suppression dépense ${expense.category || ''} - ${expense.amount || ''}`.trim(), before: expense });
         showToast("Dépense supprimée avec succès");
       } catch (error) {
@@ -306,29 +302,14 @@ export default function Accounting() {
   };
 
   const [manualExpenses, setManualExpenses] = useState<any[]>([]);
-  const [commandes, setCommandes] = useState<any[]>([]);
 
-  const expenses = useMemo(() => {
-    const isDelivered = (c: any) => {
-      const st = c.status || c.statut;
-      return st === 'Livrée' || st === 'Validée';
-    };
-    const all = [
-      ...manualExpenses,
-      ...commandes.filter(isDelivered).map(c => ({
-        id: c.id,
-        category: c.categorie || c.category || 'Achat Marchandises',
-        supplier: c.fournisseur,
-        amount: c.montant ?? c.totalActual ?? c.totalAmount ?? 0,
-        date: c.date || new Date(c.createdAt?.toMillis?.() || Date.now()).toLocaleDateString('fr-FR'),
-        method: c.method || 'Virement',
-        createdAt: c.createdAt,
-        description: c.articles,
-        isOrder: true
-      }))
-    ];
-    return all.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-  }, [manualExpenses, commandes]);
+  // Une commande fournisseur livrée génère déjà une vraie dépense dans `expenses` au moment
+  // de la réception (commandeId renseigné, montant réellement décaissé — voir
+  // AchatsFournisseurs.tsx `ReceptionAchats.handleValidate`). `expenses` ne doit donc PAS
+  // re-dériver une deuxième ligne à partir de `commandes` : ça comptait chaque achat livré en
+  // double (une fois au montant prévisionnel dès "Validée", une fois au montant réel à la
+  // réception) et gonflait Dépenses/TVA déductible en conséquence.
+  const expenses = manualExpenses;
 
   const [financialReports, setFinancialReports] = useState<any[]>([]);
 
@@ -351,9 +332,6 @@ export default function Accounting() {
     const unsubExpenses = onSnapshot(collection(db, 'expenses'), (snapshot) => {
       setManualExpenses(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
     });
-    const unsubCommandes = onSnapshot(collection(db, 'commandes'), (snapshot) => {
-      setCommandes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
-    });
     const unsubReports = onSnapshot(collection(db, 'financialReports'), (snapshot) => {
       if (!snapshot.empty) {
         setFinancialReports(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
@@ -361,7 +339,6 @@ export default function Accounting() {
     });
     return () => {
       unsubExpenses();
-      unsubCommandes();
       unsubReports();
     };
   }, []);
@@ -1718,122 +1695,11 @@ export default function Accounting() {
             </div>
             
             <div className="p-8 overflow-y-auto bg-gray-50 flex-1">
-              {selectedReport.type === 'Bilan Comptable' ? (
-                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm max-w-3xl mx-auto">
-                  <div className="text-center mb-8 pb-6 border-b border-gray-200">
-                    <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">Bilan Comptable</h2>
-                    <p className="text-gray-500 mt-2 font-medium">MOUDA PALACE - FÈS</p>
-                    <p className="text-gray-500 mt-1">Arrêté au {selectedReport.date}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    {/* ACTIF */}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-900 pb-2 mb-4">ACTIF (Emplois)</h3>
-                      
-                      <div className="space-y-6">
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">ACTIF IMMOBILISÉ</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Immobilisations Incorporelles</span><span>45 000.00</span></div>
-                            <div className="flex justify-between"><span>Immobilisations Corporelles</span><span>850 000.00</span></div>
-                            <div className="flex justify-between text-gray-500 italic pl-4"><span>- Aménagements divers</span><span>350 000.00</span></div>
-                            <div className="flex justify-between text-gray-500 italic pl-4"><span>- Matériel de cuisine</span><span>500 000.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Actif Immobilisé</span><span>895 000.00</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">ACTIF CIRCULANT (Hors Trésorerie)</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Stocks (Marchandises)</span><span>120 500.00</span></div>
-                            <div className="flex justify-between"><span>Créances Clients</span><span>45 200.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Actif Circulant</span><span>165 700.00</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">TRÉSORERIE - ACTIF</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Banques, TG, CCP</span><span>320 400.00</span></div>
-                            <div className="flex justify-between"><span>Caisse</span><span>15 800.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Trésorerie</span><span>336 200.00</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* PASSIF */}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 border-b-2 border-gray-900 pb-2 mb-4">PASSIF (Ressources)</h3>
-                      
-                      <div className="space-y-6">
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">FINANCEMENT PERMANENT</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Capital Social</span><span>500 000.00</span></div>
-                            <div className="flex justify-between"><span>Réserves</span><span>150 000.00</span></div>
-                            <div className="flex justify-between"><span>Résultat net de l'exercice</span><span>245 400.00</span></div>
-                            <div className="flex justify-between"><span>Dettes de financement (Prêt)</span><span>350 000.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Financement Permanent</span><span>1 245 400.00</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">PASSIF CIRCULANT (Hors Trésorerie)</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Dettes Fournisseurs</span><span>85 600.00</span></div>
-                            <div className="flex justify-between"><span>Organismes Sociaux (CNSS)</span><span>22 400.00</span></div>
-                            <div className="flex justify-between"><span>État (TVA, IS)</span><span>43 500.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Passif Circulant</span><span>151 500.00</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-semibold text-[#265C6D] mb-2">TRÉSORERIE - PASSIF</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span>Découvert bancaire</span><span>0.00</span></div>
-                            <div className="flex justify-between font-medium border-t border-gray-100 pt-1 mt-1">
-                              <span>Total Trésorerie Passif</span><span>0.00</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-12 pt-6 border-t-2 border-gray-900 grid grid-cols-1 md:grid-cols-2 gap-12 text-lg font-bold">
-                    <div className="flex justify-between text-[#265C6D]">
-                      <span>TOTAL GÉNÉRAL ACTIF</span>
-                      <span>1 396 900.00</span>
-                    </div>
-                    <div className="flex justify-between text-[#265C6D]">
-                      <span>TOTAL GÉNÉRAL PASSIF</span>
-                      <span>1 396 900.00</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-16 text-xs text-gray-400 text-center uppercase tracking-wider">
-                    - Document à titre indicatif généré électroniquement -
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                  <FileText size={48} className="mb-4 text-gray-300" />
-                  <p>Aperçu du format "{selectedReport.type}" en cours de développement.</p>
-                  <p className="text-sm mt-2">Veuillez utiliser le bouton Exporter pour télécharger les données.</p>
-                </div>
-              )}
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <FileText size={48} className="mb-4 text-gray-300" />
+                <p>Aperçu du format "{selectedReport.type}" en cours de développement.</p>
+                <p className="text-sm mt-2">Veuillez utiliser le bouton Exporter pour télécharger les données.</p>
+              </div>
             </div>
           </div>
         </div>

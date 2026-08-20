@@ -15,13 +15,6 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 - [ ] Pas de partage d'addition (split bill) entre convives.
 - [ ] Remise = pourcentage global du ticket, pas de remise par ligne.
 
-## RH
-
-- [ ] Onglets Évaluations, Formations, Rôles & Accès entièrement inaccessibles : les modals et les listeners Firestore (collections `evaluations`, `training`, `roles`) sont codés et fonctionnels, mais aucun bouton dans l'UI ne les ouvre (`RH.tsx:1548-1715`, déclenchée nulle part).
-- [ ] Formations (`trainingSessions`) non persistées sur Firestore — juste du state React local, perdu au rechargement de page, contrairement à évaluations/rôles qui écrivent bien dans Firestore (`RH.tsx:231`, `:1623`).
-- [ ] Planning/horaires dans `RH.tsx` (`scheduleData`, modal `isShiftModalOpen`) est du code mort dupliqué : le vrai planning fonctionne via `PlanningScheduler.tsx` (collection Firestore `shifts`) — ce code n'est jamais atteint (`RH.tsx:249`, `:1717-1764`).
-- [ ] Bulletin de paie imprimé (document officiel RH) affiche des données factices figées au lieu des vraies infos employé : "QUALIFICATION" = "Employé", N°CNSS = "123456789", date de naissance = "01/01/1990", situation familiale = "M" — alors que `staff.cnss`/`staff.role` existent et sont déjà utilisés ailleurs (`RH.tsx:1175`, `:1198-1201`).
-
 ## Comptabilité
 
 - [ ] TVA déductible sous-évaluée : les dépenses issues des commandes fournisseurs livrées (`isOrder: true`) n'ont jamais de champ `montantHT`/`tva` renseigné, et la Déclaration TVA ignore silencieusement toute dépense sans ces champs — la quasi-totalité des achats marchandises réels est donc exclue de la TVA déductible (`Accounting.tsx:318-329`, `:432-438`).

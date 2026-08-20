@@ -90,7 +90,13 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
           }
           onGenerate({
             period: formData.get('period'),
+            employeeId: staff.id,
             staffName: staff?.name || '',
+            staffRole: staff?.role || '',
+            staffCnss: staff?.cnss || '',
+            staffBirthDate: staff?.birthDate || '',
+            staffFamilyStatus: staff?.familyStatus || '',
+            staffHireDate: staff?.hireDate || '',
             base: baseSalary,
             cnss,
             amo,
@@ -246,8 +252,6 @@ export default function RH() {
     return () => unsub();
   }, []);
 
-  const [scheduleData, setScheduleData] = useState<any[]>([]);
-
   const [payrollList, setPayrollList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -330,6 +334,39 @@ export default function RH() {
     }
   };
 
+  const handleDeleteEvaluation = async (id: string) => {
+    if (!window.confirm('Supprimer cette évaluation ?')) return;
+    try {
+      await deleteDoc(doc(db, 'evaluations', id));
+      showToast("Évaluation supprimée");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
+  const handleDeleteTraining = async (id: string) => {
+    if (!window.confirm('Supprimer cette formation ?')) return;
+    try {
+      await deleteDoc(doc(db, 'training', id));
+      showToast("Formation supprimée");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
+  const handleDeleteRole = async (id: string) => {
+    if (!window.confirm('Supprimer ce rôle ?')) return;
+    try {
+      await deleteDoc(doc(db, 'roles', id));
+      showToast("Rôle supprimé");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<any>(null);
@@ -338,8 +375,6 @@ export default function RH() {
   const [isTrainingModalOpen, setIsTrainingModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
-  const [editingShift, setEditingShift] = useState<{empId: number, dayKey: string, current: string} | null>(null);
   const [isPayrollModalOpen, setIsPayrollModalOpen] = useState(false);
   const [isPayslipDocOpen, setIsPayslipDocOpen] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<any>(null);
@@ -377,6 +412,44 @@ export default function RH() {
   };
 
   const todayFr = () => new Date().toLocaleDateString('fr-FR');
+
+  // Formatte une date ISO (YYYY-MM-DD, celle des <input type="date">) en jj/mm/aaaa pour
+  // l'affichage sur les documents imprimés — les champs `birthDate`/`hireDate` sont stockés
+  // au format ISO côté Firestore.
+  const formatIsoDateFr = (iso?: string) => {
+    if (!iso) return '-';
+    const [y, m, d] = iso.split('-');
+    return (y && m && d) ? `${d}/${m}/${y}` : '-';
+  };
+
+  // "SF" (situation familiale) sur le bulletin de paie suit la convention marocaine courante :
+  // C = Célibataire, M = Marié(e), D = Divorcé(e), V = Veuf(ve).
+  const familyStatusCode = (status?: string) => {
+    if (!status) return '-';
+    const map: Record<string, string> = { 'Célibataire': 'C', 'Marié(e)': 'M', 'Divorcé(e)': 'D', 'Veuf(ve)': 'V' };
+    return map[status] || status.charAt(0).toUpperCase();
+  };
+
+  const FR_MONTHS: Record<string, number> = {
+    'jan': 0, 'fév': 1, 'fev': 1, 'mar': 2, 'avr': 3, 'mai': 4, 'juin': 5, 'juil': 6,
+    'aoû': 7, 'aou': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'déc': 11, 'dec': 11
+  };
+
+  // La période de paie est saisie en texte libre (ex: "Juil 2026") — on en extrait le
+  // dernier jour du mois / mois / année réels pour le cartouche "PERIODE DE PAIE" du
+  // bulletin, plutôt que d'y figer des valeurs bidon.
+  const parsePayrollPeriod = (period?: string): { day: string, month: string, year: string } => {
+    const fallback = { day: '-', month: '-', year: '-' };
+    if (!period) return fallback;
+    const match = period.match(/([a-zA-Zéû]{3,})\.?\s+(\d{4})/);
+    if (!match) return fallback;
+    const key = match[1].slice(0, 3).toLowerCase();
+    const monthIdx = FR_MONTHS[key];
+    if (monthIdx === undefined) return fallback;
+    const year = Number(match[2]);
+    const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+    return { day: String(lastDay), month: String(monthIdx + 1).padStart(2, '0'), year: String(year) };
+  };
 
   const generateHrDocument = (formData: FormData) => {
     const staff = staffData.find(s => s.id === hrDocStaffId);
@@ -613,6 +686,8 @@ export default function RH() {
       address: formData.get('address') as string,
       emergencyContact: formData.get('emergencyContact') as string,
       contractType: formData.get('contractType') as string || 'CDI',
+      birthDate: formData.get('birthDate') as string,
+      familyStatus: formData.get('familyStatus') as string || 'Célibataire',
       updatedAt: serverTimestamp()
     };
 
@@ -680,6 +755,9 @@ export default function RH() {
           { id: 'schedule', label: 'Plannings', icon: CalendarRange },
           { id: 'payroll', label: 'Paie & Fiches', icon: Banknote },
           { id: 'hr_docs', label: 'Documents RH', icon: FileText },
+          { id: 'evaluations', label: 'Évaluations', icon: Star },
+          { id: 'training', label: 'Formations', icon: BookOpen },
+          { id: 'roles', label: 'Rôles & Accès', icon: Shield },
         ].map(tab => (
           <button 
             key={tab.id}
@@ -966,6 +1044,164 @@ export default function RH() {
         </div>
       )}
 
+      {activeTab === 'evaluations' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Évaluations</h3>
+              <p className="text-sm text-gray-500">Suivi des évaluations de performance du personnel.</p>
+            </div>
+            <button onClick={() => setIsEvalModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
+              <Plus size={18} /> Nouvelle évaluation
+            </button>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="p-4 font-medium text-gray-600">Employé</th>
+                    <th className="p-4 font-medium text-gray-600">Poste</th>
+                    <th className="p-4 font-medium text-gray-600">Score</th>
+                    <th className="p-4 font-medium text-gray-600">Date</th>
+                    <th className="p-4 font-medium text-gray-600">Prochaine éval.</th>
+                    <th className="p-4 font-medium text-gray-600">Commentaires</th>
+                    <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {evaluationsList.map(ev => (
+                    <tr key={ev.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4 font-medium text-gray-900">{ev.name}</td>
+                      <td className="p-4 text-gray-600">{ev.role || '-'}</td>
+                      <td className="p-4 text-gray-600">
+                        <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">{ev.score}</span>
+                      </td>
+                      <td className="p-4 text-gray-600">{ev.date}</td>
+                      <td className="p-4 text-gray-600">{ev.next}</td>
+                      <td className="p-4 text-gray-500 max-w-xs truncate" title={ev.comments}>{ev.comments || '—'}</td>
+                      <td className="p-4 text-right">
+                        <button onClick={() => handleDeleteEvaluation(ev.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {evaluationsList.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-gray-500">Aucune évaluation enregistrée.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'training' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Formations</h3>
+              <p className="text-sm text-gray-500">Sessions de formation planifiées pour le personnel.</p>
+            </div>
+            <button onClick={() => setIsTrainingModalOpen(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
+              <Plus size={18} /> Nouvelle formation
+            </button>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="p-4 font-medium text-gray-600">Titre</th>
+                    <th className="p-4 font-medium text-gray-600">Date</th>
+                    <th className="p-4 font-medium text-gray-600">Formateur</th>
+                    <th className="p-4 font-medium text-gray-600">Participants</th>
+                    <th className="p-4 font-medium text-gray-600">Statut</th>
+                    <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {trainingSessions.map(t => (
+                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4 font-medium text-gray-900">{t.title}</td>
+                      <td className="p-4 text-gray-600">{t.date}</td>
+                      <td className="p-4 text-gray-600">{t.trainer}</td>
+                      <td className="p-4 text-gray-600">{t.participants}</td>
+                      <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">{t.status}</span></td>
+                      <td className="p-4 text-right">
+                        <button onClick={() => handleDeleteTraining(t.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {trainingSessions.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-gray-500">Aucune formation planifiée.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'roles' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Rôles & Accès</h3>
+              <p className="text-sm text-gray-500">Définition des rôles et de leurs droits d'accès à l'ERP.</p>
+            </div>
+            <button onClick={() => { setEditingRole(null); setIsRoleModalOpen(true); }} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-xl font-medium shadow-sm hover:bg-black transition-colors">
+              <Plus size={18} /> Nouveau rôle
+            </button>
+          </div>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="p-4 font-medium text-gray-600">Rôle</th>
+                    <th className="p-4 font-medium text-gray-600">Description des accès</th>
+                    <th className="p-4 font-medium text-gray-600">Utilisateurs</th>
+                    <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rolesList.map(r => (
+                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4 font-medium text-gray-900">{r.role}</td>
+                      <td className="p-4 text-gray-600 max-w-md">{r.access}</td>
+                      <td className="p-4 text-gray-600">{r.users || 0}</td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => { setEditingRole(r); setIsRoleModalOpen(true); }} className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg" title="Modifier">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteRole(r.id)} className="text-red-500 hover:text-red-700 p-2 bg-red-50 rounded-lg" title="Supprimer">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {rolesList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-gray-500">Aucun rôle défini.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HR Document Generation Modal */}
       {isHrDocModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
@@ -1172,7 +1408,7 @@ export default function RH() {
                     </tr>
                     <tr>
                       <td className="border border-black py-1 h-6">{selectedPayslip.name}</td>
-                      <td className="border border-black py-1 h-6">Employé</td>
+                      <td className="border border-black py-1 h-6">{selectedPayslip.role || 'Employé'}</td>
                       <td className="border border-black py-1 bg-yellow-300 font-bold">{(Number(selectedPayslip.base) || 0).toFixed(2) || '0.00'}</td>
                       <td className="border border-black py-1">{selectedPayslip.id}</td>
                     </tr>
@@ -1192,17 +1428,27 @@ export default function RH() {
                       <td className="border border-black py-1" colSpan={3}>PERIODE DE PAIE</td>
                     </tr>
                     <tr>
-                      <td className="border border-black py-1 bg-yellow-300 w-8">1</td>
-                      <td className="border border-black py-1 bg-yellow-300 w-12">12</td>
-                      <td className="border border-black py-1">-</td>
-                      <td className="border border-black py-1">123456789</td>
-                      <td className="border border-black py-1">01/01/1990</td>
-                      <td className="border border-black py-1 bg-yellow-300">M</td>
-                      <td className="border border-black py-1 bg-yellow-300">0</td>
-                      <td className="border border-black py-1 font-bold">{(selectedPayslip.base / 191).toFixed(2)}</td>
-                      <td className="border border-black py-1 bg-yellow-300 w-8">31</td>
-                      <td className="border border-black py-1 bg-yellow-300 w-8">1</td>
-                      <td className="border border-black py-1 bg-yellow-300 w-12">2026</td>
+                      {(() => {
+                        const hireParts = selectedPayslip.hireDate ? selectedPayslip.hireDate.split('-') : null;
+                        const hireDay = hireParts ? hireParts[2] : '-';
+                        const hireMonth = hireParts ? hireParts[1] : '-';
+                        const period = parsePayrollPeriod(selectedPayslip.period);
+                        return (
+                          <>
+                            <td className="border border-black py-1 bg-yellow-300 w-8">{hireDay}</td>
+                            <td className="border border-black py-1 bg-yellow-300 w-12">{hireMonth}</td>
+                            <td className="border border-black py-1">-</td>
+                            <td className="border border-black py-1">{selectedPayslip.staffCnss || '-'}</td>
+                            <td className="border border-black py-1">{formatIsoDateFr(selectedPayslip.birthDate)}</td>
+                            <td className="border border-black py-1 bg-yellow-300">{familyStatusCode(selectedPayslip.familyStatus)}</td>
+                            <td className="border border-black py-1 bg-yellow-300">0</td>
+                            <td className="border border-black py-1 font-bold">{(selectedPayslip.base / 191).toFixed(2)}</td>
+                            <td className="border border-black py-1 bg-yellow-300 w-8">{period.day}</td>
+                            <td className="border border-black py-1 bg-yellow-300 w-8">{period.month}</td>
+                            <td className="border border-black py-1 bg-yellow-300 w-12">{period.year}</td>
+                          </>
+                        );
+                      })()}
                     </tr>
                   </tbody>
                 </table>
@@ -1392,6 +1638,19 @@ export default function RH() {
                     <option value="Stage">Stage</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de naissance</label>
+                  <input name="birthDate" defaultValue={editingStaff?.birthDate} type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Situation familiale</label>
+                  <select name="familyStatus" defaultValue={editingStaff?.familyStatus || 'Célibataire'} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    <option value="Célibataire">Célibataire</option>
+                    <option value="Marié(e)">Marié(e)</option>
+                    <option value="Divorcé(e)">Divorcé(e)</option>
+                    <option value="Veuf(ve)">Veuf(ve)</option>
+                  </select>
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
                   <input name="address" defaultValue={editingStaff?.address} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 12 Rue des Fleurs, Fès" />
@@ -1564,12 +1823,19 @@ export default function RH() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
+              const staffId = formData.get('staffId') as string;
+              const staff = staffData.find(s => s.id === staffId);
+              if (!staff) { showToast('Veuillez sélectionner un employé', 'error'); return; }
+              const nextDate = new Date();
+              nextDate.setMonth(nextDate.getMonth() + 6);
               addDoc(collection(db, 'evaluations'), {
-                name: formData.get('staffName') as string,
-                role: "Poste",
+                employeeId: staff.id,
+                name: staff.name,
+                role: staff.role || '',
                 score: `${formData.get('score')}/5`,
-                date: "Aujourd'hui",
-                next: "Dans 6 mois",
+                comments: (formData.get('comments') as string) || '',
+                date: todayFr(),
+                next: nextDate.toLocaleDateString('fr-FR'),
                 createdAt: serverTimestamp()
               }).then(() => {
                 showToast("Évaluation enregistrée");
@@ -1579,8 +1845,8 @@ export default function RH() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                  <select name="staffName" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
-                    {staffData.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  <select name="staffId" required className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                    {staffData.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -1589,7 +1855,7 @@ export default function RH() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Commentaires et points d'amélioration</label>
-                  <textarea rows={4} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"></textarea>
+                  <textarea name="comments" rows={4} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"></textarea>
                 </div>
               </div>
               <div className="mt-8 flex justify-end gap-3">
@@ -1620,16 +1886,20 @@ export default function RH() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              setTrainingSessions([...trainingSessions, {
-                id: Date.now(),
+              addDoc(collection(db, 'training'), {
                 title: formData.get('title') as string,
                 date: formData.get('date') as string,
                 participants: parseInt(formData.get('participants') as string) || 0,
                 status: "Planifié",
-                trainer: formData.get('trainer') as string
-              }]);
-              showToast("Formation planifiée");
-              setIsTrainingModalOpen(false);
+                trainer: formData.get('trainer') as string,
+                createdAt: serverTimestamp()
+              }).then(() => {
+                showToast("Formation planifiée");
+                setIsTrainingModalOpen(false);
+              }).catch((err) => {
+                console.error(err);
+                showToast("Erreur lors de l'enregistrement", "error");
+              });
             }} className="p-6">
               <div className="space-y-4">
                 <div>
@@ -1714,55 +1984,6 @@ export default function RH() {
         </div>
       )}
 
-      {/* Shift Edit Modal */}
-      {isShiftModalOpen && editingShift && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-medium text-gray-900">
-                Modifier l'horaire
-              </h3>
-              <button onClick={() => setIsShiftModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const newShift = formData.get('shift') as string;
-              setScheduleData(scheduleData.map(s => {
-                if (s.id === editingShift.empId) {
-                  return { ...s, [editingShift.dayKey]: newShift };
-                }
-                return s;
-              }));
-              showToast("Horaire mis à jour");
-              setIsShiftModalOpen(false);
-            }} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horaire</label>
-                  <select name="shift" defaultValue={editingShift.current} className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
-                    <option value="Repos">Repos</option>
-                    <option value="08:00 - 16:30">Matin (08:00 - 16:30)</option>
-                    <option value="15:00 - 23:30">Soir (15:00 - 23:30)</option>
-                    <option value="09:00 - 18:00">Journée (09:00 - 18:00)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsShiftModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors">Enregistrer</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-
       {/* Payroll Modal */}
       <PayrollModal
         isOpen={isPayrollModalOpen}
@@ -1772,7 +1993,13 @@ export default function RH() {
         onGenerate={async (data) => {
           const newPayslip = {
             period: data.period as string,
+            employeeId: data.employeeId as string,
             name: data.staffName as string,
+            role: data.staffRole || '',
+            staffCnss: data.staffCnss || '',
+            birthDate: data.staffBirthDate || '',
+            familyStatus: data.staffFamilyStatus || '',
+            hireDate: data.staffHireDate || '',
             net: `${data.net.toFixed(2)} MAD`,
             status: "Payé",
             base: data.base,

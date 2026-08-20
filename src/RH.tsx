@@ -1041,13 +1041,18 @@ export default function RH() {
             <h3 className="text-xl font-bold text-gray-900 mb-1">Documents RH</h3>
             <p className="text-sm text-gray-500 mb-4">Générés automatiquement depuis les données de la fiche employé, sur le papier en-tête officiel.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(['fiche', 'attestation', 'certificat', 'solde'] as const).map(type => (
+              {([
+                { type: 'fiche' as const, badge: 'bg-amber-50 text-amber-600', border: 'hover:border-amber-300' },
+                { type: 'attestation' as const, badge: 'bg-teal-50 text-teal-600', border: 'hover:border-teal-300' },
+                { type: 'certificat' as const, badge: 'bg-rose-50 text-rose-600', border: 'hover:border-rose-300' },
+                { type: 'solde' as const, badge: 'bg-orange-50 text-orange-600', border: 'hover:border-orange-300' },
+              ]).map(({ type, badge, border }) => (
                 <button
                   key={type}
                   onClick={() => openHrDocModal(type)}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#F4C75B]/50 transition-all text-left flex flex-col gap-3"
+                  className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md ${border} transition-all text-left flex flex-col gap-3`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#F4C75B]/10 text-[#265C6D] flex items-center justify-center">
+                  <div className={`w-10 h-10 rounded-xl ${badge} flex items-center justify-center`}>
                     <FileText size={20} />
                   </div>
                   <div>
@@ -1063,13 +1068,17 @@ export default function RH() {
             <h3 className="text-xl font-bold text-gray-900 mb-1">Contrats et avenants</h3>
             <p className="text-sm text-gray-500 mb-4">Modèles à personnaliser et faire valider par votre comptable ou conseil juridique avant signature.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(['cdi', 'cdd', 'stage'] as const).map(type => (
+              {([
+                { type: 'cdi' as const, badge: 'bg-blue-50 text-blue-600', border: 'hover:border-blue-300' },
+                { type: 'cdd' as const, badge: 'bg-violet-50 text-violet-600', border: 'hover:border-violet-300' },
+                { type: 'stage' as const, badge: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-300' },
+              ]).map(({ type, badge, border }) => (
                 <button
                   key={type}
                   onClick={() => openHrDocModal(type)}
-                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#F4C75B]/50 transition-all text-left flex flex-col gap-3"
+                  className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md ${border} transition-all text-left flex flex-col gap-3`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#265C6D]/10 text-[#265C6D] flex items-center justify-center">
+                  <div className={`w-10 h-10 rounded-xl ${badge} flex items-center justify-center`}>
                     <FileText size={20} />
                   </div>
                   <div>

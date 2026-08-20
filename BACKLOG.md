@@ -15,6 +15,10 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 - [ ] Pas de partage d'addition (split bill) entre convives.
 - [ ] Remise = pourcentage global du ticket, pas de remise par ligne.
 
+## RH
+
+- [ ] `templates/rh/Demande_Explication_Modele.docx`, `Notification_Avertissement_Modele.docx` et `Reglement_Interieur_Modele.docx` sont des modèles Word prêts (comme les modèles CDI/CDD dont le contenu a été repris pour la génération HTML des contrats) mais ne sont référencés nulle part dans le code — ni téléchargeables depuis l'UI, ni utilisés pour générer un document. À décider : les rendre téléchargeables tels quels (comme les "modèles légaux téléchargeables" de l'onglet Documents RH), ou les transformer en documents générés (même mécanisme que CDI/CDD/Attestation).
+
 ## Comptabilité
 
 - [ ] TVA déductible sous-évaluée : les dépenses issues des commandes fournisseurs livrées (`isOrder: true`) n'ont jamais de champ `montantHT`/`tva` renseigné, et la Déclaration TVA ignore silencieusement toute dépense sans ces champs — la quasi-totalité des achats marchandises réels est donc exclue de la TVA déductible (`Accounting.tsx:318-329`, `:432-438`).

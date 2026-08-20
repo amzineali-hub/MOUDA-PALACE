@@ -395,14 +395,17 @@ export default function RH() {
   // Documents RH — génération instantanée (Fiche individuelle, Attestation, Certificat,
   // Solde de tout compte) à partir des données déjà présentes sur la fiche employé.
   const [isHrDocModalOpen, setIsHrDocModalOpen] = useState(false);
-  const [hrDocType, setHrDocType] = useState<'fiche' | 'attestation' | 'certificat' | 'solde'>('attestation');
+  const [hrDocType, setHrDocType] = useState<'fiche' | 'attestation' | 'certificat' | 'solde' | 'cdi' | 'cdd' | 'stage'>('attestation');
   const [hrDocStaffId, setHrDocStaffId] = useState('');
 
   const HR_DOC_LABELS: Record<string, string> = {
     fiche: 'Fiche individuelle du salarié',
     attestation: 'Attestation de travail',
     certificat: 'Certificat de travail',
-    solde: 'Solde de tout compte'
+    solde: 'Solde de tout compte',
+    cdi: 'Contrat à durée indéterminée (CDI)',
+    cdd: 'Contrat à durée déterminée (CDD)',
+    stage: 'Convention de stage'
   };
 
   const openHrDocModal = (type: typeof hrDocType) => {
@@ -461,7 +464,7 @@ export default function RH() {
     const cnss = value('cnss', staff.cnss || '-');
     const role = value('role', staff.role || '-');
     const department = value('department', staff.department || '-');
-    const hireDate = value('hireDate', staff.hireDate || '-');
+    const hireDate = formatIsoDateFr(value('hireDate', staff.hireDate));
     const contractType = value('contractType', staff.contractType || '-');
     const baseSalary = Number(formData.get('baseSalary')) || 0;
     const phone = value('phone', staff.phone || '-');
@@ -501,7 +504,7 @@ export default function RH() {
         <p class="hr-sign">Signature et cachet de l'entreprise</p>
       `;
     } else if (hrDocType === 'certificat') {
-      const endDate = value('endDate', todayFr());
+      const endDate = formData.get('endDate') ? formatIsoDateFr(value('endDate')) : todayFr();
       bodyHtml = `
         <h2 style="text-align:center;">CERTIFICAT DE TRAVAIL</h2>
         <p class="hr-letter">
@@ -534,6 +537,89 @@ export default function RH() {
         <p class="hr-letter">Le salarié reconnaît avoir reçu, à titre de solde de tout compte, la somme indiquée ci-dessus.</p>
         <p class="hr-sign">Signature salarié : ___________________ &nbsp;&nbsp;&nbsp; Signature employeur : ___________________</p>
       `;
+    } else if (hrDocType === 'cdi') {
+      const workLocation = value('workLocation', companyInfo.address || '-');
+      bodyHtml = `
+        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature.</div>
+        <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)</h2>
+        <p class="hr-letter">
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          ci-après « l'Employeur »,
+        </p>
+        <p class="hr-letter">
+          Et <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>, domicilié(e) à ${address},
+          ci-après « le Salarié »,
+        </p>
+        <p class="hr-letter">il a été convenu ce qui suit :</p>
+        <p class="hr-article"><strong>Article 1 — Fonction et lieu de travail.</strong> Le salarié est engagé en qualité de <strong>${role}</strong>. Lieu principal de travail : <strong>${workLocation}</strong>.</p>
+        <p class="hr-article"><strong>Article 2 — Date de prise d'effet.</strong> Le contrat prend effet le <strong>${hireDate}</strong>.</p>
+        <p class="hr-article"><strong>Article 3 — Rémunération.</strong> La rémunération est fixée à <strong>${baseSalary.toFixed(2)} MAD</strong> selon les modalités applicables dans l'entreprise.</p>
+        <p class="hr-article"><strong>Article 4 — Durée du travail.</strong> La durée et l'organisation du travail sont celles applicables à l'entreprise et conformément aux dispositions légales en vigueur.</p>
+        <p class="hr-article"><strong>Article 5 — Congés et absences.</strong> Les congés et absences sont gérés conformément aux dispositions légales et aux procédures internes applicables.</p>
+        <p class="hr-article"><strong>Article 6 — Obligations professionnelles.</strong> Le salarié s'engage notamment à respecter les règles de sécurité, d'hygiène, de confidentialité, de discipline et le règlement intérieur de l'entreprise.</p>
+        <p class="hr-article"><strong>Article 7 — Fin du contrat.</strong> La fin du contrat est régie par les dispositions légales applicables.</p>
+        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
+      `;
+    } else if (hrDocType === 'cdd') {
+      const workLocation = value('workLocation', companyInfo.address || '-');
+      const motif = value('motif');
+      const endDate = formatIsoDateFr(value('endDate'));
+      bodyHtml = `
+        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature.</div>
+        <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE (CDD)</h2>
+        <p class="hr-letter">
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          ci-après « l'Employeur »,
+        </p>
+        <p class="hr-letter">
+          Et <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>,
+          ci-après « le Salarié »,
+        </p>
+        <p class="hr-letter">il a été convenu les conditions suivantes :</p>
+        <table class="hr-table">
+          <tr><th>Fonction</th><td>${role}</td></tr>
+          <tr><th>Motif légal du recours au CDD</th><td>${motif}</td></tr>
+          <tr><th>Date de début</th><td>${hireDate}</td></tr>
+          <tr><th>Date de fin</th><td>${endDate}</td></tr>
+          <tr><th>Lieu de travail</th><td>${workLocation}</td></tr>
+          <tr><th>Rémunération (MAD)</th><td>${baseSalary.toFixed(2)}</td></tr>
+        </table>
+        <p class="hr-letter">Les autres conditions de travail sont celles prévues par le présent contrat, le règlement intérieur et les dispositions légales applicables.</p>
+        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
+      `;
+    } else if (hrDocType === 'stage') {
+      const workLocation = value('workLocation', companyInfo.address || '-');
+      const school = value('school');
+      const supervisor = value('supervisor');
+      const endDate = formatIsoDateFr(value('endDate'));
+      const stipend = Number(formData.get('stipend')) || 0;
+      bodyHtml = `
+        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature — aucune convention type n'est imposée par la loi marocaine pour les stages, adaptez selon le cas.</div>
+        <h2 style="text-align:center;">CONVENTION DE STAGE</h2>
+        <p class="hr-letter">
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          ci-après « l'Entreprise d'accueil »,
+        </p>
+        <p class="hr-letter">
+          Et <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>, stagiaire au sein de <strong>${school}</strong>,
+          ci-après « le/la Stagiaire »,
+        </p>
+        <p class="hr-letter">il a été convenu les conditions suivantes :</p>
+        <table class="hr-table">
+          <tr><th>Poste / Mission de stage</th><td>${role}</td></tr>
+          <tr><th>Établissement de formation</th><td>${school}</td></tr>
+          <tr><th>Date de début</th><td>${hireDate}</td></tr>
+          <tr><th>Date de fin</th><td>${endDate}</td></tr>
+          <tr><th>Lieu de stage</th><td>${workLocation}</td></tr>
+          <tr><th>Tuteur / Encadrant</th><td>${supervisor}</td></tr>
+          <tr><th>Indemnité de stage (MAD)</th><td>${stipend > 0 ? stipend.toFixed(2) : 'Non rémunéré'}</td></tr>
+        </table>
+        <p class="hr-letter">Le/la stagiaire s'engage à respecter le règlement intérieur, les règles d'hygiène et de sécurité, ainsi que la confidentialité des informations de l'entreprise. La présente convention ne constitue pas un contrat de travail et n'ouvre droit à aucune rémunération autre que l'indemnité éventuelle mentionnée ci-dessus.</p>
+        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-sign">L'Entreprise d'accueil : ___________________________ &nbsp;&nbsp;&nbsp; Le/La Stagiaire : ___________________________</p>
+      `;
     }
 
     const html = buildLetterheadHtml(companyInfo, window.location.origin, {
@@ -545,6 +631,7 @@ export default function RH() {
         .hr-table td { padding: 10px; border: 1px solid #eee; }
         .hr-total-row th, .hr-total-row td { font-weight: bold; background: #FDF6E7; }
         .hr-letter { line-height: 2; font-size: 15px; margin: 20px 0; }
+        .hr-article { line-height: 1.8; font-size: 14px; margin: 14px 0; }
         .hr-sign { margin-top: 60px; text-align: right; font-size: 14px; }
         .hr-warning { background: #FEF2F2; border: 1px solid #FCA5A5; color: #B91C1C; padding: 10px 16px; border-radius: 6px; font-size: 12px; margin-bottom: 20px; }
       `
@@ -973,6 +1060,28 @@ export default function RH() {
           </div>
 
           <div>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Contrats et avenants</h3>
+            <p className="text-sm text-gray-500 mb-4">Modèles à personnaliser et faire valider par votre comptable ou conseil juridique avant signature.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(['cdi', 'cdd', 'stage'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => openHrDocModal(type)}
+                  className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[#F4C75B]/50 transition-all text-left flex flex-col gap-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#265C6D]/10 text-[#265C6D] flex items-center justify-center">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">{HR_DOC_LABELS[type]}</p>
+                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et imprimer</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">Demandes de congé</h3>
@@ -1286,6 +1395,52 @@ export default function RH() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin de contrat</label>
                     <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                   </div>
+                )}
+                {hrDocType === 'cdi' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lieu de travail</label>
+                    <input type="text" name="workLocation" required defaultValue={companyInfo.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                  </div>
+                )}
+                {hrDocType === 'cdd' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Lieu de travail</label>
+                      <input type="text" name="workLocation" required defaultValue={companyInfo.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin du CDD</label>
+                      <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Motif légal du recours au CDD</label>
+                      <input type="text" name="motif" required placeholder="Ex: surcroît temporaire d'activité, remplacement d'un salarié absent..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                  </>
+                )}
+                {hrDocType === 'stage' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Lieu de stage</label>
+                      <input type="text" name="workLocation" required defaultValue={companyInfo.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date de fin du stage</label>
+                      <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Établissement de formation</label>
+                      <input type="text" name="school" required placeholder="Ex: OFPPT, Université..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tuteur / Encadrant</label>
+                      <input type="text" name="supervisor" placeholder="Nom du responsable de stage" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Indemnité de stage (MAD, optionnel)</label>
+                      <input type="number" name="stipend" min="0" step="0.01" placeholder="0 = non rémunéré" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                  </>
                 )}
                 {hrDocType === 'solde' && (
                   <>

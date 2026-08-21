@@ -540,7 +540,6 @@ export default function RH() {
     } else if (hrDocType === 'cdi') {
       const workLocation = value('workLocation', companyInfo.address || '-');
       bodyHtml = `
-        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature.</div>
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)</h2>
         <p class="hr-letter">
           Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
@@ -566,7 +565,6 @@ export default function RH() {
       const motif = value('motif');
       const endDate = formatIsoDateFr(value('endDate'));
       bodyHtml = `
-        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature.</div>
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE (CDD)</h2>
         <p class="hr-letter">
           Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
@@ -596,7 +594,6 @@ export default function RH() {
       const endDate = formatIsoDateFr(value('endDate'));
       const stipend = Number(formData.get('stipend')) || 0;
       bodyHtml = `
-        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant signature — aucune convention type n'est imposée par la loi marocaine pour les stages, adaptez selon le cas.</div>
         <h2 style="text-align:center;">CONVENTION DE STAGE</h2>
         <p class="hr-letter">
           Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,

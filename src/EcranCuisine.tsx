@@ -148,10 +148,10 @@ export default function EcranCuisine() {
                 <button
                   onClick={() => updateStatus(task.id, task.status)}
                   disabled={updatingTasks.has(task.id)}
-                  className={`w-full py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-wait transition-colors ${
+                  className={`w-full py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 disabled:cursor-wait ${
                     task.status === 'À faire'
-                      ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                      ? 'bg-blue-500 text-white shadow-[0_4px_0_0_#1d4ed8] hover:brightness-110'
+                      : 'bg-green-500 text-white shadow-[0_4px_0_0_#15803d] hover:brightness-110'
                   }`}
                 >
                   {task.status === 'À faire' ? (
@@ -184,7 +184,7 @@ export default function EcranCuisine() {
             type="button"
             onClick={clearDemoTasks}
             disabled={tasks.length === 0}
-            className="px-3 py-2 rounded-xl border border-red-200 bg-white text-red-600 text-sm font-semibold hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-3 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold shadow-[0_4px_0_0_#b91c1c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed"
           >
             Vider les démonstrations
           </button>
@@ -201,10 +201,10 @@ export default function EcranCuisine() {
             key={station}
             type="button"
             onClick={() => setStationFilter(station)}
-            className={`px-3 py-1.5 rounded-full text-sm font-semibold border whitespace-nowrap transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-150 active:shadow-none active:translate-y-1 ${
               stationFilter === station
-                ? 'bg-[#265C6D] text-white border-[#265C6D]'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                ? 'bg-[#265C6D] text-white shadow-[0_3px_0_0_#173840]'
+                : 'bg-white text-gray-600 shadow-[0_3px_0_0_#d1d5db] hover:brightness-105'
             }`}
           >
             {station}

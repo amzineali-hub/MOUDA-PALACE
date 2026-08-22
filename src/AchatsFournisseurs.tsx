@@ -945,7 +945,7 @@ Détails <ChevronRight size={16} />
                       <body>
                         <div class="header">
                           <div class="logo-text">MOUDA PALACE</div>
-                          <div class="logo-sub">Restaurant Traditionnel Marocain</div>
+                          <div class="logo-sub">Restaurant - Lounge - Rooftop</div>
                         </div>
                         <div class="title">BON DE COMMANDE N° ${newCmd.id}</div>
                         

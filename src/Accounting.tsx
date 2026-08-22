@@ -1433,7 +1433,7 @@ export default function Accounting() {
             <div className="p-6 overflow-y-auto bg-white font-mono text-sm">
               <div className="text-center mb-6">
                 <h2 className="font-bold text-xl mb-1">MOUDA PALACE</h2>
-                <p className="text-gray-500 text-xs">Restaurant Traditionnel Marocain</p>
+                <p className="text-gray-500 text-xs">Restaurant - Lounge - Rooftop</p>
                 <p className="text-gray-500 text-xs mt-2">Fès, Maroc</p>
                 <p className="text-gray-500 text-xs mt-1">Tel: +212 5 35 XX XX XX</p>
               </div>
@@ -1531,7 +1531,7 @@ export default function Accounting() {
                         <body>
                           <div class="header">
                             <div class="logo-text">MOUDA PALACE</div>
-                            <div class="sub-text">Restaurant Traditionnel Marocain<br/>Fès, Maroc<br/>Tel: +212 5 35 XX XX XX</div>
+                            <div class="sub-text">Restaurant - Lounge - Rooftop<br/>Fès, Maroc<br/>Tel: +212 5 35 XX XX XX</div>
                           </div>
                           <div class="info">
                             <div><span>Ticket N°:</span><span>${selectedReceipt.displayId || 'TKT-' + selectedReceipt.id.substring(0, 6).toUpperCase()}</span></div>

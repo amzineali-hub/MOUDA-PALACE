@@ -22,7 +22,7 @@ const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
   <>
     <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
       <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
-      <p className="text-xs text-gray-500 uppercase tracking-wider">Restaurant & Salon de thé</p>
+      <p className="text-xs text-gray-500 uppercase tracking-wider">Restaurant - Lounge - Rooftop</p>
       <div className="mt-4 text-sm text-gray-600 space-y-1">
         <p>Ticket: {ticket.id}</p>
         <p>{ticket.date} à {ticket.time}</p>

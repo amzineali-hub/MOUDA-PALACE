@@ -144,6 +144,55 @@ const ShiftReportBody = ({ report }: { report: any }) => {
   );
 };
 
+const buildShiftReportHtml = (report: any): string => {
+  const isZ = report.type === 'Z';
+  const fmt = formatDateTime;
+  const num = (v: any) => Number(v || 0).toFixed(2);
+  return `
+    <html>
+      <head>
+        <title>Rapport ${isZ ? 'Z' : 'X'} de caisse</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', monospace; color: #1a1a1a; margin: 0; padding: 4mm; width: 72mm; }
+          h2 { text-align: center; font-size: 16px; margin: 0 0 4px; }
+          .sub { text-align: center; font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+          .meta { text-align: center; font-size: 11px; color: #444; margin: 8px 0 12px; }
+          .row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+          .bold { font-weight: bold; }
+          .red { color: #dc2626; }
+          .green { color: #047857; }
+          hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+          .footer { text-align: center; font-size: 10px; color: #888; margin-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <h2>MOUDA PALACE</h2>
+        <div class="sub">Rapport ${isZ ? 'Z — Clôture de caisse' : 'X — État intermédiaire'}</div>
+        <div class="meta">Caisse : ${report.id}<br/>Généré le ${fmt(report.generatedAt)}</div>
+        <hr/>
+        <div class="row"><span>Ouverture</span><span>${fmt(report.openedAt)}</span></div>
+        <div class="row"><span>Ouvert par</span><span>${report.openedBy || '—'}</span></div>
+        <div class="row"><span>Fond de caisse initial</span><span>${num(report.openingCash)} MAD</span></div>
+        ${isZ ? `<div class="row"><span>Fermé par</span><span>${report.closedBy || '—'}</span></div>` : ''}
+        <hr/>
+        <div class="row"><span>Ventes espèces</span><span>${num(report.cashSales)} MAD</span></div>
+        <div class="row"><span>Ventes carte</span><span>${num(report.cardSales)} MAD</span></div>
+        <div class="row bold"><span>Total ventes</span><span>${num(report.totalSales)} MAD</span></div>
+        <div class="row"><span>Nombre de tickets</span><span>${report.paymentCount || 0}</span></div>
+        <div class="row"><span>Remboursements</span><span>${report.refundCount || 0}</span></div>
+        <hr/>
+        <div class="row"><span>Espèces théoriques</span><span>${num(report.expectedCash)} MAD</span></div>
+        ${isZ ? `
+        <div class="row"><span>Espèces comptées</span><span>${num(report.countedCash)} MAD</span></div>
+        <div class="row bold ${Number(report.variance || 0) < 0 ? 'red' : 'green'}"><span>Écart</span><span>${num(report.variance)} MAD</span></div>` : ''}
+        <div class="footer">${isZ ? 'Document de clôture — à conserver.' : 'État intermédiaire, sans incidence sur la caisse.'}</div>
+        <script>window.onload = () => { window.print(); };</script>
+      </body>
+    </html>
+  `;
+};
+
 export default function POSTactile() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Plats Principaux');
@@ -2257,7 +2306,13 @@ export default function POSTactile() {
                 Fermer
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => {
+                  const w = window.open('', '_blank');
+                  if (w) {
+                    w.document.write(buildShiftReportHtml(shiftReportToPrint));
+                    w.document.close();
+                  }
+                }}
                 className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 <Receipt size={18} />
@@ -2266,13 +2321,6 @@ export default function POSTactile() {
             </div>
           </motion.div>
         </div>
-      )}
-
-      {shiftReportToPrint && typeof document !== 'undefined' && createPortal(
-        <div id="printable-shift-report" className="hidden print:block bg-white p-4">
-          <ShiftReportBody report={shiftReportToPrint} />
-        </div>,
-        document.body
       )}
 
       {/* Add Item Modal */}

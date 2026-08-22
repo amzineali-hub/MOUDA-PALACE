@@ -523,7 +523,6 @@ export default function RH() {
       const base = baseSalary;
       const total = base + extra;
       bodyHtml = `
-        <div class="hr-warning">⚠️ Modèle à faire valider par votre comptable ou conseil juridique avant remise au salarié — ce montant ne constitue pas un calcul légal définitif.</div>
         <h2 style="text-align:center;">SOLDE DE TOUT COMPTE</h2>
         <table class="hr-table">
           <tr><th>Salarié</th><td>${employeeName}</td></tr>

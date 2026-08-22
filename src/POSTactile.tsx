@@ -1551,42 +1551,42 @@ export default function POSTactile() {
         </div>
 
         {/* Right Side - Ticket / Cart Area */}
-        <div className="w-full lg:w-[400px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
-          
-          <div className="flex bg-gray-100 border-b border-gray-200">
+        <div className="w-full lg:w-[480px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
+
+          <div className="flex gap-2 p-3 bg-gray-50 border-b border-gray-200">
             <button
               onClick={() => setActiveCartTab('cart')}
-              className={`flex-1 py-3 text-sm font-bold ${activeCartTab === 'cart' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all duration-150 ${activeCartTab === 'cart' ? 'bg-[#1A1A1A] text-white shadow-[0_4px_0_0_#000000]' : 'bg-[#3D3D3D] text-white/90 shadow-[0_4px_0_0_#141414] hover:brightness-110'} active:shadow-none active:translate-y-1`}
             >
               Ticket Actuel
             </button>
-            <button 
+            <button
               onClick={() => setActiveCartTab('kitchen')}
-              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 ${activeCartTab === 'kitchen' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-150 ${activeCartTab === 'kitchen' ? 'bg-orange-500 text-white shadow-[0_4px_0_0_#c2410c]' : 'bg-orange-400 text-white shadow-[0_4px_0_0_#c2410c] hover:brightness-110'} active:shadow-none active:translate-y-1`}
             >
               Cuisine (KDS)
               {kitchenOrders.filter(o => o.status !== 'Terminé').length > 0 && (
-                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                <span className="bg-white text-orange-600 text-[10px] px-1.5 py-0.5 rounded-full font-black">
                   {kitchenOrders.filter(o => o.status !== 'Terminé').length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveCartTab('suspended')}
-              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 ${activeCartTab === 'suspended' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 transition-all duration-150 ${activeCartTab === 'suspended' ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#B8912E]' : 'bg-[#F7D583] text-[#1A1A1A] shadow-[0_4px_0_0_#B8912E] hover:brightness-105'} active:shadow-none active:translate-y-1`}
             >
               <PauseCircle size={15} /> En attente
               {suspendedTickets.length > 0 && (
-                <span className="bg-[#F4C75B] text-[#1A1A1A] text-[10px] px-1.5 py-0.5 rounded-full">{suspendedTickets.length}</span>
+                <span className="bg-[#1A1A1A] text-[#F4C75B] text-[10px] px-1.5 py-0.5 rounded-full font-black">{suspendedTickets.length}</span>
               )}
             </button>
             <button
               onClick={() => setActiveCartTab('messages')}
-              className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-1 ${activeCartTab === 'messages' ? 'bg-white text-[#1A1A1A] border-b-2 border-[#1A1A1A]' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 transition-all duration-150 ${activeCartTab === 'messages' ? 'bg-blue-500 text-white shadow-[0_4px_0_0_#1d4ed8]' : 'bg-blue-400 text-white shadow-[0_4px_0_0_#1d4ed8] hover:brightness-110'} active:shadow-none active:translate-y-1`}
             >
               <MessageSquare size={15} /> Messages
               {posMessages.filter(message => !message.read && message.target === 'POS').length > 0 && (
-                <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{posMessages.filter(message => !message.read && message.target === 'POS').length}</span>
+                <span className="bg-white text-blue-600 text-[10px] px-1.5 py-0.5 rounded-full font-black">{posMessages.filter(message => !message.read && message.target === 'POS').length}</span>
               )}
             </button>
           </div>

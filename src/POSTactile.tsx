@@ -1411,7 +1411,7 @@ export default function POSTactile() {
                     setRefundSelections({});
                     setIsRefundModalOpen(true);
                   }}
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-rose-500 text-white shadow-[0_4px_0_0_#be123c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
                   title="Rembourser un ticket déjà payé"
                 >
                   Rembourser
@@ -1423,7 +1423,7 @@ export default function POSTactile() {
                       setShiftReportToPrint({ ...activeShift, type: 'X', generatedAt: new Date() });
                       setIsShiftReportModalOpen(true);
                     }}
-                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
                     title="Rapport intermédiaire de caisse (X)"
                   >
                     Rapport X

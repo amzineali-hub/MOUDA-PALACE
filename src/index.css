@@ -33,6 +33,11 @@
   }
 }
 
+@page receipt-page {
+  size: 80mm auto;
+  margin: 0;
+}
+
 @media print {
   body:has(#printable-ticket) * {
     visibility: hidden;
@@ -41,6 +46,7 @@
     visibility: visible;
   }
   #printable-ticket {
+    page: receipt-page;
     position: absolute;
     top: 0;
     left: 0;
@@ -59,6 +65,7 @@
     visibility: visible;
   }
   #printable-shift-report {
+    page: receipt-page;
     position: absolute;
     top: 0;
     left: 0;

@@ -52,7 +52,8 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
   }, [selectedStaffId, staffData]);
 
   // Calculs Code du Travail Marocain (simplifiés) — voir src/lib/payroll.ts
-  const { cnss, amo, igr, netSalary } = computePayroll(baseSalary);
+  const selectedStaff = staffData.find(s => s.id === selectedStaffId);
+  const { cnss, amo, igr, netSalary } = computePayroll(baseSalary, Number(selectedStaff?.personnesACharge) || 0);
 
   // Absences non encore déduites pour cet employé, au prorata temporis : taux horaire
   // (base / 191) pour une absence partielle avec des heures saisies, sinon taux journalier
@@ -96,6 +97,7 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
             staffCnss: staff?.cnss || '',
             staffBirthDate: staff?.birthDate || '',
             staffFamilyStatus: staff?.familyStatus || '',
+            staffPersonnesACharge: Number(staff?.personnesACharge) || 0,
             staffHireDate: staff?.hireDate || '',
             base: baseSalary,
             cnss,
@@ -801,6 +803,7 @@ export default function RH() {
       contractType: formData.get('contractType') as string || 'CDI',
       birthDate: formData.get('birthDate') as string,
       familyStatus: formData.get('familyStatus') as string || 'Célibataire',
+      personnesACharge: Number(formData.get('personnesACharge')) || 0,
       updatedAt: serverTimestamp()
     };
 
@@ -1855,6 +1858,10 @@ export default function RH() {
                     <option value="Veuf(ve)">Veuf(ve)</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Personnes à charge</label>
+                  <input name="personnesACharge" defaultValue={editingStaff?.personnesACharge ?? 0} type="number" min="0" max="6" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
                   <input name="address" defaultValue={editingStaff?.address} type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 12 Rue des Fleurs, Fès" />
@@ -2203,6 +2210,7 @@ export default function RH() {
             staffCnss: data.staffCnss || '',
             birthDate: data.staffBirthDate || '',
             familyStatus: data.staffFamilyStatus || '',
+            personnesACharge: data.staffPersonnesACharge || 0,
             hireDate: data.staffHireDate || '',
             net: `${data.net.toFixed(2)} MAD`,
             status: "Payé",

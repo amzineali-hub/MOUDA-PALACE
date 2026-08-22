@@ -18,7 +18,6 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 ## RH
 
 - [ ] `templates/rh/Demande_Explication_Modele.docx`, `Notification_Avertissement_Modele.docx` et `Reglement_Interieur_Modele.docx` sont des modèles Word prêts (comme les modèles CDI/CDD dont le contenu a été repris pour la génération HTML des contrats) mais ne sont référencés nulle part dans le code — ni téléchargeables depuis l'UI, ni utilisés pour générer un document. À décider : les rendre téléchargeables tels quels (comme les "modèles légaux téléchargeables" de l'onglet Documents RH), ou les transformer en documents générés (même mécanisme que CDI/CDD/Attestation).
-- [ ] Abattement IGR "charges de famille" (5 MAD/mois/personne à charge, plafonné à 6 personnes) codé dans `computePayroll` (`lib/payroll.ts`) mais toujours appliqué avec 0 personne à charge : la fiche salarié ne stocke pas le nombre de personnes à charge, donc l'abattement ne joue jamais en pratique. Ajouter un champ `personnesACharge` à la fiche salarié (comme `birthDate`/`familyStatus`) pour l'activer réellement.
 
 ## Comptabilité
 

@@ -14,23 +14,28 @@ export interface PayrollBreakdown {
 const CNSS_RATE = 0.0448; // Salariale, plafonnée à 6000 MAD
 const CNSS_CEILING = 6000;
 const AMO_RATE = 0.0226; // Salariale, sans plafond
-const FRAIS_PRO_RATE = 0.2;
-const FRAIS_PRO_CEILING = 2500;
+const FRAIS_PRO_RATE = 0.25;
+const FRAIS_PRO_CEILING = 2916.66;
+// 5 MAD/mois par personne à charge, plafonné à 6 personnes (30 MAD/mois max).
+const CHARGE_FAMILLE_PAR_PERSONNE = 5;
+const CHARGE_FAMILLE_MAX_PERSONNES = 6;
 
-export function computePayroll(baseSalary: number): PayrollBreakdown {
+export function computePayroll(baseSalary: number, personnesACharge = 0): PayrollBreakdown {
   const cnss = Math.min(baseSalary, CNSS_CEILING) * CNSS_RATE;
   const amo = baseSalary * AMO_RATE;
   const fraisPro = Math.min(baseSalary * FRAIS_PRO_RATE, FRAIS_PRO_CEILING);
   const sni = baseSalary - cnss - amo - fraisPro;
 
-  // Barème IGR marocain (simplifié, mensuel)
+  // Barème IGR marocain (mensuel), réforme LF2023 — tranches en vigueur en 2026.
   let igr = 0;
-  if (sni > 2500 && sni <= 4166) igr = sni * 0.1 - 250;
-  else if (sni > 4166 && sni <= 5000) igr = sni * 0.2 - 666.67;
-  else if (sni > 5000 && sni <= 6666) igr = sni * 0.3 - 1166.67;
-  else if (sni > 6666 && sni <= 15000) igr = sni * 0.34 - 1433.33;
-  else if (sni > 15000) igr = sni * 0.38 - 2033.33;
-  igr = Math.max(0, igr);
+  if (sni > 3333 && sni <= 5000) igr = sni * 0.1 - 333.33;
+  else if (sni > 5000 && sni <= 6667) igr = sni * 0.2 - 833.33;
+  else if (sni > 6667 && sni <= 8333) igr = sni * 0.3 - 1500;
+  else if (sni > 8333 && sni <= 15000) igr = sni * 0.34 - 1833.33;
+  else if (sni > 15000) igr = sni * 0.37 - 2283.33;
+
+  const chargeFamille = Math.min(Math.max(personnesACharge, 0), CHARGE_FAMILLE_MAX_PERSONNES) * CHARGE_FAMILLE_PAR_PERSONNE;
+  igr = Math.max(0, igr - chargeFamille);
 
   const netSalary = baseSalary - cnss - amo - igr;
 

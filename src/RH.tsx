@@ -534,10 +534,17 @@ export default function RH() {
           <tr class="hr-total-row"><th>TOTAL NET</th><td>${total.toFixed(2)} MAD</td></tr>
         </table>
         <p class="hr-letter">Le salarié reconnaît avoir reçu, à titre de solde de tout compte, la somme indiquée ci-dessus.</p>
-        <p class="hr-sign">Signature salarié : ___________________ &nbsp;&nbsp;&nbsp; Signature employeur : ___________________</p>
+        <p class="hr-letter">Conformément à l'article 73 du Code du travail, le présent reçu peut être dénoncé par le salarié dans un délai de 60 jours à compter de sa date de signature, par lettre recommandée avec accusé de réception. Passé ce délai, il devient libératoire pour l'employeur des sommes qui y sont mentionnées. Établi en deux exemplaires originaux, dont un remis au salarié.</p>
+        <p class="hr-sign">Signature salarié (précédée de la mention manuscrite « pour solde de tout compte ») : ___________________ &nbsp;&nbsp;&nbsp; Signature employeur : ___________________</p>
       `;
     } else if (hrDocType === 'cdi') {
       const workLocation = value('workLocation', companyInfo.address || '-');
+      const trialCategory = value('trialCategory', 'employe');
+      const TRIAL_TEXT: Record<string, string> = {
+        cadre: "3 mois, renouvelable une seule fois pour une durée équivalente (soit 6 mois au maximum), conformément à l'article 14 du Code du travail",
+        employe: "1 mois et demi, renouvelable une seule fois pour une durée équivalente (soit 3 mois au maximum), conformément à l'article 14 du Code du travail",
+        ouvrier: "15 jours, renouvelable une seule fois pour une durée équivalente (soit 1 mois au maximum), conformément à l'article 14 du Code du travail",
+      };
       bodyHtml = `
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)</h2>
         <p class="hr-letter">
@@ -551,19 +558,41 @@ export default function RH() {
         <p class="hr-letter">il a été convenu ce qui suit :</p>
         <p class="hr-article"><strong>Article 1 — Fonction et lieu de travail.</strong> Le salarié est engagé en qualité de <strong>${role}</strong>. Lieu principal de travail : <strong>${workLocation}</strong>.</p>
         <p class="hr-article"><strong>Article 2 — Date de prise d'effet.</strong> Le contrat prend effet le <strong>${hireDate}</strong>.</p>
-        <p class="hr-article"><strong>Article 3 — Rémunération.</strong> La rémunération est fixée à <strong>${baseSalary.toFixed(2)} MAD</strong> selon les modalités applicables dans l'entreprise.</p>
-        <p class="hr-article"><strong>Article 4 — Durée du travail.</strong> La durée et l'organisation du travail sont celles applicables à l'entreprise et conformément aux dispositions légales en vigueur.</p>
-        <p class="hr-article"><strong>Article 5 — Congés et absences.</strong> Les congés et absences sont gérés conformément aux dispositions légales et aux procédures internes applicables.</p>
-        <p class="hr-article"><strong>Article 6 — Obligations professionnelles.</strong> Le salarié s'engage notamment à respecter les règles de sécurité, d'hygiène, de confidentialité, de discipline et le règlement intérieur de l'entreprise.</p>
-        <p class="hr-article"><strong>Article 7 — Fin du contrat.</strong> La fin du contrat est régie par les dispositions légales applicables.</p>
+        <p class="hr-article"><strong>Article 3 — Période d'essai.</strong> Le présent contrat est conclu sous réserve d'une période d'essai de <strong>${TRIAL_TEXT[trialCategory]}</strong>. Durant cette période, chacune des parties peut rompre le contrat sans indemnité ni préavis, sous réserve des délais de prévenance légaux.</p>
+        <p class="hr-article"><strong>Article 4 — Rémunération.</strong> La rémunération est fixée à <strong>${baseSalary.toFixed(2)} MAD</strong> selon les modalités applicables dans l'entreprise.</p>
+        <p class="hr-article"><strong>Article 5 — Durée du travail.</strong> La durée et l'organisation du travail sont celles applicables à l'entreprise et conformément aux dispositions légales en vigueur.</p>
+        <p class="hr-article"><strong>Article 6 — Congés et absences.</strong> Les congés et absences sont gérés conformément aux dispositions légales et aux procédures internes applicables.</p>
+        <p class="hr-article"><strong>Article 7 — Obligations professionnelles.</strong> Le salarié s'engage notamment à respecter les règles de sécurité, d'hygiène, de confidentialité, de discipline et le règlement intérieur de l'entreprise.</p>
+        <p class="hr-article"><strong>Article 8 — Fin du contrat.</strong> Au-delà de la période d'essai, la fin du contrat est régie par les dispositions légales applicables (démission, licenciement, retraite).</p>
         <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
         <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
       `;
     } else if (hrDocType === 'cdd') {
       const workLocation = value('workLocation', companyInfo.address || '-');
-      const motif = value('motif');
-      const endDate = formatIsoDateFr(value('endDate'));
+      const MOTIFS: Record<string, string> = {
+        remplacement: "le remplacement d'un salarié dont le contrat de travail est suspendu (article 16 du Code du travail)",
+        accroissement: "l'accroissement temporaire de l'activité de l'entreprise (article 16 du Code du travail)",
+        saisonnier: "un travail à caractère saisonnier (article 16 du Code du travail)",
+      };
+      const motifKey = value('motif', 'accroissement');
+      const motif = MOTIFS[motifKey] || motifKey;
+      const endDateIso = value('endDate');
+      const endDate = formatIsoDateFr(endDateIso);
+      const hireDateIso = value('hireDate', staff.hireDate);
+      const durationDays = (() => {
+        const start = new Date(hireDateIso);
+        const end = new Date(endDateIso);
+        const diff = (end.getTime() - start.getTime()) / 86400000;
+        return Number.isFinite(diff) ? diff : 0;
+      })();
+      const trialText = durationDays > 0 && durationDays <= 183
+        ? "2 semaines"
+        : "1 mois";
+      const overCapWarning = durationDays > 366
+        ? `<div class="hr-warning">⚠️ Durée du CDD supérieure à 1 an : au-delà de cette limite (renouvellement compris), le contrat est requalifié de plein droit en CDI (article 16 du Code du travail). Vérifiez la durée et l'historique de renouvellement avant signature.</div>`
+        : '';
       bodyHtml = `
+        ${overCapWarning}
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE (CDD)</h2>
         <p class="hr-letter">
           Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
@@ -573,15 +602,16 @@ export default function RH() {
           Et <strong>${employeeName}</strong>, titulaire de la CIN n° <strong>${cin}</strong>,
           ci-après « le Salarié »,
         </p>
-        <p class="hr-letter">il a été convenu les conditions suivantes :</p>
+        <p class="hr-letter">il a été convenu les conditions suivantes, motivées par ${motif} :</p>
         <table class="hr-table">
           <tr><th>Fonction</th><td>${role}</td></tr>
-          <tr><th>Motif légal du recours au CDD</th><td>${motif}</td></tr>
           <tr><th>Date de début</th><td>${hireDate}</td></tr>
           <tr><th>Date de fin</th><td>${endDate}</td></tr>
+          <tr><th>Période d'essai</th><td>${trialText} (article 15 du Code du travail)</td></tr>
           <tr><th>Lieu de travail</th><td>${workLocation}</td></tr>
           <tr><th>Rémunération (MAD)</th><td>${baseSalary.toFixed(2)}</td></tr>
         </table>
+        <p class="hr-letter">Conformément à l'article 16 du Code du travail, ce contrat ne peut excéder une durée d'un an, renouvellement inclus ; passé ce délai il devient un contrat à durée indéterminée.</p>
         <p class="hr-letter">Les autres conditions de travail sont celles prévues par le présent contrat, le règlement intérieur et les dispositions légales applicables.</p>
         <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
         <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
@@ -1402,10 +1432,20 @@ export default function RH() {
                   </div>
                 )}
                 {hrDocType === 'cdi' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Lieu de travail</label>
-                    <input type="text" name="workLocation" required defaultValue={companyInfo.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Lieu de travail</label>
+                      <input type="text" name="workLocation" required defaultValue={companyInfo.address || ''} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie (durée de la période d'essai)</label>
+                      <select name="trialCategory" defaultValue="employe" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                        <option value="cadre">Cadre — 3 mois renouvelable une fois</option>
+                        <option value="employe">Employé — 1 mois et demi renouvelable une fois</option>
+                        <option value="ouvrier">Ouvrier — 15 jours renouvelable une fois</option>
+                      </select>
+                    </div>
+                  </>
                 )}
                 {hrDocType === 'cdd' && (
                   <>
@@ -1418,8 +1458,12 @@ export default function RH() {
                       <input type="date" name="endDate" required defaultValue={new Date().toISOString().split('T')[0]} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Motif légal du recours au CDD</label>
-                      <input type="text" name="motif" required placeholder="Ex: surcroît temporaire d'activité, remplacement d'un salarié absent..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]" />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Motif légal du recours au CDD (article 16)</label>
+                      <select name="motif" required defaultValue="accroissement" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]">
+                        <option value="remplacement">Remplacement d'un salarié dont le contrat est suspendu</option>
+                        <option value="accroissement">Accroissement temporaire de l'activité de l'entreprise</option>
+                        <option value="saisonnier">Travail à caractère saisonnier</option>
+                      </select>
                     </div>
                   </>
                 )}

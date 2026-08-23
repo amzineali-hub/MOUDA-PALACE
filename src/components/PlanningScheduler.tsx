@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -22,6 +22,7 @@ interface Shift {
   colorType: 'blue' | 'orange' | 'pink' | 'purple' | 'green';
   actualHours?: number | null; // pointage manuel — heures réellement travaillées
   actualMinutes?: number | null; // pointage manuel — minutes réellement travaillées
+  createdAt?: { seconds: number; nanoseconds: number } | null; // horodatage Firestore, sert à regrouper les lots (ex. duplication de semaine)
 }
 
 const generateWeekDays = (startDate: Date) => {
@@ -248,6 +249,59 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   };
 
   const activeFilterCount = filterEmployeeIds.size + filterColors.size;
+
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [undoingBatchKey, setUndoingBatchKey] = useState<string | null>(null);
+
+  // Regroupe les shifts par "lot" : ceux créés à quelques secondes d'intervalle (ex. duplication
+  // de semaine, génération IA) forment un seul lot, annulable même si créé avant l'ajout du
+  // bouton "Annuler" — utile pour revenir sur un ajout groupé plus ancien.
+  const BATCH_GAP_MS = 90 * 1000;
+  const shiftBatches = useMemo(() => {
+    const timed = shifts
+      .map(s => ({ shift: s, ms: s.createdAt ? s.createdAt.seconds * 1000 : null }))
+      .filter((x): x is { shift: Shift; ms: number } => x.ms !== null)
+      .sort((a, b) => a.ms - b.ms);
+
+    const batches: { key: string; ms: number; shiftIds: string[]; minDate: string; maxDate: string }[] = [];
+    let current: { key: string; ms: number; shiftIds: string[]; minDate: string; maxDate: string } | null = null;
+    let lastMs = -Infinity;
+
+    for (const { shift, ms } of timed) {
+      if (!current || ms - lastMs > BATCH_GAP_MS) {
+        current = { key: shift.id, ms, shiftIds: [shift.id], minDate: shift.date, maxDate: shift.date };
+        batches.push(current);
+      } else {
+        current.shiftIds.push(shift.id);
+        if (shift.date < current.minDate) current.minDate = shift.date;
+        if (shift.date > current.maxDate) current.maxDate = shift.date;
+      }
+      lastMs = ms;
+    }
+
+    return batches
+      .filter(b => b.shiftIds.length >= 2)
+      .sort((a, b) => b.ms - a.ms)
+      .slice(0, 15);
+  }, [shifts]);
+
+  const undoBatch = async (batch: { key: string; shiftIds: string[] }) => {
+    const confirmed = window.confirm(`Supprimer ce lot de ${batch.shiftIds.length} shift(s) ? Cette action est irréversible.`);
+    if (!confirmed) return;
+    setUndoingBatchKey(batch.key);
+    try {
+      for (const id of batch.shiftIds) {
+        await deleteDoc(doc(db, 'shifts', id));
+      }
+      showToast(`${batch.shiftIds.length} shift(s) supprimé(s)`);
+      if (lastDuplicatedIds.some(id => batch.shiftIds.includes(id))) setLastDuplicatedIds([]);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de la suppression du lot", "error");
+    } finally {
+      setUndoingBatchKey(null);
+    }
+  };
   const genericStartRef = useRef<HTMLInputElement>(null);
   const genericEndRef = useRef<HTMLInputElement>(null);
   const genericColorRef = useRef<HTMLSelectElement>(null);
@@ -546,6 +600,12 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             </button>
           )}
           <button
+            onClick={() => setIsHistoryOpen(true)}
+            title="Revenir sur un lot de shifts ajoutés en une fois (duplication, IA...), même ancien"
+            className="px-4 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center gap-2 transition-colors">
+            <History size={16} /> Historique
+          </button>
+          <button
             onClick={handleIAPlanning}
             disabled={isGenerating}
             className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm font-medium hover:bg-emerald-100 flex items-center gap-2 transition-colors disabled:opacity-50">
@@ -838,6 +898,46 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div>
+                <h3 className="font-semibold text-gray-900">Historique des ajouts groupés</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Duplications, génération IA... — annulez un lot même ancien.</p>
+              </div>
+              <button onClick={() => setIsHistoryOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-2">
+              {shiftBatches.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">Aucun lot d'ajouts groupés détecté récemment.</p>
+              )}
+              {shiftBatches.map(batch => (
+                <div key={batch.key} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {batch.shiftIds.length} shifts créés le {new Date(batch.ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Période concernée : {batch.minDate === batch.maxDate ? batch.minDate : `${batch.minDate} → ${batch.maxDate}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => undoBatch(batch)}
+                    disabled={undoingBatchKey === batch.key}
+                    className="shrink-0 px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-medium hover:bg-rose-100 flex items-center gap-1.5 transition-colors disabled:opacity-50">
+                    {undoingBatchKey === batch.key ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    {undoingBatchKey === batch.key ? "..." : "Annuler"}
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

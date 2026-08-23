@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface Employee {
@@ -194,6 +194,8 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const [isPointageModalOpen, setIsPointageModalOpen] = useState(false);
   const [selectedShiftForPointage, setSelectedShiftForPointage] = useState<Shift | null>(null);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [lastDuplicatedIds, setLastDuplicatedIds] = useState<string[]>([]);
+  const [isUndoing, setIsUndoing] = useState(false);
   const genericStartRef = useRef<HTMLInputElement>(null);
   const genericEndRef = useRef<HTMLInputElement>(null);
   const genericColorRef = useRef<HTMLSelectElement>(null);
@@ -203,12 +205,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     const d = new Date(currentDate);
     d.setDate(d.getDate() - 7);
     setCurrentDate(d);
+    setLastDuplicatedIds([]);
   };
 
   const nextWeek = () => {
     const d = new Date(currentDate);
     d.setDate(d.getDate() + 7);
     setCurrentDate(d);
+    setLastDuplicatedIds([]);
   };
 
   const getShiftsForCell = (empId: string | null, dateStr: string) => {
@@ -298,7 +302,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
     setIsDuplicating(true);
     try {
-      let count = 0;
+      const createdIds: string[] = [];
       for (const s of prevShifts) {
         const dayIndex = prevDays.findIndex(d => d.dateStr === s.date);
         const targetDate = weekDays[dayIndex]?.dateStr;
@@ -308,7 +312,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
           x.startTime === s.startTime && x.endTime === s.endTime
         );
         if (alreadyExists) continue;
-        await addDoc(collection(db, 'shifts'), {
+        const ref = await addDoc(collection(db, 'shifts'), {
           employeeId: s.employeeId,
           date: targetDate,
           startTime: s.startTime,
@@ -317,14 +321,32 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
           colorType: s.colorType,
           createdAt: serverTimestamp()
         });
-        count++;
+        createdIds.push(ref.id);
       }
-      showToast(count > 0 ? `${count} shift(s) dupliqué(s) depuis la semaine précédente` : "Tous les shifts étaient déjà présents sur cette semaine");
+      setLastDuplicatedIds(createdIds);
+      showToast(createdIds.length > 0 ? `${createdIds.length} shift(s) dupliqué(s) depuis la semaine précédente` : "Tous les shifts étaient déjà présents sur cette semaine");
     } catch (e) {
       console.error(e);
       showToast("Erreur lors de la duplication", "error");
     } finally {
       setIsDuplicating(false);
+    }
+  };
+
+  const undoDuplication = async () => {
+    if (lastDuplicatedIds.length === 0) return;
+    setIsUndoing(true);
+    try {
+      for (const id of lastDuplicatedIds) {
+        await deleteDoc(doc(db, 'shifts', id));
+      }
+      showToast("Duplication annulée");
+      setLastDuplicatedIds([]);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'annulation", "error");
+    } finally {
+      setIsUndoing(false);
     }
   };
 
@@ -381,6 +403,16 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             {isDuplicating ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
             {isDuplicating ? "Duplication..." : "Dupliquer semaine préc."}
           </button>
+          {lastDuplicatedIds.length > 0 && (
+            <button
+              onClick={undoDuplication}
+              disabled={isUndoing}
+              title="Annuler la dernière duplication"
+              className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-sm font-medium hover:bg-rose-100 flex items-center gap-2 transition-colors disabled:opacity-50">
+              {isUndoing ? <Loader2 size={16} className="animate-spin" /> : null}
+              {isUndoing ? "Annulation..." : `Annuler (${lastDuplicatedIds.length})`}
+            </button>
+          )}
           <button
             onClick={handleIAPlanning}
             disabled={isGenerating}

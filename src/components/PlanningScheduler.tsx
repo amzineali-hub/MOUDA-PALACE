@@ -280,9 +280,8 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     }
 
     return batches
-      .filter(b => b.shiftIds.length >= 2)
       .sort((a, b) => b.ms - a.ms)
-      .slice(0, 15);
+      .slice(0, 20);
   }, [shifts]);
 
   const undoBatch = async (batch: { key: string; shiftIds: string[] }) => {
@@ -663,7 +662,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                       type="button"
                       onClick={(e) => deleteShift(shift, e)}
                       title="Supprimer ce shift"
-                      className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/shift:opacity-100 hover:bg-black/10 transition-opacity">
+                      className="absolute top-1 right-1 p-1 rounded bg-white/70 opacity-70 hover:opacity-100 hover:bg-black/10 transition-opacity">
                       <Trash2 size={12} />
                     </button>
                     <span>{shift.startTime} - {shift.endTime}</span>
@@ -946,8 +945,8 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <div>
-                <h3 className="font-semibold text-gray-900">Historique des ajouts groupés</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Duplications, génération IA... — annulez un lot même ancien.</p>
+                <h3 className="font-semibold text-gray-900">Historique des ajouts</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Ajout unique, duplication, génération IA... — annulez, même ancien.</p>
               </div>
               <button onClick={() => setIsHistoryOpen(false)} className="text-gray-400 hover:text-gray-900">
                 <MoreHorizontal size={20} />
@@ -956,13 +955,13 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
             <div className="p-4 overflow-y-auto space-y-2">
               {shiftBatches.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-6">Aucun lot d'ajouts groupés détecté récemment.</p>
+                <p className="text-sm text-gray-400 text-center py-6">Aucun ajout récent détecté.</p>
               )}
               {shiftBatches.map(batch => (
                 <div key={batch.key} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900">
-                      {batch.shiftIds.length} shifts créés le {new Date(batch.ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {batch.shiftIds.length} shift{batch.shiftIds.length > 1 ? 's' : ''} créé{batch.shiftIds.length > 1 ? 's' : ''} le {new Date(batch.ms).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                     <p className="text-xs text-gray-500">
                       Période concernée : {batch.minDate === batch.maxDate ? batch.minDate : `${batch.minDate} → ${batch.maxDate}`}

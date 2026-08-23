@@ -105,7 +105,6 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             if (Math.random() > 0.6) {
               const types = ['blue', 'orange', 'pink', 'purple', 'green'];
               newShifts.push({
-                id: Math.random().toString(36).substring(7),
                 employeeId: emp.id,
                 date: day.dateStr,
                 startTime: '09:00',
@@ -148,7 +147,6 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     if (hours < 0) hours += 24;
 
     const newShift = {
-      id: Math.random().toString(36).substring(7),
       employeeId: empId === 'null' ? null : empId,
       date,
       startTime,
@@ -193,7 +191,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'shifts'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any })) as Shift[];
+      const data = snapshot.docs.map(doc => ({ ...doc.data() as any, id: doc.id })) as Shift[];
       setShifts(data);
     });
     return () => unsub();
@@ -357,8 +355,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     let hours = endH - startH;
     if (hours < 0) hours += 24;
 
-    const newShift: Shift = {
-      id: Math.random().toString(36).substring(7),
+    const newShift: Omit<Shift, 'id'> = {
       employeeId: selectedCell.empId,
       date: selectedCell.date,
       startTime,
@@ -382,8 +379,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const quickAddShift = async (preset: { startTime: string; endTime: string }) => {
     if (!selectedCell) return;
     const emp = employees.find(e => e.id === selectedCell.empId);
-    const newShift: Shift = {
-      id: Math.random().toString(36).substring(7),
+    const newShift: Omit<Shift, 'id'> = {
       employeeId: selectedCell.empId,
       date: selectedCell.date,
       startTime: preset.startTime,

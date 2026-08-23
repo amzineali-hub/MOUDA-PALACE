@@ -201,6 +201,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const [selectedCell, setSelectedCell] = useState<{empId: string | null, date: string} | null>(null);
   const [isPointageModalOpen, setIsPointageModalOpen] = useState(false);
   const [selectedShiftForPointage, setSelectedShiftForPointage] = useState<Shift | null>(null);
+  const [applyEditToWeek, setApplyEditToWeek] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const editStartRef = useRef<HTMLInputElement>(null);
+  const editEndRef = useRef<HTMLInputElement>(null);
+  const editColorRef = useRef<HTMLSelectElement>(null);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [lastDuplicatedIds, setLastDuplicatedIds] = useState<string[]>([]);
   const [isUndoing, setIsUndoing] = useState(false);
@@ -462,6 +467,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const openPointageModal = (shift: Shift, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedShiftForPointage(shift);
+    setApplyEditToWeek(false);
     setIsPointageModalOpen(true);
   };
 
@@ -494,6 +500,38 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     } catch (e) {
       console.error(e);
       showToast("Erreur d'enregistrement du pointage", "error");
+    }
+  };
+
+  const saveShiftEdit = async () => {
+    if (!selectedShiftForPointage) return;
+    const startTime = editStartRef.current?.value || selectedShiftForPointage.startTime;
+    const endTime = editEndRef.current?.value || selectedShiftForPointage.endTime;
+    const colorType = (editColorRef.current?.value || selectedShiftForPointage.colorType) as Shift['colorType'];
+    const hours = computeHours(startTime, endTime);
+
+    setIsSavingEdit(true);
+    try {
+      if (applyEditToWeek && selectedShiftForPointage.employeeId) {
+        const weekShiftsForEmp = shifts.filter(s =>
+          s.employeeId === selectedShiftForPointage.employeeId && weekDays.some(d => d.dateStr === s.date)
+        );
+        for (const s of weekShiftsForEmp) {
+          await updateDoc(doc(db, 'shifts', s.id), { startTime, endTime, hours, colorType });
+        }
+        showToast(`Horaire mis à jour sur ${weekShiftsForEmp.length} shift(s) de la semaine`);
+      } else {
+        await updateDoc(doc(db, 'shifts', selectedShiftForPointage.id), { startTime, endTime, hours, colorType });
+        showToast("Shift modifié");
+      }
+      setIsPointageModalOpen(false);
+      setSelectedShiftForPointage(null);
+      setApplyEditToWeek(false);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de la modification", "error");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -889,18 +927,69 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="font-semibold text-gray-900">Saisir le pointage</h3>
+              <h3 className="font-semibold text-gray-900">Détails du shift</h3>
               <button onClick={() => setIsPointageModalOpen(false)} className="text-gray-400 hover:text-gray-900">
                 <MoreHorizontal size={20} />
               </button>
             </div>
 
-            <form onSubmit={savePointage} className="p-6 space-y-4">
+            <div className="p-6 pb-0 space-y-4">
               <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
                 <p><span className="font-medium text-gray-900">Employé :</span> {employees.find(e => e.id === selectedShiftForPointage.employeeId)?.name || '—'}</p>
                 <p><span className="font-medium text-gray-900">Jour :</span> {selectedShiftForPointage.date}</p>
-                <p><span className="font-medium text-gray-900">Prévu :</span> {selectedShiftForPointage.startTime} - {selectedShiftForPointage.endTime} ({selectedShiftForPointage.hours}h)</p>
               </div>
+
+              <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Horaire prévu</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                    <input ref={editStartRef} type="time" defaultValue={selectedShiftForPointage.startTime} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                    <input ref={editEndRef} type="time" defaultValue={selectedShiftForPointage.endTime} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Couleur (Rôle)</label>
+                  <select ref={editColorRef} defaultValue={selectedShiftForPointage.colorType} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
+                    <option value="blue">Bleu (Cuisine)</option>
+                    <option value="orange">Orange (Service)</option>
+                    <option value="pink">Rose (Manager)</option>
+                    <option value="purple">Violet (Bar)</option>
+                    <option value="green">Vert (Polyvalent)</option>
+                  </select>
+                </div>
+                {selectedShiftForPointage.employeeId && (
+                  <label className="flex items-center gap-2 text-xs text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={applyEditToWeek}
+                      onChange={(e) => setApplyEditToWeek(e.target.checked)}
+                      className="rounded border-gray-300 text-[#F4C75B] focus:ring-[#F4C75B]"
+                    />
+                    Appliquer ce nouvel horaire à tous les shifts de {employees.find(e => e.id === selectedShiftForPointage.employeeId)?.name} cette semaine
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={saveShiftEdit}
+                  disabled={isSavingEdit}
+                  className="w-full px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg font-medium hover:bg-[#E5B745] disabled:opacity-50 flex items-center justify-center gap-2">
+                  {isSavingEdit ? <Loader2 size={16} className="animate-spin" /> : null}
+                  {isSavingEdit ? "Enregistrement..." : "Enregistrer les modifications"}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <div className="h-px bg-gray-100 flex-1" />
+                <span className="text-xs text-gray-400">Pointage</span>
+                <div className="h-px bg-gray-100 flex-1" />
+              </div>
+            </div>
+
+            <form onSubmit={savePointage} className="p-6 pt-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Heures travaillées</label>

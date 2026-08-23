@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { collection, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -48,6 +48,33 @@ const COLOR_MAP = {
   pink: 'bg-pink-50 text-pink-600 border-pink-100',
   purple: 'bg-purple-50 text-purple-600 border-purple-100',
   green: 'bg-green-50 text-green-600 border-green-100',
+};
+
+// Raccourcis "shift type" pour saisie en un clic
+const SHIFT_PRESETS: { label: string; startTime: string; endTime: string }[] = [
+  { label: 'Matin', startTime: '09:00', endTime: '17:00' },
+  { label: 'Service Midi', startTime: '11:00', endTime: '15:00' },
+  { label: 'Service Soir', startTime: '18:00', endTime: '23:00' },
+  { label: 'Journée', startTime: '09:00', endTime: '22:00' },
+];
+
+// Déduit automatiquement la couleur (= rôle) d'un shift à partir du poste de l'employé,
+// pour éviter d'avoir à la re-sélectionner manuellement à chaque saisie.
+const roleToColor = (role: string): Shift['colorType'] => {
+  const r = (role || '').toLowerCase();
+  if (r.includes('cuisine') || r.includes('chef') || r.includes('cuisinier')) return 'blue';
+  if (r.includes('bar')) return 'purple';
+  if (r.includes('manager') || r.includes('responsable') || r.includes('directeur')) return 'pink';
+  if (r.includes('service') || r.includes('serveur') || r.includes('salle')) return 'orange';
+  return 'green';
+};
+
+const computeHours = (startTime: string, endTime: string) => {
+  const [startH, startM] = startTime.split(':').map(Number);
+  const [endH, endM] = endTime.split(':').map(Number);
+  let hours = (endH + endM / 60) - (startH + startM / 60);
+  if (hours < 0) hours += 24;
+  return Math.round(hours * 100) / 100;
 };
 
 export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
@@ -166,6 +193,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const [selectedCell, setSelectedCell] = useState<{empId: string | null, date: string} | null>(null);
   const [isPointageModalOpen, setIsPointageModalOpen] = useState(false);
   const [selectedShiftForPointage, setSelectedShiftForPointage] = useState<Shift | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState(false);
+  const genericStartRef = useRef<HTMLInputElement>(null);
+  const genericEndRef = useRef<HTMLInputElement>(null);
+  const genericColorRef = useRef<HTMLSelectElement>(null);
+  const genericEmployeeRef = useRef<HTMLSelectElement>(null);
 
   const prevWeek = () => {
     const d = new Date(currentDate);
@@ -229,6 +261,73 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     }
   };
 
+  // Ajout en un clic depuis un raccourci "shift type" — couleur déduite automatiquement du rôle.
+  const quickAddShift = async (preset: { startTime: string; endTime: string }) => {
+    if (!selectedCell) return;
+    const emp = employees.find(e => e.id === selectedCell.empId);
+    const newShift: Shift = {
+      id: Math.random().toString(36).substring(7),
+      employeeId: selectedCell.empId,
+      date: selectedCell.date,
+      startTime: preset.startTime,
+      endTime: preset.endTime,
+      hours: computeHours(preset.startTime, preset.endTime),
+      colorType: roleToColor(emp?.role || '')
+    };
+    try {
+      await addDoc(collection(db, 'shifts'), { ...newShift, createdAt: serverTimestamp() });
+      setIsShiftModalOpen(false);
+      showToast("Shift ajouté");
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur d'ajout", "error");
+    }
+  };
+
+  // Recopie les shifts de la semaine précédente sur la semaine affichée (planning souvent récurrent).
+  const duplicatePreviousWeek = async () => {
+    const prevWeekStart = new Date(currentDate);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+    const prevDays = generateWeekDays(prevWeekStart);
+    const prevShifts = shifts.filter(s => prevDays.some(d => d.dateStr === s.date));
+
+    if (prevShifts.length === 0) {
+      showToast("Aucun shift la semaine précédente à dupliquer", "error");
+      return;
+    }
+
+    setIsDuplicating(true);
+    try {
+      let count = 0;
+      for (const s of prevShifts) {
+        const dayIndex = prevDays.findIndex(d => d.dateStr === s.date);
+        const targetDate = weekDays[dayIndex]?.dateStr;
+        if (!targetDate) continue;
+        const alreadyExists = shifts.some(x =>
+          x.employeeId === s.employeeId && x.date === targetDate &&
+          x.startTime === s.startTime && x.endTime === s.endTime
+        );
+        if (alreadyExists) continue;
+        await addDoc(collection(db, 'shifts'), {
+          employeeId: s.employeeId,
+          date: targetDate,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          hours: s.hours,
+          colorType: s.colorType,
+          createdAt: serverTimestamp()
+        });
+        count++;
+      }
+      showToast(count > 0 ? `${count} shift(s) dupliqué(s) depuis la semaine précédente` : "Tous les shifts étaient déjà présents sur cette semaine");
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de la duplication", "error");
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
   const openPointageModal = (shift: Shift, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedShiftForPointage(shift);
@@ -274,14 +373,22 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button 
+          <button
+            onClick={duplicatePreviousWeek}
+            disabled={isDuplicating}
+            title="Recopier les shifts de la semaine précédente sur cette semaine"
+            className="px-4 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center gap-2 transition-colors disabled:opacity-50">
+            {isDuplicating ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+            {isDuplicating ? "Duplication..." : "Dupliquer semaine préc."}
+          </button>
+          <button
             onClick={handleIAPlanning}
             disabled={isGenerating}
             className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm font-medium hover:bg-emerald-100 flex items-center gap-2 transition-colors disabled:opacity-50">
-            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />} 
+            {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {isGenerating ? "Génération..." : "IA Planning"}
           </button>
-          <button 
+          <button
             onClick={() => setIsGenericModalOpen(true)}
             className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#E5B745] flex items-center gap-2 transition-colors">
             <Plus size={16} /> Nouveau Shift
@@ -368,7 +475,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       </div>
 
       {isShiftModalOpen && selectedCell && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div key={`${selectedCell.empId}-${selectedCell.date}`} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h3 className="font-semibold text-gray-900">
@@ -378,8 +485,31 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 <MoreHorizontal size={20} />
               </button>
             </div>
-            
-            <form onSubmit={addNewShift} className="p-6 space-y-4">
+
+            <div className="px-6 pt-4">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                <Zap size={12} /> Raccourcis — un clic pour ajouter
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {SHIFT_PRESETS.map(preset => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => quickAddShift(preset)}
+                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                    <span className="block font-semibold">{preset.label}</span>
+                    <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 my-4">
+                <div className="h-px bg-gray-100 flex-1" />
+                <span className="text-xs text-gray-400">ou personnalisé</span>
+                <div className="h-px bg-gray-100 flex-1" />
+              </div>
+            </div>
+
+            <form onSubmit={addNewShift} className="px-6 pb-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
@@ -393,7 +523,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Couleur (Rôle)</label>
-                <select name="colorType" className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
+                <select name="colorType" defaultValue={roleToColor(employees.find(e => e.id === selectedCell.empId)?.role || '')} className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
                   <option value="blue">Bleu (Cuisine)</option>
                   <option value="orange">Orange (Service)</option>
                   <option value="pink">Rose (Manager)</option>
@@ -427,7 +557,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             <form onSubmit={handleGenericSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Employé</label>
-                <select name="employeeId" className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
+                <select
+                  name="employeeId"
+                  ref={genericEmployeeRef}
+                  onChange={(e) => {
+                    const emp = employees.find(x => x.id === e.target.value);
+                    if (genericColorRef.current) genericColorRef.current.value = roleToColor(emp?.role || '');
+                  }}
+                  className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
                   <option value="null">-- Shift Disponible (Non assigné) --</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
@@ -440,20 +577,41 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 <input type="date" name="date" defaultValue={weekDays[0].dateStr} required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
               </div>
 
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                  <Zap size={12} /> Raccourcis horaires
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SHIFT_PRESETS.map(preset => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        if (genericStartRef.current) genericStartRef.current.value = preset.startTime;
+                        if (genericEndRef.current) genericEndRef.current.value = preset.endTime;
+                      }}
+                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                      <span className="block font-semibold">{preset.label}</span>
+                      <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
-                  <input type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  <input ref={genericStartRef} type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
-                  <input type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  <input ref={genericEndRef} type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Couleur (Rôle)</label>
-                <select name="colorType" className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
+                <select name="colorType" ref={genericColorRef} defaultValue="green" className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none">
                   <option value="blue">Bleu (Cuisine)</option>
                   <option value="orange">Orange (Service)</option>
                   <option value="pink">Rose (Manager)</option>

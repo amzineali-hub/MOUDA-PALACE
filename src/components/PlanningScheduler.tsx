@@ -470,6 +470,20 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     setIsPointageModalOpen(true);
   };
 
+  const deleteShift = async (shift: Shift, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(`Supprimer ce shift (${shift.startTime} - ${shift.endTime}, ${shift.date}) ?`);
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'shifts', shift.id));
+      showToast("Shift supprimé");
+      setLastDuplicatedIds(prev => prev.filter(id => id !== shift.id));
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
   const savePointage = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedShiftForPointage) return;
@@ -644,7 +658,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 className="p-2 border-r border-emerald-100 min-h-[80px] hover:bg-black/5 cursor-pointer flex flex-col gap-2 transition-colors"
               >
                 {getShiftsForCell(null, day.dateStr).map(shift => (
-                  <div key={shift.id} className={`p-2 rounded-lg border text-xs font-medium flex flex-col ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}>
+                  <div key={shift.id} className={`relative group/shift p-2 rounded-lg border text-xs font-medium flex flex-col ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteShift(shift, e)}
+                      title="Supprimer ce shift"
+                      className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/shift:opacity-100 hover:bg-black/10 transition-opacity">
+                      <Trash2 size={12} />
+                    </button>
                     <span>{shift.startTime} - {shift.endTime}</span>
                     <span className="opacity-80">{shift.hours}h</span>
                   </div>
@@ -682,8 +703,15 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                       key={shift.id}
                       onClick={(e) => openPointageModal(shift, e)}
                       title="Cliquer pour saisir le pointage"
-                      className={`p-2 rounded-lg border text-xs font-medium flex flex-col cursor-pointer ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}
+                      className={`relative group/shift p-2 rounded-lg border text-xs font-medium flex flex-col cursor-pointer ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}
                     >
+                      <button
+                        type="button"
+                        onClick={(e) => deleteShift(shift, e)}
+                        title="Supprimer ce shift"
+                        className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/shift:opacity-100 hover:bg-black/10 transition-opacity">
+                        <Trash2 size={12} />
+                      </button>
                       <span>{shift.startTime} - {shift.endTime}</span>
                       <span className="opacity-80">{shift.hours}h prévu(es)</span>
                       {shift.actualHours != null ? (
@@ -889,13 +917,25 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3 justify-end">
-                <button type="button" onClick={() => setIsPointageModalOpen(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
-                  Annuler
+              <div className="pt-4 flex gap-3 justify-between">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    if (!selectedShiftForPointage) return;
+                    deleteShift(selectedShiftForPointage, e);
+                    setIsPointageModalOpen(false);
+                  }}
+                  className="px-3 py-2 text-rose-600 rounded-lg font-medium hover:bg-rose-50 flex items-center gap-1.5 text-sm">
+                  <Trash2 size={14} /> Supprimer ce shift
                 </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
-                  Enregistrer le pointage
-                </button>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsPointageModalOpen(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+                    Annuler
+                  </button>
+                  <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
+                    Enregistrer le pointage
+                  </button>
+                </div>
               </div>
             </form>
           </div>

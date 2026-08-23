@@ -50,6 +50,15 @@ const COLOR_MAP = {
   green: 'bg-green-50 text-green-600 border-green-100',
 };
 
+// Options du filtre "Rôle" — reprend les mêmes catégories que la couleur des shifts
+const ROLE_FILTER_OPTIONS: { color: Shift['colorType']; label: string }[] = [
+  { color: 'blue', label: 'Cuisine' },
+  { color: 'orange', label: 'Service' },
+  { color: 'pink', label: 'Manager' },
+  { color: 'purple', label: 'Bar' },
+  { color: 'green', label: 'Polyvalent' },
+];
+
 // Raccourcis "shift type" pour saisie en un clic
 const SHIFT_PRESETS: { label: string; startTime: string; endTime: string }[] = [
   { label: 'Matin', startTime: '09:00', endTime: '17:00' },
@@ -196,6 +205,49 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [lastDuplicatedIds, setLastDuplicatedIds] = useState<string[]>([]);
   const [isUndoing, setIsUndoing] = useState(false);
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterEmployeeIds, setFilterEmployeeIds] = useState<Set<string>>(new Set());
+  const [filterColors, setFilterColors] = useState<Set<Shift['colorType']>>(new Set());
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node) &&
+        filterButtonRef.current && !filterButtonRef.current.contains(e.target as Node)
+      ) {
+        setIsFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isFilterOpen]);
+
+  const toggleEmployeeFilter = (id: string) => {
+    setFilterEmployeeIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleColorFilter = (color: Shift['colorType']) => {
+    setFilterColors(prev => {
+      const next = new Set(prev);
+      if (next.has(color)) next.delete(color); else next.add(color);
+      return next;
+    });
+  };
+
+  const resetFilters = () => {
+    setFilterEmployeeIds(new Set());
+    setFilterColors(new Set());
+  };
+
+  const activeFilterCount = filterEmployeeIds.size + filterColors.size;
   const genericStartRef = useRef<HTMLInputElement>(null);
   const genericEndRef = useRef<HTMLInputElement>(null);
   const genericColorRef = useRef<HTMLSelectElement>(null);
@@ -216,8 +268,16 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   };
 
   const getShiftsForCell = (empId: string | null, dateStr: string) => {
-    return shifts.filter(s => s.employeeId === empId && s.date === dateStr);
+    return shifts
+      .filter(s => s.employeeId === empId && s.date === dateStr)
+      .filter(s => filterColors.size === 0 || filterColors.has(s.colorType));
   };
+
+  const visibleEmployees = employees.filter(emp => {
+    if (filterEmployeeIds.size > 0 && !filterEmployeeIds.has(emp.id)) return false;
+    if (filterColors.size > 0 && !filterColors.has(roleToColor(emp.role))) return false;
+    return true;
+  });
 
   const calculateTotalHours = (empId: string | null) => {
     return shifts
@@ -389,9 +449,81 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
               <ChevronRight size={18} />
             </button>
           </div>
-          <button className="px-3 py-2 bg-gray-50 text-gray-600 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-100 flex items-center gap-2">
-            <Filter size={16} /> Filtres
-          </button>
+          <div className="relative">
+            <button
+              ref={filterButtonRef}
+              onClick={() => setIsFilterOpen(prev => !prev)}
+              className={`px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2 transition-colors ${
+                activeFilterCount > 0
+                  ? 'bg-[#F4C75B]/20 text-[#8a6a1f] border-[#F4C75B]'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              }`}>
+              <Filter size={16} /> Filtres
+              {activeFilterCount > 0 && (
+                <span className="w-5 h-5 flex items-center justify-center rounded-full bg-[#F4C75B] text-[#1A1A1A] text-xs font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {isFilterOpen && (
+              <div ref={filterPanelRef} className="absolute left-0 top-full mt-2 w-72 bg-white rounded-xl border border-gray-200 shadow-xl z-20 p-4 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rôle</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ROLE_FILTER_OPTIONS.map(opt => (
+                      <button
+                        key={opt.color}
+                        type="button"
+                        onClick={() => toggleColorFilter(opt.color)}
+                        className={`px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${
+                          filterColors.has(opt.color)
+                            ? COLOR_MAP[opt.color] + ' ring-1 ring-inset ring-current'
+                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                        }`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Employé</span>
+                  <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                    {employees.map(emp => (
+                      <label key={emp.id} className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={filterEmployeeIds.has(emp.id)}
+                          onChange={() => toggleEmployeeFilter(emp.id)}
+                          className="rounded border-gray-300 text-[#F4C75B] focus:ring-[#F4C75B]"
+                        />
+                        {emp.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    disabled={activeFilterCount === 0}
+                    className="text-xs font-medium text-gray-500 hover:text-gray-900 disabled:opacity-40 disabled:hover:text-gray-500">
+                    Réinitialiser
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterOpen(false)}
+                    className="px-3 py-1.5 bg-[#F4C75B] text-[#1A1A1A] rounded-lg text-xs font-medium hover:bg-[#E5B745]">
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -461,7 +593,13 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             ))}
           </div>
 
-          {employees.map((emp, empIdx) => (
+          {visibleEmployees.length === 0 && (
+            <div className="p-8 text-center text-sm text-gray-400">
+              Aucun employé ne correspond aux filtres sélectionnés.
+            </div>
+          )}
+
+          {visibleEmployees.map((emp, empIdx) => (
             <div key={emp.id} className="grid grid-cols-[220px_repeat(7,1fr)] border-b border-gray-100 group bg-white">
               <div className="p-3 border-r border-gray-100 flex items-center gap-3 bg-white group-hover:bg-gray-50 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold shrink-0 text-sm">

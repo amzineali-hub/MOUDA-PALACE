@@ -249,7 +249,7 @@ export default function RH() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'roles'), (snapshot) => {
-      setRolesList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setRolesList(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
     });
     return () => unsub();
   }, []);
@@ -2159,7 +2159,6 @@ export default function RH() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const newRole = {
-                id: editingRole?.id || Date.now(),
                 role: formData.get('role') as string,
                 users: editingRole?.users || 0,
                 access: formData.get('access') as string

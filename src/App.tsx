@@ -14,6 +14,7 @@ import { calculateStockStatus } from './lib/inventoryUtils';
 import { computeRecipeCost } from './lib/recipeCost';
 import { resolveItemPrice } from './lib/priceUtils';
 import { TVA_RATES, computeTTC } from './lib/tva';
+import { getUnitOptions } from './lib/units';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LineChart, Line } from 'recharts';
 import { 
@@ -4532,19 +4533,7 @@ function Inventory() {
                       onChange={(e) => setIngredientUnit(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg p-2 bg-white focus:outline-none focus:border-[#F4C75B]"
                     >
-                      <option value="kg">Kg</option>
-                      <option value="g">G</option>
-                      <option value="L">L</option>
-                      <option value="cl">cl</option>
-                      <option value="ml">ml</option>
-                      <option value="pièce">pièce</option>
-                      <option value="portion">portion</option>
-                      <option value="bouteille">bouteille</option>
-                      <option value="boîte">boîte</option>
-                      <option value="paquet">paquet</option>
-                      <option value="botte">botte</option>
-                      <option value="c.à.s">c.à.s</option>
-                      <option value="c.à.c">c.à.c</option>
+                      {getUnitOptions(ingredientUnit).map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                     </select>
                   </div>
                   <button 
@@ -4735,20 +4724,7 @@ function Inventory() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
                   <select name="unit" required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
-                    <option value="kg">Kg</option>
-                    <option value="g">G</option>
-                    <option value="L">L</option>
-                    <option value="cl">Cl</option>
-                    <option value="ml">Ml</option>
-                    <option value="pièce">Pièce</option>
-                    <option value="boîte">Boîte</option>
-                    <option value="bouteille">Bouteille</option>
-                    <option value="sachet">Sachet</option>
-                    <option value="carton">Carton</option>
-                    <option value="botte">Botte</option>
-                    <option value="cannette">Cannette</option>
-                    <option value="bidon">Bidon</option>
-                    <option value="plateau">Plateau</option>
+                    {getUnitOptions().map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -4809,20 +4785,7 @@ function Inventory() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
                   <select id="edit-unit" defaultValue={selectedProduct.unit} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
-                    <option value="kg">Kg</option>
-                    <option value="g">G</option>
-                    <option value="L">L</option>
-                    <option value="cl">Cl</option>
-                    <option value="ml">Ml</option>
-                    <option value="pièce">Pièce</option>
-                    <option value="boîte">Boîte</option>
-                    <option value="bouteille">Bouteille</option>
-                    <option value="sachet">Sachet</option>
-                    <option value="carton">Carton</option>
-                    <option value="botte">Botte</option>
-                    <option value="cannette">Cannette</option>
-                    <option value="bidon">Bidon</option>
-                    <option value="plateau">Plateau</option>
+                    {getUnitOptions(selectedProduct.unit).map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -5262,18 +5225,12 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select 
+                  <select
                     value={txForm.unit}
                     onChange={e => setTxForm({...txForm, unit: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   >
-                    <option value="kg">Kg</option>
-                    <option value="g">G</option>
-                    <option value="L">L</option>
-                    <option value="cl">cl</option>
-                    <option value="pièce(s)">pièce(s)</option>
-                    <option value="bouteille(s)">bouteille(s)</option>
-                    <option value="boîte(s)">boîte(s)</option>
+                    {getUnitOptions(txForm.unit).map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -5520,18 +5477,12 @@ function Inventory() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select 
+                  <select
                     value={wasteForm.unit}
                     onChange={e => setWasteForm({...wasteForm, unit: e.target.value})}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B]"
                   >
-                    <option value="kg">Kg</option>
-                    <option value="g">G</option>
-                    <option value="L">L</option>
-                    <option value="cl">cl</option>
-                    <option value="pièce(s)">pièce(s)</option>
-                    <option value="bouteille(s)">bouteille(s)</option>
-                    <option value="boîte(s)">boîte(s)</option>
+                    {getUnitOptions(wasteForm.unit).map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -5904,18 +5855,7 @@ function Inventory() {
                     onChange={(e) => setSemiFinishedForm({...semiFinishedForm, unit: e.target.value})}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#F4C75B] focus:border-[#F4C75B]"
                   >
-                    <option value="kg">Kg</option>
-                    <option value="g">G</option>
-                    <option value="L">L</option>
-                    <option value="cl">cl</option>
-                    <option value="ml">ml</option>
-                    <option value="pièce">pièce</option>
-                    <option value="portion">portion</option>
-                    <option value="bouteille">bouteille</option>
-                    <option value="boîte">boîte</option>
-                    <option value="carton">carton</option>
-                    <option value="botte">botte</option>
-                    <option value="sachet">sachet</option>
+                    {getUnitOptions(semiFinishedForm.unit).map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                   </select>
                 </div>
                 <div>

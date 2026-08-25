@@ -210,6 +210,7 @@ export default function POSTactile() {
     setCart([]);
     setDiscountPercent(0);
     setDiscountReason('');
+    setDiscountApprovedBy(null);
     setTaxRate(10);
     setKitchenSent(false);
     setKitchenOrderId(null);
@@ -262,7 +263,10 @@ export default function POSTactile() {
   const [shiftCashAmount, setShiftCashAmount] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
+  const [discountPin, setDiscountPin] = useState('');
+  const [discountApprovedBy, setDiscountApprovedBy] = useState<{ name: string; empId: string } | null>(null);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
   const [taxRate, setTaxRate] = useState<number>(10);
   const [isCancelOrderModalOpen, setIsCancelOrderModalOpen] = useState(false);
   const [cancelOrderReason, setCancelOrderReason] = useState('');
@@ -272,6 +276,7 @@ export default function POSTactile() {
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [refundTicketId, setRefundTicketId] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const [refundPin, setRefundPin] = useState('');
   const [isProcessingRefund, setIsProcessingRefund] = useState(false);
   const [refundSelections, setRefundSelections] = useState<Record<number, number>>({});
   const [shiftReportToPrint, setShiftReportToPrint] = useState<any>(null);
@@ -449,6 +454,7 @@ export default function POSTactile() {
           discountPercent,
           discountAmount,
           discountReason: discountReason.trim(),
+          discountApprovedBy: discountApprovedBy || null,
           createdAt: serverTimestamp(),
           status: 'En attente'
         });
@@ -456,6 +462,7 @@ export default function POSTactile() {
         setSelectedTable(null);
         setDiscountPercent(0);
         setDiscountReason('');
+        setDiscountApprovedBy(null);
         setTaxRate(10);
         setKitchenSent(false);
         setKitchenOrderId(null);
@@ -475,6 +482,7 @@ export default function POSTactile() {
         setSelectedTable(ticket.tableId || null);
         setDiscountPercent(Number(ticket.discountPercent) || 0);
         setDiscountReason(ticket.discountReason || '');
+        setDiscountApprovedBy(ticket.discountApprovedBy || null);
         setTaxRate(Number(ticket.taxRate) || 10);
         setKitchenSent(false);
         setKitchenOrderId(null);
@@ -682,6 +690,23 @@ export default function POSTactile() {
     return () => { unsubTables(); unsubRecettes(); unsubInventory(); };
   }, []);
 
+  useEffect(() => {
+    const unsubStaff = onSnapshot(query(collection(db, 'staff')), (snapshot) => {
+      setStaffMembers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+    return () => unsubStaff();
+  }, []);
+
+  // Discounts and refunds require a manager PIN — checked against staff members flagged
+  // canApproveOverrides, so the audit trail records exactly WHO authorized the override,
+  // independent of whichever Google account is currently signed into the POS terminal.
+  const verifyManagerPin = (pin: string): { name: string; empId: string } | null => {
+    const trimmed = (pin || '').trim();
+    if (!trimmed) return null;
+    const match = staffMembers.find(s => s.canApproveOverrides && s.pin && s.pin === trimmed);
+    return match ? { name: match.name || 'Manager', empId: match.empId || match.id } : null;
+  };
+
   // Table numbers are only unique within their own salle (three rooms can each have a
   // "Table 1"), so every table is identified internally by its Firestore doc id (fbId),
   // never by the display number alone — matching on the number would silently hit
@@ -864,7 +889,18 @@ export default function POSTactile() {
       showToast('Saisissez une remise entre 0 et 100 % avec un motif.', 'error');
       return;
     }
+    if (percent > 0) {
+      const approver = verifyManagerPin(discountPin);
+      if (!approver) {
+        showToast('Code PIN manager invalide.', 'error');
+        return;
+      }
+      setDiscountApprovedBy(approver);
+    } else {
+      setDiscountApprovedBy(null);
+    }
     setDiscountPercent(percent);
+    setDiscountPin('');
     setIsDiscountModalOpen(false);
     showToast(percent > 0 ? `Remise de ${percent}% appliquée` : 'Remise retirée');
   };
@@ -901,6 +937,7 @@ export default function POSTactile() {
       setCart([]);
       setDiscountPercent(0);
       setDiscountReason('');
+      setDiscountApprovedBy(null);
       setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
@@ -957,6 +994,11 @@ export default function POSTactile() {
     }
     if (!reason) {
       showToast('Un motif est requis pour un remboursement.', 'error');
+      return;
+    }
+    const approver = verifyManagerPin(refundPin);
+    if (!approver) {
+      showToast('Code PIN manager invalide.', 'error');
       return;
     }
     const receipt = recentReceipts.find(r => r.displayId === ticketId || r.id === ticketId);
@@ -1041,6 +1083,8 @@ export default function POSTactile() {
             amount,
             partial: false,
             reason,
+            approvedBy: approver.name,
+            approvedByEmpId: approver.empId,
             shiftId: receipt.shiftId || null,
             source: 'POS',
             createdAt: serverTimestamp()
@@ -1051,6 +1095,7 @@ export default function POSTactile() {
         setIsRefundModalOpen(false);
         setRefundTicketId('');
         setRefundReason('');
+        setRefundPin('');
         setRefundSelections({});
       } catch (error: any) {
         console.error(error);
@@ -1175,6 +1220,8 @@ export default function POSTactile() {
           partial: !isFullyRefunded,
           items: refundedItemsSummary,
           reason,
+          approvedBy: approver.name,
+          approvedByEmpId: approver.empId,
           shiftId: receipt.shiftId || null,
           source: 'POS',
           createdAt: serverTimestamp()
@@ -1185,6 +1232,7 @@ export default function POSTactile() {
       setIsRefundModalOpen(false);
       setRefundTicketId('');
       setRefundReason('');
+      setRefundPin('');
       setRefundSelections({});
     } catch (error: any) {
       console.error(error);
@@ -1461,6 +1509,8 @@ export default function POSTactile() {
             percent: discountPercent,
             amount: discountAmount,
             reason: discountReason.trim(),
+            approvedBy: discountApprovedBy?.name || null,
+            approvedByEmpId: discountApprovedBy?.empId || null,
             source: 'POS',
             createdAt: serverTimestamp()
           });
@@ -1489,6 +1539,7 @@ export default function POSTactile() {
       setCart([]);
       setDiscountPercent(0);
       setDiscountReason('');
+      setDiscountApprovedBy(null);
       setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
@@ -1554,6 +1605,7 @@ export default function POSTactile() {
                   onClick={() => {
                     setRefundTicketId('');
                     setRefundReason('');
+                    setRefundPin('');
                     setRefundSelections({});
                     setIsRefundModalOpen(true);
                   }}
@@ -1758,7 +1810,7 @@ export default function POSTactile() {
               )}
               <button
                 type="button"
-                onClick={() => setIsDiscountModalOpen(true)}
+                onClick={() => { setDiscountPin(''); setIsDiscountModalOpen(true); }}
                 disabled={cart.length === 0 || isProcessingPayment}
                 className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${discountPercent > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
                 title="Appliquer une remise"
@@ -2056,6 +2108,12 @@ export default function POSTactile() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
                 <textarea value={discountReason} onChange={(event) => setDiscountReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. geste commercial" />
               </div>
+              {discountPercent > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Code PIN manager</label>
+                  <input type="password" inputMode="numeric" maxLength={4} value={discountPin} onChange={(event) => setDiscountPin(event.target.value.replace(/\D/g, ''))} className="w-full p-3 text-xl font-bold tracking-[0.5em] border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]" placeholder="••••" />
+                </div>
+              )}
               <div className="flex gap-3">
                 <button type="button" onClick={() => setIsDiscountModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Annuler</button>
                 <button type="submit" className="flex-1 py-3 rounded-xl bg-[#265C6D] text-white font-bold">Appliquer</button>
@@ -2186,6 +2244,10 @@ export default function POSTactile() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
                   <textarea value={refundReason} onChange={(event) => setRefundReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. erreur de paiement, client mécontent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Code PIN manager</label>
+                  <input type="password" inputMode="numeric" maxLength={4} value={refundPin} onChange={(event) => setRefundPin(event.target.value.replace(/\D/g, ''))} className="w-full p-3 text-xl font-bold tracking-[0.5em] border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]" placeholder="••••" />
                 </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setIsRefundModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>

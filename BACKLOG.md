@@ -10,7 +10,6 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 
 ## POS / Caisse tactile (`POSTactile.tsx`)
 
-- [ ] Remise et remboursement : le texte "validation manager requise" n'est pas appliqué — n'importe qui avec accès au POS peut valider en tapant juste un motif, aucun PIN/mot de passe manager n'est vérifié (`POSTactile.tsx:1629`, `:1683`). Impact limité tant que seul le rôle `manager` est actif en prod, mais deviendra un vrai trou dès l'ouverture du rôle staff.
 - [ ] Pas de pourboire (tip) géré sur le paiement.
 - [ ] Pas de partage d'addition (split bill) entre convives.
 - [ ] Remise = pourcentage global du ticket, pas de remise par ligne.

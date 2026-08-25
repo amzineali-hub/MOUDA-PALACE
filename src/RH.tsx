@@ -783,6 +783,16 @@ export default function RH() {
       });
     }
 
+    const pin = (formData.get('pin') as string || '').trim();
+    if (pin && !/^\d{4}$/.test(pin)) {
+      showToast('Le code PIN doit contenir exactement 4 chiffres', 'error');
+      return;
+    }
+    if (pin && staffData.some(s => s.id !== editingStaff?.id && s.pin === pin)) {
+      showToast('Ce code PIN est déjà utilisé par un autre employé', 'error');
+      return;
+    }
+
     const newStaff = {
       name: formData.get('name') as string,
       role: formData.get('role') as string,
@@ -804,6 +814,8 @@ export default function RH() {
       birthDate: formData.get('birthDate') as string,
       familyStatus: formData.get('familyStatus') as string || 'Célibataire',
       personnesACharge: Number(formData.get('personnesACharge')) || 0,
+      pin,
+      canApproveOverrides: formData.get('canApproveOverrides') === 'on',
       updatedAt: serverTimestamp()
     };
 
@@ -1882,6 +1894,14 @@ export default function RH() {
                     <option value="Accueil">Accueil</option>
                     <option value="Management">Management</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Code PIN caisse (4 chiffres)</label>
+                  <input name="pin" defaultValue={editingStaff?.pin} type="password" inputMode="numeric" maxLength={4} pattern="\d{4}" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 1234" />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input id="canApproveOverrides" name="canApproveOverrides" type="checkbox" defaultChecked={editingStaff?.canApproveOverrides || false} className="w-4 h-4 rounded border-gray-300 text-[#F4C75B] focus:ring-[#F4C75B]" />
+                  <label htmlFor="canApproveOverrides" className="text-sm font-medium text-gray-700">Autorisé à valider remises/remboursements au POS</label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>

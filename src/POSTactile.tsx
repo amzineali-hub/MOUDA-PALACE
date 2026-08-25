@@ -215,6 +215,7 @@ export default function POSTactile() {
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [tableCovers, setTableCovers] = useState(2);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [tables, setTables] = useState<any[]>([]);
   const [recettes, setRecettes] = useState<any[]>([]);
@@ -512,6 +513,10 @@ export default function POSTactile() {
   const transferTable = async (targetTable: string) => {
     if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
       setSelectedTable(targetTable);
+      if (targetTable !== 'À emporter') {
+        const matchedTable = tables.find(t => t.id === targetTable);
+        setTableCovers(matchedTable?.currentPax || matchedTable?.capacity || 2);
+      }
       setIsTableModalOpen(false);
       return;
     }
@@ -520,6 +525,7 @@ export default function POSTactile() {
 
     setIsTransferringTable(true);
     try {
+      const previousTable = selectedTable;
       const batch = writeBatch(db);
       batch.update(doc(db, 'orders', kitchenOrderId), {
         tableId: targetTable,
@@ -532,6 +538,8 @@ export default function POSTactile() {
           updatedAt: serverTimestamp()
         }));
       await batch.commit();
+      await occupyTable(targetTable, tableCovers);
+      await releaseTableIfNoOpenOrders(previousTable);
       setSelectedTable(targetTable);
       setKitchenTableId(targetTable);
       setIsTableModalOpen(false);
@@ -661,6 +669,46 @@ export default function POSTactile() {
     });
     return () => { unsubTables(); unsubRecettes(); unsubInventory(); };
   }, []);
+
+  const occupyTable = async (tableId: string | null, pax: number) => {
+    if (!tableId || tableId === 'À emporter') return;
+    const tableDoc = tables.find(t => t.id === tableId);
+    if (!tableDoc?.fbId) return;
+    try {
+      await updateDoc(doc(db, 'tables', tableDoc.fbId), {
+        status: 'occupee',
+        currentPax: pax || tableDoc.capacity || 0,
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.warn('Table occupancy update skipped:', error);
+    }
+  };
+
+  const releaseTableIfNoOpenOrders = async (tableId: string | null) => {
+    if (!tableId || tableId === 'À emporter') return;
+    const tableDoc = tables.find(t => t.id === tableId);
+    if (!tableDoc?.fbId) return;
+    try {
+      const openOrders = await getDocs(query(
+        collection(db, 'orders'),
+        where('tableId', '==', tableId),
+        where('paymentStatus', '==', 'Non payée')
+      ));
+      const stillOpen = openOrders.docs.some(d => d.data().status !== 'Annulée');
+      if (!stillOpen) {
+        await updateDoc(doc(db, 'tables', tableDoc.fbId), {
+          status: 'libre',
+          currentPax: 0,
+          time: null,
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (error) {
+      console.warn('Table release skipped:', error);
+    }
+  };
 
   const normalizeString = (str: string) => {
     return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -808,6 +856,7 @@ export default function POSTactile() {
         createdAt: serverTimestamp()
       });
       await batch.commit();
+      await releaseTableIfNoOpenOrders(kitchenTableId || selectedTable);
 
       setCart([]);
       setDiscountPercent(0);
@@ -1159,6 +1208,7 @@ export default function POSTactile() {
       setKitchenSent(true);
       setKitchenOrderId(orderId);
       setKitchenTableId(selectedTable);
+      await occupyTable(selectedTable, tableCovers);
       showToast("Commande envoyée en cuisine !", "success");
       const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
       const now = new Date();
@@ -1371,6 +1421,8 @@ export default function POSTactile() {
           });
         }
       });
+
+      await releaseTableIfNoOpenOrders(kitchenTableId || selectedTable);
 
       setTicketToPrint({
         id: displayId,
@@ -1668,7 +1720,26 @@ export default function POSTactile() {
               >
                 %
               </button>
-              <button 
+              {selectedTable && selectedTable !== 'À emporter' && (
+                <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-1 py-1 gap-1" title="Nombre de couverts">
+                  <button
+                    type="button"
+                    onClick={() => setTableCovers(c => Math.max(1, c - 1))}
+                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-5 text-center text-sm font-bold text-gray-700">{tableCovers}</span>
+                  <button
+                    type="button"
+                    onClick={() => setTableCovers(c => c + 1)}
+                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-green-500 transition-colors"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              )}
+              <button
                 onClick={() => setIsTableModalOpen(true)}
                 className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
               >

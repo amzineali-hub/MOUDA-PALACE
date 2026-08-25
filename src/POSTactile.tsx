@@ -400,6 +400,7 @@ export default function POSTactile() {
         target: messageTarget,
         priority: messagePriority,
         tableId: selectedTable || null,
+        tableLabel: getTableLabel(selectedTable),
         orderId: kitchenOrderId || null,
         source: 'POS',
         read: false,
@@ -430,6 +431,7 @@ export default function POSTactile() {
       try {
         await addDoc(collection(db, 'pos_suspended_tickets'), {
           tableId: selectedTable || null,
+          tableLabel: getTableLabel(selectedTable),
           items: cart.map(item => ({
             id: item.id,
             name: item.name || 'Inconnu',
@@ -516,7 +518,7 @@ export default function POSTactile() {
   const transferTable = async (targetTable: string) => {
     if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
       const isRealTable = targetTable !== 'À emporter';
-      const matchedTable = isRealTable ? tables.find(t => t.id === targetTable) : null;
+      const matchedTable = isRealTable ? tables.find(t => t.fbId === targetTable) : null;
       const covers = isRealTable ? (matchedTable?.currentPax || matchedTable?.capacity || 2) : tableCovers;
       setSelectedTable(targetTable);
       if (isRealTable) setTableCovers(covers);
@@ -528,20 +530,23 @@ export default function POSTactile() {
       return;
     }
     if (isTransferringTable) return;
-    if (!window.confirm(`Transférer la commande de ${selectedTable} vers ${targetTable} ?`)) return;
+    if (!window.confirm(`Transférer la commande de ${getTableLabel(selectedTable, true)} vers ${getTableLabel(targetTable, true)} ?`)) return;
 
     setIsTransferringTable(true);
     try {
       const previousTable = selectedTable;
+      const newLabel = getTableLabel(targetTable);
       const batch = writeBatch(db);
       batch.update(doc(db, 'orders', kitchenOrderId), {
         tableId: targetTable,
+        tableLabel: newLabel,
         updatedAt: serverTimestamp()
       });
       kitchenOrders
         .filter(task => task.orderId === kitchenOrderId)
         .forEach(task => batch.update(doc(db, 'productionTasks', task.id), {
           tableId: targetTable,
+          tableLabel: newLabel,
           updatedAt: serverTimestamp()
         }));
       await batch.commit();
@@ -550,7 +555,7 @@ export default function POSTactile() {
       setSelectedTable(targetTable);
       setKitchenTableId(targetTable);
       setIsTableModalOpen(false);
-      showToast(`Commande transférée vers ${targetTable}`);
+      showToast(`Commande transférée vers ${getTableLabel(targetTable, true)}`);
     } catch (error) {
       console.error(error);
       showToast('Erreur lors du transfert de table', 'error');
@@ -677,14 +682,44 @@ export default function POSTactile() {
     return () => { unsubTables(); unsubRecettes(); unsubInventory(); };
   }, []);
 
-  const occupyTable = async (tableId: string | null, pax: number) => {
-    if (!tableId || tableId === 'À emporter') return;
-    const tableDoc = tables.find(t => t.id === tableId);
-    if (!tableDoc?.fbId) return;
+  // Table numbers are only unique within their own salle (three rooms can each have a
+  // "Table 1"), so every table is identified internally by its Firestore doc id (fbId),
+  // never by the display number alone — matching on the number would silently hit
+  // whichever room's table happens to come first in the list.
+  const ZONE_NAMES: Record<string, string> = { patio: 'Le Patio Central', terrasse: 'Terrasse Panoramique', salon: 'Salon VIP' };
+  const ZONE_SHORT: Record<string, string> = { patio: 'P', terrasse: 'T', salon: 'S' };
+  const ZONE_ORDER = ['patio', 'terrasse', 'salon'];
+
+  const getTableLabel = (tableFbId: string | null, full = false): string => {
+    if (!tableFbId) return 'Comptoir';
+    if (tableFbId === 'À emporter') return 'À emporter';
+    const t = tables.find(tb => tb.fbId === tableFbId);
+    if (!t) return 'Table';
+    if (full) {
+      const zoneName = ZONE_NAMES[t.zone] || t.zone || '';
+      return zoneName ? `${t.id} · ${zoneName}` : `${t.id}`;
+    }
+    return `${ZONE_SHORT[t.zone] || ''}${t.id}`;
+  };
+
+  const tablesByZone = [...tables]
+    .sort((a, b) => {
+      const ai = ZONE_ORDER.indexOf(a.zone); const bi = ZONE_ORDER.indexOf(b.zone);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    })
+    .reduce((acc: Record<string, any[]>, t: any) => {
+      const zone = t.zone || 'autre';
+      (acc[zone] = acc[zone] || []).push(t);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+  const occupyTable = async (tableFbId: string | null, pax: number) => {
+    if (!tableFbId || tableFbId === 'À emporter') return;
+    const tableDoc = tables.find(t => t.fbId === tableFbId);
     try {
-      await updateDoc(doc(db, 'tables', tableDoc.fbId), {
+      await updateDoc(doc(db, 'tables', tableFbId), {
         status: 'occupee',
-        currentPax: pax || tableDoc.capacity || 0,
+        currentPax: pax || tableDoc?.capacity || 0,
         time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         updatedAt: serverTimestamp()
       });
@@ -693,19 +728,17 @@ export default function POSTactile() {
     }
   };
 
-  const releaseTableIfNoOpenOrders = async (tableId: string | null) => {
-    if (!tableId || tableId === 'À emporter') return;
-    const tableDoc = tables.find(t => t.id === tableId);
-    if (!tableDoc?.fbId) return;
+  const releaseTableIfNoOpenOrders = async (tableFbId: string | null) => {
+    if (!tableFbId || tableFbId === 'À emporter') return;
     try {
       const openOrders = await getDocs(query(
         collection(db, 'orders'),
-        where('tableId', '==', tableId),
+        where('tableId', '==', tableFbId),
         where('paymentStatus', '==', 'Non payée')
       ));
       const stillOpen = openOrders.docs.some(d => d.data().status !== 'Annulée');
       if (!stillOpen) {
-        await updateDoc(doc(db, 'tables', tableDoc.fbId), {
+        await updateDoc(doc(db, 'tables', tableFbId), {
           status: 'libre',
           currentPax: 0,
           time: null,
@@ -1180,6 +1213,7 @@ export default function POSTactile() {
         transaction.set(orderRef, {
           orderId,
           tableId: selectedTable || null,
+          tableLabel: getTableLabel(selectedTable),
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal: discountedSubtotal,
           tax,
@@ -1199,6 +1233,7 @@ export default function POSTactile() {
           transaction.set(taskRef, {
             orderId,
             tableId: selectedTable || null,
+            tableLabel: getTableLabel(selectedTable),
             item: item.name || 'Inconnu',
             category: item.category || 'Autres',
             modifiers: item.modifiers || null,
@@ -1328,6 +1363,7 @@ export default function POSTactile() {
           shiftId: activeShift.id,
           displayId,
           tableId: kitchenTableId || selectedTable || null,
+          tableLabel: getTableLabel(kitchenTableId || selectedTable),
           amount: total,
           subtotal: discountedSubtotal,
           tax,
@@ -1378,6 +1414,7 @@ export default function POSTactile() {
           orderId,
           shiftId: activeShift.id,
           tableId: kitchenTableId || selectedTable || null,
+          tableLabel: getTableLabel(kitchenTableId || selectedTable),
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal: discountedSubtotal,
           tax,
@@ -1401,6 +1438,7 @@ export default function POSTactile() {
             transaction.set(taskRef, {
               orderId,
               tableId: kitchenTableId || selectedTable || null,
+              tableLabel: getTableLabel(kitchenTableId || selectedTable),
               item: item.name || 'Inconnu',
               category: item.category || 'Autres',
               modifiers: item.modifiers || null,
@@ -1751,7 +1789,7 @@ export default function POSTactile() {
                 className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
               >
                 <User size={16} />
-                {selectedTable ? selectedTable : "Table"}
+                {selectedTable ? getTableLabel(selectedTable) : "Table"}
               </button>
             </div>
           </div>
@@ -1951,7 +1989,7 @@ export default function POSTactile() {
                     <div key={ticket.id} className="bg-white rounded-2xl border border-amber-100 p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div>
-                          <p className="font-bold text-gray-900">{ticket.tableId || 'Comptoir'}</p>
+                          <p className="font-bold text-gray-900">{ticket.tableLabel || ticket.tableId || 'Comptoir'}</p>
                           <p className="text-xs text-gray-400">{ticket.items?.length || 0} article(s)</p>
                         </div>
                         <span className="font-bold text-[#265C6D]">{Number(ticket.total || 0).toFixed(2)} MAD</span>
@@ -1989,7 +2027,7 @@ export default function POSTactile() {
                   <button key={message.id} type="button" onClick={() => !message.read && markPosMessageRead(message.id)} className={`w-full text-left bg-white rounded-xl border p-3 shadow-sm ${message.read ? 'border-gray-100' : 'border-[#F4C75B] bg-amber-50/30'}`}>
                     <div className="flex justify-between gap-2 mb-1"><span className="font-bold text-sm text-[#265C6D]">{message.target}</span><span className={`text-[10px] font-bold uppercase ${message.priority === 'Urgente' ? 'text-red-600' : 'text-gray-400'}`}>{message.priority}</span></div>
                     <p className="text-sm text-gray-700">{message.text}</p>
-                    {(message.tableId || message.orderId) && <p className="text-[11px] text-gray-400 mt-2">{message.tableId || ''}{message.orderId ? ` · ${message.orderId}` : ''}</p>}
+                    {(message.tableId || message.orderId) && <p className="text-[11px] text-gray-400 mt-2">{message.tableLabel || message.tableId || ''}{message.orderId ? ` · ${message.orderId}` : ''}</p>}
                   </button>
                 ))}
               </div>
@@ -2528,22 +2566,27 @@ export default function POSTactile() {
             </div>
             
             <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
-                {tables.map((table) => (
-                  <button
-                    key={table.id || table.fbId}
-                    onClick={() => transferTable(table.id)}
-                    disabled={isTransferringTable}
-                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.id ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
-                  >
-                    <span className="text-xl mb-1">{table.id}</span>
-                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
-                      {table.status === 'libre' ? 'Libre' : table.status === 'occupee' ? 'Occupée' : table.status === 'reservee' ? 'Réservée' : table.status}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              
+              {Object.entries(tablesByZone).map(([zoneKey, zoneTables]: [string, any[]]) => (
+                <div key={zoneKey} className="mb-5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">{ZONE_NAMES[zoneKey] || zoneKey}</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                    {zoneTables.map((table) => (
+                      <button
+                        key={table.fbId}
+                        onClick={() => transferTable(table.fbId)}
+                        disabled={isTransferringTable}
+                        className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.fbId ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
+                      >
+                        <span className="text-xl mb-1">{table.id}</span>
+                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
+                          {table.status === 'libre' ? 'Libre' : table.status === 'occupee' ? 'Occupée' : table.status === 'reservee' ? 'Réservée' : table.status}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
               <div className="border-t border-gray-100 pt-6">
                 <button
                   onClick={() => {

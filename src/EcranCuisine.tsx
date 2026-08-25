@@ -112,8 +112,8 @@ export default function EcranCuisine() {
             <span className="text-xs font-bold text-gray-500 bg-white px-2 py-1 rounded border border-gray-200">
               {orderId || 'CMD-???'}
             </span>
-            {first?.tableId && (
-              <span className="text-xs font-semibold text-gray-500">{first.tableId}</span>
+            {(first?.tableLabel || first?.tableId) && (
+              <span className="text-xs font-semibold text-gray-500">{first.tableLabel || first.tableId}</span>
             )}
           </div>
           <div className="text-sm font-medium text-gray-400 flex items-center gap-1">

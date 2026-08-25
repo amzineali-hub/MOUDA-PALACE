@@ -204,6 +204,9 @@ export default function POSTactile() {
       setIsCancelOrderModalOpen(true);
       return;
     }
+    if (selectedTable) {
+      releaseTableIfNoOpenOrders(selectedTable);
+    }
     setCart([]);
     setDiscountPercent(0);
     setDiscountReason('');
@@ -512,12 +515,16 @@ export default function POSTactile() {
 
   const transferTable = async (targetTable: string) => {
     if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
+      const isRealTable = targetTable !== 'À emporter';
+      const matchedTable = isRealTable ? tables.find(t => t.id === targetTable) : null;
+      const covers = isRealTable ? (matchedTable?.currentPax || matchedTable?.capacity || 2) : tableCovers;
       setSelectedTable(targetTable);
-      if (targetTable !== 'À emporter') {
-        const matchedTable = tables.find(t => t.id === targetTable);
-        setTableCovers(matchedTable?.currentPax || matchedTable?.capacity || 2);
-      }
+      if (isRealTable) setTableCovers(covers);
       setIsTableModalOpen(false);
+      // Seating a table for an order occupies it right away — it shouldn't wait for
+      // "Envoyer en Cuisine", since a direct-payment order (no kitchen step) never
+      // reaches that call and the table would stay "Libre" for its whole lifetime.
+      if (isRealTable) await occupyTable(targetTable, covers);
       return;
     }
     if (isTransferringTable) return;

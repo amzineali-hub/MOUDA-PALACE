@@ -813,7 +813,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 className="p-2 border-r border-emerald-100 min-h-[80px] hover:bg-black/5 cursor-pointer flex flex-col gap-2 transition-colors"
               >
                 {getShiftsForCell(null, day.dateStr).map(shift => (
-                  <div key={shift.id} className={`relative group/shift p-2 rounded-lg border text-xs font-medium flex flex-col ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}>
+                  <div
+                    key={shift.id}
+                    onClick={(e) => openPointageModal(shift, e)}
+                    title="Cliquer pour modifier ce shift"
+                    className={`relative group/shift p-2 rounded-lg border text-xs font-medium flex flex-col cursor-pointer ${COLOR_MAP[shift.colorType]} shadow-sm hover:shadow transition-shadow`}>
                     <button
                       type="button"
                       onClick={(e) => deleteShift(shift, e)}

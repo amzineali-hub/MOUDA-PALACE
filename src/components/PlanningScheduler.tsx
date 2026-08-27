@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2, SplitSquareHorizontal } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -23,6 +23,8 @@ interface Shift {
   actualHours?: number | null; // pointage manuel — heures réellement travaillées
   actualMinutes?: number | null; // pointage manuel — minutes réellement travaillées
   createdAt?: { seconds: number; nanoseconds: number } | null; // horodatage Firestore, sert à regrouper les lots (ex. duplication de semaine)
+  scheduleType?: 'normal' | 'split'; // 'split' = horaire coupé (ex. matin puis reprise l'après-midi), stocké en 2 shifts liés par splitGroupId
+  splitGroupId?: string | null;
 }
 
 const generateWeekDays = (startDate: Date) => {
@@ -68,6 +70,12 @@ const SHIFT_PRESETS: { label: string; startTime: string; endTime: string }[] = [
   { label: 'Journée', startTime: '09:00', endTime: '22:00' },
 ];
 
+// Raccourcis pour les horaires coupés (ex. service du matin, puis reprise l'après-midi)
+const SPLIT_SHIFT_PRESETS: { label: string; morning: { startTime: string; endTime: string }; afternoon: { startTime: string; endTime: string } }[] = [
+  { label: 'Coupure Midi/Soir', morning: { startTime: '09:00', endTime: '13:00' }, afternoon: { startTime: '16:00', endTime: '20:00' } },
+  { label: 'Coupure Service', morning: { startTime: '11:00', endTime: '15:00' }, afternoon: { startTime: '18:00', endTime: '23:00' } },
+];
+
 // Déduit automatiquement la couleur (= rôle) d'un shift à partir du poste de l'employé,
 // pour éviter d'avoir à la re-sélectionner manuellement à chaque saisie.
 const roleToColor = (role: string): Shift['colorType'] => {
@@ -87,10 +95,60 @@ const computeHours = (startTime: string, endTime: string) => {
   return Math.round(hours * 100) / 100;
 };
 
+// Bascule "Horaire normal" / "Horaire spécial (coupure)" réutilisée dans les 2 modales de création de shift.
+function ShiftModeToggle({ mode, onChange }: { mode: 'normal' | 'split'; onChange: (m: 'normal' | 'split') => void }) {
+  return (
+    <div className="flex bg-gray-50 border border-gray-200 rounded-lg p-1 mb-4">
+      <button
+        type="button"
+        onClick={() => onChange('normal')}
+        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'normal' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+        Horaire normal
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('split')}
+        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1 ${mode === 'split' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+        <SplitSquareHorizontal size={12} /> Horaire spécial (coupure)
+      </button>
+    </div>
+  );
+}
+
 export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
+  const [genericShiftMode, setGenericShiftMode] = useState<'normal' | 'split'>('normal');
+  const genericMorningStartRef = useRef<HTMLInputElement>(null);
+  const genericMorningEndRef = useRef<HTMLInputElement>(null);
+  const genericAfternoonStartRef = useRef<HTMLInputElement>(null);
+  const genericAfternoonEndRef = useRef<HTMLInputElement>(null);
+
+  // Crée un horaire coupé : 2 shifts (matin + après-midi) liés par un splitGroupId commun,
+  // pour qu'on puisse les identifier et les supprimer ensemble.
+  const createSplitShift = async (
+    employeeId: string | null,
+    date: string,
+    morning: { startTime: string; endTime: string },
+    afternoon: { startTime: string; endTime: string },
+    colorType: Shift['colorType']
+  ) => {
+    const splitGroupId = crypto.randomUUID();
+    for (const seg of [morning, afternoon]) {
+      await addDoc(collection(db, 'shifts'), {
+        employeeId,
+        date,
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+        hours: computeHours(seg.startTime, seg.endTime),
+        colorType,
+        scheduleType: 'split',
+        splitGroupId,
+        createdAt: serverTimestamp()
+      });
+    }
+  };
 
   const handleIAPlanning = async () => {
     setIsGenerating(true);
@@ -137,29 +195,40 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     const formData = new FormData(e.currentTarget);
     const empId = formData.get('employeeId') as string;
     const date = formData.get('date') as string;
-    const startTime = formData.get('startTime') as string;
-    const endTime = formData.get('endTime') as string;
     const colorType = formData.get('colorType') as 'blue' | 'green' | 'orange' | 'pink' | 'purple';
-
-    const [startH] = startTime.split(':').map(Number);
-    const [endH] = endTime.split(':').map(Number);
-    let hours = endH - startH;
-    if (hours < 0) hours += 24;
-
-    const newShift = {
-      employeeId: empId === 'null' ? null : empId,
-      date,
-      startTime,
-      endTime,
-      hours,
-      colorType
-    };
+    const employeeId = empId === 'null' ? null : empId;
 
     try {
-      await addDoc(collection(db, 'shifts'), {
-        ...newShift,
-        createdAt: serverTimestamp()
-      });
+      if (genericShiftMode === 'split') {
+        const morningStart = formData.get('morningStart') as string;
+        const morningEnd = formData.get('morningEnd') as string;
+        const afternoonStart = formData.get('afternoonStart') as string;
+        const afternoonEnd = formData.get('afternoonEnd') as string;
+        await createSplitShift(
+          employeeId,
+          date,
+          { startTime: morningStart, endTime: morningEnd },
+          { startTime: afternoonStart, endTime: afternoonEnd },
+          colorType
+        );
+      } else {
+        const startTime = formData.get('startTime') as string;
+        const endTime = formData.get('endTime') as string;
+        const [startH] = startTime.split(':').map(Number);
+        const [endH] = endTime.split(':').map(Number);
+        let hours = endH - startH;
+        if (hours < 0) hours += 24;
+
+        await addDoc(collection(db, 'shifts'), {
+          employeeId,
+          date,
+          startTime,
+          endTime,
+          hours,
+          colorType,
+          createdAt: serverTimestamp()
+        });
+      }
       setIsGenericModalOpen(false);
       showToast("Shift ajouté avec succès");
     } catch (e) {
@@ -198,6 +267,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   }, []);
 
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [shiftMode, setShiftMode] = useState<'normal' | 'split'>('normal');
   const [selectedCell, setSelectedCell] = useState<{empId: string | null, date: string} | null>(null);
   const [isPointageModalOpen, setIsPointageModalOpen] = useState(false);
   const [selectedShiftForPointage, setSelectedShiftForPointage] = useState<Shift | null>(null);
@@ -343,6 +413,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
 
   const handleCellClick = (empId: string | null, dateStr: string) => {
     setSelectedCell({ empId, date: dateStr });
+    setShiftMode('normal');
     setIsShiftModalOpen(true);
   };
 
@@ -351,25 +422,42 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     if (!selectedCell) return;
 
     const formData = new FormData(e.currentTarget);
-    const startTime = formData.get('startTime') as string;
-    const endTime = formData.get('endTime') as string;
     const colorType = formData.get('colorType') as any;
 
-    const [startH] = startTime.split(':').map(Number);
-    const [endH] = endTime.split(':').map(Number);
-    let hours = endH - startH;
-    if (hours < 0) hours += 24;
-
-    const newShift: Omit<Shift, 'id'> = {
-      employeeId: selectedCell.empId,
-      date: selectedCell.date,
-      startTime,
-      endTime,
-      hours,
-      colorType
-    };
-
     try {
+      if (shiftMode === 'split') {
+        const morningStart = formData.get('morningStart') as string;
+        const morningEnd = formData.get('morningEnd') as string;
+        const afternoonStart = formData.get('afternoonStart') as string;
+        const afternoonEnd = formData.get('afternoonEnd') as string;
+        await createSplitShift(
+          selectedCell.empId,
+          selectedCell.date,
+          { startTime: morningStart, endTime: morningEnd },
+          { startTime: afternoonStart, endTime: afternoonEnd },
+          colorType
+        );
+        setIsShiftModalOpen(false);
+        showToast("Shift coupé ajouté");
+        return;
+      }
+
+      const startTime = formData.get('startTime') as string;
+      const endTime = formData.get('endTime') as string;
+      const [startH] = startTime.split(':').map(Number);
+      const [endH] = endTime.split(':').map(Number);
+      let hours = endH - startH;
+      if (hours < 0) hours += 24;
+
+      const newShift: Omit<Shift, 'id'> = {
+        employeeId: selectedCell.empId,
+        date: selectedCell.date,
+        startTime,
+        endTime,
+        hours,
+        colorType
+      };
+
       await addDoc(collection(db, 'shifts'), {
         ...newShift,
         createdAt: serverTimestamp()
@@ -377,6 +465,21 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       setIsShiftModalOpen(false);
     } catch (e) {
       console.error(e);
+      showToast("Erreur d'ajout", "error");
+    }
+  };
+
+  // Ajout en un clic d'un horaire coupé depuis un raccourci — couleur déduite automatiquement du rôle.
+  const quickAddSplitShift = async (preset: { morning: { startTime: string; endTime: string }; afternoon: { startTime: string; endTime: string } }) => {
+    if (!selectedCell) return;
+    const emp = employees.find(e => e.id === selectedCell.empId);
+    try {
+      await createSplitShift(selectedCell.empId, selectedCell.date, preset.morning, preset.afternoon, roleToColor(emp?.role || ''));
+      setIsShiftModalOpen(false);
+      showToast("Shift coupé ajouté");
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur d'ajout", "error");
     }
   };
 
@@ -479,6 +582,25 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
       await deleteDoc(doc(db, 'shifts', shift.id));
       showToast("Shift supprimé");
       setLastDuplicatedIds(prev => prev.filter(id => id !== shift.id));
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
+    }
+  };
+
+  // Supprime les 2 segments d'un horaire coupé (matin + après-midi) en une fois.
+  const deleteSplitGroup = async (shift: Shift) => {
+    if (!shift.splitGroupId) return;
+    const confirmed = window.confirm("Supprimer les 2 segments de cet horaire coupé (matin et après-midi) ?");
+    if (!confirmed) return;
+    const groupShifts = shifts.filter(s => s.splitGroupId === shift.splitGroupId);
+    try {
+      for (const s of groupShifts) {
+        await deleteDoc(doc(db, 'shifts', s.id));
+      }
+      showToast("Horaire coupé supprimé");
+      setIsPointageModalOpen(false);
+      setSelectedShiftForPointage(null);
     } catch (err) {
       console.error(err);
       showToast("Erreur lors de la suppression", "error");
@@ -660,7 +782,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             {isGenerating ? "Génération..." : "IA Planning"}
           </button>
           <button
-            onClick={() => setIsGenericModalOpen(true)}
+            onClick={() => { setGenericShiftMode('normal'); setIsGenericModalOpen(true); }}
             className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg text-sm font-medium hover:bg-[#E5B745] flex items-center gap-2 transition-colors">
             <Plus size={16} /> Nouveau Shift
           </button>
@@ -699,6 +821,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                       className="absolute top-1 right-1 p-1 rounded bg-white/70 opacity-70 hover:opacity-100 hover:bg-black/10 transition-opacity">
                       <Trash2 size={12} />
                     </button>
+                    {shift.scheduleType === 'split' && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 mb-0.5">
+                        <SplitSquareHorizontal size={10} /> Coupure
+                      </span>
+                    )}
                     <span>{shift.startTime} - {shift.endTime}</span>
                     <span className="opacity-80">{shift.hours}h</span>
                   </div>
@@ -745,6 +872,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                         className="absolute top-1 right-1 p-0.5 rounded opacity-0 group-hover/shift:opacity-100 hover:bg-black/10 transition-opacity">
                         <Trash2 size={12} />
                       </button>
+                      {shift.scheduleType === 'split' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-500 mb-0.5">
+                          <SplitSquareHorizontal size={10} /> Coupure
+                        </span>
+                      )}
                       <span>{shift.startTime} - {shift.endTime}</span>
                       <span className="opacity-80">{shift.hours}h prévu(es)</span>
                       {shift.actualHours != null ? (
@@ -778,21 +910,46 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             </div>
 
             <div className="px-6 pt-4">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
-                <Zap size={12} /> Raccourcis — un clic pour ajouter
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {SHIFT_PRESETS.map(preset => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => quickAddShift(preset)}
-                    className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
-                    <span className="block font-semibold">{preset.label}</span>
-                    <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
-                  </button>
-                ))}
-              </div>
+              <ShiftModeToggle mode={shiftMode} onChange={setShiftMode} />
+
+              {shiftMode === 'normal' ? (
+                <>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                    <Zap size={12} /> Raccourcis — un clic pour ajouter
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SHIFT_PRESETS.map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => quickAddShift(preset)}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                        <span className="block font-semibold">{preset.label}</span>
+                        <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                    <Zap size={12} /> Raccourcis coupure — un clic pour ajouter les 2 segments
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {SPLIT_SHIFT_PRESETS.map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => quickAddSplitShift(preset)}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                        <span className="block font-semibold">{preset.label}</span>
+                        <span className="text-gray-500">{preset.morning.startTime}-{preset.morning.endTime} puis {preset.afternoon.startTime}-{preset.afternoon.endTime}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="flex items-center gap-2 my-4">
                 <div className="h-px bg-gray-100 flex-1" />
                 <span className="text-xs text-gray-400">ou personnalisé</span>
@@ -801,16 +958,47 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             </div>
 
             <form onSubmit={addNewShift} className="px-6 pb-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
-                  <input type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+              {shiftMode === 'normal' ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                    <input type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                    <input type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
-                  <input type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Matin</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                        <input type="time" name="morningStart" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                        <input type="time" name="morningEnd" defaultValue="13:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Après-midi (reprise)</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                        <input type="time" name="afternoonStart" defaultValue="16:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                        <input type="time" name="afternoonEnd" defaultValue="20:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Couleur (Rôle)</label>
@@ -828,7 +1016,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   Annuler
                 </button>
                 <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600">
-                  Ajouter le shift
+                  {shiftMode === 'split' ? "Ajouter le shift coupé" : "Ajouter le shift"}
                 </button>
               </div>
             </form>
@@ -868,37 +1056,97 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 <input type="date" name="date" defaultValue={weekDays[0].dateStr} required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
               </div>
 
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
-                  <Zap size={12} /> Raccourcis horaires
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SHIFT_PRESETS.map(preset => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => {
-                        if (genericStartRef.current) genericStartRef.current.value = preset.startTime;
-                        if (genericEndRef.current) genericEndRef.current.value = preset.endTime;
-                      }}
-                      className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
-                      <span className="block font-semibold">{preset.label}</span>
-                      <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <ShiftModeToggle mode={genericShiftMode} onChange={setGenericShiftMode} />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
-                  <input ref={genericStartRef} type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
-                  <input ref={genericEndRef} type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
-                </div>
-              </div>
+              {genericShiftMode === 'normal' ? (
+                <>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                      <Zap size={12} /> Raccourcis horaires
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SHIFT_PRESETS.map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            if (genericStartRef.current) genericStartRef.current.value = preset.startTime;
+                            if (genericEndRef.current) genericEndRef.current.value = preset.endTime;
+                          }}
+                          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                          <span className="block font-semibold">{preset.label}</span>
+                          <span className="text-gray-500">{preset.startTime} - {preset.endTime}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                      <input ref={genericStartRef} type="time" name="startTime" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                      <input ref={genericEndRef} type="time" name="endTime" defaultValue="17:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-2">
+                      <Zap size={12} /> Raccourcis coupure
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {SPLIT_SHIFT_PRESETS.map(preset => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            if (genericMorningStartRef.current) genericMorningStartRef.current.value = preset.morning.startTime;
+                            if (genericMorningEndRef.current) genericMorningEndRef.current.value = preset.morning.endTime;
+                            if (genericAfternoonStartRef.current) genericAfternoonStartRef.current.value = preset.afternoon.startTime;
+                            if (genericAfternoonEndRef.current) genericAfternoonEndRef.current.value = preset.afternoon.endTime;
+                          }}
+                          className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
+                          <span className="block font-semibold">{preset.label}</span>
+                          <span className="text-gray-500">{preset.morning.startTime}-{preset.morning.endTime} puis {preset.afternoon.startTime}-{preset.afternoon.endTime}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Matin</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                          <input ref={genericMorningStartRef} type="time" name="morningStart" defaultValue="09:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                          <input ref={genericMorningEndRef} type="time" name="morningEnd" defaultValue="13:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Après-midi (reprise)</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Début</label>
+                          <input ref={genericAfternoonStartRef} type="time" name="afternoonStart" defaultValue="16:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Fin</label>
+                          <input ref={genericAfternoonEndRef} type="time" name="afternoonEnd" defaultValue="20:00" required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Couleur (Rôle)</label>
@@ -916,7 +1164,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   Annuler
                 </button>
                 <button type="submit" className="px-4 py-2 bg-[#F4C75B] text-[#1A1A1A] rounded-lg font-medium hover:bg-[#E5B745]">
-                  Créer le shift
+                  {genericShiftMode === 'split' ? "Créer le shift coupé" : "Créer le shift"}
                 </button>
               </div>
             </form>
@@ -937,6 +1185,11 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
               <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
                 <p><span className="font-medium text-gray-900">Employé :</span> {employees.find(e => e.id === selectedShiftForPointage.employeeId)?.name || '—'}</p>
                 <p><span className="font-medium text-gray-900">Jour :</span> {selectedShiftForPointage.date}</p>
+                {selectedShiftForPointage.scheduleType === 'split' && (
+                  <p className="flex items-center gap-1.5 mt-1 text-gray-500">
+                    <SplitSquareHorizontal size={12} /> Ce segment fait partie d'un horaire coupé (matin + après-midi)
+                  </p>
+                )}
               </div>
 
               <div className="border border-gray-200 rounded-lg p-3 space-y-3">
@@ -1012,6 +1265,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   className="px-3 py-2 text-rose-600 rounded-lg font-medium hover:bg-rose-50 flex items-center gap-1.5 text-sm">
                   <Trash2 size={14} /> Supprimer ce shift
                 </button>
+                {selectedShiftForPointage.scheduleType === 'split' && (
+                  <button
+                    type="button"
+                    onClick={() => deleteSplitGroup(selectedShiftForPointage)}
+                    className="px-3 py-2 text-rose-600 rounded-lg font-medium hover:bg-rose-50 flex items-center gap-1.5 text-sm">
+                    <SplitSquareHorizontal size={14} /> Supprimer la coupure (2 segments)
+                  </button>
+                )}
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setIsPointageModalOpen(false)} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
                     Annuler

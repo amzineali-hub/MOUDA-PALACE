@@ -6,7 +6,7 @@ import { Plus, Search, Trash2, ShoppingCart, Truck, FileText, CheckCircle, XCirc
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc, runTransaction, getDocs, where } from 'firebase/firestore';
 import { db } from './firebase';
-import { TVA_RATES, computeTTC } from './lib/tva';
+import { computeTTC } from './lib/tva';
 import { calculateStockStatus } from './lib/inventory';
 import { resolveItemPrice } from './lib/priceUtils';
 import { computeUpdatedSupplierRating } from './lib/supplierRating';
@@ -18,9 +18,7 @@ export default function AchatsFournisseurs() {
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [showSupplierCol, setShowSupplierCol] = useState(true);
-  const [showCategoryCol, setShowCategoryCol] = useState(true);
-  const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string, price?: string}>>({});
-  const [orderTvaRate, setOrderTvaRate] = useState<number>(20);
+  const [orderSelections, setOrderSelections] = useState<Record<string, {checked: boolean, qty: string, observations?: string}>>({});
     const [isNewSupplierModalOpen, setIsNewSupplierModalOpen] = useState(false);
   const [isEditSupplierModalOpen, setIsEditSupplierModalOpen] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
@@ -78,15 +76,7 @@ export default function AchatsFournisseurs() {
         let aValue = a[sortConfig.key];
         let bValue = b[sortConfig.key];
 
-        if (sortConfig.key === 'montant' || sortConfig.key === 'montantHT' || sortConfig.key === 'tva') {
-          const parseNumeric = (val: any) => {
-             if (typeof val === 'number') return val;
-             if (typeof val === 'string') return parseFloat(val.replace(/[^0-9.-]+/g, "")) || 0;
-             return 0;
-          };
-          aValue = parseNumeric(aValue);
-          bValue = parseNumeric(bValue);
-        } else if (sortConfig.key === 'date') {
+        if (sortConfig.key === 'date') {
           const parseDate = (d: string) => {
             if (!d) return 0;
             const parts = d.split('/');
@@ -247,7 +237,7 @@ export default function AchatsFournisseurs() {
             <Store size={18} />
             <span>Nouveau fournisseur</span>
           </button>
-          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setOrderTvaRate(20); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
+          <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
             <span>Créer une commande</span>
           </button>
@@ -356,15 +346,6 @@ export default function AchatsFournisseurs() {
                     <div className="flex items-center gap-1">Fournisseur <ArrowUpDown size={14} className={sortConfig?.key === 'fournisseur' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
                   </th>
                   <th className="px-6 py-4 font-medium">Articles</th>
-                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('montantHT')}>
-                    <div className="flex items-center justify-end gap-1">Montant HT <ArrowUpDown size={14} className={sortConfig?.key === 'montantHT' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
-                  </th>
-                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('tva')}>
-                    <div className="flex items-center justify-end gap-1">TVA <ArrowUpDown size={14} className={sortConfig?.key === 'tva' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
-                  </th>
-                  <th className="px-6 py-4 font-medium text-right cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('montant')}>
-                    <div className="flex items-center justify-end gap-1">Total TTC <ArrowUpDown size={14} className={sortConfig?.key === 'montant' ? 'text-[#F4C75B]' : 'text-gray-400'} /></div>
-                  </th>
                   <th className="px-6 py-4 font-medium text-center">Statut</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
@@ -379,9 +360,6 @@ export default function AchatsFournisseurs() {
                     <td className="px-6 py-4 text-gray-600">{cmd.date}</td>
                     <td className="px-6 py-4 text-[#1A1A1A] font-medium">{cmd.fournisseur}</td>
                     <td className="px-6 py-4 text-gray-600">{Array.isArray(cmd.items) ? cmd.items.length : (typeof cmd.items === 'number' ? cmd.items : (typeof cmd.articles === 'string' ? cmd.articles.split(',').length : 0))} articles</td>
-                    <td className="px-6 py-4 text-right font-medium">{cmd.montantHT != null ? `${Number(cmd.montantHT).toFixed(2)} MAD` : '-'}</td>
-                    <td className="px-6 py-4 text-right font-medium text-gray-500">{cmd.tva != null ? `${cmd.tva}%` : '-'}</td>
-                    <td className="px-6 py-4 text-right font-medium text-[#1A1A1A]">{cmd.montant}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="relative inline-block w-32">
                         <select
@@ -409,18 +387,17 @@ export default function AchatsFournisseurs() {
 Détails <ChevronRight size={16} />
 </button>
 <button onClick={() => {
-                            setSelectedCommande(cmd); 
+                            setSelectedCommande(cmd);
                             setProductSearch('');
-                            setOrderTvaRate(cmd.tva || 20); 
-                            const initialSelections: Record<string, {checked: boolean, qty: string, price?: string}> = {};
+                            const initialSelections: Record<string, {checked: boolean, qty: string, observations?: string}> = {};
                             if (Array.isArray(cmd.items)) {
                               cmd.items.forEach((itemObj: any) => {
                                 if (itemObj.id) {
-                                  initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                                  initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), observations: itemObj.observations || '' };
                                 } else {
                                   const item = inventoryItems.find(i => i.name === itemObj.name);
                                   if (item) {
-                                    initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                                    initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), observations: itemObj.observations || '' };
                                   }
                                 }
                               });
@@ -531,7 +508,7 @@ Détails <ChevronRight size={16} />
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-serif text-[#1A1A1A]">Liste d'Achats Recommandée</h3>
-                    <button onClick={() => { setOrderSelections({}); setOrderTvaRate(20); setIsNewOrderModalOpen(true); }} className="text-sm bg-[#F4C75B]/10 text-[#F4C75B] hover:bg-[#F4C75B]/20 px-4 py-2 rounded-lg font-medium transition-colors">
+                    <button onClick={() => { setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="text-sm bg-[#F4C75B]/10 text-[#F4C75B] hover:bg-[#F4C75B]/20 px-4 py-2 rounded-lg font-medium transition-colors">
                       Créer des bons de commande
                     </button>
                   </div>
@@ -733,41 +710,23 @@ Détails <ChevronRight size={16} />
                   <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100">
                     <th className="px-4 py-3 font-medium">Article</th>
                     <th className="px-4 py-3 font-medium text-center">Qté</th>
-                    <th className="px-4 py-3 font-medium text-right">Prix Unitaire</th>
-                    <th className="px-4 py-3 font-medium text-right">Total</th>
+                    <th className="px-4 py-3 font-medium">Observations</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
                   {(() => {
-                    let totalGlobal = 0;
-                    
                     const itemsToRender = Array.isArray(selectedCommande.items) ? selectedCommande.items : (selectedCommande.articles || '').split(',').map((a: string) => {
                       const parts = a.split(' - ');
-                      return { name: parts[0], quantity: parseFloat(parts[1]) || 1, expectedPrice: 0 };
+                      return { name: parts[0], quantity: parseFloat(parts[1]) || 1 };
                     }).filter((i: any) => i.name.trim().length > 0);
 
-                    return (
-                      <>
-                        {itemsToRender.map((item: any, idx: number) => {
-                          const unitPrice = item.expectedPrice || item.price || 0; 
-                          const quantity = item.quantity || item.quantityOrdered || 1;
-                          const total = unitPrice * quantity;
-                          totalGlobal += total;
-                          return (
-                            <tr key={idx} className="hover:bg-gray-50/50">
-                              <td className="px-4 py-3 font-medium text-[#1A1A1A]">{item.name}</td>
-                              <td className="px-4 py-3 text-center text-gray-600">{quantity}</td>
-                              <td className="px-4 py-3 text-right text-gray-600">{unitPrice.toFixed(2)} DH</td>
-                              <td className="px-4 py-3 text-right font-medium text-[#1A1A1A]">{total.toFixed(2)} DH</td>
-                            </tr>
-                          );
-                        })}
-                        <tr className="bg-gray-50 font-bold text-[#1A1A1A]">
-                          <td colSpan={3} className="px-4 py-3 text-right uppercase text-xs tracking-wider text-gray-500">Total calculé</td>
-                          <td className="px-4 py-3 text-right text-lg text-[#F4C75B]">{totalGlobal.toFixed(2)} DH</td>
-                        </tr>
-                      </>
-                    )
+                    return itemsToRender.map((item: any, idx: number) => (
+                      <tr key={idx} className="hover:bg-gray-50/50">
+                        <td className="px-4 py-3 font-medium text-[#1A1A1A]">{item.name}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{item.quantity || item.quantityOrdered || 1}</td>
+                        <td className="px-4 py-3 text-gray-600">{item.observations || '-'}</td>
+                      </tr>
+                    ));
                   })()}
                 </tbody>
               </table>
@@ -777,16 +736,16 @@ Détails <ChevronRight size={16} />
                 onClick={() => {
                   const cmd = selectedCommande;
                   setIsDetailsModalOpen(false);
-                  setProductSearch(''); 
-                  const initialSelections: Record<string, {checked: boolean, qty: string, price?: string}> = {};
+                  setProductSearch('');
+                  const initialSelections: Record<string, {checked: boolean, qty: string, observations?: string}> = {};
                   if (Array.isArray(cmd.items)) {
                     cmd.items.forEach((itemObj: any) => {
                       if (itemObj.id) {
-                        initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                        initialSelections[itemObj.id] = { checked: true, qty: String(itemObj.quantity || 1), observations: itemObj.observations || '' };
                       } else {
                         const item = inventoryItems.find(i => i.name === itemObj.name);
                         if (item) {
-                          initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), price: String(itemObj.expectedPrice || itemObj.price || 0) };
+                          initialSelections[item.id] = { checked: true, qty: String(itemObj.quantity || 1), observations: itemObj.observations || '' };
                         }
                       }
                     });
@@ -855,26 +814,22 @@ Détails <ChevronRight size={16} />
               const formData = new FormData(e.currentTarget);
               const supplierId = formData.get('supplier') as string;
               const deliveryDate = formData.get('deliveryDate') as string;
-              const categorie = formData.get('categorie') as string;
-              const tva = parseFloat(formData.get('tva') as string || '20');
-              
-              // gather selected items
+
+              // gather selected items — pas de prix/TVA à ce stade : c'est le fournisseur
+              // qui communique ses prix, saisis plus tard à la réception (ValidateReceptionModal).
               const selectedProducts: any[] = [];
-              let computedHT = 0;
               Object.entries(orderSelections).forEach(([itemId, selection]) => {
                 if (selection.checked) {
                   const item = inventoryItems.find(i => i.id === itemId);
                   if (item) {
-                    const price = parseFloat(selection.price || item.unitPrice || '0');
                     const qty = parseFloat(selection.qty || '1');
-                    computedHT += (price * qty);
                     selectedProducts.push({
                       id: item.id,
                       name: item.name,
                       quantity: qty,
                       quantityOrdered: qty,
-                      expectedPrice: price,
-                      unit: item.unit
+                      unit: item.unit,
+                      observations: selection.observations || ''
                     });
                   }
                 }
@@ -885,29 +840,37 @@ Détails <ChevronRight size={16} />
                 return;
               }
 
-              const computedTTC = computeTTC(computedHT, tva);
-              const tvaAmount = computedTTC - computedHT;
-
               const selectedSupplier = fournisseurs.find(f => f.id === supplierId);
               const supplierName = selectedSupplier ? selectedSupplier.nom : supplierId;
 
-              const newCmd = {
-                  id: selectedCommande ? selectedCommande.id : 'CMD-' + Date.now(),
-                  fournisseur: supplierName,
-                  fournisseurId: supplierId,
-                  date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
-                  deliveryDate,
-                  montantHT: computedHT,
-                  tva,
-                  montant: `${computedTTC.toFixed(2)} MAD`,
-                  status: selectedCommande ? selectedCommande.status : 'En attente',
-                  items: selectedProducts,
-                  articles: selectedProducts.map(p => `${p.name} - ${p.quantity}`).join(', '),
-                  categorie,
-                  createdAt: selectedCommande ? selectedCommande.createdAt : serverTimestamp()
-              };
-
               try {
+                // Numéro séquentiel "1/2026", "2/2026"... attribué de façon atomique (compteur
+                // partagé par année), uniquement pour les nouvelles commandes.
+                let orderNumber = selectedCommande?.orderNumber;
+                if (!selectedCommande) {
+                  const year = new Date().getFullYear();
+                  const counterRef = doc(db, 'counters', `commandes_${year}`);
+                  orderNumber = await runTransaction(db, async (tx) => {
+                    const counterSnap = await tx.get(counterRef);
+                    const next = (counterSnap.exists() ? (counterSnap.data().value || 0) : 0) + 1;
+                    tx.set(counterRef, { value: next }, { merge: true });
+                    return `${next}/${year}`;
+                  });
+                }
+
+                const newCmd = {
+                    id: selectedCommande ? selectedCommande.id : 'CMD-' + Date.now(),
+                    orderNumber,
+                    fournisseur: supplierName,
+                    fournisseurId: supplierId,
+                    date: selectedCommande ? selectedCommande.date : new Date().toLocaleDateString('fr-FR'),
+                    deliveryDate,
+                    status: selectedCommande ? selectedCommande.status : 'En attente',
+                    items: selectedProducts,
+                    articles: selectedProducts.map(p => `${p.name} - ${p.quantity}`).join(', '),
+                    createdAt: selectedCommande ? selectedCommande.createdAt : serverTimestamp()
+                };
+
                 if (selectedCommande) {
                   // Update logic
                   await updateDoc(doc(db, 'commandes', selectedCommande.id), newCmd);
@@ -947,39 +910,31 @@ Détails <ChevronRight size={16} />
                           <div class="logo-text">MOUDA PALACE</div>
                           <div class="logo-sub">Restaurant - Lounge - Rooftop</div>
                         </div>
-                        <div class="title">BON DE COMMANDE N° ${newCmd.id}</div>
-                        
+                        <div class="title">BON DE COMMANDE N° ${orderNumber || newCmd.id}</div>
+
                         <div class="info">
                           <strong>Émetteur:</strong> Restaurant Mouda Palace<br>
                           <strong>Date d'émission:</strong> ${new Date().toLocaleDateString('fr-FR')}<br>
                           <strong>Fournisseur:</strong> ${supplierName}<br>
                           <strong>Date de livraison prévue:</strong> ${deliveryDate}<br>
-                          <strong>Catégorie d'achat:</strong> ${categorie}<br>
                         </div>
                         <table>
                           <thead>
                             <tr>
                               <th>Désignation de l'article</th>
                               <th>Quantité</th>
-                              <th>Prix unitaire HT</th>
-                              <th>Total HT</th>
+                              <th>Observations</th>
                             </tr>
                           </thead>
                           <tbody>
                             ${selectedProducts.map(p => {
-                              return `<tr><td>${p.name}</td><td>${p.quantity} ${p.unit || ''}</td><td>${parseFloat(p.expectedPrice || '0').toFixed(2)} MAD</td><td>${(parseFloat(p.expectedPrice || '0') * parseFloat(p.quantity || '0')).toFixed(2)} MAD</td></tr>`;
+                              return `<tr><td>${p.name}</td><td>${p.quantity} ${p.unit || ''}</td><td>${p.observations || ''}</td></tr>`;
                             }).join('')}
                           </tbody>
                         </table>
-                        
-                        <div style="text-align: right; margin-top: 20px;">
-                          <p><strong>Total HT:</strong> ${computedHT.toFixed(2)} MAD</p>
-                          <p><strong>TVA (${tva}%):</strong> ${tvaAmount.toFixed(2)} MAD</p>
-                          <p style="font-size: 1.2em;"><strong>Total TTC:</strong> ${computedTTC.toFixed(2)} MAD</p>
-                        </div>
 
-                        <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.</p>
-                        
+                        <p>Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus. Les prix seront communiqués par vos soins à la livraison.</p>
+
                         <div style="margin-top: 50px;">
                           <strong>Signature de la direction:</strong>
                         </div>
@@ -1004,24 +959,10 @@ Détails <ChevronRight size={16} />
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
                 <Combobox name="supplier" options={suppliersList} required defaultValue={selectedCommande?.fournisseurId || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" placeholder="Nom du fournisseur" />
               </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
-                  <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie d'achat</label>
-                  <Combobox name="categorie" options={categories} defaultValue={selectedCommande?.categorie || ''} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: Alimentaire" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA (%)</label>
-                  <select name="tva" value={orderTvaRate} onChange={(e) => setOrderTvaRate(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
-                    {TVA_RATES.map(rate => (
-                      <option key={rate} value={rate}>{rate}%</option>
-                    ))}
-                  </select>
-                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison</label>
+                <input name="deliveryDate" type="date" required defaultValue={selectedCommande?.deliveryDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
 
               <div>
@@ -1033,17 +974,13 @@ Détails <ChevronRight size={16} />
                         <input type="checkbox" checked={showSupplierCol} onChange={e => setShowSupplierCol(e.target.checked)} className="w-3.5 h-3.5 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" />
                         Fournisseur
                       </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer text-gray-600">
-                        <input type="checkbox" checked={showCategoryCol} onChange={e => setShowCategoryCol(e.target.checked)} className="w-3.5 h-3.5 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" />
-                        Catégorie
-                      </label>
                     </div>
                   </div>
                   <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Rechercher (produit, catégorie, fournisseur)..."
+                      placeholder="Rechercher (produit, fournisseur)..."
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
                       className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
@@ -1057,10 +994,10 @@ Détails <ChevronRight size={16} />
                       const matchName = (item.name || '').toLowerCase().includes(searchLower);
                       const matchCat = (item.category || '').toLowerCase().includes(searchLower);
                       const matchSup = (item.supplier || '').toLowerCase().includes(searchLower);
-                      
+
                       const initials = (item.name || '').split(' ').map((w: string) => w[0]).join('').toLowerCase();
                       const matchInitials = initials.includes(searchLower);
-                      
+
                       return matchName || matchCat || matchSup || matchInitials;
                     });
 
@@ -1076,10 +1013,9 @@ Détails <ChevronRight size={16} />
                               <ShoppingCart size={14} className="mx-auto text-gray-400" />
                             </th>
                             <th className="px-3 py-2 font-medium">Produit</th>
-                            {showCategoryCol && <th className="px-3 py-2 font-medium">Catégorie</th>}
                             {showSupplierCol && <th className="px-3 py-2 font-medium">Fournisseur</th>}
-                            <th className="px-3 py-2 font-medium w-24 text-right">Prix U.</th>
                             <th className="px-3 py-2 font-medium w-24 text-right">Quantité</th>
+                            <th className="px-3 py-2 font-medium">Observations</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -1088,42 +1024,37 @@ Détails <ChevronRight size={16} />
                             return (
                               <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-3 py-2 text-center">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={selection.checked} 
+                                  <input
+                                    type="checkbox"
+                                    checked={selection.checked}
                                     onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: e.target.checked } }))}
-                                    className="w-4 h-4 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]" 
+                                    className="w-4 h-4 text-[#F4C75B] rounded border-gray-300 focus:ring-[#F4C75B]"
                                   />
                                 </td>
                                 <td className="px-3 py-2 font-medium text-gray-900 cursor-pointer" onClick={() => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], checked: !(prev[item.id]?.checked) } }))}>
                                   {item.name}
                                 </td>
-                                {showCategoryCol && (
-                                  <td className="px-3 py-2 text-gray-500 text-xs">
-                                    <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">{item.category || 'Général'}</span>
-                                  </td>
-                                )}
                                 {showSupplierCol && (
                                   <td className="px-3 py-2 text-gray-500 text-xs">
                                     {item.supplier || 'Sans fournisseur'}
                                   </td>
                                 )}
                                 <td className="px-3 py-2 text-right">
-                                  <input 
-                                    type="number" step="0.01" min="0"
-                                    value={selection.price !== undefined ? selection.price : (item.unitPrice || '')}
-                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], price: e.target.value, checked: prev[item.id]?.checked || e.target.value !== '' } }))}
-                                    placeholder="0.00" 
-                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right" 
-                                  />
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  <input 
-                                    type="text" 
+                                  <input
+                                    type="text"
                                     value={selection.qty}
                                     onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], qty: e.target.value, checked: prev[item.id]?.checked || e.target.value !== '' } }))}
-                                    placeholder={`Qté (${item.unit || 'u'})`} 
-                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right" 
+                                    placeholder={`Qté (${item.unit || 'u'})`}
+                                    className="w-full max-w-[80px] text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B] text-right"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="text"
+                                    value={selection.observations || ''}
+                                    onChange={(e) => setOrderSelections(prev => ({ ...prev, [item.id]: { ...prev[item.id], observations: e.target.value } }))}
+                                    placeholder="Ex: marque, calibre, remarque..."
+                                    className="w-full text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]"
                                   />
                                 </td>
                               </tr>
@@ -1136,7 +1067,7 @@ Détails <ChevronRight size={16} />
                 </div>
               </div>
 
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium mt-4 hover:bg-[#E5B745] transition-colors"
               >
@@ -1723,7 +1654,10 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
               <tbody className="divide-y divide-gray-100">
                 {items.map((item, idx) => (
                   <tr key={idx} className={!item.qualityOk ? 'bg-red-50/50' : ''}>
-                    <td className="px-4 py-4 font-medium text-gray-900">{item.name}</td>
+                    <td className="px-4 py-4 font-medium text-gray-900">
+                      {item.name}
+                      {item.observations && <span className="block text-xs font-normal text-gray-500 mt-0.5">{item.observations}</span>}
+                    </td>
                     <td className="px-4 py-4 text-center text-gray-500">{item.quantityOrdered} {item.unit || ''}</td>
                     <td className="px-4 py-4">
                       <input 
@@ -1743,7 +1677,7 @@ function ValidateReceptionModal({ order, onClose, onValidate }: { order: any, on
                           onChange={e => handleItemChange(idx, 'actualPrice', parseFloat(e.target.value) || 0)}
                           className="w-24 text-right text-sm rounded-lg border-gray-200 focus:border-[#265C6D] focus:ring-[#265C6D]"
                         />
-                        {item.actualPrice !== item.expectedPrice && (
+                        {item.expectedPrice > 0 && item.actualPrice !== item.expectedPrice && (
                           <span className="text-[10px] font-medium text-amber-600 mt-1 bg-amber-50 px-2 py-0.5 rounded-full">
                             Prévu: {item.expectedPrice}
                           </span>

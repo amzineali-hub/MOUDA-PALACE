@@ -672,6 +672,21 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
               <ChevronRight size={18} />
             </button>
           </div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-gray-500 font-medium hidden sm:inline">Début :</label>
+            <input
+              type="date"
+              value={weekDays[0].dateStr}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const [y, m, d] = e.target.value.split('-').map(Number);
+                setCurrentDate(new Date(y, m - 1, d));
+                setLastDuplicatedIds([]);
+              }}
+              title="Choisir n'importe quelle date de début pour la période affichée (pas forcément un lundi)"
+              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#F4C75B] bg-white"
+            />
+          </div>
           <div className="relative">
             <button
               ref={filterButtonRef}

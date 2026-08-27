@@ -28,7 +28,7 @@ import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
-import { buildLetterheadHtml } from './lib/letterhead';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO } from './lib/letterhead';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -223,7 +223,7 @@ export default function Accounting() {
 
   // Informations légales de l'établissement (Configuration > Général + Site Web), utilisées
   // pour l'en-tête des factures imprimées — plutôt que des valeurs figées dans le code.
-  const [companyInfo, setCompanyInfo] = useState<any>({});
+  const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
   useEffect(() => {
     const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
       if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, ...snap.data() }));
@@ -1434,8 +1434,8 @@ export default function Accounting() {
               <div className="text-center mb-6">
                 <h2 className="font-bold text-xl mb-1">MOUDA PALACE</h2>
                 <p className="text-gray-500 text-xs">Restaurant - Lounge - Rooftop</p>
-                <p className="text-gray-500 text-xs mt-2">Fès, Maroc</p>
-                <p className="text-gray-500 text-xs mt-1">Tel: +212 5 35 XX XX XX</p>
+                <p className="text-gray-500 text-xs mt-2">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina</p>
+                <p className="text-gray-500 text-xs mt-1">Tel: +212 5 35 63 78 80</p>
               </div>
               
               <div className="border-t border-b border-dashed border-gray-300 py-3 mb-4 space-y-1">
@@ -1531,7 +1531,7 @@ export default function Accounting() {
                         <body>
                           <div class="header">
                             <div class="logo-text">MOUDA PALACE</div>
-                            <div class="sub-text">Restaurant - Lounge - Rooftop<br/>Fès, Maroc<br/>Tel: +212 5 35 XX XX XX</div>
+                            <div class="sub-text">Restaurant - Lounge - Rooftop<br/>7 Derb Agoual Sefli, Talaa Sghira, Fès Médina<br/>Tel: +212 5 35 63 78 80</div>
                           </div>
                           <div class="info">
                             <div><span>Ticket N°:</span><span>${selectedReceipt.displayId || 'TKT-' + selectedReceipt.id.substring(0, 6).toUpperCase()}</span></div>

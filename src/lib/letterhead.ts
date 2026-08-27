@@ -17,6 +17,23 @@ export interface CompanyInfo {
   identifiantFiscal?: string;
 }
 
+// Valeurs par défaut de l'établissement — mêmes valeurs que le préremplissage du formulaire
+// Configuration > Général (App.tsx). Sert de repli tant que `settings/general` n'a pas encore
+// été chargé/enregistré dans Firestore, pour que l'adresse et les coordonnées ne soient jamais
+// vides sur un document imprimé (RH, factures...).
+export const DEFAULT_COMPANY_INFO: CompanyInfo = {
+  name: 'Mouda Palace',
+  category: 'Restaurant - Lounge - Rooftop',
+  address: '7 Derb Agoual Sefli, Talaa Sghira, Fès Médina',
+  phone: '+212 5 35 63 78 80 / +212 6 61 35 71 91',
+  email: 'moudapalace@gmail.com',
+  website: 'www.moudapalace.com',
+  ice: '002898284000015',
+  patente: '13900549',
+  rc: '',
+  identifiantFiscal: '50520780'
+};
+
 export interface LetterheadOptions {
   title: string;
   bodyHtml: string;
@@ -36,16 +53,18 @@ export function buildLetterheadHtml(companyInfo: CompanyInfo, originUrl: string,
       <head>
         <title>${options.title}</title>
         <style>
+          @page { size: A4; margin: 12mm; }
           body { font-family: 'Times New Roman', serif; color: #1a1a1a; margin: 0; }
-          .letterhead { background: #265C6D; color: #fff; padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; }
+          .letterhead { background: #265C6D; color: #fff; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; }
           .lh-brand { display: flex; align-items: center; gap: 14px; }
-          .lh-brand img { height: 46px; }
-          .lh-brand-name { font-size: 22px; letter-spacing: 3px; color: #F4C75B; font-weight: bold; }
-          .lh-contact { text-align: right; font-size: 11px; line-height: 1.7; }
-          .lh-divider { height: 8px; background: #D8A353; }
-          .content { padding: 30px 40px 0 40px; }
-          .lh-footer-bar { background: #D8A353; padding: 10px 40px; margin-top: 20px; }
-          .lh-footer-box { background: #fff; border: 1px solid #D8A353; display: flex; justify-content: space-around; padding: 8px 16px; font-size: 10.5px; text-align: center; }
+          .lh-brand img { height: 40px; }
+          .lh-brand-name { font-size: 20px; letter-spacing: 3px; color: #F4C75B; font-weight: bold; }
+          .lh-brand-sub { font-size: 10px; letter-spacing: 2px; color: #fff; text-transform: uppercase; opacity: 0.85; margin-top: 2px; }
+          .lh-contact { text-align: right; font-size: 10.5px; line-height: 1.6; }
+          .lh-divider { height: 6px; background: #D8A353; }
+          .content { padding: 18px 40px 0 40px; }
+          .lh-footer-bar { background: #D8A353; padding: 7px 40px; margin-top: 14px; }
+          .lh-footer-box { background: #fff; border: 1px solid #D8A353; display: flex; justify-content: space-around; padding: 6px 16px; font-size: 10px; text-align: center; }
           ${options.extraStyles || ''}
         </style>
       </head>
@@ -53,7 +72,10 @@ export function buildLetterheadHtml(companyInfo: CompanyInfo, originUrl: string,
         <div class="letterhead">
           <div class="lh-brand">
             <img src="${originUrl}/mouda-1-1-1.png" alt="${companyInfo.name || 'Mouda Palace'}" />
-            <div class="lh-brand-name">${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</div>
+            <div>
+              <div class="lh-brand-name">${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</div>
+              <div class="lh-brand-sub">Restaurant - Lounge - Rooftop</div>
+            </div>
           </div>
           <div class="lh-contact">
             ${phones.map(p => `<div>${p}</div>`).join('')}

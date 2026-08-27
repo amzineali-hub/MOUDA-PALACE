@@ -6,7 +6,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { db } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
 import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
-import { buildLetterheadHtml } from './lib/letterhead';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO } from './lib/letterhead';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -383,7 +383,7 @@ export default function RH() {
 
   // Informations légales de l'établissement, pour l'en-tête unifiée des documents RH
   // imprimés (même source que les factures — Configuration > Général + Site Web).
-  const [companyInfo, setCompanyInfo] = useState<any>({});
+  const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
   useEffect(() => {
     const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
       if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, ...snap.data() }));
@@ -417,6 +417,14 @@ export default function RH() {
   };
 
   const todayFr = () => new Date().toLocaleDateString('fr-FR');
+
+  // Extrait la ville pour la mention "Fait à ..." des documents imprimés. L'adresse complète
+  // finit souvent par le pays ("..., Fès, Maroc") : on l'écarte pour ne pas afficher "Fait à Maroc".
+  const cityFromAddress = (address?: string) => {
+    const parts = (address || '').split(',').map(p => p.trim()).filter(Boolean);
+    const withoutCountry = parts.filter(p => !/^maroc$|^morocco$/i.test(p));
+    return withoutCountry[withoutCountry.length - 1] || 'Fès';
+  };
 
   // Formatte une date ISO (YYYY-MM-DD, celle des <input type="date">) en jj/mm/aaaa pour
   // l'affichage sur les documents imprimés — les champs `birthDate`/`hireDate` sont stockés
@@ -502,7 +510,7 @@ export default function RH() {
           depuis le <strong>${hireDate}</strong>.
         </p>
         <p class="hr-letter">La présente attestation est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.</p>
-        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
+        <p class="hr-letter">Fait à ${cityFromAddress(companyInfo.address)}, le ${todayFr()}</p>
         <p class="hr-sign">Signature et cachet de l'entreprise</p>
       `;
     } else if (hrDocType === 'certificat') {
@@ -516,7 +524,7 @@ export default function RH() {
           du <strong>${hireDate}</strong> au <strong>${endDate}</strong>.
         </p>
         <p class="hr-letter">Le présent certificat est délivré à l'intéressé(e) pour servir et valoir ce que de droit.</p>
-        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}</p>
+        <p class="hr-letter">Fait à ${cityFromAddress(companyInfo.address)}, le ${todayFr()}</p>
         <p class="hr-sign">Signature et cachet de l'entreprise</p>
       `;
     } else if (hrDocType === 'solde') {
@@ -550,7 +558,7 @@ export default function RH() {
       bodyHtml = `
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)</h2>
         <p class="hr-letter">
-          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, dont le siège social est situé à <strong>${companyInfo.address || '-'}</strong>, représentée par sa Direction,
           ci-après « l'Employeur »,
         </p>
         <p class="hr-letter">
@@ -566,7 +574,7 @@ export default function RH() {
         <p class="hr-article"><strong>Article 6 — Congés et absences.</strong> Les congés et absences sont gérés conformément aux dispositions légales et aux procédures internes applicables.</p>
         <p class="hr-article"><strong>Article 7 — Obligations professionnelles.</strong> Le salarié s'engage notamment à respecter les règles de sécurité, d'hygiène, de confidentialité, de discipline et le règlement intérieur de l'entreprise.</p>
         <p class="hr-article"><strong>Article 8 — Fin du contrat.</strong> Au-delà de la période d'essai, la fin du contrat est régie par les dispositions légales applicables (démission, licenciement, retraite).</p>
-        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-letter">Fait à ${cityFromAddress(companyInfo.address)}, le ${todayFr()}, en deux exemplaires originaux.</p>
         <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
       `;
     } else if (hrDocType === 'cdd') {
@@ -597,7 +605,7 @@ export default function RH() {
         ${overCapWarning}
         <h2 style="text-align:center;">CONTRAT DE TRAVAIL À DURÉE DÉTERMINÉE (CDD)</h2>
         <p class="hr-letter">
-          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, dont le siège social est situé à <strong>${companyInfo.address || '-'}</strong>, représentée par sa Direction,
           ci-après « l'Employeur »,
         </p>
         <p class="hr-letter">
@@ -615,7 +623,7 @@ export default function RH() {
         </table>
         <p class="hr-letter">Conformément à l'article 16 du Code du travail, ce contrat ne peut excéder une durée d'un an, renouvellement inclus ; passé ce délai il devient un contrat à durée indéterminée.</p>
         <p class="hr-letter">Les autres conditions de travail sont celles prévues par le présent contrat, le règlement intérieur et les dispositions légales applicables.</p>
-        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-letter">Fait à ${cityFromAddress(companyInfo.address)}, le ${todayFr()}, en deux exemplaires originaux.</p>
         <p class="hr-sign">L'Employeur : ___________________________ &nbsp;&nbsp;&nbsp; Le Salarié : ___________________________</p>
       `;
     } else if (hrDocType === 'stage') {
@@ -627,7 +635,7 @@ export default function RH() {
       bodyHtml = `
         <h2 style="text-align:center;">CONVENTION DE STAGE</h2>
         <p class="hr-letter">
-          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, représentée par sa Direction,
+          Entre la société <strong>${companyInfo.name || 'Mouda Palace'}</strong>${companyInfo.rc ? ` (RC n° ${companyInfo.rc})` : ''}, dont le siège social est situé à <strong>${companyInfo.address || '-'}</strong>, représentée par sa Direction,
           ci-après « l'Entreprise d'accueil »,
         </p>
         <p class="hr-letter">
@@ -645,7 +653,7 @@ export default function RH() {
           <tr><th>Indemnité de stage (MAD)</th><td>${stipend > 0 ? stipend.toFixed(2) : 'Non rémunéré'}</td></tr>
         </table>
         <p class="hr-letter">Le/la stagiaire s'engage à respecter le règlement intérieur, les règles d'hygiène et de sécurité, ainsi que la confidentialité des informations de l'entreprise. La présente convention ne constitue pas un contrat de travail et n'ouvre droit à aucune rémunération autre que l'indemnité éventuelle mentionnée ci-dessus.</p>
-        <p class="hr-letter">Fait à ${(companyInfo.address || '').split(',').pop()?.trim() || 'Fès'}, le ${todayFr()}, en deux exemplaires originaux.</p>
+        <p class="hr-letter">Fait à ${cityFromAddress(companyInfo.address)}, le ${todayFr()}, en deux exemplaires originaux.</p>
         <p class="hr-sign">L'Entreprise d'accueil : ___________________________ &nbsp;&nbsp;&nbsp; Le/La Stagiaire : ___________________________</p>
       `;
     }
@@ -654,14 +662,14 @@ export default function RH() {
       title: `${title} - ${employeeName}`,
       bodyHtml,
       extraStyles: `
-        .hr-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .hr-table th { text-align: left; padding: 10px; border: 1px solid #eee; background: #f9f9f9; width: 40%; }
-        .hr-table td { padding: 10px; border: 1px solid #eee; }
+        .hr-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        .hr-table th { text-align: left; padding: 7px; border: 1px solid #eee; background: #f9f9f9; width: 40%; }
+        .hr-table td { padding: 7px; border: 1px solid #eee; }
         .hr-total-row th, .hr-total-row td { font-weight: bold; background: #FDF6E7; }
-        .hr-letter { line-height: 2; font-size: 15px; margin: 20px 0; }
-        .hr-article { line-height: 1.8; font-size: 14px; margin: 14px 0; }
-        .hr-sign { margin-top: 60px; text-align: right; font-size: 14px; }
-        .hr-warning { background: #FEF2F2; border: 1px solid #FCA5A5; color: #B91C1C; padding: 10px 16px; border-radius: 6px; font-size: 12px; margin-bottom: 20px; }
+        .hr-letter { line-height: 1.5; font-size: 14px; margin: 10px 0; }
+        .hr-article { line-height: 1.4; font-size: 13px; margin: 8px 0; }
+        .hr-sign { margin-top: 30px; text-align: right; font-size: 13px; }
+        .hr-warning { background: #FEF2F2; border: 1px solid #FCA5A5; color: #B91C1C; padding: 8px 14px; border-radius: 6px; font-size: 11px; margin-bottom: 14px; }
       `
     });
 

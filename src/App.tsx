@@ -3302,7 +3302,7 @@ function Inventory() {
             </table>
 
             <div class="footer">
-              Restaurant Mouda Palace - Fès, Maroc | contact@moudapalace.com | Tél: +212 5 35 XX XX XX
+              Restaurant Mouda Palace - 7 Derb Agoual Sefli, Talaa Sghira, Fès Médina | contact@moudapalace.com | Tél: +212 5 35 63 78 80
             </div>
             <script>
               window.onload = function() { window.print(); }

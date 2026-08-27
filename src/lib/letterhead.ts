@@ -34,6 +34,14 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   identifiantFiscal: '50520780'
 };
 
+// Fusionne les données Firestore sur l'état courant en ignorant les champs vides — un champ
+// resté vide côté Configuration (ex: enregistré une première fois avant d'avoir rempli l'adresse)
+// ne doit pas effacer une valeur par défaut correcte (DEFAULT_COMPANY_INFO) sur les documents imprimés.
+export function mergeCompanyInfo<T extends Record<string, any>>(prev: T, data: Record<string, any>): T {
+  const cleaned = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== '' && v != null));
+  return { ...prev, ...cleaned };
+}
+
 export interface LetterheadOptions {
   title: string;
   bodyHtml: string;

@@ -6,7 +6,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { db } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
 import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
-import { buildLetterheadHtml, DEFAULT_COMPANY_INFO } from './lib/letterhead';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -386,10 +386,10 @@ export default function RH() {
   const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
   useEffect(() => {
     const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
-      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, ...snap.data() }));
+      if (snap.exists()) setCompanyInfo((prev: any) => mergeCompanyInfo(prev, snap.data()));
     }, (error) => console.error("Error fetching company settings", error));
     const unsubWebsite = onSnapshot(doc(db, 'settings', 'website'), (snap) => {
-      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
+      if (snap.exists() && snap.data().url) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
     }, (error) => console.error("Error fetching website settings", error));
     return () => { unsubGeneral(); unsubWebsite(); };
   }, []);

@@ -28,7 +28,7 @@ import { db } from './firebase';
 import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
-import { buildLetterheadHtml, DEFAULT_COMPANY_INFO } from './lib/letterhead';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
 
 export default function Accounting() {
   const { showToast } = useToast();
@@ -226,12 +226,12 @@ export default function Accounting() {
   const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
   useEffect(() => {
     const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
-      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, ...snap.data() }));
+      if (snap.exists()) setCompanyInfo((prev: any) => mergeCompanyInfo(prev, snap.data()));
     }, (error) => {
       console.error("Error fetching company settings", error);
     });
     const unsubWebsite = onSnapshot(doc(db, 'settings', 'website'), (snap) => {
-      if (snap.exists()) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
+      if (snap.exists() && snap.data().url) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
     }, (error) => {
       console.error("Error fetching website settings", error);
     });

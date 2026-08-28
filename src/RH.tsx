@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter, Timer, CalendarRange, Banknote, Shield, UserCheck, Printer, Trash2 } from 'lucide-react';
+import { Users, UserPlus, FileText, CheckCircle, Clock, CalendarCheck, Settings, Search, Edit2, AlertTriangle, Plus, X, UploadCloud, Download, BookOpen, Star, Calculator, Lock, Filter, Timer, CalendarRange, Banknote, Shield, UserCheck, Printer, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, auth, storage } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
 import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
 import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 
 function DashboardCard({ title, value, subtitle, icon, delay = 0 }: { title: string, value: string, subtitle: string, icon: React.ReactNode, delay?: number }) {
   return (
@@ -394,9 +397,21 @@ export default function RH() {
     return () => { unsubGeneral(); unsubWebsite(); };
   }, []);
 
+  // Historique des documents RH générés (PDF réel, enregistré dans Firebase Storage) — pour ne
+  // plus dépendre de la boîte de dialogue d'impression du navigateur (comportement différent
+  // d'un poste à l'autre : bouton "Enregistrer" vs "Imprimer" selon l'imprimante par défaut).
+  const [hrGeneratedDocs, setHrGeneratedDocs] = useState<any[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'hr_documents'), orderBy('createdAt', 'desc')), (snap) => {
+      setHrGeneratedDocs(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    }, (error) => console.error('Error fetching hr_documents', error));
+    return () => unsub();
+  }, []);
+
   // Documents RH — génération instantanée (Fiche individuelle, Attestation, Certificat,
   // Solde de tout compte) à partir des données déjà présentes sur la fiche employé.
   const [isHrDocModalOpen, setIsHrDocModalOpen] = useState(false);
+  const [isGeneratingHrDoc, setIsGeneratingHrDoc] = useState(false);
   const [hrDocType, setHrDocType] = useState<'fiche' | 'attestation' | 'certificat' | 'solde' | 'cdi' | 'cdd' | 'stage'>('attestation');
   const [hrDocStaffId, setHrDocStaffId] = useState('');
 
@@ -464,7 +479,85 @@ export default function RH() {
     return { day: String(lastDay), month: String(monthIdx + 1).padStart(2, '0'), year: String(year) };
   };
 
-  const generateHrDocument = (formData: FormData) => {
+  // Génère un PDF réel à partir du HTML imprimable, l'enregistre dans Firebase Storage et
+  // l'historise dans `hr_documents` (visible dans l'onglet Documents RH), puis le télécharge
+  // localement. Remplace l'ancienne impression via window.open()+window.print() : son résultat
+  // (bouton "Enregistrer" vs impression directe) dépend de l'imprimante par défaut du poste, ce
+  // qui rendait le comportement différent d'un ordinateur à l'autre — plus fiable pour un contrat
+  // qu'on veut réellement conserver.
+  const generateAndStorePdf = async (html: string, meta: { staffId: string; staffName: string; docType: string; title: string }) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-99999px';
+    iframe.style.top = '0';
+    iframe.style.width = '794px';
+    iframe.style.height = '1123px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    try {
+      const idoc = iframe.contentDocument;
+      if (!idoc) throw new Error('iframe indisponible');
+      const loadPromise = new Promise<void>((resolve) => { iframe.onload = () => resolve(); });
+      idoc.open();
+      idoc.write(html);
+      idoc.close();
+      await Promise.race([loadPromise, new Promise<void>((resolve) => setTimeout(resolve, 3000))]);
+
+      const images = Array.from(idoc.images);
+      await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); })));
+      await new Promise((res) => setTimeout(res, 200));
+
+      const bodyEl = idoc.body;
+      const dataUrl = await toPng(bodyEl, {
+        quality: 0.95,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        width: bodyEl.scrollWidth,
+        height: bodyEl.scrollHeight
+      });
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const pdfHeight = (bodyEl.scrollHeight * pdfWidth) / bodyEl.scrollWidth;
+
+      let heightLeft = pdfHeight;
+      let position = 0;
+      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const pdfBlob = pdf.output('blob');
+      const storagePath = `hr_documents/${meta.staffId}/${Date.now()}_${meta.docType}.pdf`;
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, pdfBlob, { contentType: 'application/pdf' });
+      const url = await getDownloadURL(storageRef);
+
+      await addDoc(collection(db, 'hr_documents'), {
+        staffId: meta.staffId,
+        staffName: meta.staffName,
+        type: meta.docType,
+        title: meta.title,
+        storagePath,
+        url,
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.email || null
+      });
+
+      const safeFilename = meta.title.replace(/[\\/:*?"<>|]/g, '-');
+      pdf.save(`${safeFilename}.pdf`);
+    } finally {
+      document.body.removeChild(iframe);
+    }
+  };
+
+  const generateHrDocument = async (formData: FormData) => {
     const staff = staffData.find(s => s.id === hrDocStaffId);
     if (!staff) { showToast('Veuillez sélectionner un employé', 'error'); return; }
 
@@ -661,6 +754,7 @@ export default function RH() {
     const html = buildLetterheadHtml(companyInfo, window.location.origin, {
       title: `${title} - ${employeeName}`,
       bodyHtml,
+      autoPrint: false,
       extraStyles: `
         .hr-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
         .hr-table th { text-align: left; padding: 7px; border: 1px solid #eee; background: #f9f9f9; width: 40%; }
@@ -673,12 +767,36 @@ export default function RH() {
       `
     });
 
-    const printWindow = window.open('', '', 'width=800,height=900');
-    if (printWindow) {
-      printWindow.document.write(html);
-      printWindow.document.close();
+    setIsGeneratingHrDoc(true);
+    try {
+      await generateAndStorePdf(html, {
+        staffId: staff.id,
+        staffName: employeeName,
+        docType: hrDocType,
+        title: `${title} - ${employeeName}`
+      });
+      showToast('Document enregistré et téléchargé');
+      setIsHrDocModalOpen(false);
+    } catch (error) {
+      console.error('Error generating HR document PDF', error);
+      showToast("Erreur lors de la génération du PDF — réessayez", 'error');
+    } finally {
+      setIsGeneratingHrDoc(false);
     }
-    setIsHrDocModalOpen(false);
+  };
+
+  const handleDeleteHrDoc = async (docData: any) => {
+    if (!window.confirm(`Supprimer "${docData.title}" de l'historique des documents ?`)) return;
+    try {
+      if (docData.storagePath) {
+        await deleteObject(ref(storage, docData.storagePath)).catch((e) => console.warn('Storage deletion error:', e));
+      }
+      await deleteDoc(doc(db, 'hr_documents', docData.id));
+      showToast('Document supprimé');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la suppression', 'error');
+    }
   };
 
   // Demandes de congé — distinctes des absences (non planifiées, déduites du salaire) :
@@ -1106,7 +1224,7 @@ export default function RH() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{HR_DOC_LABELS[type]}</p>
-                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et imprimer</p>
+                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et générer</p>
                   </div>
                 </button>
               ))}
@@ -1132,10 +1250,53 @@ export default function RH() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{HR_DOC_LABELS[type]}</p>
-                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et imprimer</p>
+                    <p className="text-xs text-gray-400 mt-1">Sélectionner un employé et générer</p>
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Documents générés</h3>
+            <p className="text-sm text-gray-500 mb-4">Chaque document généré ci-dessus est automatiquement enregistré ici (PDF réel dans l'application), en plus du téléchargement local — plus besoin de dépendre de la boîte d'impression du navigateur.</p>
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="p-4 font-medium text-gray-600">Document</th>
+                      <th className="p-4 font-medium text-gray-600">Type</th>
+                      <th className="p-4 font-medium text-gray-600">Généré le</th>
+                      <th className="p-4 font-medium text-gray-600 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {hrGeneratedDocs.slice(0, 30).map((docItem) => (
+                      <tr key={docItem.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4 font-medium text-gray-900">{docItem.title}</td>
+                        <td className="p-4 text-gray-600">{HR_DOC_LABELS[docItem.type as keyof typeof HR_DOC_LABELS] || docItem.type}</td>
+                        <td className="p-4 text-gray-600">{docItem.createdAt?.toDate ? docItem.createdAt.toDate().toLocaleString('fr-FR') : '—'}</td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <a href={docItem.url} target="_blank" rel="noopener noreferrer" className="text-[#F4C75B] hover:text-[#E5B745] p-2 bg-amber-50 rounded-lg" title="Télécharger">
+                              <Download size={16} />
+                            </a>
+                            <button onClick={() => handleDeleteHrDoc(docItem)} className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg" title="Supprimer">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {hrGeneratedDocs.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-gray-500">Aucun document généré pour l'instant.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -1531,9 +1692,10 @@ export default function RH() {
                 )}
               </div>
               <div className="mt-8 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsHrDocModalOpen(false)} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors">Annuler</button>
-                <button type="submit" className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2">
-                  <Printer size={16} /> Générer & Imprimer
+                <button type="button" onClick={() => setIsHrDocModalOpen(false)} disabled={isGeneratingHrDoc} className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50">Annuler</button>
+                <button type="submit" disabled={isGeneratingHrDoc} className="px-5 py-2 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                  {isGeneratingHrDoc ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  {isGeneratingHrDoc ? 'Génération du PDF...' : 'Générer & Enregistrer'}
                 </button>
               </div>
             </form>

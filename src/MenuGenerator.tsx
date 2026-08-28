@@ -11,6 +11,7 @@ import { parseAmount } from './lib/revenueUtils';
 import { getVideoEmbedUrl } from './lib/videoUtils';
 import { slugify } from './lib/slug';
 import DishIngredientsModal from './components/DishIngredientsModal';
+import PdfDocumentFlipbook from './components/PdfDocumentFlipbook';
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -626,6 +627,13 @@ if (isPrintView) {
           </div>
         );
       })}
+
+      <PdfDocumentFlipbook
+        documentName="MENU BOISSON.pdf"
+        title="Menu Boissons"
+        subtitle="Carte des boissons"
+        coverSubtitle="Menu Boissons"
+      />
 
       {/* Modal Ajout / Édition */}
       {isAddModalOpen && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2, SplitSquareHorizontal, Download, FileDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2, SplitSquareHorizontal, Download, FileDown, Settings, X } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -87,16 +87,18 @@ const ROLE_FILTER_OPTIONS: { color: Shift['colorType']; label: string }[] = [
   { color: 'green', label: 'Polyvalent' },
 ];
 
-// Raccourcis "shift type" pour saisie en un clic
-const SHIFT_PRESETS: { label: string; startTime: string; endTime: string }[] = [
+// Raccourcis "shift type" par défaut — utilisés uniquement pour amorcer la collection Firestore
+// `planning_presets` la toute première fois (elle est vide). Ensuite, les raccourcis affichés
+// viennent exclusivement de Firestore : le gérant peut les modifier librement (ajout/édition/
+// suppression) via "Gérer les raccourcis", ils ne sont plus figés dans le code.
+const DEFAULT_SHIFT_PRESETS: { label: string; startTime: string; endTime: string }[] = [
   { label: 'Matin', startTime: '09:00', endTime: '17:00' },
   { label: 'Service Midi', startTime: '11:00', endTime: '15:00' },
   { label: 'Service Soir', startTime: '18:00', endTime: '23:00' },
   { label: 'Journée', startTime: '09:00', endTime: '22:00' },
 ];
 
-// Raccourcis pour les horaires coupés (ex. service du matin, puis reprise l'après-midi)
-const SPLIT_SHIFT_PRESETS: { label: string; morning: { startTime: string; endTime: string }; afternoon: { startTime: string; endTime: string } }[] = [
+const DEFAULT_SPLIT_SHIFT_PRESETS: { label: string; morning: { startTime: string; endTime: string }; afternoon: { startTime: string; endTime: string } }[] = [
   { label: 'Coupure Midi/Soir', morning: { startTime: '09:00', endTime: '13:00' }, afternoon: { startTime: '16:00', endTime: '20:00' } },
   { label: 'Coupure Service', morning: { startTime: '11:00', endTime: '15:00' }, afternoon: { startTime: '18:00', endTime: '23:00' } },
 ];
@@ -178,21 +180,32 @@ const downloadHtmlAsPdf = async (html: string, filename: string) => {
 };
 
 // Bascule "Horaire normal" / "Horaire spécial (coupure)" réutilisée dans les 2 modales de création de shift.
-function ShiftModeToggle({ mode, onChange }: { mode: 'normal' | 'split'; onChange: (m: 'normal' | 'split') => void }) {
+function ShiftModeToggle({ mode, onChange, onManagePresets }: { mode: 'normal' | 'split'; onChange: (m: 'normal' | 'split') => void; onManagePresets?: () => void }) {
   return (
-    <div className="flex bg-gray-50 border border-gray-200 rounded-lg p-1 mb-4">
-      <button
-        type="button"
-        onClick={() => onChange('normal')}
-        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'normal' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-        Horaire normal
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('split')}
-        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1 ${mode === 'split' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-        <SplitSquareHorizontal size={12} /> Horaire spécial (coupure)
-      </button>
+    <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+        <button
+          type="button"
+          onClick={() => onChange('normal')}
+          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${mode === 'normal' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          Horaire normal
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange('split')}
+          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1 ${mode === 'split' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          <SplitSquareHorizontal size={12} /> Horaire spécial (coupure)
+        </button>
+      </div>
+      {onManagePresets && (
+        <button
+          type="button"
+          onClick={onManagePresets}
+          title="Gérer les raccourcis horaires"
+          className="shrink-0 p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+          <Settings size={14} />
+        </button>
+      )}
     </div>
   );
 }
@@ -215,6 +228,71 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     return () => { unsubGeneral(); unsubWebsite(); };
   }, []);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Raccourcis horaires (normaux et coupure) — entièrement gérés par le gérant (ajout/édition/
+  // suppression) via "Gérer les raccourcis", stockés dans Firestore plutôt que figés dans le
+  // code. On amorce la collection avec les valeurs par défaut si elle n'a jamais été utilisée.
+  const [presets, setPresets] = useState<any[]>([]);
+  const [presetsLoaded, setPresetsLoaded] = useState(false);
+  const hasSeededPresets = useRef(false);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'planning_presets'), (snapshot) => {
+      setPresets(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+      setPresetsLoaded(true);
+    }, (error) => console.error('Error fetching planning_presets', error));
+    return () => unsub();
+  }, []);
+  useEffect(() => {
+    if (!presetsLoaded || hasSeededPresets.current || presets.length > 0) return;
+    hasSeededPresets.current = true;
+    (async () => {
+      try {
+        for (const p of DEFAULT_SHIFT_PRESETS) {
+          await addDoc(collection(db, 'planning_presets'), { kind: 'normal', label: p.label, startTime: p.startTime, endTime: p.endTime, createdAt: serverTimestamp() });
+        }
+        for (const p of DEFAULT_SPLIT_SHIFT_PRESETS) {
+          await addDoc(collection(db, 'planning_presets'), { kind: 'split', label: p.label, morningStart: p.morning.startTime, morningEnd: p.morning.endTime, afternoonStart: p.afternoon.startTime, afternoonEnd: p.afternoon.endTime, createdAt: serverTimestamp() });
+        }
+      } catch (e) {
+        console.error('Error seeding planning_presets', e);
+      }
+    })();
+  }, [presetsLoaded, presets.length]);
+
+  const normalPresets = presets.filter(p => p.kind === 'normal');
+  const splitPresets = presets.filter(p => p.kind === 'split');
+
+  const [isPresetManagerOpen, setIsPresetManagerOpen] = useState(false);
+  const addPreset = async (kind: 'normal' | 'split') => {
+    try {
+      if (kind === 'normal') {
+        await addDoc(collection(db, 'planning_presets'), { kind: 'normal', label: 'Nouveau raccourci', startTime: '09:00', endTime: '17:00', createdAt: serverTimestamp() });
+      } else {
+        await addDoc(collection(db, 'planning_presets'), { kind: 'split', label: 'Nouvelle coupure', morningStart: '09:00', morningEnd: '13:00', afternoonStart: '16:00', afternoonEnd: '20:00', createdAt: serverTimestamp() });
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'ajout du raccourci", 'error');
+    }
+  };
+  const updatePreset = async (id: string, patch: Record<string, string>) => {
+    try {
+      await updateDoc(doc(db, 'planning_presets', id), patch);
+    } catch (e) {
+      console.error(e);
+      showToast('Erreur lors de la modification du raccourci', 'error');
+    }
+  };
+  const deletePreset = async (id: string) => {
+    if (!window.confirm('Supprimer ce raccourci ?')) return;
+    try {
+      await deleteDoc(doc(db, 'planning_presets', id));
+    } catch (e) {
+      console.error(e);
+      showToast('Erreur lors de la suppression du raccourci', 'error');
+    }
+  };
+
   const [genericShiftMode, setGenericShiftMode] = useState<'normal' | 'split'>('normal');
   const genericMorningStartRef = useRef<HTMLInputElement>(null);
   const genericMorningEndRef = useRef<HTMLInputElement>(null);
@@ -1121,7 +1199,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             </div>
 
             <div className="px-6 pt-4">
-              <ShiftModeToggle mode={shiftMode} onChange={setShiftMode} />
+              <ShiftModeToggle mode={shiftMode} onChange={setShiftMode} onManagePresets={() => setIsPresetManagerOpen(true)} />
 
               {shiftMode === 'normal' ? (
                 <>
@@ -1129,9 +1207,12 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                     <Zap size={12} /> Raccourcis — un clic pour ajouter
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {SHIFT_PRESETS.map(preset => (
+                    {normalPresets.length === 0 && (
+                      <p className="col-span-2 text-xs text-gray-400 italic">Aucun raccourci — cliquez sur l'icône ⚙ pour en ajouter.</p>
+                    )}
+                    {normalPresets.map(preset => (
                       <button
-                        key={preset.label}
+                        key={preset.id}
                         type="button"
                         onClick={() => quickAddShift(preset)}
                         className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
@@ -1147,14 +1228,17 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                     <Zap size={12} /> Raccourcis coupure — un clic pour ajouter les 2 segments
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    {SPLIT_SHIFT_PRESETS.map(preset => (
+                    {splitPresets.length === 0 && (
+                      <p className="text-xs text-gray-400 italic">Aucun raccourci — cliquez sur l'icône ⚙ pour en ajouter.</p>
+                    )}
+                    {splitPresets.map(preset => (
                       <button
-                        key={preset.label}
+                        key={preset.id}
                         type="button"
-                        onClick={() => quickAddSplitShift(preset)}
+                        onClick={() => quickAddSplitShift({ morning: { startTime: preset.morningStart, endTime: preset.morningEnd }, afternoon: { startTime: preset.afternoonStart, endTime: preset.afternoonEnd } })}
                         className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
                         <span className="block font-semibold">{preset.label}</span>
-                        <span className="text-gray-500">{preset.morning.startTime}-{preset.morning.endTime} puis {preset.afternoon.startTime}-{preset.afternoon.endTime}</span>
+                        <span className="text-gray-500">{preset.morningStart}-{preset.morningEnd} puis {preset.afternoonStart}-{preset.afternoonEnd}</span>
                       </button>
                     ))}
                   </div>
@@ -1267,7 +1351,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                 <input type="date" name="date" defaultValue={weekDays[0].dateStr} required className="w-full p-2 border border-gray-200 rounded-lg focus:border-[#F4C75B] outline-none" />
               </div>
 
-              <ShiftModeToggle mode={genericShiftMode} onChange={setGenericShiftMode} />
+              <ShiftModeToggle mode={genericShiftMode} onChange={setGenericShiftMode} onManagePresets={() => setIsPresetManagerOpen(true)} />
 
               {genericShiftMode === 'normal' ? (
                 <>
@@ -1276,9 +1360,12 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                       <Zap size={12} /> Raccourcis horaires
                     </label>
                     <div className="grid grid-cols-2 gap-2">
-                      {SHIFT_PRESETS.map(preset => (
+                      {normalPresets.length === 0 && (
+                        <p className="col-span-2 text-xs text-gray-400 italic">Aucun raccourci — cliquez sur l'icône ⚙ pour en ajouter.</p>
+                      )}
+                      {normalPresets.map(preset => (
                         <button
-                          key={preset.label}
+                          key={preset.id}
                           type="button"
                           onClick={() => {
                             if (genericStartRef.current) genericStartRef.current.value = preset.startTime;
@@ -1310,19 +1397,22 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                       <Zap size={12} /> Raccourcis coupure
                     </label>
                     <div className="grid grid-cols-1 gap-2">
-                      {SPLIT_SHIFT_PRESETS.map(preset => (
+                      {splitPresets.length === 0 && (
+                        <p className="text-xs text-gray-400 italic">Aucun raccourci — cliquez sur l'icône ⚙ pour en ajouter.</p>
+                      )}
+                      {splitPresets.map(preset => (
                         <button
-                          key={preset.label}
+                          key={preset.id}
                           type="button"
                           onClick={() => {
-                            if (genericMorningStartRef.current) genericMorningStartRef.current.value = preset.morning.startTime;
-                            if (genericMorningEndRef.current) genericMorningEndRef.current.value = preset.morning.endTime;
-                            if (genericAfternoonStartRef.current) genericAfternoonStartRef.current.value = preset.afternoon.startTime;
-                            if (genericAfternoonEndRef.current) genericAfternoonEndRef.current.value = preset.afternoon.endTime;
+                            if (genericMorningStartRef.current) genericMorningStartRef.current.value = preset.morningStart;
+                            if (genericMorningEndRef.current) genericMorningEndRef.current.value = preset.morningEnd;
+                            if (genericAfternoonStartRef.current) genericAfternoonStartRef.current.value = preset.afternoonStart;
+                            if (genericAfternoonEndRef.current) genericAfternoonEndRef.current.value = preset.afternoonEnd;
                           }}
                           className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-[#F4C75B]/20 hover:border-[#F4C75B] transition-colors text-left">
                           <span className="block font-semibold">{preset.label}</span>
-                          <span className="text-gray-500">{preset.morning.startTime}-{preset.morning.endTime} puis {preset.afternoon.startTime}-{preset.afternoon.endTime}</span>
+                          <span className="text-gray-500">{preset.morningStart}-{preset.morningEnd} puis {preset.afternoonStart}-{preset.afternoonEnd}</span>
                         </button>
                       ))}
                     </div>
@@ -1533,6 +1623,107 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPresetManagerOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div>
+                <h3 className="font-semibold text-gray-900">Gérer les raccourcis horaires</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Modifiez librement les raccourcis proposés à la création d'un shift.</p>
+              </div>
+              <button onClick={() => setIsPresetManagerOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Horaire normal</p>
+                  <button type="button" onClick={() => addPreset('normal')} className="text-xs font-medium text-[#F4C75B] hover:text-[#C89845] flex items-center gap-1">
+                    <Plus size={14} /> Ajouter
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {normalPresets.length === 0 && <p className="text-xs text-gray-400 italic">Aucun raccourci.</p>}
+                  {normalPresets.map(preset => (
+                    <div key={preset.id} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg">
+                      <input
+                        type="text"
+                        defaultValue={preset.label}
+                        onBlur={(e) => e.target.value.trim() && e.target.value !== preset.label && updatePreset(preset.id, { label: e.target.value.trim() })}
+                        className="flex-1 min-w-0 text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]"
+                      />
+                      <input
+                        type="time"
+                        defaultValue={preset.startTime}
+                        onBlur={(e) => e.target.value !== preset.startTime && updatePreset(preset.id, { startTime: e.target.value })}
+                        className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]"
+                      />
+                      <span className="text-gray-400 text-xs">→</span>
+                      <input
+                        type="time"
+                        defaultValue={preset.endTime}
+                        onBlur={(e) => e.target.value !== preset.endTime && updatePreset(preset.id, { endTime: e.target.value })}
+                        className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]"
+                      />
+                      <button type="button" onClick={() => deletePreset(preset.id)} className="shrink-0 p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Horaire spécial (coupure)</p>
+                  <button type="button" onClick={() => addPreset('split')} className="text-xs font-medium text-[#F4C75B] hover:text-[#C89845] flex items-center gap-1">
+                    <Plus size={14} /> Ajouter
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {splitPresets.length === 0 && <p className="text-xs text-gray-400 italic">Aucun raccourci.</p>}
+                  {splitPresets.map(preset => (
+                    <div key={preset.id} className="p-2 border border-gray-200 rounded-lg space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          defaultValue={preset.label}
+                          onBlur={(e) => e.target.value.trim() && e.target.value !== preset.label && updatePreset(preset.id, { label: e.target.value.trim() })}
+                          className="flex-1 min-w-0 text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]"
+                        />
+                        <button type="button" onClick={() => deletePreset(preset.id)} className="shrink-0 p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-400 w-14 shrink-0">Matin</span>
+                        <input type="time" defaultValue={preset.morningStart} onBlur={(e) => e.target.value !== preset.morningStart && updatePreset(preset.id, { morningStart: e.target.value })} className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]" />
+                        <span className="text-gray-400">→</span>
+                        <input type="time" defaultValue={preset.morningEnd} onBlur={(e) => e.target.value !== preset.morningEnd && updatePreset(preset.id, { morningEnd: e.target.value })} className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]" />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-400 w-14 shrink-0">Après-midi</span>
+                        <input type="time" defaultValue={preset.afternoonStart} onBlur={(e) => e.target.value !== preset.afternoonStart && updatePreset(preset.id, { afternoonStart: e.target.value })} className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]" />
+                        <span className="text-gray-400">→</span>
+                        <input type="time" defaultValue={preset.afternoonEnd} onBlur={(e) => e.target.value !== preset.afternoonEnd && updatePreset(preset.id, { afternoonEnd: e.target.value })} className="text-sm border border-gray-200 rounded-md p-1.5 focus:outline-none focus:border-[#F4C75B]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button onClick={() => setIsPresetManagerOpen(false)} className="px-4 py-2 bg-[#1A1A1A] text-white rounded-lg text-sm font-medium hover:bg-black">
+                Fermer
+              </button>
             </div>
           </div>
         </div>

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2, SplitSquareHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Filter, MoreHorizontal, User as UserIcon, Loader2, Clock, CheckCircle2, Copy, Zap, History, Trash2, SplitSquareHorizontal, Download, FileDown } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from '../lib/letterhead';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
 
 interface Employee {
   id: string;
@@ -56,6 +59,17 @@ const getInitials = (name: string) => {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 };
 
+// Styles du tableau pour les exports PDF du planning (semaine complète / par employé).
+const PLANNING_TABLE_STYLES = `
+  .pl-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+  .pl-table th, .pl-table td { border: 1px solid #eee; padding: 8px; text-align: center; vertical-align: top; }
+  .pl-table th { background: #f9f9f9; font-weight: bold; }
+  .pl-table td:first-child, .pl-table th:first-child { text-align: left; width: 160px; }
+  .pl-emp { font-weight: bold; color: #1a1a1a; }
+  .pl-role { font-size: 10px; color: #888; }
+  .pl-off { color: #bbb; font-style: italic; }
+`;
+
 const COLOR_MAP = {
   blue: 'bg-blue-50 text-blue-600 border-blue-100',
   orange: 'bg-orange-50 text-orange-600 border-orange-100',
@@ -106,6 +120,63 @@ const computeHours = (startTime: string, endTime: string) => {
   return Math.round(hours * 100) / 100;
 };
 
+// Rend le HTML imprimable (papier en-tête + tableau) dans un iframe caché, le capture en image
+// et assemble un PDF A4 téléchargé localement — pour que le gérant puisse imprimer ou partager
+// (WhatsApp, email...) le planning sans dépendre du dialogue d'impression du navigateur.
+const downloadHtmlAsPdf = async (html: string, filename: string) => {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-99999px';
+  iframe.style.top = '0';
+  iframe.style.width = '1000px';
+  iframe.style.height = '700px';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+
+  try {
+    const idoc = iframe.contentDocument;
+    if (!idoc) throw new Error('iframe indisponible');
+    const loadPromise = new Promise<void>((resolve) => { iframe.onload = () => resolve(); });
+    idoc.open();
+    idoc.write(html);
+    idoc.close();
+    await Promise.race([loadPromise, new Promise<void>((resolve) => setTimeout(resolve, 3000))]);
+
+    const images = Array.from(idoc.images);
+    await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); })));
+    await new Promise((res) => setTimeout(res, 200));
+
+    const bodyEl = idoc.body;
+    const dataUrl = await toPng(bodyEl, {
+      quality: 0.95,
+      backgroundColor: '#ffffff',
+      pixelRatio: 2,
+      width: bodyEl.scrollWidth,
+      height: bodyEl.scrollHeight
+    });
+
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pdfHeight = (bodyEl.scrollHeight * pdfWidth) / bodyEl.scrollWidth;
+
+    let heightLeft = pdfHeight;
+    let position = 0;
+    pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft >= 0) {
+      position = heightLeft - pdfHeight;
+      pdf.addPage();
+      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`${filename.replace(/[\\/:*?"<>|]/g, '-')}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
+};
+
 // Bascule "Horaire normal" / "Horaire spécial (coupure)" réutilisée dans les 2 modales de création de shift.
 function ShiftModeToggle({ mode, onChange }: { mode: 'normal' | 'split'; onChange: (m: 'normal' | 'split') => void }) {
   return (
@@ -130,6 +201,20 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   const { showToast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenericModalOpen, setIsGenericModalOpen] = useState(false);
+
+  // Coordonnées de l'établissement pour l'en-tête des exports PDF du planning (même source que
+  // les autres documents imprimés — Configuration > Général).
+  const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
+  useEffect(() => {
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev: any) => mergeCompanyInfo(prev, snap.data()));
+    }, (error) => console.error('Error fetching company settings', error));
+    const unsubWebsite = onSnapshot(doc(db, 'settings', 'website'), (snap) => {
+      if (snap.exists() && snap.data().url) setCompanyInfo((prev: any) => ({ ...prev, website: snap.data().url }));
+    }, (error) => console.error('Error fetching website settings', error));
+    return () => { unsubGeneral(); unsubWebsite(); };
+  }, []);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [genericShiftMode, setGenericShiftMode] = useState<'normal' | 'split'>('normal');
   const genericMorningStartRef = useRef<HTMLInputElement>(null);
   const genericMorningEndRef = useRef<HTMLInputElement>(null);
@@ -420,6 +505,86 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     return shifts
       .filter(s => s.employeeId === empId && weekDays.some(d => d.dateStr === s.date))
       .reduce((acc, curr) => acc + curr.hours, 0);
+  };
+
+  // Export PDF du planning — pour que le gérant puisse imprimer/partager (WhatsApp, email...)
+  // avec l'équipe, faute de portail employé dans l'application.
+  const exportTeamWeekPdf = async () => {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+    try {
+      const bodyHtml = `
+        <h2 style="text-align:center;">PLANNING DE LA SEMAINE</h2>
+        <p style="text-align:center; color:#666;">Du ${weekDays[0].dateStr} au ${weekDays[6].dateStr}</p>
+        <table class="pl-table">
+          <thead>
+            <tr><th>Employé</th>${weekDays.map(d => `<th>${d.dayName} ${d.dayNum}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${visibleEmployees.map(emp => `
+              <tr>
+                <td><span class="pl-emp">${emp.name}</span><br/><span class="pl-role">${emp.role}</span></td>
+                ${weekDays.map(day => {
+                  const dayShifts = getShiftsForCell(emp.id, day.dateStr);
+                  if (dayShifts.length === 0) return '<td><span class="pl-off">Repos</span></td>';
+                  return `<td>${dayShifts.map(s => `<div>${s.startTime}-${s.endTime}${s.scheduleType === 'split' ? ' <i>(coupure)</i>' : ''}</div>`).join('')}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      const html = buildLetterheadHtml(companyInfo, window.location.origin, {
+        title: `Planning semaine du ${weekDays[0].dateStr}`,
+        bodyHtml,
+        autoPrint: false,
+        extraStyles: PLANNING_TABLE_STYLES
+      });
+      await downloadHtmlAsPdf(html, `Planning - Semaine du ${weekDays[0].dateStr}`);
+      showToast('Planning exporté en PDF');
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'export PDF", 'error');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const exportEmployeeWeekPdf = async (emp: Employee) => {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+    try {
+      const bodyHtml = `
+        <h2 style="text-align:center;">PLANNING — ${emp.name}</h2>
+        <p style="text-align:center; color:#666;">${emp.role} · Semaine du ${weekDays[0].dateStr} au ${weekDays[6].dateStr}</p>
+        <table class="pl-table">
+          <thead><tr><th>Jour</th><th>Date</th><th>Horaire</th></tr></thead>
+          <tbody>
+            ${weekDays.map(day => {
+              const dayShifts = getShiftsForCell(emp.id, day.dateStr);
+              const cell = dayShifts.length === 0
+                ? '<span class="pl-off">Repos</span>'
+                : dayShifts.map(s => `${s.startTime}-${s.endTime}${s.scheduleType === 'split' ? ' (coupure)' : ''}`).join(' / ');
+              return `<tr><td>${day.dayName}</td><td>${day.dateStr}</td><td>${cell}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <p style="margin-top:20px; font-size:12px; color:#666;">Total prévu cette semaine : <strong>${calculateTotalHours(emp.id)}h</strong> (contrat : ${emp.contractHours}h).</p>
+      `;
+      const html = buildLetterheadHtml(companyInfo, window.location.origin, {
+        title: `Planning ${emp.name} - Semaine du ${weekDays[0].dateStr}`,
+        bodyHtml,
+        autoPrint: false,
+        extraStyles: PLANNING_TABLE_STYLES
+      });
+      await downloadHtmlAsPdf(html, `Planning ${emp.name} - Semaine du ${weekDays[0].dateStr}`);
+      showToast(`Planning de ${emp.name} exporté en PDF`);
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'export PDF", 'error');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handleCellClick = (empId: string | null, dateStr: string) => {
@@ -801,6 +966,14 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
             <History size={16} /> Historique
           </button>
           <button
+            onClick={exportTeamWeekPdf}
+            disabled={isExportingPdf}
+            title="Exporter le planning de la semaine en PDF, à imprimer ou partager avec l'équipe"
+            className="px-4 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-100 flex items-center gap-2 transition-colors disabled:opacity-50">
+            {isExportingPdf ? <Loader2 size={16} className="animate-spin" /> : <FileDown size={16} />}
+            {isExportingPdf ? "Export..." : "Exporter PDF"}
+          </button>
+          <button
             onClick={handleIAPlanning}
             disabled={isGenerating}
             className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm font-medium hover:bg-emerald-100 flex items-center gap-2 transition-colors disabled:opacity-50">
@@ -880,8 +1053,16 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
                   <p className="text-sm font-medium text-gray-900 truncate">{emp.name}</p>
                   <p className="text-xs text-gray-500">{calculateTotalHours(emp.id)}h / {emp.contractHours}h</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); exportEmployeeWeekPdf(emp); }}
+                  disabled={isExportingPdf}
+                  title={`Exporter le planning de ${emp.name} en PDF (à imprimer ou lui partager)`}
+                  className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40">
+                  <Download size={15} />
+                </button>
               </div>
-              
+
               {weekDays.map((day, idx) => (
                 <div 
                   key={idx} 

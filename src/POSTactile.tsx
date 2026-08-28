@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X, PauseCircle, MessageSquare, Send } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
-import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
-import { TVA_RATES } from './lib/tva';
 import Combobox from './components/Combobox';
 
 const CATEGORIES = [
@@ -53,12 +51,6 @@ const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
           <span>-{ticket.discountAmount.toFixed(2)} MAD</span>
         </div>
       )}
-      {ticket.tax !== undefined && (
-        <div className="flex justify-between text-sm text-gray-500 mt-1">
-          <span>TVA ({ticket.taxRate}%)</span>
-          <span>{ticket.tax.toFixed(2)} MAD</span>
-        </div>
-      )}
       <div className="flex justify-between items-center text-lg font-bold mt-2 pt-2 border-t border-dashed border-gray-200">
         <span>TOTAL</span>
         <span>{ticket.total.toFixed(2)} MAD</span>
@@ -94,6 +86,96 @@ const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
   </>
 );
 
+// Ouvre une fenêtre dédiée et lance l'impression — même mécanisme fiable que le Rapport X/Z
+// (buildShiftReportHtml) et les documents RH/factures. Remplace l'ancien portail caché
+// (#printable-ticket) + CSS `:has()`, qui n'imprimait pas de façon fiable sur imprimante
+// thermique réelle et pouvait sortir une page blanche.
+const printHtmlDocument = (html: string) => {
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
+};
+
+// Ticket client (paiement) — 80mm, sans ligne TVA (retirée du ticket à la demande du gérant).
+const buildCustomerTicketHtml = (ticket: any): string => {
+  const num = (v: any) => Number(v || 0).toFixed(2);
+  return `
+    <html>
+      <head>
+        <title>Ticket ${ticket.id}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', monospace; color: #1a1a1a; margin: 0; padding: 4mm; width: 72mm; }
+          h2 { text-align: center; font-size: 16px; margin: 0 0 4px; }
+          .sub { text-align: center; font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+          .meta { text-align: center; font-size: 11px; color: #444; margin: 8px 0 12px; }
+          .row { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+          .bold { font-weight: bold; }
+          hr { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+          .footer { text-align: center; font-size: 10px; color: #888; margin-top: 16px; }
+        </style>
+      </head>
+      <body>
+        <h2>MOUDA PALACE</h2>
+        <div class="sub">Restaurant - Lounge - Rooftop</div>
+        <div class="meta">Ticket : ${ticket.id}<br/>${ticket.date} à ${ticket.time}</div>
+        <hr/>
+        ${ticket.items.map((item: any) => `<div class="row"><span>${getLineQuantity(item)}x ${item.name}</span><span>${num(getLineTotal(item))} MAD</span></div>`).join('')}
+        <hr/>
+        ${ticket.subtotal !== undefined ? `<div class="row"><span>Sous-total</span><span>${num(ticket.subtotal)} MAD</span></div>` : ''}
+        ${ticket.discountPercent > 0 ? `<div class="row"><span>Remise (${ticket.discountPercent}%)</span><span>-${num(ticket.discountAmount)} MAD</span></div>` : ''}
+        <div class="row bold" style="font-size:14px; margin-top:6px;"><span>TOTAL</span><span>${num(ticket.total)} MAD</span></div>
+        <div class="row" style="margin-top:6px;"><span>Paiement</span><span>${ticket.method}</span></div>
+        ${ticket.cashReceived !== undefined ? `
+        <div class="row"><span>Reçu</span><span>${num(ticket.cashReceived)} MAD</span></div>
+        <div class="row bold"><span>Monnaie</span><span>${num(ticket.changeDue)} MAD</span></div>` : ''}
+        ${ticket.paymentBreakdown ? `
+        <hr/>
+        <div class="row"><span>Part espèces</span><span>${num(ticket.paymentBreakdown.cash)} MAD</span></div>
+        <div class="row"><span>Part carte</span><span>${num(ticket.paymentBreakdown.card)} MAD</span></div>` : ''}
+        <div class="footer">Merci de votre visite !<br/>À très bientôt chez Mouda Palace</div>
+        <script>window.onload = () => { window.print(); };</script>
+      </body>
+    </html>
+  `;
+};
+
+// Ticket cuisine — pas de prix ni TVA, juste ce qu'il faut préparer. `waveLabel` distingue
+// l'envoi initial d'un envoi "à suivre" ultérieur (plat par plat) pour la même commande.
+const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; time: string; items: any[] }): string => {
+  return `
+    <html>
+      <head>
+        <title>Cuisine - ${data.tableLabel}</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', monospace; color: #000; margin: 0; padding: 4mm; width: 72mm; }
+          h2 { text-align: center; font-size: 18px; margin: 0 0 6px; }
+          .table { text-align: center; font-size: 16px; font-weight: bold; margin: 4px 0; }
+          .meta { text-align: center; font-size: 11px; color: #333; margin-bottom: 10px; }
+          .item { font-size: 15px; font-weight: bold; margin: 6px 0; }
+          .mods { font-size: 11px; color: #333; margin: 0 0 4px 12px; }
+          hr { border: none; border-top: 2px dashed #000; margin: 8px 0; }
+        </style>
+      </head>
+      <body>
+        <h2>CUISINE</h2>
+        <div class="table">${data.tableLabel}</div>
+        <div class="meta">${data.waveLabel} — ${data.time}</div>
+        <hr/>
+        ${data.items.map(item => `
+          <div class="item">${getLineQuantity(item)}x ${item.name}</div>
+          ${item.modifiers && Object.values(item.modifiers).some(Boolean) ? `<div class="mods">${[item.modifiers.cooking, item.modifiers.extra, item.modifiers.note].filter(Boolean).join(' · ')}</div>` : ''}
+        `).join('')}
+        <hr/>
+        <script>window.onload = () => { window.print(); };</script>
+      </body>
+    </html>
+  `;
+};
+
 const formatDateTime = (value: any): string => {
   const d = value?.toDate ? value.toDate() : value instanceof Date ? value : null;
   return d ? d.toLocaleString('fr-FR') : '—';
@@ -105,15 +187,16 @@ const ShiftReportBody = ({ report }: { report: any }) => {
     <>
       <div className="text-center mb-6 border-b border-dashed border-gray-300 pb-4">
         <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
-        <p className="text-xs text-gray-500 uppercase tracking-wider">Rapport {isZ ? 'Z — Clôture de caisse' : 'X — État intermédiaire'}</p>
+        <p className="text-xs text-gray-500 uppercase tracking-wider">Rapport {isZ ? 'Z — Clôture de caisse' : 'X — État complet de la journée'}</p>
         <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p>Caisse : {report.id}</p>
+          <p>{isZ ? `Caisse : ${report.id}` : report.id}</p>
           <p>Généré le {formatDateTime(report.generatedAt)}</p>
         </div>
       </div>
 
       <div className="space-y-1 text-sm mb-4">
-        <div className="flex justify-between"><span>Ouverture</span><span>{formatDateTime(report.openedAt)}</span></div>
+        {report.shiftsCount !== undefined && <div className="flex justify-between"><span>Caisses ouvertes ce jour</span><span>{report.shiftsCount}</span></div>}
+        <div className="flex justify-between"><span>Première ouverture</span><span>{formatDateTime(report.openedAt)}</span></div>
         <div className="flex justify-between"><span>Ouvert par</span><span>{report.openedBy || '—'}</span></div>
         <div className="flex justify-between"><span>Fond de caisse initial</span><span>{Number(report.openingCash || 0).toFixed(2)} MAD</span></div>
         {isZ && <div className="flex justify-between"><span>Fermé par</span><span>{report.closedBy || '—'}</span></div>}
@@ -168,10 +251,11 @@ const buildShiftReportHtml = (report: any): string => {
       </head>
       <body>
         <h2>MOUDA PALACE</h2>
-        <div class="sub">Rapport ${isZ ? 'Z — Clôture de caisse' : 'X — État intermédiaire'}</div>
-        <div class="meta">Caisse : ${report.id}<br/>Généré le ${fmt(report.generatedAt)}</div>
+        <div class="sub">Rapport ${isZ ? 'Z — Clôture de caisse' : 'X — État complet de la journée'}</div>
+        <div class="meta">${isZ ? `Caisse : ${report.id}` : report.id}<br/>Généré le ${fmt(report.generatedAt)}</div>
         <hr/>
-        <div class="row"><span>Ouverture</span><span>${fmt(report.openedAt)}</span></div>
+        ${report.shiftsCount !== undefined ? `<div class="row"><span>Caisses ouvertes ce jour</span><span>${report.shiftsCount}</span></div>` : ''}
+        <div class="row"><span>Première ouverture</span><span>${fmt(report.openedAt)}</span></div>
         <div class="row"><span>Ouvert par</span><span>${report.openedBy || '—'}</span></div>
         <div class="row"><span>Fond de caisse initial</span><span>${num(report.openingCash)} MAD</span></div>
         ${isZ ? `<div class="row"><span>Fermé par</span><span>${report.closedBy || '—'}</span></div>` : ''}
@@ -211,7 +295,6 @@ export default function POSTactile() {
     setDiscountPercent(0);
     setDiscountReason('');
     setDiscountApprovedBy(null);
-    setTaxRate(10);
     setKitchenSent(false);
     setKitchenOrderId(null);
     setKitchenTableId(null);
@@ -235,18 +318,11 @@ export default function POSTactile() {
   const [isPhotoGalleryOpen, setIsPhotoGalleryOpen] = useState(false);
   const [ticketToPrint, setTicketToPrint] = useState<any>(null);
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
-  const [activeCartTab, setActiveCartTab] = useState<'cart' | 'kitchen' | 'suspended' | 'messages'>('cart');
-  const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
-  const [suspendedTickets, setSuspendedTickets] = useState<any[]>([]);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [kitchenSent, setKitchenSent] = useState(false);
   const [kitchenOrderId, setKitchenOrderId] = useState<string | null>(null);
   const [kitchenTableId, setKitchenTableId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [posMessages, setPosMessages] = useState<any[]>([]);
-  const [messageText, setMessageText] = useState('');
-  const [messageTarget, setMessageTarget] = useState('Cuisine');
-  const [messagePriority, setMessagePriority] = useState('Normale');
   const [isTransferringTable, setIsTransferringTable] = useState(false);
   const [isCashPaymentOpen, setIsCashPaymentOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState('');
@@ -267,7 +343,10 @@ export default function POSTactile() {
   const [discountApprovedBy, setDiscountApprovedBy] = useState<{ name: string; empId: string } | null>(null);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
-  const [taxRate, setTaxRate] = useState<number>(10);
+  // TVA retirée du ticket à la demande du gérant — les prix menu sont le montant final facturé.
+  // Le champ est conservé (toujours à 0) pour ne pas casser la forme des documents déjà écrits
+  // en base (factures, tickets) ni le calcul de remboursement des anciens tickets (taxRate > 0).
+  const taxRate = 0;
   const [isCancelOrderModalOpen, setIsCancelOrderModalOpen] = useState(false);
   const [cancelOrderReason, setCancelOrderReason] = useState('');
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
@@ -300,23 +379,6 @@ export default function POSTactile() {
     }, error => console.error('Recent receipts error:', error));
     return () => unsub();
   }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'productionTasks'), (snapshot) => {
-      setKitchenOrders(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'pos_suspended_tickets')), (snapshot) => {
-      setSuspendedTickets(snapshot.docs.map(ticket => ({ ...ticket.data(), id: ticket.id })));
-    }, error => {
-      console.error('Suspended tickets error:', error);
-      showToast('Impossible de charger les tickets en attente', 'error');
-    });
-    return () => unsub();
-  }, [showToast]);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'pos_shifts')), snapshot => {
@@ -385,129 +447,46 @@ export default function POSTactile() {
     }
   };
 
-  useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'pos_messages')), (snapshot) => {
-      setPosMessages(snapshot.docs.map(message => ({ ...message.data(), id: message.id })));
-    }, error => {
-      console.error('POS messages error:', error);
-      showToast('Impossible de charger les messages POS', 'error');
-    });
-    return () => unsub();
-  }, [showToast]);
-
-  const sendPosMessage = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const text = messageText.trim();
-    if (!text) return;
+  // Rapport X = état complet de la caisse pour toute la journée (toutes les sessions/caisses
+  // ouvertes aujourd'hui, pas seulement celle en cours), à la demande du gérant — contrairement
+  // au Rapport Z qui reste propre à UNE caisse (celle qu'on clôture, avec son propre comptage).
+  const [isBuildingXReport, setIsBuildingXReport] = useState(false);
+  const buildDailyXReport = async () => {
+    setIsBuildingXReport(true);
     try {
-      await addDoc(collection(db, 'pos_messages'), {
-        text,
-        target: messageTarget,
-        priority: messagePriority,
-        tableId: selectedTable || null,
-        tableLabel: getTableLabel(selectedTable),
-        orderId: kitchenOrderId || null,
-        source: 'POS',
-        read: false,
-        createdAt: serverTimestamp()
-      });
-      setMessageText('');
-      showToast('Message envoyé');
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const snap = await getDocs(query(collection(db, 'pos_shifts'), where('openedAt', '>=', Timestamp.fromDate(startOfDay))));
+      const shiftsToday: any[] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      const sum = (key: string) => shiftsToday.reduce((s, sh: any) => s + (Number(sh[key]) || 0), 0);
+      const earliest = shiftsToday.reduce((min: any, sh: any) =>
+        (!min || (sh.openedAt?.seconds || 0) < (min.openedAt?.seconds || 0)) ? sh : min, null);
+
+      const report = {
+        id: `Journée du ${new Date().toLocaleDateString('fr-FR')}`,
+        type: 'X',
+        generatedAt: new Date(),
+        shiftsCount: shiftsToday.length,
+        openedAt: earliest?.openedAt || null,
+        openedBy: shiftsToday.length > 1 ? `${shiftsToday.length} caisses` : (earliest?.openedBy || '—'),
+        openingCash: sum('openingCash'),
+        cashSales: sum('cashSales'),
+        cardSales: sum('cardSales'),
+        totalSales: sum('totalSales'),
+        paymentCount: sum('paymentCount'),
+        refundCount: sum('refundCount'),
+        expectedCash: sum('expectedCash')
+      };
+      setShiftReportToPrint(report);
+      setIsShiftReportModalOpen(true);
     } catch (error) {
       console.error(error);
-      showToast("Erreur lors de l'envoi du message", 'error');
+      showToast('Erreur lors de la génération du rapport X', 'error');
+    } finally {
+      setIsBuildingXReport(false);
     }
   };
 
-  const markPosMessageRead = async (messageId: string) => {
-    try {
-      await updateDoc(doc(db, 'pos_messages', messageId), { read: true, readAt: serverTimestamp() });
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-    const suspendTicket = async () => {
-      if (cart.length === 0) {
-        showToast('Le ticket est vide.', 'error');
-        return;
-      }
-
-      try {
-        await addDoc(collection(db, 'pos_suspended_tickets'), {
-          tableId: selectedTable || null,
-          tableLabel: getTableLabel(selectedTable),
-          items: cart.map(item => ({
-            id: item.id,
-            name: item.name || 'Inconnu',
-            qty: getLineQuantity(item),
-            numPrice: getLineUnitPrice(item),
-            price: item.price || `${getLineUnitPrice(item)} MAD`,
-            category: item.category || 'Autres',
-            imageUrl: item.imageUrl || '',
-            modifiers: item.modifiers || null
-          })),
-          subtotal: discountedSubtotal,
-          tax,
-          taxRate,
-          total,
-          discountPercent,
-          discountAmount,
-          discountReason: discountReason.trim(),
-          discountApprovedBy: discountApprovedBy || null,
-          createdAt: serverTimestamp(),
-          status: 'En attente'
-        });
-        setCart([]);
-        setSelectedTable(null);
-        setDiscountPercent(0);
-        setDiscountReason('');
-        setDiscountApprovedBy(null);
-        setTaxRate(10);
-        setKitchenSent(false);
-        setKitchenOrderId(null);
-        setKitchenTableId(null);
-        showToast('Ticket mis en attente');
-      } catch (error) {
-        console.error(error);
-        showToast('Erreur lors de la mise en attente', 'error');
-      }
-    };
-
-    const recallTicket = async (ticket: any) => {
-      if (cart.length > 0 && !window.confirm('Le ticket actuel sera remplacé. Continuer ?')) return;
-
-      try {
-        setCart(ticket.items || []);
-        setSelectedTable(ticket.tableId || null);
-        setDiscountPercent(Number(ticket.discountPercent) || 0);
-        setDiscountReason(ticket.discountReason || '');
-        setDiscountApprovedBy(ticket.discountApprovedBy || null);
-        setTaxRate(Number(ticket.taxRate) || 10);
-        setKitchenSent(false);
-        setKitchenOrderId(null);
-        setKitchenTableId(null);
-        await deleteDoc(doc(db, 'pos_suspended_tickets', ticket.id));
-        setActiveCartTab('cart');
-        showToast('Ticket rappelé');
-      } catch (error) {
-        console.error(error);
-        showToast('Erreur lors du rappel du ticket', 'error');
-      }
-    };
-
-    const deleteSuspendedTicket = async (ticketId: string) => {
-      if (!window.confirm('Supprimer ce ticket en attente ?')) return;
-      try {
-        await deleteDoc(doc(db, 'pos_suspended_tickets', ticketId));
-        showToast('Ticket supprimé');
-      } catch (error) {
-        console.error(error);
-        showToast('Erreur lors de la suppression', 'error');
-      }
-    };
-  
-  
   const handleNameChange = (val: string) => {
     setNewItemName(val);
     const matchedRecette = recettes.find(r => r.nom === val);
@@ -550,13 +529,6 @@ export default function POSTactile() {
         tableLabel: newLabel,
         updatedAt: serverTimestamp()
       });
-      kitchenOrders
-        .filter(task => task.orderId === kitchenOrderId)
-        .forEach(task => batch.update(doc(db, 'productionTasks', task.id), {
-          tableId: targetTable,
-          tableLabel: newLabel,
-          updatedAt: serverTimestamp()
-        }));
       await batch.commit();
       await occupyTable(targetTable, tableCovers);
       await releaseTableIfNoOpenOrders(previousTable);
@@ -831,10 +803,10 @@ export default function POSTactile() {
     return menuItems.filter(item => item.category === activeCategory);
   })();
 
+  // Ajouter/modifier un article déjà envoyé en cuisine ne réinitialise plus toute la commande
+  // (kitchenOrderId) — seul cet article repasse à `sentToKitchen: false`, pour être repris dans
+  // le prochain envoi ("Envoyer en Cuisine" / "à suivre") sans dupliquer la commande en base.
   const addToCart = (item: any, modifiers: { cooking?: string; extra?: string; note?: string } = {}) => {
-    setKitchenSent(false);
-    setKitchenOrderId(null);
-    setKitchenTableId(null);
     const cooking = modifiers.cooking || '';
     const extra = modifiers.extra || '';
     const note = modifiers.note?.trim() || '';
@@ -843,7 +815,7 @@ export default function POSTactile() {
     setCart(prev => {
       const existing = prev.find(i => i.id === lineId);
       if (existing) {
-        return prev.map(i => i.id === lineId ? { ...i, qty: i.qty + 1 } : i);
+        return prev.map(i => i.id === lineId ? { ...i, qty: i.qty + 1, sentToKitchen: false } : i);
       }
       return [...prev, { ...item, id: lineId, baseItemId: item.id, qty: 1, modifiers: { cooking, extra, note } }];
     });
@@ -863,18 +835,22 @@ export default function POSTactile() {
   };
 
   const updateQty = (id: string, delta: number) => {
-    setKitchenSent(false);
-    setKitchenOrderId(null);
-    setKitchenTableId(null);
     setCart(prev => {
       return prev.map(item => {
         if (item.id === id) {
           const newQty = item.qty + delta;
-          return { ...item, qty: newQty };
+          return { ...item, qty: newQty, sentToKitchen: false };
         }
         return item;
       }).filter(item => item.qty > 0);
     });
+  };
+
+  // Bascule "À suivre" : un plat marqué ainsi n'est pas inclus dans le prochain envoi cuisine —
+  // il permet d'envoyer une commande plat par plat plutôt que d'une seule traite. Retirer la
+  // marque (ou cliquer de nouveau "Envoyer en Cuisine") l'inclut dans l'envoi suivant.
+  const toggleHoldForLater = (id: string) => {
+    setCart(prev => prev.map(item => item.id === id ? { ...item, heldForLater: !item.heldForLater } : item));
   };
 
   const subtotal = calculatePosSubtotal(cart);
@@ -920,9 +896,6 @@ export default function POSTactile() {
         cancelReason: cancelOrderReason.trim(),
         updatedAt: serverTimestamp()
       });
-      kitchenOrders
-        .filter(task => task.orderId === kitchenOrderId)
-        .forEach(task => batch.delete(doc(db, 'productionTasks', task.id)));
       const auditRef = doc(collection(db, 'pos_audit_logs'));
       batch.set(auditRef, {
         action: 'order_cancelled',
@@ -938,7 +911,6 @@ export default function POSTactile() {
       setDiscountPercent(0);
       setDiscountReason('');
       setDiscountApprovedBy(null);
-      setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -1242,76 +1214,83 @@ export default function POSTactile() {
     }
   };
 
+  // Articles pas encore partis en cuisine : ni déjà envoyés, ni marqués "à suivre". Un envoi
+  // n'imprime et ne transmet que cette liste — ce qui permet un envoi en plusieurs vagues
+  // (plat par plat) plutôt qu'une commande d'une seule traite.
+  const itemsPendingSend = cart.filter(item => !item.heldForLater && !item.sentToKitchen);
+
   const handleSendKitchen = async () => {
     if (cart.length === 0) {
       showToast("Le ticket est vide.", "error");
       return;
     }
-    if (kitchenSent) {
-      showToast("Cette commande est déjà envoyée en cuisine.", "error");
+    if (itemsPendingSend.length === 0) {
+      showToast("Rien de nouveau à envoyer — retirez « À suivre » sur un plat pour l'envoyer.", "error");
       return;
     }
-    
-    try {
-      showToast("Envoi en cuisine...", "success");
-      const orderId = createPosOrderId();
-      const orderRef = doc(db, 'orders', orderId);
-      
-      await runTransaction(db, async (transaction) => {
-        transaction.set(orderRef, {
-          orderId,
-          tableId: selectedTable || null,
-          tableLabel: getTableLabel(selectedTable),
-          lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
-          subtotal: discountedSubtotal,
-          tax,
-          taxRate,
-          total,
-          discountPercent,
-          discountAmount,
-          status: 'En cuisine',
-          paymentStatus: 'Non payée',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          source: 'POS'
-        });
 
-        cart.forEach((item, index) => {
-          const taskRef = doc(db, 'productionTasks', `${orderId}-${index}`);
-          transaction.set(taskRef, {
+    try {
+      const isFirstWave = !kitchenSent;
+      const orderId = isFirstWave ? createPosOrderId() : (kitchenOrderId as string);
+      const orderRef = doc(db, 'orders', orderId);
+      const now = new Date();
+      const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const sentNow = new Set(itemsPendingSend.map(item => item.id));
+      const allLines = cart.map(item => ({
+        name: item.name || 'Inconnu',
+        qty: getLineQuantity(item),
+        unitPrice: getLineUnitPrice(item),
+        modifiers: item.modifiers || null,
+        sentToKitchen: item.sentToKitchen || sentNow.has(item.id)
+      }));
+
+      await runTransaction(db, async (transaction) => {
+        if (isFirstWave) {
+          transaction.set(orderRef, {
             orderId,
             tableId: selectedTable || null,
             tableLabel: getTableLabel(selectedTable),
-            item: item.name || 'Inconnu',
-            category: item.category || 'Autres',
-            modifiers: item.modifiers || null,
-            qty: getLineQuantity(item),
-            status: 'À faire',
-            progress: 0,
+            lines: allLines,
+            subtotal: discountedSubtotal,
+            tax,
+            taxRate,
+            total,
+            discountPercent,
+            discountAmount,
+            status: 'En cuisine',
+            paymentStatus: 'Non payée',
             createdAt: serverTimestamp(),
-            source: 'POS',
-            priority: 'Haute'
+            updatedAt: serverTimestamp(),
+            source: 'POS'
           });
-        });
+        } else {
+          transaction.update(orderRef, {
+            lines: allLines,
+            subtotal: discountedSubtotal,
+            tax,
+            taxRate,
+            total,
+            discountPercent,
+            discountAmount,
+            updatedAt: serverTimestamp()
+          });
+        }
       });
 
       setKitchenSent(true);
       setKitchenOrderId(orderId);
       setKitchenTableId(selectedTable);
       await occupyTable(selectedTable, tableCovers);
-      showToast("Commande envoyée en cuisine !", "success");
-      const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-      const now = new Date();
-      setTicketToPrint({
-        id: orderId,
-        date: today,
-        time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        items: [...cart],
-        total: total,
-        method: "Envoi Cuisine"
-      });
-      setIsTicketModalOpen(true);
-      
+      setCart(prev => prev.map(item => sentNow.has(item.id) ? { ...item, sentToKitchen: true } : item));
+
+      printHtmlDocument(buildKitchenTicketHtml({
+        tableLabel: getTableLabel(selectedTable, true),
+        waveLabel: isFirstWave ? 'Commande' : 'À suivre',
+        time,
+        items: itemsPendingSend
+      }));
+
+      showToast(isFirstWave ? "Commande envoyée en cuisine !" : "Suite envoyée en cuisine !", "success");
     } catch (e: any) {
       console.error(e);
       showToast("Erreur lors de l'envoi en cuisine", "error");
@@ -1480,26 +1459,6 @@ export default function POSTactile() {
           source: 'POS'
         }, { merge: true });
 
-        if (!kitchenSent) {
-          cart.forEach((item, index) => {
-            const taskRef = doc(db, 'productionTasks', `${orderId}-${index}`);
-            transaction.set(taskRef, {
-              orderId,
-              tableId: kitchenTableId || selectedTable || null,
-              tableLabel: getTableLabel(kitchenTableId || selectedTable),
-              item: item.name || 'Inconnu',
-              category: item.category || 'Autres',
-              modifiers: item.modifiers || null,
-              qty: getLineQuantity(item),
-              status: 'À faire',
-              progress: 0,
-              createdAt: serverTimestamp(),
-              source: 'POS',
-              priority: 'Haute'
-            });
-          });
-        }
-
         if (discountPercent > 0) {
           const auditRef = doc(collection(db, 'pos_audit_logs'));
           transaction.set(auditRef, {
@@ -1518,6 +1477,17 @@ export default function POSTactile() {
       });
 
       await releaseTableIfNoOpenOrders(kitchenTableId || selectedTable);
+
+      // Paiement direct sans passage préalable par "Envoyer en Cuisine" (ex: vente comptoir
+      // rapide) : la cuisine doit quand même recevoir un ticket pour ce qui n'a jamais été envoyé.
+      if (itemsPendingSend.length > 0) {
+        printHtmlDocument(buildKitchenTicketHtml({
+          tableLabel: getTableLabel(kitchenTableId || selectedTable, true),
+          waveLabel: 'Commande (payée directement)',
+          time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          items: itemsPendingSend
+        }));
+      }
 
       setTicketToPrint({
         id: displayId,
@@ -1540,7 +1510,6 @@ export default function POSTactile() {
       setDiscountPercent(0);
       setDiscountReason('');
       setDiscountApprovedBy(null);
-      setTaxRate(10);
       setKitchenSent(false);
       setKitchenOrderId(null);
       setKitchenTableId(null);
@@ -1602,6 +1571,15 @@ export default function POSTactile() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setIsTableModalOpen(true)}
+                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+                  title="Voir l'état des tables"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  {tables.filter(t => t.status === 'occupee').length} occupée{tables.filter(t => t.status === 'occupee').length > 1 ? 's' : ''} / {tables.length}
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setRefundTicketId('');
                     setRefundReason('');
@@ -1614,19 +1592,15 @@ export default function POSTactile() {
                 >
                   Rembourser
                 </button>
-                {activeShift && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShiftReportToPrint({ ...activeShift, type: 'X', generatedAt: new Date() });
-                      setIsShiftReportModalOpen(true);
-                    }}
-                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
-                    title="Rapport intermédiaire de caisse (X)"
-                  >
-                    Rapport X
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={buildDailyXReport}
+                  disabled={isBuildingXReport}
+                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50"
+                  title="État complet des mouvements de caisse et du chiffre d'affaires de la journée"
+                >
+                  {isBuildingXReport ? '...' : 'Rapport X'}
+                </button>
                 <div className="relative flex-1 md:w-72">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 
@@ -1751,46 +1725,6 @@ export default function POSTactile() {
         {/* Right Side - Ticket / Cart Area */}
         <div className="w-full lg:w-[480px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
 
-          <div className="flex gap-2 p-3 bg-gray-50 border-b border-gray-200">
-            <button
-              onClick={() => setActiveCartTab('cart')}
-              className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all duration-150 ${activeCartTab === 'cart' ? 'bg-[#1A1A1A] text-white shadow-[0_4px_0_0_#000000]' : 'bg-[#3D3D3D] text-white/90 shadow-[0_4px_0_0_#141414] hover:brightness-110'} active:shadow-none active:translate-y-1`}
-            >
-              Ticket Actuel
-            </button>
-            <button
-              onClick={() => setActiveCartTab('kitchen')}
-              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-150 ${activeCartTab === 'kitchen' ? 'bg-orange-500 text-white shadow-[0_4px_0_0_#c2410c]' : 'bg-orange-400 text-white shadow-[0_4px_0_0_#c2410c] hover:brightness-110'} active:shadow-none active:translate-y-1`}
-            >
-              Cuisine (KDS)
-              {kitchenOrders.filter(o => o.status !== 'Terminé').length > 0 && (
-                <span className="bg-white text-orange-600 text-[10px] px-1.5 py-0.5 rounded-full font-black">
-                  {kitchenOrders.filter(o => o.status !== 'Terminé').length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveCartTab('suspended')}
-              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 transition-all duration-150 ${activeCartTab === 'suspended' ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#B8912E]' : 'bg-[#F7D583] text-[#1A1A1A] shadow-[0_4px_0_0_#B8912E] hover:brightness-105'} active:shadow-none active:translate-y-1`}
-            >
-              <PauseCircle size={15} /> En attente
-              {suspendedTickets.length > 0 && (
-                <span className="bg-[#1A1A1A] text-[#F4C75B] text-[10px] px-1.5 py-0.5 rounded-full font-black">{suspendedTickets.length}</span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveCartTab('messages')}
-              className={`flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-1 transition-all duration-150 ${activeCartTab === 'messages' ? 'bg-blue-500 text-white shadow-[0_4px_0_0_#1d4ed8]' : 'bg-blue-400 text-white shadow-[0_4px_0_0_#1d4ed8] hover:brightness-110'} active:shadow-none active:translate-y-1`}
-            >
-              <MessageSquare size={15} /> Messages
-              {posMessages.filter(message => !message.read && message.target === 'POS').length > 0 && (
-                <span className="bg-white text-blue-600 text-[10px] px-1.5 py-0.5 rounded-full font-black">{posMessages.filter(message => !message.read && message.target === 'POS').length}</span>
-              )}
-            </button>
-          </div>
-          
-          {activeCartTab === 'cart' ? (
-          <>
           {/* Ticket Header */}
           <div className="p-6 bg-white flex justify-between items-center border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -1842,6 +1776,16 @@ export default function POSTactile() {
               >
                 <User size={16} />
                 {selectedTable ? getTableLabel(selectedTable) : "Table"}
+                {selectedTable && selectedTable !== 'À emporter' && (() => {
+                  const t = tables.find(tb => tb.fbId === selectedTable);
+                  const status = t?.status;
+                  return (
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${status === 'occupee' ? 'bg-red-500' : status === 'reservee' ? 'bg-orange-400' : 'bg-green-500'}`}
+                      title={status === 'occupee' ? 'Table occupée' : status === 'reservee' ? 'Table réservée' : 'Table libre'}
+                    />
+                  );
+                })()}
               </button>
             </div>
           </div>
@@ -1862,33 +1806,53 @@ export default function POSTactile() {
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -20, scale: 0.9 }}
                     key={item.id}
-                    className="flex justify-between items-center bg-white p-4 mb-2 rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50"
+                    className="bg-white p-4 mb-2 rounded-2xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-50"
                   >
-                    <div className="flex-1 pr-3">
-                      <h4 className="font-bold text-[#1A1A1A] leading-tight text-[15px] mb-1 line-clamp-2">{item.name}</h4>
-                      {item.modifiers && Object.values(item.modifiers).some(Boolean) && (
-                        <p className="text-[11px] text-gray-500 mb-1 line-clamp-2">
-                          {[item.modifiers.cooking, item.modifiers.extra, item.modifiers.note].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                      <div className="text-[#F4C75B] font-black text-sm">{item.numPrice * item.qty} MAD</div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 pr-3">
+                        <h4 className="font-bold text-[#1A1A1A] leading-tight text-[15px] mb-1 line-clamp-2">{item.name}</h4>
+                        {item.modifiers && Object.values(item.modifiers).some(Boolean) && (
+                          <p className="text-[11px] text-gray-500 mb-1 line-clamp-2">
+                            {[item.modifiers.cooking, item.modifiers.extra, item.modifiers.note].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        <div className="text-[#F4C75B] font-black text-sm">{item.numPrice * item.qty} MAD</div>
+                      </div>
+
+                      <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1 shadow-inner">
+                        <button
+                          onClick={() => updateQty(item.id, -1)}
+                          className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-[0_2px_5px_rgba(0,0,0,0.05)] text-gray-600 hover:text-red-500 transition-colors active:scale-90"
+                        >
+                          {item.qty === 1 ? <Trash2 size={16} /> : <Minus size={16} />}
+                        </button>
+                        <span className="w-6 text-center font-bold text-[#1A1A1A]">{item.qty}</span>
+                        <button
+                          onClick={() => updateQty(item.id, 1)}
+                          className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-[0_2px_5px_rgba(0,0,0,0.05)] text-gray-600 hover:text-green-500 transition-colors active:scale-90"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1 shadow-inner">
-                      <button 
-                        onClick={() => updateQty(item.id, -1)}
-                        className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-[0_2px_5px_rgba(0,0,0,0.05)] text-gray-600 hover:text-red-500 transition-colors active:scale-90"
+
+                    {item.sentToKitchen ? (
+                      <div className="mt-2 pt-2 border-t border-gray-50 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                        ✓ Envoyé en cuisine
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => toggleHoldForLater(item.id)}
+                        className={`mt-2 pt-2 border-t border-gray-50 w-full text-left text-[11px] font-bold flex items-center gap-1.5 ${item.heldForLater ? 'text-amber-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        title="Ne pas envoyer ce plat avec le reste — l'envoyer plus tard séparément"
                       >
-                        {item.qty === 1 ? <Trash2 size={16} /> : <Minus size={16} />}
+                        <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${item.heldForLater ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
+                          {item.heldForLater && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </span>
+                        À suivre {item.heldForLater ? '(retenu)' : ''}
                       </button>
-                      <span className="w-6 text-center font-bold text-[#1A1A1A]">{item.qty}</span>
-                      <button 
-                        onClick={() => updateQty(item.id, 1)}
-                        className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-[0_2px_5px_rgba(0,0,0,0.05)] text-gray-600 hover:text-green-500 transition-colors active:scale-90"
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -1908,41 +1872,19 @@ export default function POSTactile() {
                   <span>-{discountAmount.toFixed(2)} MAD</span>
                 </div>
               )}
-              <div className="flex justify-between items-center text-gray-500 font-medium">
-                <span className="flex items-center gap-1.5">
-                  TVA
-                  <select
-                    value={taxRate}
-                    onChange={(event) => setTaxRate(Number(event.target.value))}
-                    disabled={isProcessingPayment}
-                    className="text-xs font-bold border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white text-gray-700 focus:outline-none focus:border-[#F4C75B]"
-                  >
-                    {TVA_RATES.map(rate => <option key={rate} value={rate}>{rate}%</option>)}
-                  </select>
-                </span>
-                <span>{tax.toFixed(2)} MAD</span>
-              </div>
               <div className="flex justify-between items-end pt-4 border-t border-gray-100">
                 <span className="text-gray-900 font-bold">Total</span>
                 <span className="text-[#1A1A1A] font-black text-3xl tracking-tight">{total.toFixed(2)} <span className="text-lg text-gray-500">MAD</span></span>
               </div>
             </div>
 
-            <button 
-              onClick={suspendTicket}
-              disabled={cart.length === 0 || isProcessingPayment}
-              className="w-full py-3 mb-3 bg-amber-50 text-amber-800 border border-amber-200 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              <PauseCircle size={19} /> Mettre en attente
-            </button>
-
             <button
               onClick={handleSendKitchen}
-              disabled={kitchenSent || isProcessingPayment}
+              disabled={itemsPendingSend.length === 0 || isProcessingPayment}
               className="w-full py-4 bg-gray-100 text-gray-800 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[inset_0_-2px_0_rgba(0,0,0,0.1)] active:translate-y-0.5 active:shadow-none mb-3"
             >
               <Utensils size={20} />
-              Envoyer en Cuisine
+              {kitchenSent ? `Envoyer la suite (${itemsPendingSend.length})` : 'Envoyer en Cuisine'}
             </button>
             
             <div className="grid grid-cols-2 gap-3">
@@ -1978,113 +1920,6 @@ export default function POSTactile() {
               Paiement mixte espèces + carte
             </button>
           </div>
-          </>
-          ) : activeCartTab === 'kitchen' ? (
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-            {kitchenOrders.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                <Utensils size={48} className="mb-4 opacity-50" />
-                <p>Aucune commande en cuisine</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {kitchenOrders.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 50).map(order => (
-                  <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        {order.orderId || 'CMD-???'}
-                      </span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded ${
-                        order.status === 'À faire' ? 'bg-red-50 text-red-600' :
-                        order.status === 'En cours' ? 'bg-blue-50 text-blue-600' :
-                        'bg-green-50 text-green-600'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="bg-gray-100 font-bold px-2 py-0.5 rounded text-sm">
-                        {order.qty}x
-                      </div>
-                      <div className="font-bold text-gray-900 line-clamp-1 text-sm">
-                        {order.item}
-                      </div>
-                    </div>
-                    {order.status === 'Terminé' && (
-                      <div className="mt-2 text-right">
-                        <button 
-                          onClick={() => {
-                            // Automatically remove or let it be
-                            deleteDoc(doc(db, 'productionTasks', order.id));
-                          }}
-                          className="text-xs text-gray-400 hover:text-red-500"
-                        >
-                          Retirer
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          ) : activeCartTab === 'suspended' ? (
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-              {suspendedTickets.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
-                  <PauseCircle size={48} className="opacity-40" />
-                  <p>Aucun ticket en attente</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {suspendedTickets.map(ticket => (
-                    <div key={ticket.id} className="bg-white rounded-2xl border border-amber-100 p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div>
-                          <p className="font-bold text-gray-900">{ticket.tableLabel || ticket.tableId || 'Comptoir'}</p>
-                          <p className="text-xs text-gray-400">{ticket.items?.length || 0} article(s)</p>
-                        </div>
-                        <span className="font-bold text-[#265C6D]">{Number(ticket.total || 0).toFixed(2)} MAD</span>
-                      </div>
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                        {(ticket.items || []).map((item: any) => `${item.qty}x ${item.name}`).join(', ')}
-                      </p>
-                      <div className="flex gap-2">
-                        <button onClick={() => recallTicket(ticket)} className="flex-1 py-2.5 rounded-xl bg-[#265C6D] text-white font-bold hover:bg-[#1d4a58]">Rappeler</button>
-                        <button onClick={() => deleteSuspendedTicket(ticket.id)} className="p-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100" title="Supprimer le ticket"><Trash2 size={18} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
-              <form onSubmit={sendPosMessage} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-900 font-bold"><MessageSquare size={19} className="text-[#265C6D]" /> Message entre services</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select value={messageTarget} onChange={(event) => setMessageTarget(event.target.value)} className="p-2.5 rounded-xl border border-gray-200 text-sm">
-                    <option>Cuisine</option><option>Salle</option><option>Direction</option><option>Stock</option><option>POS</option>
-                  </select>
-                  <select value={messagePriority} onChange={(event) => setMessagePriority(event.target.value)} className="p-2.5 rounded-xl border border-gray-200 text-sm">
-                    <option>Normale</option><option>Importante</option><option>Urgente</option>
-                  </select>
-                </div>
-                <textarea value={messageText} onChange={(event) => setMessageText(event.target.value)} rows={3} placeholder="Écrire un message..." className="w-full p-3 rounded-xl border border-gray-200 resize-none focus:outline-none focus:border-[#F4C75B]" />
-                <button type="submit" disabled={!messageText.trim()} className="w-full py-3 rounded-xl bg-[#265C6D] text-white font-bold flex items-center justify-center gap-2 disabled:opacity-40"><Send size={17} /> Envoyer</button>
-              </form>
-
-              <div className="space-y-2">
-                {posMessages.length === 0 ? <p className="text-center text-gray-400 py-8">Aucun message</p> : posMessages.slice().reverse().map(message => (
-                  <button key={message.id} type="button" onClick={() => !message.read && markPosMessageRead(message.id)} className={`w-full text-left bg-white rounded-xl border p-3 shadow-sm ${message.read ? 'border-gray-100' : 'border-[#F4C75B] bg-amber-50/30'}`}>
-                    <div className="flex justify-between gap-2 mb-1"><span className="font-bold text-sm text-[#265C6D]">{message.target}</span><span className={`text-[10px] font-bold uppercase ${message.priority === 'Urgente' ? 'text-red-600' : 'text-gray-400'}`}>{message.priority}</span></div>
-                    <p className="text-sm text-gray-700">{message.text}</p>
-                    {(message.tableId || message.orderId) && <p className="text-[11px] text-gray-400 mt-2">{message.tableLabel || message.tableId || ''}{message.orderId ? ` · ${message.orderId}` : ''}</p>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
       
@@ -2439,7 +2274,7 @@ export default function POSTactile() {
                 Fermer
               </button>
               <button
-                onClick={() => window.print()}
+                onClick={() => printHtmlDocument(buildCustomerTicketHtml(ticketToPrint))}
                 className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 <Receipt size={18} />
@@ -2448,13 +2283,6 @@ export default function POSTactile() {
             </div>
           </motion.div>
         </div>
-      )}
-
-      {ticketToPrint && typeof document !== 'undefined' && createPortal(
-        <div id="printable-ticket" className="hidden print:block bg-white p-4">
-          <TicketReceiptBody ticket={ticketToPrint} />
-        </div>,
-        document.body
       )}
 
       {/* Shift X/Z report modal */}
@@ -2484,13 +2312,7 @@ export default function POSTactile() {
                 Fermer
               </button>
               <button
-                onClick={() => {
-                  const w = window.open('', '_blank');
-                  if (w) {
-                    w.document.write(buildShiftReportHtml(shiftReportToPrint));
-                    w.document.close();
-                  }
-                }}
+                onClick={() => printHtmlDocument(buildShiftReportHtml(shiftReportToPrint))}
                 className="flex-1 py-2.5 bg-[#F4C75B] text-[#1A1A1A] font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
                 <Receipt size={18} />

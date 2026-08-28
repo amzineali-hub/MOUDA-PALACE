@@ -9,7 +9,7 @@ import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
 import { computeRecipeCost, computeIngredientCost } from './lib/recipeCost';
 
-export default function FichesTechniques() {
+export default function FichesTechniques({ initialFicheName, onConsumeInitialFiche }: { initialFicheName?: string | null; onConsumeInitialFiche?: () => void }) {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [ficheToDelete, setFicheToDelete] = useState<string | null>(null);
@@ -38,6 +38,21 @@ export default function FichesTechniques() {
     setEditingRecipe(recipe);
     setIsModalOpen(true);
   };
+
+  // Ouverture automatique quand on arrive depuis "Voir la fiche technique" (Menus digitaux /
+  // Flipbook) — recherche par nom car aucun id n'est transmis entre modules.
+  useEffect(() => {
+    if (!initialFicheName) return;
+    if (recipes.length === 0) return; // attendre le premier chargement Firestore avant de chercher
+    const match = recipes.find(r => (r.nom || r.name || '').trim().toLowerCase() === initialFicheName.trim().toLowerCase());
+    if (match) {
+      openEdit(match);
+    } else {
+      showToast(`Aucune fiche technique trouvée pour "${initialFicheName}"`, 'error');
+    }
+    onConsumeInitialFiche?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFicheName, recipes]);
 
   const handleDelete = (id: string) => {
     setFicheToDelete(id);

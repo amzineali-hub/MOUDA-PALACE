@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat } from 'lucide-react';
+import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat, ZoomIn, ClipboardList, PlayCircle, Video } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
@@ -8,11 +8,12 @@ import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateD
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { parseAmount } from './lib/revenueUtils';
+import { getVideoEmbedUrl } from './lib/videoUtils';
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
-export default function MenuGenerator() {
+export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName: string) => void } = {}) {
   const { showToast } = useToast();
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [recettes, setRecettes] = useState<any[]>([]);
@@ -25,6 +26,7 @@ export default function MenuGenerator() {
   const [dishToDelete, setDishToDelete] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [lightboxItem, setLightboxItem] = useState<any | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -32,6 +34,7 @@ export default function MenuGenerator() {
   const [price, setPrice] = useState('');
   const [desc, setDesc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
 
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
@@ -78,6 +81,12 @@ export default function MenuGenerator() {
     return result;
   }, [name, price, recettes, inventoryItems]);
 
+  // Un plat du menu a une fiche technique liée s'il existe une fiche du même nom — utilisé
+  // pour afficher le bouton "Voir la fiche technique" sur chaque plat (pas seulement celui en
+  // cours d'édition, contrairement à matchedRecipeCost ci-dessus).
+  const findFicheForDish = (dishName: string) =>
+    recettes.find(r => (r.nom || r.name || '').trim().toLowerCase() === (dishName || '').trim().toLowerCase());
+
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !price) {
@@ -92,6 +101,7 @@ export default function MenuGenerator() {
         price: price.includes('MAD') ? price : `${price} MAD`,
         desc,
         imageUrl: imageUrl || availableImages[0],
+        videoUrl: videoUrl.trim(),
         updatedAt: new Date()
       };
 
@@ -112,6 +122,7 @@ export default function MenuGenerator() {
       setPrice('');
       setDesc('');
       setImageUrl('');
+      setVideoUrl('');
       setIsAddModalOpen(false);
     } catch (error) {
       console.error(error);
@@ -126,6 +137,7 @@ export default function MenuGenerator() {
     setPrice(item.price.replace(' MAD', ''));
     setDesc(item.desc);
     setImageUrl(item.imageUrl);
+    setVideoUrl(item.videoUrl || '');
     setIsAddModalOpen(true);
   };
 
@@ -440,7 +452,7 @@ if (isPrintView) {
             <Printer size={20} />
             <span>Génération du Menu</span>
           </button>
-          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
+          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />
             <span>Ajouter un plat</span>
           </button>
@@ -464,13 +476,25 @@ if (isPrintView) {
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow"
                 >
-                  <div className="h-48 relative bg-gray-100">
+                  <div
+                    className="h-72 relative bg-gray-100 cursor-pointer group/img"
+                    onClick={() => setLightboxItem(item)}
+                    title="Agrandir"
+                  >
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                         <span className="text-gray-400">Aucune image</span>
                       </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center">
+                      <ZoomIn size={28} className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow" />
+                    </div>
+                    {item.videoUrl && (
+                      <span className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white p-1.5 rounded-full" title="Vidéo disponible">
+                        <PlayCircle size={18} />
+                      </span>
                     )}
                     <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-[#F4C75B] font-serif font-bold px-3 py-1 rounded-full text-sm">
                       {item.price}
@@ -479,6 +503,14 @@ if (isPrintView) {
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="font-serif font-semibold text-lg text-gray-900 mb-1">{item.name}</h3>
                     <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-2">{item.desc}</p>
+                    {findFicheForDish(item.name) && (
+                      <button
+                        onClick={() => onOpenFiche?.(item.name)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-[#265C6D] hover:underline mb-3 -mt-1"
+                      >
+                        <ClipboardList size={14} /> Voir la fiche technique
+                      </button>
+                    )}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
                       <span className="text-xs text-gray-400 font-medium tracking-wider uppercase">Mouda Palace Fès</span>
                       <div className="flex items-center gap-1">
@@ -617,8 +649,8 @@ if (isPrintView) {
                       ))}
                     </select>
                     
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="Ou coller une URL d'image existante"
@@ -626,6 +658,19 @@ if (isPrintView) {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                  <Video size={14} /> Vidéo (URL YouTube ou lien direct .mp4) — optionnel
+                </label>
+                <input
+                  type="text"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=... ou https://.../plat.mp4"
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] text-sm text-gray-700"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -660,6 +705,47 @@ if (isPrintView) {
               )}
             </form>
           </motion.div>
+        </div>
+      )}
+
+      {/* Lightbox — agrandissement de l'image/vidéo d'un plat, avec accès direct à sa fiche technique */}
+      {lightboxItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={() => setLightboxItem(null)}>
+          <button
+            onClick={() => setLightboxItem(null)}
+            className="absolute top-5 right-5 text-white/80 hover:text-white transition-colors"
+          >
+            <X size={28} />
+          </button>
+          <div className="max-w-4xl w-full max-h-[85vh] flex flex-col items-center gap-4" onClick={(e) => e.stopPropagation()}>
+            {lightboxItem.videoUrl ? (
+              getVideoEmbedUrl(lightboxItem.videoUrl) ? (
+                <iframe
+                  src={getVideoEmbedUrl(lightboxItem.videoUrl) as string}
+                  title={lightboxItem.name}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full aspect-video rounded-xl bg-black"
+                />
+              ) : (
+                <video src={lightboxItem.videoUrl} controls autoPlay className="w-full max-h-[65vh] rounded-xl bg-black" />
+              )
+            ) : lightboxItem.imageUrl ? (
+              <img src={lightboxItem.imageUrl} alt={lightboxItem.name} className="max-w-full max-h-[65vh] object-contain rounded-xl" referrerPolicy="no-referrer" />
+            ) : null}
+            <div className="text-center text-white">
+              <h3 className="text-xl font-serif font-semibold">{lightboxItem.name}</h3>
+              <p className="text-white/60 text-sm mt-1">{lightboxItem.desc}</p>
+              {findFicheForDish(lightboxItem.name) && (
+                <button
+                  onClick={() => { onOpenFiche?.(lightboxItem.name); setLightboxItem(null); }}
+                  className="mt-4 inline-flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors"
+                >
+                  <ClipboardList size={16} /> Voir la fiche technique
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

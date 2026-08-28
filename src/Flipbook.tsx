@@ -3,7 +3,8 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import HTMLFlipBook from 'react-pageflip';
 import * as pdfjsLib from 'pdfjs-dist';
-import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, UtensilsCrossed } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, UtensilsCrossed, ClipboardList, PlayCircle, X } from 'lucide-react';
+import { getVideoEmbedUrl } from './lib/videoUtils';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
@@ -39,9 +40,10 @@ const CategoryDividerPage = React.forwardRef<HTMLDivElement, { category: string 
   </div>
 ));
 
-const DishPage = React.forwardRef<HTMLDivElement, { item: any }>(({ item }, ref) => (
+const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean; onOpenFiche?: (dishName: string) => void; onPlayVideo?: (url: string) => void }>(
+  ({ item, hasFiche, onOpenFiche, onPlayVideo }, ref) => (
   <div ref={ref} className="w-full h-full bg-white flex flex-col border border-gray-100 overflow-hidden">
-    <div className="h-1/2 bg-gray-100 shrink-0">
+    <div className="h-1/2 bg-gray-100 shrink-0 relative">
       {item.imageUrl ? (
         <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
       ) : (
@@ -49,11 +51,32 @@ const DishPage = React.forwardRef<HTMLDivElement, { item: any }>(({ item }, ref)
           <UtensilsCrossed size={48} />
         </div>
       )}
+      {item.videoUrl && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onPlayVideo?.(item.videoUrl); }}
+          className="absolute top-2 left-2 bg-black/70 backdrop-blur-md text-white p-1.5 rounded-full hover:bg-black/90 transition-colors"
+          title="Voir la vidéo"
+        >
+          <PlayCircle size={18} />
+        </button>
+      )}
     </div>
     <div className="flex-1 p-5 flex flex-col">
       <span className="text-[10px] uppercase tracking-widest text-[#F4C75B] font-medium mb-1">{item.category}</span>
       <h3 className="text-lg font-serif text-gray-900 mb-2">{item.name}</h3>
       <p className="text-xs text-gray-500 leading-relaxed flex-1 overflow-hidden">{item.desc}</p>
+      {hasFiche && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onOpenFiche?.(item.name); }}
+          className="flex items-center gap-1.5 text-[11px] font-medium text-[#265C6D] hover:underline mt-1 self-start"
+        >
+          <ClipboardList size={12} /> Voir la fiche technique
+        </button>
+      )}
       <p className="text-right text-[#265C6D] font-serif font-semibold text-base mt-2">{item.price}</p>
     </div>
   </div>
@@ -207,15 +230,25 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
   );
 }
 
-export default function Flipbook() {
+export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: string) => void } = {}) {
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [recettes, setRecettes] = useState<any[]>([]);
   const [brochureUrl, setBrochureUrl] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const bookRef = useRef<any>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'menu_items'), orderBy('category')), (snapshot) => {
       setMenuItems(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Pour savoir quels plats ont une fiche technique liée (bouton "Voir la fiche technique").
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
+      setRecettes(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
     });
     return () => unsub();
   }, []);
@@ -236,11 +269,22 @@ export default function Flipbook() {
       const items = menuItems.filter(i => i.category === cat);
       if (items.length === 0) return;
       result.push(<CategoryDividerPage key={`div-${cat}`} category={cat} />);
-      items.forEach(item => result.push(<DishPage key={item.id} item={item} />));
+      items.forEach(item => {
+        const hasFiche = recettes.some(r => (r.nom || r.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
+        result.push(
+          <DishPage
+            key={item.id}
+            item={item}
+            hasFiche={hasFiche}
+            onOpenFiche={onOpenFiche}
+            onPlayVideo={setPlayingVideoUrl}
+          />
+        );
+      });
     });
     result.push(<BackCoverPage key="back" />);
     return result;
-  }, [menuItems]);
+  }, [menuItems, recettes, onOpenFiche]);
 
   const totalPages = pages.length;
 
@@ -342,6 +386,31 @@ export default function Flipbook() {
           </div>
         )}
       </section>
+
+      {/* Lecture vidéo d'un plat, déclenchée depuis le badge lecture sur sa page du flipbook */}
+      {playingVideoUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={() => setPlayingVideoUrl(null)}>
+          <button
+            onClick={() => setPlayingVideoUrl(null)}
+            className="absolute top-5 right-5 text-white/80 hover:text-white transition-colors"
+          >
+            <X size={28} />
+          </button>
+          <div className="max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            {getVideoEmbedUrl(playingVideoUrl) ? (
+              <iframe
+                src={getVideoEmbedUrl(playingVideoUrl) as string}
+                title="Vidéo du plat"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full aspect-video rounded-xl bg-black"
+              />
+            ) : (
+              <video src={playingVideoUrl} controls autoPlay className="w-full max-h-[75vh] rounded-xl bg-black" />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

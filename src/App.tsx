@@ -478,6 +478,10 @@ function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
+  // Lien "Voir la fiche technique" depuis Menus digitaux / Flipbook vers Fiches Techniques —
+  // le nom du plat est transmis via cet état le temps que l'onglet Fiches Techniques s'ouvre
+  // et l'auto-sélectionne, puis il est vidé pour ne pas se ré-ouvrir à chaque visite de l'onglet.
+  const [pendingFicheName, setPendingFicheName] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -634,6 +638,11 @@ function App() {
     }
   };
 
+  const openFicheFromDish = (dishName: string) => {
+    setPendingFicheName(dishName);
+    handleTabChange('recettes');
+  };
+
   const isFullScreenMode = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
 
   const isFullScreenView = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
@@ -651,9 +660,9 @@ function App() {
       case 'seo_analytics':
         return <SeoAnalyticsContainer />;
       case 'menu':
-        return <MenuGenerator />;
+        return <MenuGenerator onOpenFiche={openFicheFromDish} />;
       case 'flipbook':
-        return <Flipbook />;
+        return <Flipbook onOpenFiche={openFicheFromDish} />;
       case 'kds':
         return <EcranCuisine />;
       case 'inventory':
@@ -685,7 +694,7 @@ function App() {
       case 'catalogue_produits':
         return <CatalogueProduits />;
       case 'recettes':
-        return <FichesTechniques />;
+        return <FichesTechniques initialFicheName={pendingFicheName} onConsumeInitialFiche={() => setPendingFicheName(null)} />;
       case 'production_jour':
         return <ProductionJournaliere />;
       case 'dashboard':

@@ -5,20 +5,14 @@ import DishIngredientsCard from './components/DishIngredientsCard';
 
 // Page publique, sans connexion — accessible via une URL du type /plat/soupe-harira, destinée
 // à être partagée depuis le site WordPress (moudapalace.com). Elle ne lit QUE la collection
-// `public_dish_cards` (nom, photo, portions, ingrédients — jamais coûts/marges), publiée
-// volontairement par le gérant depuis Fiches Techniques. Rendue en dehors de AuthContext/
-// ToastContext : ce composant reste volontairement autonome et minimal.
-interface PublicIngredient {
-  name: string;
-  quantity?: string;
-  unit?: string;
-}
-
+// `public_dish_cards` (nom, photo, portions, ingrédients en texte libre — jamais coûts/marges),
+// publiée volontairement par le gérant depuis Fiches Techniques. Rendue en dehors de
+// AuthContext/ToastContext : ce composant reste volontairement autonome et minimal.
 interface PublicDishCardData {
   name: string;
   portions?: number;
   imageUrl?: string;
-  ingredients: PublicIngredient[];
+  ingredients: string[];
 }
 
 export default function PublicDishCard({ slug }: { slug: string }) {

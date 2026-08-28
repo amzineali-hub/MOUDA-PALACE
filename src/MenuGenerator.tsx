@@ -759,7 +759,7 @@ if (isPrintView) {
             name={ingredientsPreviewItem.name}
             portions={fiche?.portions}
             imageUrl={ingredientsPreviewItem.imageUrl}
-            ingredients={(fiche?.ingredients || []).map((i: any) => ({ name: i.nom, quantity: i.quantite, unit: i.unite }))}
+            ingredients={((fiche?.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
             onClose={() => setIngredientsPreviewItem(null)}
             onManage={() => { onOpenFiche?.(ingredientsPreviewItem.name); setIngredientsPreviewItem(null); }}
           />

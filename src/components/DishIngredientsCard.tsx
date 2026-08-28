@@ -1,16 +1,11 @@
 import React from 'react';
 import { Utensils } from 'lucide-react';
 
-// Contenu visuel "Ingrédients de la portion" — nom, portions, photo, liste d'ingrédients
-// (jamais de prix/coût). Réutilisé par la page publique (PublicDishCard) ET par l'aperçu
-// interne rapide depuis Menus digitaux / Flipbook, pour que les deux affichent exactement
-// la même chose plutôt que d'envoyer par erreur vers la fiche technique (coûts internes).
-export interface DishIngredient {
-  name: string;
-  quantity?: string | number;
-  unit?: string;
-}
-
+// Contenu visuel "Ingrédients de la portion" — nom, portions, photo, liste d'ingrédients en
+// texte libre (ex: "1 tomate moyenne, mixée ou râpée"), au format de la brochure imprimée —
+// jamais les quantités normalisées de la fiche technique (coûts/stock, ex: "0.2 kg Tomates").
+// Réutilisé par la page publique (PublicDishCard) ET par l'aperçu interne rapide depuis Menus
+// digitaux / Flipbook, pour que les deux affichent exactement la même chose.
 export default function DishIngredientsCard({
   name,
   portions,
@@ -20,7 +15,7 @@ export default function DishIngredientsCard({
   name: string;
   portions?: number;
   imageUrl?: string | null;
-  ingredients: DishIngredient[];
+  ingredients: string[];
 }) {
   const portionCount = portions || 1;
 
@@ -54,13 +49,10 @@ export default function DishIngredientsCard({
             <p className="text-sm text-gray-500">Aucun ingrédient renseigné.</p>
           ) : (
             <ul className="space-y-2 text-gray-800 text-sm">
-              {ingredients.map((ing, idx) => (
+              {ingredients.map((line, idx) => (
                 <li key={idx} className="flex gap-2">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-700 shrink-0" />
-                  <span>
-                    {[ing.quantity, ing.unit].filter(Boolean).join(' ')}{(ing.quantity || ing.unit) ? ' ' : ''}
-                    {ing.name}
-                  </span>
+                  <span>{line}</span>
                 </li>
               ))}
             </ul>

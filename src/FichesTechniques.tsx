@@ -209,6 +209,10 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   const [prixVente, setPrixVente] = useState(initialData?.prixVente || '');
   const [ingredients, setIngredients] = useState<any[]>(initialData?.ingredients || []);
   const [manualCoutMatiere, setManualCoutMatiere] = useState(initialData?.coutMatiere || '');
+  // Liste d'ingrédients en texte libre pour l'affichage public (site/brochure) — un ingrédient
+  // par ligne, rédigé en langage naturel (ex: "1 tomate moyenne, mixée ou râpée"), sans lien
+  // avec le tableau ci-dessous qui sert au calcul du coût matière (quantités normalisées kg/L).
+  const [ingredientsText, setIngredientsText] = useState(initialData?.ingredientsText || '');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
 
@@ -279,8 +283,9 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
       showToast('Donnez un nom au plat avant de le publier', 'error');
       return;
     }
-    if (ingredients.length === 0) {
-      showToast('Ajoutez au moins un ingrédient avant de publier', 'error');
+    const publicIngredientLines = ingredientsText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+    if (publicIngredientLines.length === 0) {
+      showToast('Renseignez la liste d\'ingrédients (texte libre) avant de publier', 'error');
       return;
     }
     const slug = slugify(nom);
@@ -295,7 +300,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
         name: nom,
         portions: portions || 1,
         imageUrl: matchedMenuItem?.imageUrl || null,
-        ingredients: ingredients.map(i => ({ name: i.nom, quantity: i.quantite != null ? String(i.quantite) : '', unit: i.unite || '' })),
+        ingredients: publicIngredientLines,
         publishedAt: serverTimestamp()
       });
       setPublishedSlug(slug);
@@ -347,6 +352,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
       foodCost,
       margeBrute,
       ingredients,
+      ingredientsText,
       updatedAt: new Date().toISOString()
     };
 
@@ -717,9 +723,25 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
               </tbody>
             </table>
           </div>
-          
+
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Liste d'ingrédients (affichage public — site, brochure)
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Un ingrédient par ligne, en langage naturel comme sur la brochure imprimée — ex. "1 tomate moyenne, mixée ou râpée", "1/2 c. à café de Gingembre". Sans lien avec le tableau ci-dessus (qui sert uniquement au calcul du coût matière).
+            </p>
+            <textarea
+              value={ingredientsText}
+              onChange={e => setIngredientsText(e.target.value)}
+              rows={8}
+              placeholder={'1 tomate moyenne, mixée ou râpée\n1/4 d\'oignon finement haché\n1 c. à soupe de pois chiches\n...'}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#F4C75B] resize-y"
+            />
+          </div>
+
         </div>
-        
+
         {initialData?.id && (
           <div className="px-6 pt-4 shrink-0 border-t border-gray-100">
             <div className="bg-[#FAF3E0]/60 border border-[#F4C75B]/40 rounded-xl p-4">

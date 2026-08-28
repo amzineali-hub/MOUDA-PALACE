@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, ChefHat } from 'lucide-react';
-import DishIngredientsCard, { DishIngredient } from './DishIngredientsCard';
+import DishIngredientsCard from './DishIngredientsCard';
 
 // Aperçu rapide "Ingrédients de la portion" depuis Menus digitaux / Flipbook — même visuel que
 // la fiche publique WordPress. Ne remplace pas la fiche technique interne (coûts/marges) : un
@@ -16,7 +16,7 @@ export default function DishIngredientsModal({
   name: string;
   portions?: number;
   imageUrl?: string | null;
-  ingredients: DishIngredient[];
+  ingredients: string[];
   onClose: () => void;
   onManage?: () => void;
 }) {

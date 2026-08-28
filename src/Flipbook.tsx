@@ -422,7 +422,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
             name={previewItem.name}
             portions={fiche?.portions}
             imageUrl={previewItem.imageUrl}
-            ingredients={(fiche?.ingredients || []).map((i: any) => ({ name: i.nom, quantity: i.quantite, unit: i.unite }))}
+            ingredients={((fiche?.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
             onClose={() => setPreviewItem(null)}
             onManage={() => { onOpenFiche?.(previewItem.name); setPreviewItem(null); }}
           />

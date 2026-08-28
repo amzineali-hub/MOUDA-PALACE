@@ -27,12 +27,23 @@ interface Shift {
   splitGroupId?: string | null;
 }
 
+// Formate en YYYY-MM-DD à partir des composants LOCAUX de la date — ne jamais utiliser
+// toISOString() ici, qui convertit en UTC et décale silencieusement la date d'un jour dès que
+// l'heure locale est proche de minuit avec un fuseau positif (ex. Maroc, UTC+1) : la date
+// enregistrée en base ne correspondrait alors plus au jour réellement affiché/cliqué.
+const toLocalDateStr = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const generateWeekDays = (startDate: Date) => {
   const days = [];
   const current = new Date(startDate);
   for (let i = 0; i < 7; i++) {
     days.push({
-      dateStr: current.toISOString().split('T')[0],
+      dateStr: toLocalDateStr(current),
       dayName: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][current.getDay()],
       dayNum: current.getDate(),
     });

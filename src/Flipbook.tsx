@@ -41,8 +41,8 @@ const CategoryDividerPage = React.forwardRef<HTMLDivElement, { category: string 
   </div>
 ));
 
-const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean; onPreviewIngredients?: (item: any) => void; onPlayVideo?: (url: string) => void }>(
-  ({ item, hasFiche, onPreviewIngredients, onPlayVideo }, ref) => (
+const DishPage = React.forwardRef<HTMLDivElement, { item: any; onPreviewIngredients?: (item: any) => void; onPlayVideo?: (url: string) => void }>(
+  ({ item, onPreviewIngredients, onPlayVideo }, ref) => (
   <div ref={ref} className="w-full h-full bg-white flex flex-col border border-gray-100 overflow-hidden">
     <div className="h-1/2 bg-gray-100 shrink-0 relative">
       {item.imageUrl ? (
@@ -68,7 +68,7 @@ const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean
       <span className="text-[10px] uppercase tracking-widest text-[#F4C75B] font-medium mb-1">{item.category}</span>
       <h3 className="text-lg font-serif text-gray-900 mb-2">{item.name}</h3>
       <p className="text-xs text-gray-500 leading-relaxed flex-1 overflow-hidden">{item.desc}</p>
-      {hasFiche && (
+      {(item.ingredientsText || '').trim() && (
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
@@ -231,9 +231,8 @@ function BrochureFlipbook({ brochureUrl }: { brochureUrl: string }) {
   );
 }
 
-export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: string) => void } = {}) {
+export default function Flipbook() {
   const [menuItems, setMenuItems] = useState<any[]>([]);
-  const [recettes, setRecettes] = useState<any[]>([]);
   const [brochureUrl, setBrochureUrl] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
@@ -243,14 +242,6 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
   useEffect(() => {
     const unsub = onSnapshot(query(collection(db, 'menu_items'), orderBy('category')), (snapshot) => {
       setMenuItems(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
-    });
-    return () => unsub();
-  }, []);
-
-  // Pour savoir quels plats ont une fiche technique liée (bouton "Voir les ingrédients").
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
-      setRecettes(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
     });
     return () => unsub();
   }, []);
@@ -272,12 +263,10 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
       if (items.length === 0) return;
       result.push(<CategoryDividerPage key={`div-${cat}`} category={cat} />);
       items.forEach(item => {
-        const hasFiche = recettes.some(r => (r.nom || r.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase());
         result.push(
           <DishPage
             key={item.id}
             item={item}
-            hasFiche={hasFiche}
             onPreviewIngredients={setPreviewItem}
             onPlayVideo={setPlayingVideoUrl}
           />
@@ -286,7 +275,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
     });
     result.push(<BackCoverPage key="back" />);
     return result;
-  }, [menuItems, recettes]);
+  }, [menuItems]);
 
   const totalPages = pages.length;
 
@@ -415,19 +404,15 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
       )}
 
       {/* Aperçu "Ingrédients de la portion" — même visuel que la fiche publique WordPress */}
-      {previewItem && (() => {
-        const fiche = recettes.find(r => (r.nom || r.name || '').trim().toLowerCase() === (previewItem.name || '').trim().toLowerCase());
-        return (
-          <DishIngredientsModal
-            name={previewItem.name}
-            portions={fiche?.portions}
-            imageUrl={previewItem.imageUrl}
-            ingredients={((fiche?.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
-            onClose={() => setPreviewItem(null)}
-            onManage={() => { onOpenFiche?.(previewItem.name); setPreviewItem(null); }}
-          />
-        );
-      })()}
+      {previewItem && (
+        <DishIngredientsModal
+          name={previewItem.name}
+          portions={previewItem.portions}
+          imageUrl={previewItem.imageUrl}
+          ingredients={((previewItem.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
+          onClose={() => setPreviewItem(null)}
+        />
+      )}
     </div>
   );
 }

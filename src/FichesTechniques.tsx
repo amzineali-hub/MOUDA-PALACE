@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, ChefHat, Share2, Copy, Check, EyeOff } from 'lucide-react';
+import { Plus, X, Search, Edit3, Trash2, Tag, UtensilsCrossed, AlertCircle, ChefHat } from 'lucide-react';
 import { query, orderBy } from 'firebase/firestore';
 import { motion } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
 import { computeRecipeCost, computeIngredientCost } from './lib/recipeCost';
-import { slugify } from './lib/slug';
 
 export default function FichesTechniques({ initialFicheName, onConsumeInitialFiche }: { initialFicheName?: string | null; onConsumeInitialFiche?: () => void }) {
   const [recipes, setRecipes] = useState<any[]>([]);
@@ -209,10 +208,6 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   const [prixVente, setPrixVente] = useState(initialData?.prixVente || '');
   const [ingredients, setIngredients] = useState<any[]>(initialData?.ingredients || []);
   const [manualCoutMatiere, setManualCoutMatiere] = useState(initialData?.coutMatiere || '');
-  // Liste d'ingrédients en texte libre pour l'affichage public (site/brochure) — un ingrédient
-  // par ligne, rédigé en langage naturel (ex: "1 tomate moyenne, mixée ou râpée"), sans lien
-  // avec le tableau ci-dessous qui sert au calcul du coût matière (quantités normalisées kg/L).
-  const [ingredientsText, setIngredientsText] = useState(initialData?.ingredientsText || '');
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
 
@@ -253,90 +248,6 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
   const margeBrute = recipeCostResult.margin;
   const warnings = recipeCostResult.warnings;
 
-  // Publication publique — page grand public (sans connexion) reliée depuis WordPress,
-  // volontairement limitée au nom/photo/portions/ingrédients (jamais coûts, marges, prix
-  // fournisseur). Collection Firestore séparée (`public_dish_cards`), lisible publiquement
-  // par règle dédiée dans firestore.rules ; jamais les fiches techniques internes elles-mêmes.
-  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!initialData?.id) return;
-    const slug = slugify(nom);
-    if (!slug) return;
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, 'public_dish_cards', slug));
-        setPublishedSlug(snap.exists() ? slug : null);
-      } catch (err) {
-        console.error('Erreur de vérification de publication', err);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData?.id]);
-
-  const publicUrl = publishedSlug ? `${window.location.origin}/plat/${publishedSlug}` : null;
-
-  const handlePublish = async () => {
-    if (!nom.trim()) {
-      showToast('Donnez un nom au plat avant de le publier', 'error');
-      return;
-    }
-    const publicIngredientLines = ingredientsText.split('\n').map((l: string) => l.trim()).filter(Boolean);
-    if (publicIngredientLines.length === 0) {
-      showToast('Renseignez la liste d\'ingrédients (texte libre) avant de publier', 'error');
-      return;
-    }
-    const slug = slugify(nom);
-    if (!slug) {
-      showToast('Nom de plat invalide pour générer un lien public', 'error');
-      return;
-    }
-    setIsPublishing(true);
-    try {
-      const matchedMenuItem = menuItems.find(m => (m.name || '').trim().toLowerCase() === nom.trim().toLowerCase());
-      await setDoc(doc(db, 'public_dish_cards', slug), {
-        name: nom,
-        portions: portions || 1,
-        imageUrl: matchedMenuItem?.imageUrl || null,
-        ingredients: publicIngredientLines,
-        publishedAt: serverTimestamp()
-      });
-      setPublishedSlug(slug);
-      showToast('Fiche ingrédients publiée', 'success');
-    } catch (error) {
-      console.error(error);
-      showToast('Erreur lors de la publication', 'error');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const handleUnpublish = async () => {
-    if (!publishedSlug) return;
-    if (!window.confirm('Retirer cette fiche de la page publique ? Le lien partagé ne fonctionnera plus.')) return;
-    setIsPublishing(true);
-    try {
-      await deleteDoc(doc(db, 'public_dish_cards', publishedSlug));
-      setPublishedSlug(null);
-      showToast('Fiche dépubliée', 'success');
-    } catch (error) {
-      console.error(error);
-      showToast('Erreur lors de la dépublication', 'error');
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
-  const copyPublicUrl = () => {
-    if (!publicUrl) return;
-    navigator.clipboard.writeText(publicUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
   const handleSave = async () => {
     if (!nom || !categorie || !prixVente) {
       showToast('Veuillez remplir tous les champs obligatoires (Nom, Catégorie, Prix)', 'error');
@@ -352,7 +263,6 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
       foodCost,
       margeBrute,
       ingredients,
-      ingredientsText,
       updatedAt: new Date().toISOString()
     };
 
@@ -724,59 +634,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
             </table>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <label className="block text-sm font-semibold text-gray-800 mb-1">
-              Liste d'ingrédients (affichage public — site, brochure)
-            </label>
-            <p className="text-xs text-gray-500 mb-2">
-              Un ingrédient par ligne, en langage naturel comme sur la brochure imprimée — ex. "1 tomate moyenne, mixée ou râpée", "1/2 c. à café de Gingembre". Sans lien avec le tableau ci-dessus (qui sert uniquement au calcul du coût matière).
-            </p>
-            <textarea
-              value={ingredientsText}
-              onChange={e => setIngredientsText(e.target.value)}
-              rows={8}
-              placeholder={'1 tomate moyenne, mixée ou râpée\n1/4 d\'oignon finement haché\n1 c. à soupe de pois chiches\n...'}
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#F4C75B] resize-y"
-            />
-          </div>
-
         </div>
-
-        {initialData?.id && (
-          <div className="px-6 pt-4 shrink-0 border-t border-gray-100">
-            <div className="bg-[#FAF3E0]/60 border border-[#F4C75B]/40 rounded-xl p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-1">
-                <Share2 size={16} className="text-[#265C6D]" />
-                Fiche ingrédients publique (pour le site WordPress)
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Publie uniquement le nom, la photo, le nombre de portions et les ingrédients — jamais les coûts ni les marges.
-              </p>
-              {publicUrl ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input readOnly value={publicUrl} className="flex-1 text-xs border border-gray-200 rounded-lg p-2 bg-white text-gray-600" />
-                    <button type="button" onClick={copyPublicUrl} className="p-2 rounded-lg bg-[#265C6D] text-white hover:bg-[#1D4A58] transition-colors" title="Copier le lien">
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={handlePublish} disabled={isPublishing} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-                      Mettre à jour la publication
-                    </button>
-                    <button type="button" onClick={handleUnpublish} disabled={isPublishing} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1.5">
-                      <EyeOff size={14} /> Dépublier
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button type="button" onClick={handlePublish} disabled={isPublishing} className="text-sm font-medium px-4 py-2 rounded-lg bg-[#F4C75B] text-[#1A1A1A] hover:bg-[#E5B745] transition-colors disabled:opacity-50">
-                  {isPublishing ? 'Publication...' : 'Publier la fiche ingrédients'}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="p-6 border-t border-gray-100 flex justify-end gap-3 shrink-0 bg-white">
           <button

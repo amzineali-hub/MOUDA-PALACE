@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat, ZoomIn, ClipboardList, PlayCircle, Video } from 'lucide-react';
+import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat, ZoomIn, ClipboardList, PlayCircle, Video, Share2, Copy, Check, EyeOff } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { parseAmount } from './lib/revenueUtils';
 import { getVideoEmbedUrl } from './lib/videoUtils';
+import { slugify } from './lib/slug';
 import DishIngredientsModal from './components/DishIngredientsModal';
 
 import { toPng } from 'html-to-image';
@@ -37,6 +38,12 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [desc, setDesc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [portions, setPortions] = useState(1);
+  // Liste d'ingrédients en texte libre pour l'affichage public (site/brochure) — un ingrédient
+  // par ligne, rédigé en langage naturel (ex: "1 tomate moyenne, mixée ou râpée"). Sans lien
+  // avec la fiche technique (coûts internes) : ce champ vit ici, avec le reste du contenu
+  // public du plat (photo, description, prix), pour être au même endroit que le reste.
+  const [ingredientsText, setIngredientsText] = useState('');
 
   const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
 
@@ -83,11 +90,93 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     return result;
   }, [name, price, recettes, inventoryItems]);
 
-  // Un plat du menu a une fiche technique liée s'il existe une fiche du même nom — utilisé
-  // pour afficher le bouton "Voir la fiche technique" sur chaque plat (pas seulement celui en
-  // cours d'édition, contrairement à matchedRecipeCost ci-dessus).
+  // Lien facultatif "Gérer la fiche technique" (coûts internes) depuis l'aperçu ingrédients —
+  // un plat du menu a une fiche liée s'il existe une fiche technique du même nom.
   const findFicheForDish = (dishName: string) =>
     recettes.find(r => (r.nom || r.name || '').trim().toLowerCase() === (dishName || '').trim().toLowerCase());
+
+  // Publication publique — page grand public (sans connexion) reliée depuis WordPress,
+  // volontairement limitée au nom/photo/portions/ingrédients (jamais coûts, marges, prix
+  // fournisseur). Collection Firestore séparée (`public_dish_cards`), lisible publiquement
+  // par règle dédiée dans firestore.rules ; jamais les fiches techniques internes elles-mêmes.
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  useEffect(() => {
+    if (!editingItem?.id) { setPublishedSlug(null); return; }
+    const slug = slugify(name);
+    if (!slug) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'public_dish_cards', slug));
+        setPublishedSlug(snap.exists() ? slug : null);
+      } catch (err) {
+        console.error('Erreur de vérification de publication', err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingItem?.id]);
+
+  const publicUrl = publishedSlug ? `${window.location.origin}/plat/${publishedSlug}` : null;
+
+  const handlePublish = async () => {
+    if (!name.trim()) {
+      showToast('Donnez un nom au plat avant de le publier', 'error');
+      return;
+    }
+    const publicIngredientLines = ingredientsText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+    if (publicIngredientLines.length === 0) {
+      showToast("Renseignez la liste d'ingrédients avant de publier", 'error');
+      return;
+    }
+    const slug = slugify(name);
+    if (!slug) {
+      showToast('Nom de plat invalide pour générer un lien public', 'error');
+      return;
+    }
+    setIsPublishing(true);
+    try {
+      await setDoc(doc(db, 'public_dish_cards', slug), {
+        name,
+        portions: Number(portions) || 1,
+        imageUrl: imageUrl || null,
+        ingredients: publicIngredientLines,
+        publishedAt: serverTimestamp()
+      });
+      setPublishedSlug(slug);
+      showToast('Fiche ingrédients publiée');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la publication', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!publishedSlug) return;
+    if (!window.confirm('Retirer cette fiche de la page publique ? Le lien partagé ne fonctionnera plus.')) return;
+    setIsPublishing(true);
+    try {
+      await deleteDoc(doc(db, 'public_dish_cards', publishedSlug));
+      setPublishedSlug(null);
+      showToast('Fiche dépubliée');
+    } catch (error) {
+      console.error(error);
+      showToast('Erreur lors de la dépublication', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const copyPublicUrl = () => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl).then(() => {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    });
+  };
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +193,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
         desc,
         imageUrl: imageUrl || availableImages[0],
         videoUrl: videoUrl.trim(),
+        portions: Number(portions) || 1,
+        ingredientsText,
         updatedAt: new Date()
       };
 
@@ -125,6 +216,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
       setDesc('');
       setImageUrl('');
       setVideoUrl('');
+      setPortions(1);
+      setIngredientsText('');
       setIsAddModalOpen(false);
     } catch (error) {
       console.error(error);
@@ -140,6 +233,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     setDesc(item.desc);
     setImageUrl(item.imageUrl);
     setVideoUrl(item.videoUrl || '');
+    setPortions(item.portions || 1);
+    setIngredientsText(item.ingredientsText || '');
     setIsAddModalOpen(true);
   };
 
@@ -454,7 +549,7 @@ if (isPrintView) {
             <Printer size={20} />
             <span>Génération du Menu</span>
           </button>
-          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
+          <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setPortions(1); setIngredientsText(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />
             <span>Ajouter un plat</span>
           </button>
@@ -505,7 +600,7 @@ if (isPrintView) {
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="font-serif font-semibold text-lg text-gray-900 mb-1">{item.name}</h3>
                     <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-2">{item.desc}</p>
-                    {findFicheForDish(item.name) && (
+                    {(item.ingredientsText || '').trim() && (
                       <button
                         onClick={() => setIngredientsPreviewItem(item)}
                         className="flex items-center gap-1.5 text-xs font-medium text-[#265C6D] hover:underline mb-3 -mt-1"
@@ -564,7 +659,7 @@ if (isPrintView) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
                   <Combobox
@@ -594,16 +689,42 @@ if (isPrintView) {
                     </p>
                   )}
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Portions</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={portions}
+                    onChange={(e) => setPortions(Number(e.target.value) || 1)}
+                    className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea 
+                <textarea
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   rows={3}
-                  placeholder="Ingrédients, préparation, traditions..." 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] resize-none" 
+                  placeholder="Présentation, histoire, traditions du plat..."
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B] resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                  <ClipboardList size={14} /> Liste d'ingrédients (affichage public — site, brochure)
+                </label>
+                <p className="text-xs text-gray-500 mb-1.5">
+                  Un ingrédient par ligne, en langage naturel — ex. "1 tomate moyenne, mixée ou râpée".
+                </p>
+                <textarea
+                  value={ingredientsText}
+                  onChange={(e) => setIngredientsText(e.target.value)}
+                  rows={6}
+                  placeholder={'1 tomate moyenne, mixée ou râpée\n1/4 d\'oignon finement haché\n1 c. à soupe de pois chiches\n...'}
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-[#F4C75B] resize-y"
                 />
               </div>
 
@@ -675,8 +796,42 @@ if (isPrintView) {
                 />
               </div>
 
+              {editingItem && (
+                <div className="bg-[#FAF3E0]/60 border border-[#F4C75B]/40 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-1">
+                    <Share2 size={16} className="text-[#265C6D]" />
+                    Fiche ingrédients publique (pour le site WordPress)
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Publie le nom, la photo, le nombre de portions et la liste d'ingrédients ci-dessus — jamais le prix ni les coûts.
+                  </p>
+                  {publicUrl ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input readOnly value={publicUrl} className="flex-1 text-xs border border-gray-200 rounded-lg p-2 bg-white text-gray-600" />
+                        <button type="button" onClick={copyPublicUrl} className="p-2 rounded-lg bg-[#265C6D] text-white hover:bg-[#1D4A58] transition-colors" title="Copier le lien">
+                          {copiedUrl ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handlePublish} disabled={isPublishing} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                          Mettre à jour la publication
+                        </button>
+                        <button type="button" onClick={handleUnpublish} disabled={isPublishing} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 flex items-center gap-1.5">
+                          <EyeOff size={14} /> Dépublier
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={handlePublish} disabled={isPublishing} className="text-sm font-medium px-4 py-2 rounded-lg bg-[#F4C75B] text-[#1A1A1A] hover:bg-[#E5B745] transition-colors disabled:opacity-50">
+                      {isPublishing ? 'Publication...' : 'Publier la fiche ingrédients'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3 pt-4">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
@@ -738,7 +893,7 @@ if (isPrintView) {
             <div className="text-center text-white">
               <h3 className="text-xl font-serif font-semibold">{lightboxItem.name}</h3>
               <p className="text-white/60 text-sm mt-1">{lightboxItem.desc}</p>
-              {findFicheForDish(lightboxItem.name) && (
+              {(lightboxItem.ingredientsText || '').trim() && (
                 <button
                   onClick={() => { setIngredientsPreviewItem(lightboxItem); setLightboxItem(null); }}
                   className="mt-4 inline-flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors"
@@ -757,11 +912,11 @@ if (isPrintView) {
         return (
           <DishIngredientsModal
             name={ingredientsPreviewItem.name}
-            portions={fiche?.portions}
+            portions={ingredientsPreviewItem.portions}
             imageUrl={ingredientsPreviewItem.imageUrl}
-            ingredients={((fiche?.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
+            ingredients={((ingredientsPreviewItem.ingredientsText || '') as string).split('\n').map((l: string) => l.trim()).filter(Boolean)}
             onClose={() => setIngredientsPreviewItem(null)}
-            onManage={() => { onOpenFiche?.(ingredientsPreviewItem.name); setIngredientsPreviewItem(null); }}
+            onManage={fiche ? () => { onOpenFiche?.(ingredientsPreviewItem.name); setIngredientsPreviewItem(null); } : undefined}
           />
         );
       })()}

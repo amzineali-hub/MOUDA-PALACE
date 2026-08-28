@@ -662,7 +662,7 @@ function App() {
       case 'menu':
         return <MenuGenerator onOpenFiche={openFicheFromDish} />;
       case 'flipbook':
-        return <Flipbook onOpenFiche={openFicheFromDish} />;
+        return <Flipbook />;
       case 'kds':
         return <EcranCuisine />;
       case 'inventory':

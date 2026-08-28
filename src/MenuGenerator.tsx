@@ -9,6 +9,7 @@ import { db } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { parseAmount } from './lib/revenueUtils';
 import { getVideoEmbedUrl } from './lib/videoUtils';
+import DishIngredientsModal from './components/DishIngredientsModal';
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -27,6 +28,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [lightboxItem, setLightboxItem] = useState<any | null>(null);
+  const [ingredientsPreviewItem, setIngredientsPreviewItem] = useState<any | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -505,10 +507,10 @@ if (isPrintView) {
                     <p className="text-sm text-gray-500 mb-4 flex-1 line-clamp-2">{item.desc}</p>
                     {findFicheForDish(item.name) && (
                       <button
-                        onClick={() => onOpenFiche?.(item.name)}
+                        onClick={() => setIngredientsPreviewItem(item)}
                         className="flex items-center gap-1.5 text-xs font-medium text-[#265C6D] hover:underline mb-3 -mt-1"
                       >
-                        <ClipboardList size={14} /> Voir la fiche technique
+                        <ClipboardList size={14} /> Voir les ingrédients
                       </button>
                     )}
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
@@ -738,16 +740,31 @@ if (isPrintView) {
               <p className="text-white/60 text-sm mt-1">{lightboxItem.desc}</p>
               {findFicheForDish(lightboxItem.name) && (
                 <button
-                  onClick={() => { onOpenFiche?.(lightboxItem.name); setLightboxItem(null); }}
+                  onClick={() => { setIngredientsPreviewItem(lightboxItem); setLightboxItem(null); }}
                   className="mt-4 inline-flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-2.5 rounded-xl font-medium hover:bg-[#E5B745] transition-colors"
                 >
-                  <ClipboardList size={16} /> Voir la fiche technique
+                  <ClipboardList size={16} /> Voir les ingrédients
                 </button>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Aperçu "Ingrédients de la portion" — même visuel que la fiche publique WordPress */}
+      {ingredientsPreviewItem && (() => {
+        const fiche = findFicheForDish(ingredientsPreviewItem.name);
+        return (
+          <DishIngredientsModal
+            name={ingredientsPreviewItem.name}
+            portions={fiche?.portions}
+            imageUrl={ingredientsPreviewItem.imageUrl}
+            ingredients={(fiche?.ingredients || []).map((i: any) => ({ name: i.nom, quantity: i.quantite, unit: i.unite }))}
+            onClose={() => setIngredientsPreviewItem(null)}
+            onManage={() => { onOpenFiche?.(ingredientsPreviewItem.name); setIngredientsPreviewItem(null); }}
+          />
+        );
+      })()}
 
       {/* Template Selection Modal */}
       {isTemplateModalOpen && (

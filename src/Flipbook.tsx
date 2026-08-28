@@ -5,6 +5,7 @@ import HTMLFlipBook from 'react-pageflip';
 import * as pdfjsLib from 'pdfjs-dist';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, UtensilsCrossed, ClipboardList, PlayCircle, X } from 'lucide-react';
 import { getVideoEmbedUrl } from './lib/videoUtils';
+import DishIngredientsModal from './components/DishIngredientsModal';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
@@ -40,8 +41,8 @@ const CategoryDividerPage = React.forwardRef<HTMLDivElement, { category: string 
   </div>
 ));
 
-const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean; onOpenFiche?: (dishName: string) => void; onPlayVideo?: (url: string) => void }>(
-  ({ item, hasFiche, onOpenFiche, onPlayVideo }, ref) => (
+const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean; onPreviewIngredients?: (item: any) => void; onPlayVideo?: (url: string) => void }>(
+  ({ item, hasFiche, onPreviewIngredients, onPlayVideo }, ref) => (
   <div ref={ref} className="w-full h-full bg-white flex flex-col border border-gray-100 overflow-hidden">
     <div className="h-1/2 bg-gray-100 shrink-0 relative">
       {item.imageUrl ? (
@@ -71,10 +72,10 @@ const DishPage = React.forwardRef<HTMLDivElement, { item: any; hasFiche: boolean
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onOpenFiche?.(item.name); }}
+          onClick={(e) => { e.stopPropagation(); onPreviewIngredients?.(item); }}
           className="flex items-center gap-1.5 text-[11px] font-medium text-[#265C6D] hover:underline mt-1 self-start"
         >
-          <ClipboardList size={12} /> Voir la fiche technique
+          <ClipboardList size={12} /> Voir les ingrédients
         </button>
       )}
       <p className="text-right text-[#265C6D] font-serif font-semibold text-base mt-2">{item.price}</p>
@@ -236,6 +237,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
   const [brochureUrl, setBrochureUrl] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<any | null>(null);
   const bookRef = useRef<any>(null);
 
   useEffect(() => {
@@ -245,7 +247,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
     return () => unsub();
   }, []);
 
-  // Pour savoir quels plats ont une fiche technique liée (bouton "Voir la fiche technique").
+  // Pour savoir quels plats ont une fiche technique liée (bouton "Voir les ingrédients").
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'fiches_techniques'), (snapshot) => {
       setRecettes(snapshot.docs.map(d => ({ ...d.data(), id: d.id })));
@@ -276,7 +278,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
             key={item.id}
             item={item}
             hasFiche={hasFiche}
-            onOpenFiche={onOpenFiche}
+            onPreviewIngredients={setPreviewItem}
             onPlayVideo={setPlayingVideoUrl}
           />
         );
@@ -284,7 +286,7 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
     });
     result.push(<BackCoverPage key="back" />);
     return result;
-  }, [menuItems, recettes, onOpenFiche]);
+  }, [menuItems, recettes]);
 
   const totalPages = pages.length;
 
@@ -411,6 +413,21 @@ export default function Flipbook({ onOpenFiche }: { onOpenFiche?: (dishName: str
           </div>
         </div>
       )}
+
+      {/* Aperçu "Ingrédients de la portion" — même visuel que la fiche publique WordPress */}
+      {previewItem && (() => {
+        const fiche = recettes.find(r => (r.nom || r.name || '').trim().toLowerCase() === (previewItem.name || '').trim().toLowerCase());
+        return (
+          <DishIngredientsModal
+            name={previewItem.name}
+            portions={fiche?.portions}
+            imageUrl={previewItem.imageUrl}
+            ingredients={(fiche?.ingredients || []).map((i: any) => ({ name: i.nom, quantity: i.quantite, unit: i.unite }))}
+            onClose={() => setPreviewItem(null)}
+            onManage={() => { onOpenFiche?.(previewItem.name); setPreviewItem(null); }}
+          />
+        );
+      })()}
     </div>
   );
 }

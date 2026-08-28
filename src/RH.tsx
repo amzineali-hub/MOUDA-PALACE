@@ -491,7 +491,11 @@ export default function RH() {
     iframe.style.left = '-99999px';
     iframe.style.top = '0';
     iframe.style.width = '794px';
-    iframe.style.height = '1123px';
+    // Volontairement très grand : document.body.scrollHeight est plafonné à AU MOINS la hauteur
+    // de l'iframe (particularité du navigateur pour l'élément racine <body>) — une hauteur trop
+    // petite ferait donc capturer une image gonflée de vide pour un document court (attestation,
+    // certificat...), qui apparaîtrait ensuite trop petit une fois mis à l'échelle sur la page PDF.
+    iframe.style.height = '4000px';
     iframe.style.border = 'none';
     document.body.appendChild(iframe);
 
@@ -509,29 +513,30 @@ export default function RH() {
       await new Promise((res) => setTimeout(res, 200));
 
       const bodyEl = idoc.body;
+      // document.body.scrollHeight est plafonné à AU MOINS la hauteur de l'iframe (particularité
+      // du navigateur pour l'élément racine <body>) — un document court (attestation...) serait
+      // donc capturé avec du vide en dessous et apparaîtrait minuscule une fois mis à l'échelle.
+      // On mesure la vraie fin du contenu via le bas du pied de page à la place.
+      const footerEl = idoc.querySelector('.lh-footer-bar');
+      const contentHeight = footerEl ? Math.ceil(footerEl.getBoundingClientRect().bottom) : bodyEl.scrollHeight;
       const dataUrl = await toPng(bodyEl, {
         quality: 0.95,
         backgroundColor: '#ffffff',
         pixelRatio: 2,
         width: bodyEl.scrollWidth,
-        height: bodyEl.scrollHeight
+        height: contentHeight
       });
 
+      // Mis à l'échelle pour tenir entièrement sur une page A4 — jamais découpé en tranches de
+      // hauteur fixe (l'ancienne méthode pouvait faire apparaître le pied de page en plein
+      // milieu du contenu si le document dépassait une page, cf. bug du planning).
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const pdfHeight = (bodyEl.scrollHeight * pdfWidth) / bodyEl.scrollWidth;
-
-      let heightLeft = pdfHeight;
-      let position = 0;
-      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-      }
+      const scale = Math.min(pageWidth / bodyEl.scrollWidth, pageHeight / contentHeight, 1);
+      const imgWidth = bodyEl.scrollWidth * scale;
+      const imgHeight = contentHeight * scale;
+      pdf.addImage(dataUrl, 'PNG', (pageWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
 
       const pdfBlob = pdf.output('blob');
       const storagePath = `hr_documents/${meta.staffId}/${Date.now()}_${meta.docType}.pdf`;

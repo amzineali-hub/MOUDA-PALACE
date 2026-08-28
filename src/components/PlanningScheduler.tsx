@@ -61,12 +61,13 @@ const getInitials = (name: string) => {
 
 // Styles du tableau pour les exports PDF du planning (semaine complète / par employé).
 const PLANNING_TABLE_STYLES = `
-  .pl-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-  .pl-table th, .pl-table td { border: 1px solid #eee; padding: 8px; text-align: center; vertical-align: top; }
+  .pl-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
+  .pl-table th, .pl-table td { border: 1px solid #eee; padding: 4px 5px; text-align: center; vertical-align: top; }
   .pl-table th { background: #f9f9f9; font-weight: bold; }
-  .pl-table td:first-child, .pl-table th:first-child { text-align: left; width: 160px; }
+  .pl-table td:first-child, .pl-table th:first-child { text-align: left; width: 140px; }
+  .pl-table td div { line-height: 1.3; }
   .pl-emp { font-weight: bold; color: #1a1a1a; }
-  .pl-role { font-size: 10px; color: #888; }
+  .pl-role { font-size: 8px; color: #888; }
   .pl-off { color: #bbb; font-style: italic; }
 `;
 
@@ -122,16 +123,17 @@ const computeHours = (startTime: string, endTime: string) => {
   return Math.round(hours * 100) / 100;
 };
 
-// Rend le HTML imprimable (papier en-tête + tableau) dans un iframe caché, le capture en image
-// et assemble un PDF A4 téléchargé localement — pour que le gérant puisse imprimer ou partager
-// (WhatsApp, email...) le planning sans dépendre du dialogue d'impression du navigateur.
-const downloadHtmlAsPdf = async (html: string, filename: string) => {
+// Rend un document HTML imprimable (papier en-tête + tableau) dans un iframe caché et le
+// capture en image. Utilisé un instantané par page PDF — jamais une seule longue image
+// découpée en tranches de hauteur fixe, qui coupait des lignes de tableau n'importe où et
+// faisait apparaître le pied de page (bandeau ICE/Adresse) en plein milieu du contenu.
+const captureHtmlSnapshot = async (html: string): Promise<{ dataUrl: string; width: number; height: number }> => {
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.left = '-99999px';
   iframe.style.top = '0';
-  iframe.style.width = '1000px';
-  iframe.style.height = '700px';
+  iframe.style.width = '1200px';
+  iframe.style.height = '4000px';
   iframe.style.border = 'none';
   document.body.appendChild(iframe);
 
@@ -149,34 +151,45 @@ const downloadHtmlAsPdf = async (html: string, filename: string) => {
     await new Promise((res) => setTimeout(res, 200));
 
     const bodyEl = idoc.body;
+    const width = bodyEl.scrollWidth;
+    // document.body.scrollHeight est plafonné à AU MOINS la hauteur de l'iframe (particularité
+    // du navigateur pour l'élément racine <body> : un contenu plus court que l'iframe se voit
+    // quand même rapporter la hauteur de l'iframe). On mesure donc la vraie fin du contenu via
+    // le bas du pied de page (dernier élément du papier en-tête), sinon un document court serait
+    // capturé avec beaucoup de vide en dessous et apparaîtrait ensuite minuscule sur la page PDF.
+    const footerEl = idoc.querySelector('.lh-footer-bar');
+    const height = footerEl ? Math.ceil(footerEl.getBoundingClientRect().bottom) : bodyEl.scrollHeight;
     const dataUrl = await toPng(bodyEl, {
       quality: 0.95,
       backgroundColor: '#ffffff',
       pixelRatio: 2,
-      width: bodyEl.scrollWidth,
-      height: bodyEl.scrollHeight
+      width,
+      height
     });
-
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const pdfHeight = (bodyEl.scrollHeight * pdfWidth) / bodyEl.scrollWidth;
-
-    let heightLeft = pdfHeight;
-    let position = 0;
-    pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-    heightLeft -= pageHeight;
-    while (heightLeft >= 0) {
-      position = heightLeft - pdfHeight;
-      pdf.addPage();
-      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-    }
-
-    pdf.save(`${filename.replace(/[\\/:*?"<>|]/g, '-')}.pdf`);
+    return { dataUrl, width, height };
   } finally {
     document.body.removeChild(iframe);
   }
+};
+
+// Assemble un PDF A4 paysage à partir d'un ou plusieurs documents HTML complets (un en-tête +
+// pied de page par instantané) — chaque instantané occupe sa propre page, mis à l'échelle pour
+// tenir entièrement dedans, jamais tronqué ni découpé au milieu d'une ligne.
+const downloadHtmlPagesAsPdf = async (htmlPages: string[], filename: string) => {
+  const pdf = new jsPDF('l', 'mm', 'a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  for (let i = 0; i < htmlPages.length; i++) {
+    const { dataUrl, width, height } = await captureHtmlSnapshot(htmlPages[i]);
+    const scale = Math.min(pageWidth / width, pageHeight / height);
+    const imgWidth = width * scale;
+    const imgHeight = height * scale;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(dataUrl, 'PNG', (pageWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+  }
+
+  pdf.save(`${filename.replace(/[\\/:*?"<>|]/g, '-')}.pdf`);
 };
 
 // Bascule "Horaire normal" / "Horaire spécial (coupure)" réutilisée dans les 2 modales de création de shift.
@@ -586,39 +599,48 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
   };
 
   // Export PDF du planning — pour que le gérant puisse imprimer/partager (WhatsApp, email...)
-  // avec l'équipe, faute de portail employé dans l'application.
+  // avec l'équipe, faute de portail employé dans l'application. L'équipe est découpée en
+  // groupes de lignes (EMPLOYEES_PER_PDF_PAGE) *avant* la capture : chaque page est un
+  // instantané complet (en-tête + tableau + pied de page), jamais une ligne coupée en deux
+  // ni le pied de page qui atterrit au milieu du tableau.
+  const EMPLOYEES_PER_PDF_PAGE = 9;
+  const buildTeamPlanningTableHtml = (emps: Employee[]) => `
+    <h2 style="text-align:center;">PLANNING DE LA SEMAINE</h2>
+    <p style="text-align:center; color:#666;">Du ${weekDays[0].dateStr} au ${weekDays[6].dateStr}</p>
+    <table class="pl-table">
+      <thead>
+        <tr><th>Employé</th>${weekDays.map(d => `<th>${d.dayName} ${d.dayNum}</th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${emps.map(emp => `
+          <tr>
+            <td><span class="pl-emp">${emp.name}</span><br/><span class="pl-role">${emp.role}</span></td>
+            ${weekDays.map(day => {
+              const dayShifts = getShiftsForCell(emp.id, day.dateStr);
+              if (dayShifts.length === 0) return '<td><span class="pl-off">Repos</span></td>';
+              return `<td>${dayShifts.map(s => `<div>${s.startTime}-${s.endTime}${s.scheduleType === 'split' ? ' <i>(coupure)</i>' : ''}</div>`).join('')}</td>`;
+            }).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
   const exportTeamWeekPdf = async () => {
     if (isExportingPdf) return;
     setIsExportingPdf(true);
     try {
-      const bodyHtml = `
-        <h2 style="text-align:center;">PLANNING DE LA SEMAINE</h2>
-        <p style="text-align:center; color:#666;">Du ${weekDays[0].dateStr} au ${weekDays[6].dateStr}</p>
-        <table class="pl-table">
-          <thead>
-            <tr><th>Employé</th>${weekDays.map(d => `<th>${d.dayName} ${d.dayNum}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${visibleEmployees.map(emp => `
-              <tr>
-                <td><span class="pl-emp">${emp.name}</span><br/><span class="pl-role">${emp.role}</span></td>
-                ${weekDays.map(day => {
-                  const dayShifts = getShiftsForCell(emp.id, day.dateStr);
-                  if (dayShifts.length === 0) return '<td><span class="pl-off">Repos</span></td>';
-                  return `<td>${dayShifts.map(s => `<div>${s.startTime}-${s.endTime}${s.scheduleType === 'split' ? ' <i>(coupure)</i>' : ''}</div>`).join('')}</td>`;
-                }).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-      const html = buildLetterheadHtml(companyInfo, window.location.origin, {
-        title: `Planning semaine du ${weekDays[0].dateStr}`,
-        bodyHtml,
+      const chunks: Employee[][] = [];
+      for (let i = 0; i < visibleEmployees.length; i += EMPLOYEES_PER_PDF_PAGE) {
+        chunks.push(visibleEmployees.slice(i, i + EMPLOYEES_PER_PDF_PAGE));
+      }
+      if (chunks.length === 0) chunks.push([]);
+      const htmlPages = chunks.map((chunk, idx) => buildLetterheadHtml(companyInfo, window.location.origin, {
+        title: `Planning semaine du ${weekDays[0].dateStr}${chunks.length > 1 ? ` (${idx + 1}/${chunks.length})` : ''}`,
+        bodyHtml: buildTeamPlanningTableHtml(chunk),
         autoPrint: false,
         extraStyles: PLANNING_TABLE_STYLES
-      });
-      await downloadHtmlAsPdf(html, `Planning - Semaine du ${weekDays[0].dateStr}`);
+      }));
+      await downloadHtmlPagesAsPdf(htmlPages, `Planning - Semaine du ${weekDays[0].dateStr}`);
       showToast('Planning exporté en PDF');
     } catch (e) {
       console.error(e);
@@ -655,7 +677,7 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
         autoPrint: false,
         extraStyles: PLANNING_TABLE_STYLES
       });
-      await downloadHtmlAsPdf(html, `Planning ${emp.name} - Semaine du ${weekDays[0].dateStr}`);
+      await downloadHtmlPagesAsPdf([html], `Planning ${emp.name} - Semaine du ${weekDays[0].dateStr}`);
       showToast(`Planning de ${emp.name} exporté en PDF`);
     } catch (e) {
       console.error(e);

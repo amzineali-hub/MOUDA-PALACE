@@ -1,6 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Fiches ingrédients publiées volontairement par le gérant, destinées au grand public
+    // (lien partagé depuis le site WordPress) — nom, photo, portions, ingrédients avec
+    // quantités uniquement. Ne doit JAMAIS contenir de coût, marge ou prix fournisseur :
+    // c'est une collection séparée de `fiches_techniques` (données internes), remplie
+    // uniquement via le bouton "Publier" de l'app. Lecture publique assumée ; écriture
+    // toujours réservée aux comptes autorisés.
+    match /public_dish_cards/{cardId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
+        && request.auth.token.email_verified == true;
+    }
+
     match /{document=**} {
       allow read, write: if request.auth != null
         && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']

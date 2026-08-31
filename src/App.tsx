@@ -532,14 +532,18 @@ function App() {
     : [];
 
   const handleLogin = async () => {
-    const isMobileDevice = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+    // signInWithPopup d'abord, sur TOUS les appareils (y compris mobile). Auparavant, le mobile
+    // passait systématiquement par signInWithRedirect — mais ce mécanisme dépend d'un stockage
+    // (sessionStorage/IndexedDB) partagé entre le domaine de l'appli (mouda-palace.vercel.app) et
+    // le domaine d'authentification Firebase (clever-datum-pjlsj.firebaseapp.com), deux sites
+    // différents du point de vue du navigateur. Les navigateurs mobiles récents (partitionnement
+    // du stockage tiers) cassent souvent cette continuité : Google affiche bien le sélecteur de
+    // compte, mais au retour sur l'appli aucune session ne s'établit — sans la moindre erreur
+    // visible (constaté en conditions réelles sur Android Chrome). signInWithPopup n'a pas ce
+    // problème (communication directe entre la fenêtre popup et l'appli), donc on l'essaie en
+    // priorité partout ; le repli vers signInWithRedirect reste en place pour les cas où la popup
+    // est réellement bloquée par le navigateur.
     try {
-      if (isMobileDevice) {
-        // La page va être quittée puis rechargée ; le résultat est traité par le useEffect
-        // getRedirectResult ci-dessus au retour de Google.
-        await signInWithRedirect(auth, googleProvider);
-        return;
-      }
       const result = await signInWithPopup(auth, googleProvider);
       if (AUTHORIZED_EMAILS.includes(result.user.email || '')) {
         logLoginEvent(result.user);
@@ -548,13 +552,18 @@ function App() {
         showToast("Accès non autorisé pour cet email.", "error");
       }
     } catch (error: any) {
+      // L'utilisateur a simplement fermé la popup — pas une erreur à afficher.
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+
       console.error("Login failed", error);
 
       // Amélioration du message d'erreur
       if (error.code === 'auth/unauthorized-domain') {
         showToast("Domaine non autorisé. Veuillez ouvrir l'application dans un nouvel onglet.", "error");
       } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/operation-not-supported-in-this-environment') {
-        // Repli sur redirection si la popup est bloquée, même sur desktop
+        // Repli sur redirection uniquement si la popup est vraiment bloquée par le navigateur.
         try {
           await signInWithRedirect(auth, googleProvider);
         } catch (redirectError: any) {

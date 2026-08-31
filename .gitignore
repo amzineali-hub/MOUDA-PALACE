@@ -6,3 +6,4 @@ coverage/
 *.log
 .env*
 !.env.example
+print-bridge/config.json

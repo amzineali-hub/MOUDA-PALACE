@@ -7,6 +7,7 @@ import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, 
 import { db, auth } from './firebase';
 import { computeRecipeCost } from './lib/recipeCost';
 import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice, getLineQuantity, parsePosPrice } from './lib/posUtils';
+import { computeStationBreakdown } from './lib/posShifts';
 import Combobox from './components/Combobox';
 
 const CATEGORIES = [
@@ -15,6 +16,12 @@ const CATEGORIES = [
   { id: 'Desserts', name: 'Desserts', icon: <Coffee size={18} /> },
   { id: 'Boissons', name: 'Boissons', icon: <GlassWater size={18} /> },
 ];
+
+// Identité de la caisse physique sur laquelle tourne ce poste (Patio / Rooftop) — choisie une
+// fois par machine et stockée en local, pas en base : ça évite un flux d'appairage pour un
+// simple "quel poste est-ce", et garantit que chaque poste ne suit que sa propre session de caisse.
+const STATIONS = ['Patio', 'Rooftop'] as const;
+const STATION_STORAGE_KEY = 'mouda_pos_station';
 
 const TicketReceiptBody = ({ ticket }: { ticket: any }) => (
   <>
@@ -98,6 +105,33 @@ const printHtmlDocument = (html: string) => {
   }
 };
 
+// Pont d'impression réseau local (voir print-bridge/) : un petit process Node tourne sur CE
+// poste et relaie vers l'imprimante Ethernet de la cuisine — un navigateur ne peut pas ouvrir de
+// socket réseau brute lui-même. `127.0.0.1` est exempté du blocage "mixed content" même si la
+// page est servie en HTTPS, donc ce fetch fonctionne quel que soit l'hébergement de l'app.
+const KITCHEN_BRIDGE_URL = 'http://127.0.0.1:4321';
+
+type KitchenTicketData = { tableLabel: string; waveLabel: string; time: string; items: any[] };
+
+const sendKitchenTicket = async (data: KitchenTicketData, showToast: (msg: string, type?: 'success' | 'error') => void) => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(`${KITCHEN_BRIDGE_URL}/print-kitchen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error(`Bridge a répondu ${res.status}`);
+  } catch (error) {
+    console.error('Pont imprimante cuisine injoignable, repli sur impression locale :', error);
+    printHtmlDocument(buildKitchenTicketHtml(data));
+    showToast("Imprimante cuisine injoignable — ticket imprimé ici, à apporter en cuisine", 'error');
+  }
+};
+
 // Ticket client (paiement) — 80mm, sans ligne TVA (retirée du ticket à la demande du gérant).
 const buildCustomerTicketHtml = (ticket: any): string => {
   const num = (v: any) => Number(v || 0).toFixed(2);
@@ -176,6 +210,35 @@ const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; t
   `;
 };
 
+// Ouverture manuelle du tiroir-caisse : les imprimantes-tickets sont branchées en USB, avec le
+// tiroir câblé dessus. Un navigateur ne peut pas envoyer une commande d'ouverture isolée à une
+// imprimante USB — on réutilise donc le mécanisme d'impression existant : ce mini-ticket
+// déclenche `window.print()` sur l'imprimante par défaut du poste, dont le pilote est configuré
+// pour ouvrir le tiroir à chaque impression. Le petit reçu papier est un effet de bord accepté
+// (et sert même de trace d'audit des ouvertures hors vente).
+const buildDrawerKickTicketHtml = (station: string): string => {
+  const now = new Date();
+  return `
+    <html>
+      <head>
+        <title>Ouverture tiroir</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body { font-family: 'Courier New', monospace; color: #000; margin: 0; padding: 4mm; width: 72mm; text-align: center; }
+          h2 { font-size: 14px; margin: 4px 0; }
+          p { font-size: 11px; margin: 2px 0; }
+        </style>
+      </head>
+      <body>
+        <h2>OUVERTURE TIROIR</h2>
+        <p>${station} — ${now.toLocaleDateString('fr-FR')} ${now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
+        <p>Hors vente</p>
+        <script>window.onload = () => { window.print(); };</script>
+      </body>
+    </html>
+  `;
+};
+
 const formatDateTime = (value: any): string => {
   const d = value?.toDate ? value.toDate() : value instanceof Date ? value : null;
   return d ? d.toLocaleString('fr-FR') : '—';
@@ -189,13 +252,23 @@ const ShiftReportBody = ({ report }: { report: any }) => {
         <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">MOUDA PALACE</h2>
         <p className="text-xs text-gray-500 uppercase tracking-wider">Rapport {isZ ? 'Z — Clôture de caisse' : 'X — État complet de la journée'}</p>
         <div className="mt-4 text-sm text-gray-600 space-y-1">
-          <p>{isZ ? `Caisse : ${report.id}` : report.id}</p>
+          <p>{isZ ? `Caisse : ${report.station ? `${report.station} — ` : ''}${report.id}` : report.id}</p>
           <p>Généré le {formatDateTime(report.generatedAt)}</p>
         </div>
       </div>
 
       <div className="space-y-1 text-sm mb-4">
         {report.shiftsCount !== undefined && <div className="flex justify-between"><span>Caisses ouvertes ce jour</span><span>{report.shiftsCount}</span></div>}
+        {report.perStation?.length > 1 && (
+          <div className="mt-1 pt-1 border-t border-dashed border-gray-200 space-y-1">
+            {report.perStation.map((row: any) => (
+              <div className="flex justify-between text-gray-500" key={row.station}>
+                <span>&nbsp;&nbsp;{row.station}</span>
+                <span>{Number(row.totalSales || 0).toFixed(2)} MAD ({row.paymentCount})</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex justify-between"><span>Première ouverture</span><span>{formatDateTime(report.openedAt)}</span></div>
         <div className="flex justify-between"><span>Ouvert par</span><span>{report.openedBy || '—'}</span></div>
         <div className="flex justify-between"><span>Fond de caisse initial</span><span>{Number(report.openingCash || 0).toFixed(2)} MAD</span></div>
@@ -252,9 +325,10 @@ const buildShiftReportHtml = (report: any): string => {
       <body>
         <h2>MOUDA PALACE</h2>
         <div class="sub">Rapport ${isZ ? 'Z — Clôture de caisse' : 'X — État complet de la journée'}</div>
-        <div class="meta">${isZ ? `Caisse : ${report.id}` : report.id}<br/>Généré le ${fmt(report.generatedAt)}</div>
+        <div class="meta">${isZ ? `Caisse : ${report.station ? `${report.station} — ` : ''}${report.id}` : report.id}<br/>Généré le ${fmt(report.generatedAt)}</div>
         <hr/>
         ${report.shiftsCount !== undefined ? `<div class="row"><span>Caisses ouvertes ce jour</span><span>${report.shiftsCount}</span></div>` : ''}
+        ${report.perStation?.length > 1 ? report.perStation.map((row: any) => `<div class="row" style="color:#666;"><span>&nbsp;&nbsp;${row.station}</span><span>${num(row.totalSales)} MAD (${row.paymentCount})</span></div>`).join('') : ''}
         <div class="row"><span>Première ouverture</span><span>${fmt(report.openedAt)}</span></div>
         <div class="row"><span>Ouvert par</span><span>${report.openedBy || '—'}</span></div>
         <div class="row"><span>Fond de caisse initial</span><span>${num(report.openingCash)} MAD</span></div>
@@ -360,6 +434,34 @@ export default function POSTactile() {
   const [refundSelections, setRefundSelections] = useState<Record<number, number>>({});
   const [shiftReportToPrint, setShiftReportToPrint] = useState<any>(null);
   const [isShiftReportModalOpen, setIsShiftReportModalOpen] = useState(false);
+  const [station, setStation] = useState<string | null>(() => {
+    try { return localStorage.getItem(STATION_STORAGE_KEY); } catch { return null; }
+  });
+
+  // Piloté par un réglage Firestore (Configuration > Impression cuisine) pour que le gérant
+  // puisse afficher/masquer ce bouton selon sa préférence réelle, sans redéploiement.
+  const [showDrawerButton, setShowDrawerButton] = useState(true);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'printing'), snap => {
+      setShowDrawerButton(snap.exists() ? snap.data().showManualDrawerButton !== false : true);
+    }, error => console.error('Printing settings error:', error));
+    return () => unsub();
+  }, []);
+  const openDrawer = () => {
+    if (!station) return;
+    printHtmlDocument(buildDrawerKickTicketHtml(station));
+  };
+
+  const changeStation = () => {
+    if (!window.confirm('Changer la caisse configurée sur cet appareil ?')) return;
+    try { localStorage.removeItem(STATION_STORAGE_KEY); } catch { /* ignore */ }
+    window.location.reload();
+  };
+
+  const chooseStation = (name: string) => {
+    try { localStorage.setItem(STATION_STORAGE_KEY, name); } catch { /* ignore */ }
+    setStation(name);
+  };
 
   useEffect(() => {
     const goOnline = () => setIsOnline(true);
@@ -381,7 +483,8 @@ export default function POSTactile() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'pos_shifts')), snapshot => {
+    if (!station) return; // pas de query tant que ce poste n'a pas d'identité choisie
+    const unsub = onSnapshot(query(collection(db, 'pos_shifts'), where('station', '==', station)), snapshot => {
       const openShifts: any[] = snapshot.docs
         .map(shift => ({ ...shift.data(), id: shift.id }))
         .filter((shift: any) => shift.status === 'Ouvert')
@@ -392,7 +495,7 @@ export default function POSTactile() {
       showToast('Impossible de charger la caisse active', 'error');
     });
     return () => unsub();
-  }, [showToast]);
+  }, [showToast, station]);
 
   const openShift = async () => {
     if (activeShift) {
@@ -404,6 +507,7 @@ export default function POSTactile() {
     try {
       await addDoc(collection(db, 'pos_shifts'), {
         status: 'Ouvert',
+        station,
         openingCash,
         expectedCash: openingCash,
         cashSales: 0,
@@ -475,7 +579,8 @@ export default function POSTactile() {
         totalSales: sum('totalSales'),
         paymentCount: sum('paymentCount'),
         refundCount: sum('refundCount'),
-        expectedCash: sum('expectedCash')
+        expectedCash: sum('expectedCash'),
+        perStation: computeStationBreakdown(shiftsToday)
       };
       setShiftReportToPrint(report);
       setIsShiftReportModalOpen(true);
@@ -1283,12 +1388,12 @@ export default function POSTactile() {
       await occupyTable(selectedTable, tableCovers);
       setCart(prev => prev.map(item => sentNow.has(item.id) ? { ...item, sentToKitchen: true } : item));
 
-      printHtmlDocument(buildKitchenTicketHtml({
+      await sendKitchenTicket({
         tableLabel: getTableLabel(selectedTable, true),
         waveLabel: isFirstWave ? 'Commande' : 'À suivre',
         time,
         items: itemsPendingSend
-      }));
+      }, showToast);
 
       showToast(isFirstWave ? "Commande envoyée en cuisine !" : "Suite envoyée en cuisine !", "success");
     } catch (e: any) {
@@ -1481,12 +1586,12 @@ export default function POSTactile() {
       // Paiement direct sans passage préalable par "Envoyer en Cuisine" (ex: vente comptoir
       // rapide) : la cuisine doit quand même recevoir un ticket pour ce qui n'a jamais été envoyé.
       if (itemsPendingSend.length > 0) {
-        printHtmlDocument(buildKitchenTicketHtml({
+        await sendKitchenTicket({
           tableLabel: getTableLabel(kitchenTableId || selectedTable, true),
           waveLabel: 'Commande (payée directement)',
           time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
           items: itemsPendingSend
-        }));
+        }, showToast);
       }
 
       setTicketToPrint({
@@ -1539,17 +1644,45 @@ export default function POSTactile() {
   const mixedCard = parsePosPrice(mixedCardAmount);
   const mixedTotal = mixedCash + mixedCard;
 
+  if (!station) {
+    return (
+      <div className="fixed inset-0 bg-[#1A1A1A] flex items-center justify-center p-6 z-[200]">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Quelle caisse est-ce ?</h2>
+          <p className="text-sm text-gray-500 mb-6">Ce choix est mémorisé sur cet appareil — à faire une seule fois.</p>
+          <div className="flex flex-col gap-3">
+            {STATIONS.map(name => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => chooseStation(name)}
+                className="py-4 rounded-xl bg-[#265C6D] text-white font-bold text-lg hover:brightness-110 transition-all"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F4F5]">
       <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
         {/* Left Side - Menu Area */}
-        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0">
+        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 min-w-0">
           {/* Header & Categories */}
           <div className="p-6 bg-[#F4F4F5] z-10 flex flex-col gap-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
-                <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-gray-500">Terminal de point de vente 3D synchronisé</p>
+                  <button type="button" onClick={changeStation} className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2" title="Changer la caisse configurée sur cet appareil">
+                    Caisse : {station}
+                  </button>
+                </div>
                 {!isOnline && (
                   <div className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
                     <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -1557,7 +1690,7 @@ export default function POSTactile() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <button
                   type="button"
                   onClick={() => {
@@ -1567,7 +1700,7 @@ export default function POSTactile() {
                   }}
                   className={`px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
                 >
-                  {activeShift ? `Caisse ouverte · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : 'Caisse fermée'}
+                  {activeShift ? `Caisse ouverte · ${station} · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : `Caisse fermée · ${station}`}
                 </button>
                 <button
                   type="button"
@@ -1601,6 +1734,16 @@ export default function POSTactile() {
                 >
                   {isBuildingXReport ? '...' : 'Rapport X'}
                 </button>
+                {showDrawerButton && (
+                  <button
+                    type="button"
+                    onClick={openDrawer}
+                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-gray-700 text-white shadow-[0_4px_0_0_#1f2937] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+                    title="Ouvrir le tiroir-caisse hors vente (rendu de monnaie, début de service...)"
+                  >
+                    Ouvrir le tiroir
+                  </button>
+                )}
                 <div className="relative flex-1 md:w-72">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input 

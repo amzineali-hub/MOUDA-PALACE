@@ -6026,6 +6026,11 @@ function Configuration() {
   const [integrationsConfig, setIntegrationsConfig] = useState({
     whatsappToken: ''
   });
+  const [printingConfig, setPrintingConfig] = useState({
+    kitchenPrinterIp: '',
+    kitchenPrinterPort: '9100',
+    showManualDrawerButton: true
+  });
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -6056,6 +6061,11 @@ function Configuration() {
         if (integrationsSnap.exists()) {
           setIntegrationsConfig(prev => ({ ...prev, ...integrationsSnap.data() }));
         }
+        const printingRef = doc(db, 'settings', 'printing');
+        const printingSnap = await getDoc(printingRef);
+        if (printingSnap.exists()) {
+          setPrintingConfig(prev => ({ ...prev, ...printingSnap.data() }));
+        }
       } catch (error) {
         console.error("Erreur lors du chargement de la configuration:", error);
       }
@@ -6085,6 +6095,9 @@ function Configuration() {
       } else if (activeSettingsTab === 'integrations') {
         const docRef = doc(db, 'settings', 'integrations');
         await setDoc(docRef, integrationsConfig, { merge: true });
+      } else if (activeSettingsTab === 'printing') {
+        const docRef = doc(db, 'settings', 'printing');
+        await setDoc(docRef, printingConfig, { merge: true });
       }
       showToast("Paramètres sauvegardés avec succès");
     } catch (error) {
@@ -6117,6 +6130,7 @@ function Configuration() {
           <SettingsTab active={activeSettingsTab === 'website'} onClick={() => setActiveSettingsTab('website')} icon={<Globe size={18} />} label="Site Web (moudapalace.com)" />
           <SettingsTab active={activeSettingsTab === 'billing'} onClick={() => setActiveSettingsTab('billing')} icon={<CreditCard size={18} />} label="Facturation & Stripe" />
           <SettingsTab active={activeSettingsTab === 'notifications'} onClick={() => setActiveSettingsTab('notifications')} icon={<Bell size={18} />} label="Notifications" />
+          <SettingsTab active={activeSettingsTab === 'printing'} onClick={() => setActiveSettingsTab('printing')} icon={<Printer size={18} />} label="Impression cuisine" />
           {isOwner && (
             <SettingsTab active={activeSettingsTab === 'security'} onClick={() => setActiveSettingsTab('security')} icon={<Shield size={18} />} label="Sécurité & Accès" />
           )}
@@ -6246,6 +6260,38 @@ function Configuration() {
                   </div>
                   <input type="text" value={integrationsConfig.whatsappToken} onChange={(e) => setIntegrationsConfig({...integrationsConfig, whatsappToken: e.target.value})} placeholder="Collez votre jeton d'accès WhatsApp ici..." className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeSettingsTab === 'printing' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-6">
+              <h3 className="text-xl font-serif font-medium border-b border-gray-100 pb-4 text-[#265C6D]">Impression cuisine</h3>
+
+              <div className="p-4 border border-amber-100 bg-amber-50/60 rounded-xl text-sm text-amber-900">
+                Champs informatifs pour les administrateurs uniquement. Le pont d'impression (<code>print-bridge</code>) installé sur chaque poste caisse lit sa propre configuration locale (<code>print-bridge/config.json</code>) et ne lit pas ces valeurs — cette page ne fait que documenter l'adresse de l'imprimante pour référence, afin que l'impression en cuisine continue de fonctionner même si Internet est coupé.
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse IP de l'imprimante cuisine</label>
+                  <input type="text" value={printingConfig.kitchenPrinterIp} onChange={(e) => setPrintingConfig({ ...printingConfig, kitchenPrinterIp: e.target.value })} placeholder="Ex: 192.168.1.50" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                  <input type="text" value={printingConfig.kitchenPrinterPort} onChange={(e) => setPrintingConfig({ ...printingConfig, kitchenPrinterPort: e.target.value })} placeholder="9100" className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors bg-white" />
+                </div>
+              </div>
+
+              <div className="p-5 border border-gray-100 rounded-xl bg-gray-50/50 flex items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-medium text-gray-900">Bouton "Ouvrir le tiroir" sur les caisses</h4>
+                  <p className="text-sm text-gray-500">Affiche ou masque le bouton d'ouverture manuelle du tiroir-caisse (hors vente) dans la Caisse Tactile, selon la préférence du gérant.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input type="checkbox" checked={printingConfig.showManualDrawerButton} onChange={(e) => setPrintingConfig({ ...printingConfig, showManualDrawerButton: e.target.checked })} className="sr-only peer" />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#265C6D]"></div>
+                </label>
               </div>
             </motion.div>
           )}

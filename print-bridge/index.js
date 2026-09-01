@@ -2,28 +2,54 @@
 // (127.0.0.1) et relaie les tickets cuisine vers l'imprimante Ethernet de la cuisine en TCP brut.
 // Voir README.md pour l'installation. Ne fait AUCUN appel réseau externe/Firestore : doit
 // continuer à fonctionner même si Internet est coupé, tant que le réseau local (LAN) tient.
+//
+// CommonJS (pas ESM) volontairement : c'est le format le plus fiable pour être empaqueté en
+// .exe autonome via `pkg` (voir package.json, script "build-exe").
 
-import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { buildKitchenTicketEscPos } from './lib/escpos.mjs';
-import { sendToPrinter } from './lib/printer-socket.mjs';
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const { buildKitchenTicketEscPos } = require('./lib/escpos');
+const { sendToPrinter } = require('./lib/printer-socket');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Quand empaqueté en .exe (pkg), __dirname pointe vers une image virtuelle en lecture seule
+// embarquée dans l'exécutable — il faut lire config.json à côté du vrai .exe sur le disque pour
+// que chaque poste caisse puisse éditer son IP d'imprimante sans reconstruire l'exécutable.
+const baseDir = process.pkg ? path.dirname(process.execPath) : __dirname;
+
+const DEFAULT_CONFIG = {
+  port: 4321,
+  kitchenPrinterHost: null,
+  kitchenPrinterPort: 9100,
+  connectTimeoutMs: 4000,
+  codepage: 'cp860',
+  escposTableNumber: 3
+};
 
 function loadConfig() {
-  const configPath = path.join(__dirname, 'config.json');
-  const examplePath = path.join(__dirname, 'config.example.json');
+  const configPath = path.join(baseDir, 'config.json');
   if (!fs.existsSync(configPath)) {
-    console.warn(`[print-bridge] AUCUN config.json trouvé — copiez config.example.json vers config.json et renseignez l'IP réelle de l'imprimante cuisine.`);
-    return JSON.parse(fs.readFileSync(examplePath, 'utf-8'));
+    console.warn(`[print-bridge] AUCUN config.json trouvé à côté de ce programme (${baseDir}).`);
+    console.warn(`[print-bridge] Copiez config.example.json en config.json et renseignez l'IP réelle de l'imprimante cuisine.`);
+    return { ...DEFAULT_CONFIG };
   }
-  return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  try {
+    return { ...DEFAULT_CONFIG, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
+  } catch (error) {
+    console.error(`[print-bridge] config.json illisible (JSON invalide) : ${error.message}`);
+    return { ...DEFAULT_CONFIG };
+  }
 }
 
 const config = loadConfig();
-const log = (msg) => console.log(`[${new Date().toLocaleTimeString('fr-FR')}] ${msg}`);
+// Horodatage manuel (pas toLocaleTimeString) : l'exécutable empaqueté (pkg) n'embarque pas les
+// données ICU complètes, ce qui rend le formatage localisé imprévisible/illisible.
+const pad2 = (n) => String(n).padStart(2, '0');
+const timestamp = () => {
+  const d = new Date();
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+};
+const log = (msg) => console.log(`[${timestamp()}] ${msg}`);
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,6 +83,9 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/print-kitchen') {
     try {
+      if (!config.kitchenPrinterHost) {
+        throw new Error("config.json absent ou incomplet (kitchenPrinterHost non renseigné)");
+      }
       const raw = await readBody(req);
       const data = JSON.parse(raw);
       const buffer = buildKitchenTicketEscPos(data, config);
@@ -81,5 +110,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(config.port, '127.0.0.1', () => {
-  log(`Pont d'impression prêt sur http://127.0.0.1:${config.port} — imprimante cuisine cible : ${config.kitchenPrinterHost}:${config.kitchenPrinterPort}`);
+  log(`Pont d'impression prêt sur http://127.0.0.1:${config.port} — imprimante cuisine cible : ${config.kitchenPrinterHost || '(non configurée)'}:${config.kitchenPrinterPort}`);
 });

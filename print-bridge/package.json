@@ -2,13 +2,20 @@
   "name": "mouda-palace-print-bridge",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "Pont local d'impression réseau — relaie les tickets cuisine du POS vers l'imprimante Ethernet de la cuisine. Tourne indépendamment sur chaque poste caisse.",
+  "bin": "index.js",
   "scripts": {
-    "start": "node index.mjs",
-    "mock-printer": "node test/mock-printer.mjs"
+    "start": "node index.js",
+    "mock-printer": "node test/mock-printer.mjs",
+    "build-exe": "pkg . --targets node18-win-x64 --output dist/print-bridge.exe"
   },
   "dependencies": {
     "iconv-lite": "^0.6.3"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^5.16.0"
+  },
+  "pkg": {
+    "assets": []
   }
 }

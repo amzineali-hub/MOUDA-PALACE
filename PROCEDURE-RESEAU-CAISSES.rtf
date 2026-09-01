@@ -1,0 +1,179 @@
+{\rtf1\ansi\ansicpg1252\deff0\deflang1036
+{\fonttbl{\f0\froman Times New Roman;}{\f1\fmodern Courier New;}}
+{\colortbl;\red38\green92\blue109;}
+\viewkind4\uc1\pard\fs20
+\pard\sb300\sa200\b\fs36 Proc\u233?dure \u8212? R\u233?seau et imprimantes pour le passage de Tacsystems \u224? l'ERP Mouda Palace\b0\fs20\par
+\pard\sa150\fs20 Ce document d\u233?crit comment brancher et configurer le r\u233?seau et les imprimantes des 2 caisses\par
+\pard\sa150\fs20 (Patio, Rooftop) et de l'imprimante cuisine, pour que l'ERP Mouda Palace prenne le relais de\par
+\pard\sa150\fs20 Tacsystems.\par
+\pard\sb280\sa160\b\fs28\cf1 Ce qui change par rapport \u224? Tacsystems\b0\cf0\fs20\par
+\pard\sa150\fs20 Tacsystems \u233?tait un logiciel install\u233? directement sur chaque poste caisse (Windows), avec un acc\u232?s\par
+\pard\sa150\fs20 direct aux pilotes d'imprimantes \u8212? il pouvait donc envoyer une impression vers n'importe quelle\par
+\pard\sa150\fs20 imprimante (USB ou r\u233?seau) sans interm\u233?diaire.\par
+\pard\sa150\fs20 Notre ERP est une \b application web\b0  (dans le navigateur Chrome). Par s\u233?curit\u233?, un navigateur ne\par
+\pard\sa150\fs20 peut pas ouvrir de connexion r\u233?seau directe vers une imprimante \u8212? c'est pour \u231?a qu'on a construit\par
+\pard\sa150\fs20 \f1 print-bridge/\f0  : un petit programme local qui fait ce pont uniquement pour l'imprimante cuisine\par
+\pard\sa150\fs20 (celle sans \u233?cran). Les imprimantes-tickets USB des 2 caisses, elles, restent g\u233?r\u233?es normalement\par
+\pard\sa150\fs20 par Windows, comme n'importe quelle imprimante.\par
+\pard\sa150\fs20 \b Le r\u233?seau physique existant (c\u226?blage, box/routeur, l'imprimante cuisine d\u233?j\u224? en Ethernet) n'a\b0 \par
+\pard\sa150\fs20 probablement pas besoin de changer\b  \u8212? Tacsystems utilisait d\u233?j\u224? une imprimante cuisine en r\u233?seau,\b0 \par
+\pard\sa150\fs20 donc l'infrastructure de base existe. Il s'agit surtout de reconfigurer les postes, pas de\par
+\pard\sa150\fs20 retirer des c\u226?bles.\par
+\pard\sb280\sa160\b\fs28\cf1 Sch\u233?ma cible\b0\cf0\fs20\par
+\pard\li360\sa0\f1\fs18                     \u9484?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9488?\f0\par
+\pard\li360\sa0\f1\fs18                     \u9474?   Box / Routeur      \u9474?\f0\par
+\pard\li360\sa0\f1\fs18                     \u9474?   (r\u233?seau du resto)  \u9474?\f0\par
+\pard\li360\sa0\f1\fs18                     \u9492?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9516?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9496?\f0\par
+\pard\li360\sa0\f1\fs18                  \u9484?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9532?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9488?\f0\par
+\pard\li360\sa0\f1\fs18                  \u9474?             \u9474?              \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9484?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9524?\u9472?\u9472?\u9472?\u9472?\u9472?\u9488? \u9484?\u9472?\u9472?\u9472?\u9472?\u9472?\u9524?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9488? \u9484?\u9472?\u9472?\u9472?\u9472?\u9472?\u9524?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9488?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? Caisse Patio\u9474? \u9474?Caisse Rooftop\u9474? \u9474? Imprimante     \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474?  (PC+\u233?cran) \u9474? \u9474?  (PC+\u233?cran)  \u9474? \u9474? Cuisine        \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474?             \u9474? \u9474?              \u9474? \u9474? (Ethernet,     \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? Chrome \u9472?\u9472?\u9472?\u9488? \u9474? \u9474? Chrome \u9472?\u9472?\u9472?\u9488?  \u9474? \u9474?  pas d'\u233?cran)  \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? print-    \u9474? \u9474? \u9474? print-    \u9474?  \u9474? \u9492?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9516?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9496?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? bridge \u9472?\u9472?\u9472?\u9532?\u9472?\u9532?\u9472?\u9532?\u9472?bridge \u9472?\u9472?\u9472?\u9532?\u9472?\u9472?\u9532?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9496?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474?  (local)  \u9474? \u9474? \u9474?  (local)  \u9474?  \u9474?  (TCP 9100, raw ESC/POS)\f0\par
+\pard\li360\sa0\f1\fs18           \u9474?           \u9474? \u9474? \u9474?           \u9474?  \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? Imprimante\u9474? \u9474? \u9474? Imprimante\u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? tickets   \u9474? \u9474? \u9474? tickets   \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? USB +     \u9474? \u9474? \u9474? USB +     \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9474? tiroir    \u9474? \u9474? \u9474? tiroir    \u9474?\f0\par
+\pard\li360\sa0\f1\fs18           \u9492?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9496? \u9474? \u9492?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9472?\u9496?\f0\par
+\pard\sa150\fs20 Chaque caisse tourne \b sa propre instance\b0  de \f1 print-bridge\f0  (m\u234?me config, pointant vers la m\u234?me\par
+\pard\sa150\fs20 imprimante cuisine) \u8212? ce n'est pas un serveur central, chaque poste est autonome.\par
+\pard\sb280\sa160\b\fs28\cf1 \u201?tape 1 \u8212? V\u233?rifier le r\u233?seau existant\b0\cf0\fs20\par
+\pard\sa150\fs20 Sur place, avant de commencer :\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Confirmer que la box/routeur du restaurant est toujours en service et fonctionne.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Confirmer que l'imprimante cuisine est toujours branch\u233?e en Ethernet sur ce m\u234?me r\u233?seau\par
+\pard\li420\sa60\fs20 (c\u226?ble RJ45 vers la box, un switch, ou en WiFi si le mod\u232?le le permet).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab V\u233?rifier que les 2 postes caisse (PC) pourront se connecter \u224? ce m\u234?me r\u233?seau \u8212? WiFi ou\par
+\pard\li420\sa60\fs20 Ethernet, peu importe, \b mais ils doivent \u234?tre sur le m\u234?me r\u233?seau local que l'imprimante\b0 \par
+\pard\li420\sa60\fs20 cuisine\b  (pas juste "avoir Internet" \u8212? il faut qu'ils puissent physiquement l'atteindre).\b0 \par
+\pard\sb280\sa160\b\fs28\cf1 \u201?tape 2 \u8212? Fixer l'adresse IP de l'imprimante cuisine\b0\cf0\fs20\par
+\pard\sa150\fs20 C'est l'\u233?tape la plus importante : si l'adresse IP de l'imprimante change (ce qui peut arriver\par
+\pard\sa150\fs20 avec une attribution automatique/DHCP), l'impression cuisine s'arr\u234?tera de fonctionner sans\par
+\pard\sa150\fs20 pr\u233?venir.\par
+\pard\sa150\fs20 \b IP relev\u233?e le 2026-09-01, c\u244?t\u233? Windows du poste Patio (imprimante "CUISINE") : \f1 192.168.1.100\f0 ,\b0 \par
+\pard\sa150\fs20 port \f1 9100\f0 , protocole Raw.\b  C'est d\u233?j\u224? la valeur par d\u233?faut dans \f1 config.example.json\f0 .\b0 \par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab \b Fixer cette adresse\b0  de fa\u231?on permanente, de pr\u233?f\u233?rence via une "r\u233?servation DHCP" dans\par
+\pard\li420\sa60\fs20 les r\u233?glages du routeur (associer l'adresse MAC de l'imprimante \u224? une IP fixe) \u8212? c'est plus\par
+\pard\li420\sa60\fs20 fiable qu'une IP configur\u233?e en dur sur l'imprimante elle-m\u234?me. Cette adresse \u233?tait d\u233?j\u224?\par
+\pard\li420\sa60\fs20 utilis\u233?e par Tacsystems, donc probablement d\u233?j\u224? stable, mais \u224? v\u233?rifier/s\u233?curiser (une\par
+\pard\li420\sa60\fs20 r\u233?servation DHCP \u233?vite qu'elle change un jour sans pr\u233?venir).\par
+\pard\sa150\fs20 \b Info dont j'ai besoin de ta part\b0  : la marque/mod\u232?le exact de l'imprimante cuisine, et son\par
+\pard\sa150\fs20 adresse IP une fois fix\u233?e. Sans \u231?a, je ne peux pas confirmer les d\u233?tails techniques d'impression\par
+\pard\sa150\fs20 (commande de coupe papier, encodage des accents) \u8212? voir \u201?tape 3.\par
+\pard\sb280\sa160\b\fs28\cf1 \u201?tape 3 \u8212? Pr\u233?parer chaque poste caisse (\u224? r\u233?p\u233?ter identiquement pour Patio ET Rooftop)\b0\cf0\fs20\par
+\pard\sb200\sa120\b\fs22 3a. Imprimante-tickets USB + tiroir-caisse\b0\fs20\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Brancher l'imprimante-tickets en USB sur le PC de la caisse.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Installer son pilote Windows (fourni par le fabricant, ou pilote g\u233?n\u233?rique "ESC/POS" /\par
+\pard\li420\sa60\fs20 "G\u233?n\u233?rique / Texte seul" si pas de pilote officiel).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab La d\u233?finir comme \b imprimante par d\u233?faut\b0  dans Windows (Param\u232?tres > Bluetooth et\par
+\pard\li420\sa60\fs20 appareils > Imprimantes et scanners).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab V\u233?rifier/activer le r\u233?glage "ouvrir le tiroir \u224? l'impression" \u8212? selon le mod\u232?le, \u231?a se fait\par
+\pard\li420\sa60\fs20 soit par un interrupteur physique (DIP switch) sur l'imprimante, soit dans les propri\u233?t\u233?s du\par
+\pard\li420\sa60\fs20 pilote Windows (onglet "Pr\u233?f\u233?rences" ou "Avanc\u233?"). C'est ce r\u233?glage qui fait que le tiroir\par
+\pard\li420\sa60\fs20 s'ouvre automatiquement \u224? chaque ticket imprim\u233?.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab \b Ne pas installer l'imprimante cuisine comme imprimante Windows sur ce poste\b0  \u8212? elle ne\par
+\pard\li420\sa60\fs20 passe pas par Windows, elle passe par \f1 print-bridge\f0  (voir 3c). L'installer aussi comme\par
+\pard\li420\sa60\fs20 imprimante r\u233?seau Windows ne servirait \u224? rien et risquerait de cr\u233?er de la confusion.\par
+\pard\sb200\sa120\b\fs22 3b. Chrome en "impression silencieuse" (recommand\u233?)\b0\fs20\par
+\pard\sa150\fs20 Par d\u233?faut, chaque impression (ticket client, ticket cuisine de secours, ouverture tiroir, rapport\par
+\pard\sa150\fs20 X/Z) ouvre la fen\u234?tre d'impression standard de Chrome, qu'il faut valider manuellement. Pour que \u231?a\par
+\pard\sa150\fs20 imprime directement, sans clic suppl\u233?mentaire :\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Cr\u233?er un raccourci Chrome sur le bureau (clic droit sur le raccourci existant > Copier /\par
+\pard\li420\sa60\fs20 Coller, ou clic droit sur le bureau > Nouveau > Raccourci).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Clic droit sur ce raccourci > Propri\u233?t\u233?s > champ "Cible" : ajouter \f1  --kiosk-printing\f0  \u224? la\par
+\pard\li420\sa60\fs20 fin (apr\u232?s les guillemets fermants du chemin vers \f1 chrome.exe\f0 ). Exemple :\par
+\pard\li420\sa60\fs20 \f1 "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing\f0 \par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Utiliser d\u233?sormais ce raccourci pour ouvrir l'application caisse \u8212? l'impression se fera\par
+\pard\li420\sa60\fs20 directement sur l'imprimante par d\u233?faut de Windows (celle r\u233?gl\u233?e en 3a), sans bo\u238?te de\par
+\pard\li420\sa60\fs20 dialogue.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab \b D\u233?marrage automatique (recommand\u233?)\b0  : mettre ce raccourci dans le dossier D\u233?marrage de\par
+\pard\li420\sa60\fs20 Windows, pour que l'appli s'ouvre toute seule \u224? l'allumage du poste, sans que personne au\par
+\pard\li420\sa60\fs20 restaurant n'ait \u224? y penser \u8212? voir la marche \u224? suivre d\u233?taill\u233?e en 3c (m\u234?me dossier\par
+\pard\li420\sa60\fs20 \f1 shell:startup\f0 , m\u234?me geste pour ce raccourci-ci et pour \f1 print-bridge.exe\f0 ).\par
+\pard\sb200\sa120\b\fs22 3c. Installer et configurer \f1 print-bridge\f0  (ex\u233?cutable autonome, rien \u224? installer)\b0\fs20\par
+\pard\sa150\fs20 \f1 print-bridge\f0  est distribu\u233? comme un \f1 .exe\f0  Windows autonome \u8212? \b pas besoin d'installer Node.js\b0 \par
+\pard\sa150\fs20 sur les postes caisse, il embarque tout ce qu'il lui faut. Voir \f1 print-bridge/README.md\f0  pour le\par
+\pard\sa150\fs20 d\u233?tail complet.\par
+\pard\li420\fi-260\sa60\fs20 1.\tab Cr\u233?er un dossier sur ce PC, ex. \f1 C:\\MoudaPalace\\print-bridge\\\f0 .\par
+\pard\li420\fi-260\sa60\fs20 2.\tab Y copier deux fichiers depuis \f1 print-bridge/\f0  dans le d\u233?p\u244?t :\par
+\pard\sa150\fs20    - \f1 dist/print-bridge.exe\f0 \par
+\pard\sa150\fs20    - \f1 config.example.json\f0  (\u224? renommer en \f1 config.json\f0  une fois copi\u233?)\par
+\pard\li420\fi-260\sa60\fs20 3.\tab \f1 config.json\f0  est d\u233?j\u224? pr\u233?-rempli avec la bonne IP (\f1 192.168.1.100\f0 , relev\u233?e \u224? l'\u201?tape 2) \u8212?\par
+\pard\sa150\fs20    normalement rien \u224? modifier, sauf si l'imprimante cuisine change d'adresse un jour :\par
+\pard\li360\sa0\f1\fs18    \{\f0\par
+\pard\li360\sa0\f1\fs18      "port": 4321,\f0\par
+\pard\li360\sa0\f1\fs18      "kitchenPrinterHost": "192.168.1.100",\f0\par
+\pard\li360\sa0\f1\fs18      "kitchenPrinterPort": 9100,\f0\par
+\pard\li360\sa0\f1\fs18      "connectTimeoutMs": 4000,\f0\par
+\pard\li360\sa0\f1\fs18      "codepage": "cp860",\f0\par
+\pard\li360\sa0\f1\fs18      "escposTableNumber": 3\f0\par
+\pard\li360\sa0\f1\fs18    \}\f0\par
+\pard\li420\fi-260\sa60\fs20 4.\tab Double-cliquer \f1 print-bridge.exe\f0  pour d\u233?marrer le pont (garder la fen\u234?tre noire ouverte \u8212? elle\par
+\pard\sa150\fs20    sert de journal, un ticket r\u233?ussi/\u233?chou\u233? s'y affiche \u224? chaque envoi ; on peut la minimiser,\par
+\pard\sa150\fs20    mais pas la fermer).\par
+\pard\li420\fi-260\sa60\fs20 5.\tab V\u233?rifier : ouvrir \f1 http://127.0.0.1:4321/health\f0  dans le navigateur \u8594? doit r\u233?pondre\par
+\pard\sa150\fs20    \f1 \{"ok":true, "printer": \{...\}\}\f0 .\par
+\pard\li420\fi-260\sa60\fs20 6.\tab \b D\u233?marrage automatique (recommand\u233?, \u224? faire une seule fois)\b0  \u8212? pour que ni \f1 print-bridge.exe\f0 \par
+\pard\sa150\fs20    ni Chrome/l'ERP n'aient \u224? \u234?tre relanc\u233?s manuellement \u224? chaque allumage du poste :\par
+\pard\sa150\fs20    1. \f1 Win+R\f0  \u8594? taper \f1 shell:startup\f0  \u8594? Entr\u233?e. Une fen\u234?tre Explorateur s'ouvre (le dossier\par
+\pard\li420\sa60\fs20 D\u233?marrage de Windows) \u8212? la laisser ouverte.\par
+\pard\sa150\fs20    2. Ouvrir une deuxi\u232?me fen\u234?tre Explorateur vers \f1 C:\\MoudaPalace\\print-bridge\\\f0 .\par
+\pard\sa150\fs20    3. Clic droit sur \f1 print-bridge.exe\f0  \u8594? \b Cr\u233?er un raccourci\b0 .\par
+\pard\sa150\fs20    4. Couper ce raccourci (Ctrl+X), le coller (Ctrl+V) dans la fen\u234?tre du dossier D\u233?marrage.\par
+\pard\sa150\fs20    5. R\u233?p\u233?ter la m\u234?me chose pour le raccourci Chrome en mode silencieux cr\u233?\u233? en 3b (clic droit\par
+\pard\li420\sa60\fs20 dessus \u8594? couper \u8594? coller dans le m\u234?me dossier D\u233?marrage).\par
+\pard\sa150\fs20    6. \u192? partir du prochain red\u233?marrage/connexion du poste, les deux se lancent automatiquement.\par
+\pard\sb200\sa120\b\fs22 3d. Ouvrir l'application et choisir le poste\b0\fs20\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Ouvrir \f1 https://mouda-palace.vercel.app\f0  (via le raccourci Chrome en mode silencieux, 3b).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Se connecter avec le compte Google autoris\u233?.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Aller dans \b Caisse Tactile\b0  \u8212? au premier chargement sur ce poste, l'appli demande\par
+\pard\li420\sa60\fs20 "Patio ou Rooftop ?" : choisir celui qui correspond \u224? ce PC. Ce choix est m\u233?moris\u233? sur ce\par
+\pard\li420\sa60\fs20 poste (dans le navigateur) \u8212? pas besoin de le refaire ensuite, sauf si le cache du\par
+\pard\li420\sa60\fs20 navigateur est vid\u233?.\par
+\pard\sb280\sa160\b\fs28\cf1 \u201?tape 4 \u8212? V\u233?rifier la configuration dans l'appli\b0\cf0\fs20\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Dans \b Configuration > Impression cuisine\b0  : renseigner l'IP/port de l'imprimante cuisine\par
+\pard\li420\sa60\fs20 (\u224? titre indicatif/documentation pour l'\u233?quipe \u8212? l'impression r\u233?elle utilise \f1 config.json\f0 \par
+\pard\li420\sa60\fs20 sur chaque poste, pas cette page, pour continuer \u224? fonctionner m\u234?me sans Internet).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab V\u233?rifier que le bouton "Ouvrir le tiroir" est activ\u233? si le g\u233?rant le souhaite (m\u234?me page).\par
+\pard\sb280\sa160\b\fs28\cf1 \u201?tape 5 \u8212? Tests de bout en bout, une fois tout branch\u233?\b0\cf0\fs20\par
+\pard\sa150\fs20 Sur \b chaque\b0  poste (Patio, puis Rooftop) :\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Ouvrir une caisse (fond de caisse initial) \u8594? v\u233?rifier que le nom du poste s'affiche\par
+\pard\li420\sa60\fs20 correctement ("Caisse ouverte \u183? Patio" / "\u183? Rooftop").\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Cliquer "Ouvrir le tiroir" \u8594? le tiroir doit s'ouvrir physiquement, sans bo\u238?te de dialogue si\par
+\pard\li420\sa60\fs20 3b est fait.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Passer une commande test et cliquer "Envoyer en Cuisine" \u8594? le ticket doit sortir sur\par
+\pard\li420\sa60\fs20 l'imprimante cuisine (pas sur l'imprimante du poste). V\u233?rifier le contenu (table, plats,\par
+\pard\li420\sa60\fs20 quantit\u233?s, accents bien affich\u233?s).\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Encaisser un paiement test \u8594? le ticket client doit s'imprimer sur l'imprimante du poste, et\par
+\pard\li420\sa60\fs20 le tiroir s'ouvrir.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Fermer la caisse en fin de test, v\u233?rifier le rapport Z.\par
+\pard\li420\fi-260\sa60\fs20 \u9744? \tab Test crois\u233? : envoyer une commande en cuisine depuis Patio, puis depuis Rooftop juste apr\u232?s\par
+\pard\li420\sa60\fs20 \u8212? les deux tickets doivent sortir correctement sur l'imprimante cuisine sans se bloquer\par
+\pard\li420\sa60\fs20 l'un l'autre.\par
+\pard\sb280\sa160\b\fs28\cf1 En cas de probl\u232?me\b0\cf0\fs20\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab \b Le ticket cuisine ne sort pas, mais une fen\u234?tre d'impression locale s'ouvre \u224? la place\b0  :\par
+\pard\sa150\fs20   c'est le repli de secours pr\u233?vu \u8212? \u231?a veut dire que \f1 print-bridge\f0  n'a pas pu joindre\par
+\pard\sa150\fs20   l'imprimante. V\u233?rifier : le pont est-il lanc\u233? (fen\u234?tre noire de \f1 print-bridge.exe\f0  ouverte) ?\par
+\pard\sa150\fs20   L'IP dans \f1 config.json\f0  est-elle correcte ? L'imprimante est-elle allum\u233?e et sur le m\u234?me\par
+\pard\sa150\fs20   r\u233?seau ?\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab \b Les accents sont d\u233?form\u233?s sur le ticket cuisine\b0  : ajuster \f1 codepage\f0  et\par
+\pard\sa150\fs20   \f1 escposTableNumber\f0  dans \f1 config.json\f0  selon le mod\u232?le r\u233?el de l'imprimante (voir\par
+\pard\sa150\fs20   \f1 print-bridge/README.md\f0 ).\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab \b Le papier ne se coupe pas\b0  : la commande de coupe dans \f1 print-bridge/lib/escpos.js\f0  doit\par
+\pard\sa150\fs20   \u234?tre ajust\u233?e pour ce mod\u232?le pr\u233?cis, puis l'ex\u233?cutable reconstruit (\f1 npm run build-exe\f0 ) \u8212? \u224? me\par
+\pard\sa150\fs20   signaler avec la r\u233?f\u233?rence exacte de l'imprimante, je m'en occupe et te renvoie le \f1 .exe\f0  \u224?\par
+\pard\sa150\fs20   jour.\par
+\pard\sb280\sa160\b\fs28\cf1 Mat\u233?riel confirm\u233? (2026-09-01)\b0\cf0\fs20\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab Les 3 imprimantes (Patio, Rooftop, Cuisine) sont le m\u234?me mod\u232?le : \b WDLink WD8260\b0 , 80mm,\par
+\pard\sa150\fs20   USB+LAN, support ESC/POS confirm\u233? \u8212? compatible avec \f1 print-bridge\f0  tel quel.\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab Imprimante cuisine : IP \f1 192.168.1.100\f0 , port \f1 9100\f0 , protocole Raw \u8212? d\u233?j\u224? repris dans\par
+\pard\sa150\fs20   \f1 config.example.json\f0 .\par
+\pard\li420\fi-260\sa60\fs20 \u8226? \tab Restera \u224? confirmer \b au premier vrai test d'impression\b0  (\u201?tape 5) : que la coupe papier et les\par
+\pard\sa150\fs20   accents s'affichent correctement avec les r\u233?glages par d\u233?faut (CP860, table 3) \u8212? sinon on\par
+\pard\sa150\fs20   ajuste \f1 print-bridge/lib/escpos.js\f0  et je reconstruis l'ex\u233?cutable.\par
+
+}

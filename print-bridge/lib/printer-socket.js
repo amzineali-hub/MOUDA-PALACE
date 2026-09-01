@@ -3,9 +3,9 @@
 // indispensable : une imprimante éteinte, une IP fausse, ou un bourrage papier ne doivent jamais
 // bloquer indéfiniment la caisse qui attend la réponse.
 
-import net from 'node:net';
+const net = require('node:net');
 
-export function sendToPrinter(buffer, { host, port, connectTimeoutMs = 4000 }) {
+function sendToPrinter(buffer, { host, port, connectTimeoutMs = 4000 }) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const settle = (fn, arg) => {
@@ -37,3 +37,5 @@ export function sendToPrinter(buffer, { host, port, connectTimeoutMs = 4000 }) {
     });
   });
 }
+
+module.exports = { sendToPrinter };

@@ -3,7 +3,7 @@
 // Volontairement autonome (aucun import depuis src/lib) pour que print-bridge/ reste un dossier
 // copiable tel quel sur un poste caisse, indépendant du reste du dépôt.
 
-import iconv from 'iconv-lite';
+const iconv = require('iconv-lite');
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -36,7 +36,7 @@ function itemLine(item, codepage) {
   return Buffer.concat(parts);
 }
 
-export function buildKitchenTicketEscPos(data, { codepage = 'cp860', escposTableNumber = 3 } = {}) {
+function buildKitchenTicketEscPos(data, { codepage = 'cp860', escposTableNumber = 3 } = {}) {
   const separator = '-'.repeat(32) + '\n';
   const chunks = [
     INIT,
@@ -58,3 +58,5 @@ export function buildKitchenTicketEscPos(data, { codepage = 'cp860', escposTable
   ];
   return Buffer.concat(chunks);
 }
+
+module.exports = { buildKitchenTicketEscPos };

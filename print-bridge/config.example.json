@@ -1,6 +1,6 @@
 {
   "port": 4321,
-  "kitchenPrinterHost": "192.168.1.50",
+  "kitchenPrinterHost": "192.168.1.100",
   "kitchenPrinterPort": 9100,
   "connectTimeoutMs": 4000,
   "codepage": "cp860",

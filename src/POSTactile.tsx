@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
@@ -154,7 +154,7 @@ const buildCustomerTicketHtml = (ticket: any): string => {
       <body>
         <h2>MOUDA PALACE</h2>
         <div class="sub">Restaurant - Lounge - Rooftop</div>
-        <div class="meta">Ticket : ${ticket.id}<br/>${ticket.date} à ${ticket.time}</div>
+        <div class="meta">Ticket : ${ticket.id}<br/>${ticket.date} à ${ticket.time}${ticket.serverName ? `<br/>Serveur : ${ticket.serverName}` : ''}</div>
         <hr/>
         ${ticket.items.map((item: any) => `<div class="row"><span>${getLineQuantity(item)}x ${item.name}</span><span>${num(getLineTotal(item))} MAD</span></div>`).join('')}
         <hr/>
@@ -359,6 +359,7 @@ export default function POSTactile() {
   const handleClearCart = () => {
     if (cart.length === 0) return;
     if (kitchenSent && kitchenOrderId) {
+      setCancelOrderPin('');
       setIsCancelOrderModalOpen(true);
       return;
     }
@@ -385,6 +386,10 @@ export default function POSTactile() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const [statusPickerTable, setStatusPickerTable] = useState<any | null>(null);
+  const [isChangingTableStatus, setIsChangingTableStatus] = useState(false);
+  const [selectedWaiter, setSelectedWaiter] = useState<string | null>(null);
+  const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemImage, setNewItemImage] = useState<string>('');
@@ -423,6 +428,7 @@ export default function POSTactile() {
   const taxRate = 0;
   const [isCancelOrderModalOpen, setIsCancelOrderModalOpen] = useState(false);
   const [cancelOrderReason, setCancelOrderReason] = useState('');
+  const [cancelOrderPin, setCancelOrderPin] = useState('');
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
   const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' || navigator.onLine);
   const [recentReceipts, setRecentReceipts] = useState<any[]>([]);
@@ -607,6 +613,41 @@ export default function POSTactile() {
     }
   };
 
+  // Reprend une commande déjà envoyée en cuisine mais pas encore payée, quand on sélectionne une
+  // table occupée avec un panier local vide — sinon la caisse perdrait de vue ce qui a déjà été
+  // commandé (équivalent de "Charger Commandes" chez Tacsystems). Ne s'applique que si le panier
+  // local est vide, pour ne jamais écraser silencieusement des articles pas encore envoyés.
+  const loadExistingOrderForTable = async (targetTable: string) => {
+    try {
+      const existing = await getDocs(query(
+        collection(db, 'orders'),
+        where('tableId', '==', targetTable),
+        where('paymentStatus', '==', 'Non payée'),
+        limit(5)
+      ));
+      const openOrderDoc = existing.docs.find(d => d.data().status !== 'Annulée');
+      if (!openOrderDoc) return;
+      const data = openOrderDoc.data();
+      const loadedLines = (data.lines || []).map((line: any, index: number) => ({
+        id: `resume-${openOrderDoc.id}-${index}`,
+        name: line.name || 'Inconnu',
+        numPrice: Number(line.unitPrice) || 0,
+        qty: Number(line.qty) || 1,
+        modifiers: line.modifiers || null,
+        sentToKitchen: line.sentToKitchen !== false
+      }));
+      setCart(loadedLines);
+      setKitchenOrderId(openOrderDoc.id);
+      setKitchenTableId(targetTable);
+      setKitchenSent(true);
+      setDiscountPercent(data.discountPercent || 0);
+      if (data.serverName) setSelectedWaiter(data.serverName);
+      showToast(`Commande en cours chargée (${loadedLines.length} article${loadedLines.length > 1 ? 's' : ''})`);
+    } catch (error) {
+      console.error('Failed to load existing order for table:', error);
+    }
+  };
+
   const transferTable = async (targetTable: string) => {
     if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
       const isRealTable = targetTable !== 'À emporter';
@@ -619,6 +660,9 @@ export default function POSTactile() {
       // "Envoyer en Cuisine", since a direct-payment order (no kitchen step) never
       // reaches that call and the table would stay "Libre" for its whole lifetime.
       if (isRealTable) await occupyTable(targetTable, covers);
+      if (isRealTable && cart.length === 0 && !kitchenOrderId && matchedTable?.status === 'occupee') {
+        await loadExistingOrderForTable(targetTable);
+      }
       return;
     }
     if (isTransferringTable) return;
@@ -804,6 +848,15 @@ export default function POSTactile() {
     return `${ZONE_SHORT[t.zone] || ''}${t.id}`;
   };
 
+  // Liste des serveurs assignables à une commande — reprend directement le personnel RH (onglet
+  // Personnel) dont le poste contient "Serveur"/"Garçon", pour éviter une liste dupliquée à
+  // maintenir séparément. Si aucun poste ne correspond (rôles nommés autrement), on retombe sur
+  // tout le personnel plutôt que de laisser la fonctionnalité vide.
+  const waiterOptions = (() => {
+    const matching = staffMembers.filter(s => /serveu|gar[çc]on/i.test(s.role || ''));
+    return matching.length > 0 ? matching : staffMembers;
+  })();
+
   const tablesByZone = [...tables]
     .sort((a, b) => {
       const ai = ZONE_ORDER.indexOf(a.zone); const bi = ZONE_ORDER.indexOf(b.zone);
@@ -849,6 +902,41 @@ export default function POSTactile() {
       }
     } catch (error) {
       console.warn('Table release skipped:', error);
+    }
+  };
+
+  // Changement manuel du statut d'une table depuis la Caisse Tactile (jusqu'ici possible
+  // uniquement depuis "Gestion de Salle & Tables"). Un garde-fou empêche de marquer une table
+  // "Libre" par erreur tant qu'une commande non payée lui est encore rattachée — même requête que
+  // releaseTableIfNoOpenOrders, mais on prévient plutôt que de forcer silencieusement.
+  const changeTableStatus = async (table: any, newStatus: string) => {
+    if (!table?.fbId) return;
+    setIsChangingTableStatus(true);
+    try {
+      if (newStatus === 'libre') {
+        const openOrders = await getDocs(query(
+          collection(db, 'orders'),
+          where('tableId', '==', table.fbId),
+          where('paymentStatus', '==', 'Non payée')
+        ));
+        const stillOpen = openOrders.docs.some(d => d.data().status !== 'Annulée');
+        if (stillOpen && !window.confirm(`La table ${table.id} a encore une commande non payée. La marquer "Libre" quand même ?`)) {
+          setIsChangingTableStatus(false);
+          return;
+        }
+      }
+      await updateDoc(doc(db, 'tables', table.fbId), {
+        status: newStatus,
+        ...(newStatus === 'libre' ? { currentPax: 0, time: null } : {}),
+        updatedAt: serverTimestamp()
+      });
+      showToast('Statut de la table mis à jour');
+      setStatusPickerTable(null);
+    } catch (error) {
+      console.error('Table status update failed:', error);
+      showToast('Erreur lors de la mise à jour du statut', 'error');
+    } finally {
+      setIsChangingTableStatus(false);
     }
   };
 
@@ -992,6 +1080,11 @@ export default function POSTactile() {
       showToast('Un motif est requis pour annuler une commande envoyée en cuisine.', 'error');
       return;
     }
+    const approver = verifyManagerPin(cancelOrderPin);
+    if (!approver) {
+      showToast('Code PIN manager invalide.', 'error');
+      return;
+    }
     if (isCancellingOrder) return;
     setIsCancellingOrder(true);
     try {
@@ -1006,6 +1099,8 @@ export default function POSTactile() {
         action: 'order_cancelled',
         orderId: kitchenOrderId,
         reason: cancelOrderReason.trim(),
+        approvedBy: approver.name,
+        approvedByEmpId: approver.empId,
         source: 'POS',
         createdAt: serverTimestamp()
       });
@@ -1020,6 +1115,7 @@ export default function POSTactile() {
       setKitchenOrderId(null);
       setKitchenTableId(null);
       setCancelOrderReason('');
+      setCancelOrderPin('');
       setIsCancelOrderModalOpen(false);
       showToast('Commande annulée.');
     } catch (error) {
@@ -1355,6 +1451,7 @@ export default function POSTactile() {
             orderId,
             tableId: selectedTable || null,
             tableLabel: getTableLabel(selectedTable),
+            serverName: selectedWaiter || null,
             lines: allLines,
             subtotal: discountedSubtotal,
             tax,
@@ -1547,6 +1644,7 @@ export default function POSTactile() {
           shiftId: activeShift.id,
           tableId: kitchenTableId || selectedTable || null,
           tableLabel: getTableLabel(kitchenTableId || selectedTable),
+          serverName: selectedWaiter || null,
           lines: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), unitPrice: getLineUnitPrice(item), modifiers: item.modifiers || null })),
           subtotal: discountedSubtotal,
           tax,
@@ -1598,6 +1696,7 @@ export default function POSTactile() {
         id: displayId,
         date: today,
         time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        serverName: selectedWaiter || null,
         items: [...cart],
         total: total,
         subtotal: discountedSubtotal,
@@ -1677,12 +1776,7 @@ export default function POSTactile() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-500">Terminal de point de vente 3D synchronisé</p>
-                  <button type="button" onClick={changeStation} className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2" title="Changer la caisse configurée sur cet appareil">
-                    Caisse : {station}
-                  </button>
-                </div>
+                <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
                 {!isOnline && (
                   <div className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
                     <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -1691,6 +1785,14 @@ export default function POSTactile() {
                 )}
               </div>
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={changeStation}
+                  title="Changer la caisse configurée sur cet appareil"
+                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#cda25b] hover:brightness-105 transition-all duration-150 active:shadow-none active:translate-y-1"
+                >
+                  Caisse : {station}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1868,67 +1970,93 @@ export default function POSTactile() {
         {/* Right Side - Ticket / Cart Area */}
         <div className="w-full lg:w-[480px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
 
-          {/* Ticket Header */}
-          <div className="p-6 bg-white flex justify-between items-center border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#F4C75B]/20 flex items-center justify-center text-[#F4C75B]">
-                <Receipt size={20} />
+          {/* Ticket Header — 2 rangées : titre+actions rapides en haut, contexte (table/serveur/
+              sur place) en dessous sur une rangée qui passe à la ligne si besoin. Tout tenir sur
+              une seule rangée ici a déjà causé un débordement hors du panneau (largeur fixe
+              480px) une fois qu'on a dépassé 3-4 boutons. */}
+          <div className="p-6 bg-white border-b border-gray-100 space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#F4C75B]/20 flex items-center justify-center text-[#F4C75B]">
+                  <Receipt size={20} />
+                </div>
+                <h2 className="font-bold text-[#1A1A1A] text-xl">Ticket</h2>
               </div>
-              <h2 className="font-bold text-[#1A1A1A] text-xl">Ticket</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {cart.length > 0 && (
-                <button 
-                  onClick={handleClearCart}
-                  className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors" title="Annuler le ticket"
+              <div className="flex items-center gap-2">
+                {cart.length > 0 && (
+                  <button
+                    onClick={handleClearCart}
+                    className="flex items-center justify-center w-10 h-10 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors" title="Annuler le ticket"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setDiscountPin(''); setIsDiscountModalOpen(true); }}
+                  disabled={cart.length === 0 || isProcessingPayment}
+                  className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${discountPercent > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                  title="Appliquer une remise"
                 >
-                  <Trash2 size={18} />
+                  %
+                </button>
+                {selectedTable && selectedTable !== 'À emporter' && (
+                  <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-1 py-1 gap-1" title="Nombre de couverts">
+                    <button
+                      type="button"
+                      onClick={() => setTableCovers(c => Math.max(1, c - 1))}
+                      className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="w-5 text-center text-sm font-bold text-gray-700">{tableCovers}</span>
+                    <button
+                      type="button"
+                      onClick={() => setTableCovers(c => c + 1)}
+                      className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-green-500 transition-colors"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedTable !== 'À emporter' && (
+                <button
+                  onClick={() => setIsTableModalOpen(true)}
+                  className="flex items-center gap-2 text-sm bg-sky-500 text-white shadow-[0_4px_0_0_#0369a1] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 px-4 py-2.5 rounded-xl font-bold"
+                >
+                  <User size={16} />
+                  {selectedTable ? getTableLabel(selectedTable) : "Table"}
+                  {selectedTable && (() => {
+                    const t = tables.find(tb => tb.fbId === selectedTable);
+                    const status = t?.status;
+                    return (
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full ${status === 'occupee' ? 'bg-red-500' : status === 'reservee' ? 'bg-orange-400' : 'bg-green-400'} ring-2 ring-white/40`}
+                        title={status === 'occupee' ? 'Table occupée' : status === 'reservee' ? 'Table réservée' : 'Table libre'}
+                      />
+                    );
+                  })()}
                 </button>
               )}
               <button
-                type="button"
-                onClick={() => { setDiscountPin(''); setIsDiscountModalOpen(true); }}
-                disabled={cart.length === 0 || isProcessingPayment}
-                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${discountPercent > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                title="Appliquer une remise"
+                onClick={() => setIsWaiterModalOpen(true)}
+                className="flex items-center gap-2 text-sm bg-violet-500 text-white shadow-[0_4px_0_0_#6d28d9] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 px-4 py-2.5 rounded-xl font-bold"
+                title="Changer de serveur"
               >
-                %
+                <UserCircle size={16} />
+                {selectedWaiter || "Garçon"}
               </button>
-              {selectedTable && selectedTable !== 'À emporter' && (
-                <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-1 py-1 gap-1" title="Nombre de couverts">
-                  <button
-                    type="button"
-                    onClick={() => setTableCovers(c => Math.max(1, c - 1))}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="w-5 text-center text-sm font-bold text-gray-700">{tableCovers}</span>
-                  <button
-                    type="button"
-                    onClick={() => setTableCovers(c => c + 1)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-green-500 transition-colors"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              )}
               <button
-                onClick={() => setIsTableModalOpen(true)}
-                className="flex items-center gap-2 text-sm bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl font-bold text-gray-700 hover:bg-gray-100 hover:shadow-inner transition-all"
+                onClick={() => selectedTable === 'À emporter' ? setIsTableModalOpen(true) : transferTable('À emporter')}
+                disabled={isTransferringTable}
+                title={selectedTable === 'À emporter' ? 'Repasser en Sur place (choisir une table)' : 'Basculer en À emporter'}
+                className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-bold transition-all duration-150 ${selectedTable === 'À emporter' ? 'bg-[#1A1A1A] text-[#F4C75B] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[2px]' : 'bg-teal-600 text-white shadow-[0_4px_0_0_#134e4a] hover:brightness-110 active:shadow-none active:translate-y-1'}`}
               >
-                <User size={16} />
-                {selectedTable ? getTableLabel(selectedTable) : "Table"}
-                {selectedTable && selectedTable !== 'À emporter' && (() => {
-                  const t = tables.find(tb => tb.fbId === selectedTable);
-                  const status = t?.status;
-                  return (
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full ${status === 'occupee' ? 'bg-red-500' : status === 'reservee' ? 'bg-orange-400' : 'bg-green-500'}`}
-                      title={status === 'occupee' ? 'Table occupée' : status === 'reservee' ? 'Table réservée' : 'Table libre'}
-                    />
-                  );
-                })()}
+                <Coffee size={16} />
+                {selectedTable === 'À emporter' ? 'À emporter' : 'Sur place'}
               </button>
             </div>
           </div>
@@ -2110,15 +2238,19 @@ export default function POSTactile() {
                 <h3 className="text-xl font-bold text-gray-900">Annuler la commande</h3>
                 <p className="text-sm text-gray-500 mt-1">Déjà envoyée en cuisine — la cuisine sera prévenue</p>
               </div>
-              <button type="button" onClick={() => setIsCancelOrderModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+              <button type="button" onClick={() => { setCancelOrderPin(''); setIsCancelOrderModalOpen(false); }} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
             </div>
             <form onSubmit={(event) => { event.preventDefault(); confirmCancelOrder(); }} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Motif obligatoire</label>
                 <textarea value={cancelOrderReason} onChange={(event) => setCancelOrderReason(event.target.value)} rows={2} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. client parti, erreur de commande" />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Code PIN manager</label>
+                <input type="password" inputMode="numeric" maxLength={4} value={cancelOrderPin} onChange={(event) => setCancelOrderPin(event.target.value.replace(/\D/g, ''))} className="w-full p-3 text-xl font-bold tracking-[0.5em] border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]" placeholder="••••" />
+              </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setIsCancelOrderModalOpen(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>
+                <button type="button" onClick={() => { setCancelOrderPin(''); setIsCancelOrderModalOpen(false); }} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold">Retour</button>
                 <button type="submit" disabled={isCancellingOrder} className="flex-1 py-3 rounded-xl bg-red-600 text-white font-bold disabled:opacity-50">Confirmer l'annulation</button>
               </div>
             </form>
@@ -2605,8 +2737,13 @@ export default function POSTactile() {
                         className={`aspect-square rounded-2xl flex flex-col items-center justify-center font-bold transition-all ${selectedTable === table.fbId ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
                       >
                         <span className="text-xl mb-1">{table.id}</span>
-                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {table.status === 'libre' ? 'Libre' : table.status === 'occupee' ? 'Occupée' : table.status === 'reservee' ? 'Réservée' : table.status}
+                        <span
+                          role="button"
+                          title="Changer le statut de cette table"
+                          onClick={(e) => { e.stopPropagation(); setStatusPickerTable(table); }}
+                          className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full underline decoration-dotted underline-offset-2 ${table.status === 'libre' ? 'bg-green-100 text-green-700' : table.status === 'occupee' ? 'bg-red-100 text-red-700' : table.status === 'reservee' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}
+                        >
+                          {table.status === 'libre' ? 'Libre' : table.status === 'occupee' ? 'Occupée' : table.status === 'reservee' ? 'Réservée' : table.status === 'nettoyage' ? 'Nettoyage' : table.status}
                         </span>
                       </button>
                     ))}
@@ -2629,7 +2766,88 @@ export default function POSTactile() {
           </motion.div>
         </div>
       )}
-      <ConfirmModal 
+      {statusPickerTable && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-[#1A1A1A]">Statut — Table {statusPickerTable.id}</h2>
+              <button
+                onClick={() => setStatusPickerTable(null)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'libre', label: 'Libre', classes: 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' },
+                { value: 'occupee', label: 'Occupée', classes: 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' },
+                { value: 'reservee', label: 'Réservée', classes: 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100' },
+                { value: 'nettoyage', label: 'Nettoyage', classes: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  disabled={isChangingTableStatus}
+                  onClick={() => changeTableStatus(statusPickerTable, opt.value)}
+                  className={`py-4 rounded-xl font-bold border-2 transition-all disabled:opacity-50 ${opt.classes} ${statusPickerTable.status === opt.value ? 'ring-2 ring-offset-2 ring-[#F4C75B]' : ''}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
+      {isWaiterModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-[#1A1A1A]">Numéro de Garçon ?</h2>
+              <button
+                onClick={() => setIsWaiterModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {waiterOptions.length === 0 ? (
+              <p className="text-gray-400 text-center py-8">
+                Aucun membre du personnel enregistré — ajoutez des employés dans RH &gt; Personnel.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {waiterOptions.map((s: any) => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setSelectedWaiter(s.name); setIsWaiterModalOpen(false); }}
+                    className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 p-2 font-bold text-sm text-center transition-all ${selectedWaiter === s.name ? 'bg-[#F4C75B] text-[#1A1A1A] shadow-md scale-105 border-2 border-[#F4C75B]' : 'bg-white text-gray-700 border-2 border-gray-100 hover:bg-gray-50'}`}
+                  >
+                    <UserCircle size={28} className={selectedWaiter === s.name ? 'text-[#1A1A1A]' : 'text-gray-400'} />
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedWaiter && (
+              <button
+                onClick={() => { setSelectedWaiter(null); setIsWaiterModalOpen(false); }}
+                className="w-full mt-4 py-3 rounded-xl font-bold text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                Retirer l'assignation
+              </button>
+            )}
+          </motion.div>
+        </div>
+      )}
+      <ConfirmModal
         isOpen={!!itemToDelete}
         title="Supprimer l'article"
         message="Voulez-vous vraiment supprimer cet article du menu ?"

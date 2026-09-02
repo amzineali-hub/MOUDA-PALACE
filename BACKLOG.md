@@ -13,6 +13,8 @@ Backlog vivant de l'ERP Mouda Palace, organisé par module. Contrairement à `CL
 - [ ] Pas de pourboire (tip) géré sur le paiement.
 - [ ] Pas de partage d'addition (split bill) entre convives.
 - [ ] Remise = pourcentage global du ticket, pas de remise par ligne.
+- [ ] "Flash Journée" (mini-rapport rapide en cours de service, vu chez Tacsystems à côté de RAZ Fin Journée/Annuler Commande) — pas d'équivalent, distinct du Rapport X déjà existant qui est plus complet/formel.
+- [ ] Horodatage par ligne d'article (heure d'ajout de chaque plat au ticket, vu sur l'écran de commande Tacsystems) — pas stocké/affiché actuellement.
 
 ## RH
 

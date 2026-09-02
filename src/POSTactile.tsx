@@ -391,6 +391,9 @@ export default function POSTactile() {
   const [selectedWaiter, setSelectedWaiter] = useState<string | null>(null);
   const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
   const [isOrdersByWaiterOpen, setIsOrdersByWaiterOpen] = useState(false);
+  const [isQuickTableEntryOpen, setIsQuickTableEntryOpen] = useState(false);
+  const [quickEntryZone, setQuickEntryZone] = useState<string | null>(null);
+  const [quickEntryNumber, setQuickEntryNumber] = useState('');
   const [isLoadingOrdersByWaiter, setIsLoadingOrdersByWaiter] = useState(false);
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -654,6 +657,23 @@ export default function POSTactile() {
     } catch (error) {
       console.error('Failed to load existing order for table:', error);
     }
+  };
+
+  // Saisie rapide d'une table (salle puis numéro tapé au clavier) — remplace la navigation dans le
+  // plan de salle visuel pour le geste courant "prendre une commande", plus rapide en plein
+  // service. Le plan de salle visuel reste disponible par ailleurs (bouton "X occupées / Y") pour
+  // une vue d'ensemble et la gestion de statut.
+  const confirmQuickTableEntry = () => {
+    if (!quickEntryZone || !quickEntryNumber) return;
+    const matched = tables.find(t => t.zone === quickEntryZone && String(t.id) === quickEntryNumber);
+    if (!matched) {
+      showToast(`Aucune table ${quickEntryNumber} dans cette salle.`, 'error');
+      return;
+    }
+    transferTable(matched.fbId);
+    setIsQuickTableEntryOpen(false);
+    setQuickEntryZone(null);
+    setQuickEntryNumber('');
   };
 
   // "Commandes par Garçon" — vue d'ensemble des commandes actuellement en cours (non payées, non
@@ -1590,7 +1610,6 @@ export default function POSTactile() {
         const snaps = await Promise.all(refs.map(ref => transaction.get(ref)));
         const orderRef = doc(db, 'orders', orderId);
         const receiptRef = doc(collection(db, 'cash_receipts'));
-        const invoiceRef = doc(collection(db, 'invoices'));
         const shiftRef = doc(db, 'pos_shifts', activeShift.id);
         const shiftSnapshot = await transaction.get(shiftRef);
         if (!shiftSnapshot.exists() || shiftSnapshot.data().status !== 'Ouvert') {
@@ -1641,24 +1660,6 @@ export default function POSTactile() {
           paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
           items: cart.map(item => ({ name: item.name || 'Inconnu', qty: getLineQuantity(item), price: getLineUnitPrice(item), lineTotal: getLineTotal(item), modifiers: item.modifiers || null })),
           date: today,
-          createdAt: serverTimestamp()
-        });
-
-        transaction.set(invoiceRef, {
-          id: `FAC-${orderId.replace('CMD-', '').slice(-8)}`,
-          orderId,
-          shiftId: activeShift.id,
-          client: 'Client Comptoir (POS)',
-          ice: 'N/A',
-          date: today,
-          montantHT: discountedSubtotal,
-          tva: taxRate,
-          amount: `${total.toFixed(2)} MAD`,
-          discountPercent,
-          discountAmount,
-          status: 'Payée',
-          method,
-          paymentBreakdown: paymentDetails.paymentBreakdown ?? null,
           createdAt: serverTimestamp()
         });
 
@@ -2068,7 +2069,7 @@ export default function POSTactile() {
             <div className="flex flex-wrap items-center gap-2">
               {selectedTable !== 'À emporter' && (
                 <button
-                  onClick={() => setIsTableModalOpen(true)}
+                  onClick={() => { setQuickEntryZone(null); setQuickEntryNumber(''); setIsQuickTableEntryOpen(true); }}
                   className="flex items-center gap-2 text-sm bg-sky-500 text-white shadow-[0_4px_0_0_#0369a1] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 px-4 py-2.5 rounded-xl font-bold"
                 >
                   <User size={16} />
@@ -2094,13 +2095,13 @@ export default function POSTactile() {
                 {selectedWaiter || "Garçon"}
               </button>
               <button
-                onClick={() => selectedTable === 'À emporter' ? setIsTableModalOpen(true) : transferTable('À emporter')}
+                onClick={() => selectedTable === 'À emporter' ? setSelectedTable(null) : transferTable('À emporter')}
                 disabled={isTransferringTable}
-                title={selectedTable === 'À emporter' ? 'Repasser en Sur place (choisir une table)' : 'Basculer en À emporter'}
+                title={selectedTable === 'À emporter' ? 'Revenir en Sur place' : 'Basculer en À emporter'}
                 className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-bold transition-all duration-150 ${selectedTable === 'À emporter' ? 'bg-[#1A1A1A] text-[#F4C75B] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[2px]' : 'bg-teal-600 text-white shadow-[0_4px_0_0_#134e4a] hover:brightness-110 active:shadow-none active:translate-y-1'}`}
               >
                 <Coffee size={16} />
-                {selectedTable === 'À emporter' ? 'À emporter' : 'Sur place'}
+                À emporter
               </button>
             </div>
           </div>
@@ -2159,10 +2160,10 @@ export default function POSTactile() {
                       <button
                         type="button"
                         onClick={() => toggleHoldForLater(item.id)}
-                        className={`mt-2 pt-2 border-t border-gray-50 w-full text-left text-[11px] font-bold flex items-center gap-1.5 ${item.heldForLater ? 'text-amber-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        className={`mt-2 pt-2 border-t border-gray-50 w-full text-left text-sm font-extrabold flex items-center gap-1.5 ${item.heldForLater ? 'text-amber-600' : 'text-[#265C6D] hover:text-[#1A1A1A]'}`}
                         title="Ne pas envoyer ce plat avec le reste — l'envoyer plus tard séparément"
                       >
-                        <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${item.heldForLater ? 'border-amber-500 bg-amber-500' : 'border-gray-300'}`}>
+                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${item.heldForLater ? 'border-amber-500 bg-amber-500' : 'border-[#265C6D]'}`}>
                           {item.heldForLater && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </span>
                         À suivre {item.heldForLater ? '(retenu)' : ''}
@@ -2749,6 +2750,85 @@ export default function POSTactile() {
         </div>
       )}
 
+
+      {/* Saisie rapide d'une table : salle puis numéro au clavier */}
+      {isQuickTableEntryOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-[#1A1A1A]">
+                {quickEntryZone ? `Table — ${ZONE_NAMES[quickEntryZone] || quickEntryZone}` : 'Choisir une salle'}
+              </h2>
+              <button
+                onClick={() => setIsQuickTableEntryOpen(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {!quickEntryZone ? (
+              <div className="grid grid-cols-1 gap-3">
+                {ZONE_ORDER.filter(z => tablesByZone[z]?.length).map(z => (
+                  <button
+                    key={z}
+                    onClick={() => setQuickEntryZone(z)}
+                    className="py-4 rounded-xl bg-[#265C6D] text-white font-bold text-lg hover:brightness-110 transition-all"
+                  >
+                    {ZONE_NAMES[z] || z}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setQuickEntryZone(null); setQuickEntryNumber(''); }}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline mb-3"
+                >
+                  ← Changer de salle
+                </button>
+                <div className="w-full text-center text-4xl font-black text-[#1A1A1A] bg-gray-50 rounded-xl py-4 mb-4 min-h-[76px] flex items-center justify-center">
+                  {quickEntryNumber || <span className="text-gray-300 text-lg font-medium">N° de table</span>}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+                    <button
+                      key={d}
+                      onClick={() => setQuickEntryNumber(n => (n + d).slice(0, 3))}
+                      className="py-4 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-2xl text-[#1A1A1A] transition-colors"
+                    >
+                      {d}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setQuickEntryNumber(n => n.slice(0, -1))}
+                    className="py-4 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-lg text-red-500 transition-colors"
+                  >
+                    <X size={20} className="mx-auto" />
+                  </button>
+                  <button
+                    onClick={() => setQuickEntryNumber(n => (n + '0').slice(0, 3))}
+                    className="py-4 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold text-2xl text-[#1A1A1A] transition-colors"
+                  >
+                    0
+                  </button>
+                  <button
+                    onClick={confirmQuickTableEntry}
+                    disabled={!quickEntryNumber || isTransferringTable}
+                    className="py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold disabled:opacity-40 transition-colors"
+                  >
+                    ✓
+                  </button>
+                </div>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {/* Table Selection Modal */}
       {isTableModalOpen && (

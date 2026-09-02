@@ -390,6 +390,9 @@ export default function POSTactile() {
   const [isChangingTableStatus, setIsChangingTableStatus] = useState(false);
   const [selectedWaiter, setSelectedWaiter] = useState<string | null>(null);
   const [isWaiterModalOpen, setIsWaiterModalOpen] = useState(false);
+  const [isOrdersByWaiterOpen, setIsOrdersByWaiterOpen] = useState(false);
+  const [isLoadingOrdersByWaiter, setIsLoadingOrdersByWaiter] = useState(false);
+  const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [newItemImage, setNewItemImage] = useState<string>('');
@@ -613,10 +616,30 @@ export default function POSTactile() {
     }
   };
 
-  // Reprend une commande déjà envoyée en cuisine mais pas encore payée, quand on sélectionne une
-  // table occupée avec un panier local vide — sinon la caisse perdrait de vue ce qui a déjà été
-  // commandé (équivalent de "Charger Commandes" chez Tacsystems). Ne s'applique que si le panier
-  // local est vide, pour ne jamais écraser silencieusement des articles pas encore envoyés.
+  // Reprend une commande existante (déjà envoyée en cuisine, pas encore payée) dans le panier
+  // local — équivalent de "Charger Commandes" chez Tacsystems. Utilisée à la fois en sélectionnant
+  // une table occupée (loadExistingOrderForTable ci-dessous) et depuis "Commandes par Garçon".
+  const loadOrderIntoCart = (orderId: string, data: any) => {
+    const loadedLines = (data.lines || []).map((line: any, index: number) => ({
+      id: `resume-${orderId}-${index}`,
+      name: line.name || 'Inconnu',
+      numPrice: Number(line.unitPrice) || 0,
+      qty: Number(line.qty) || 1,
+      modifiers: line.modifiers || null,
+      sentToKitchen: line.sentToKitchen !== false
+    }));
+    setCart(loadedLines);
+    setKitchenOrderId(orderId);
+    setKitchenTableId(data.tableId || null);
+    setSelectedTable(data.tableId || null);
+    setKitchenSent(true);
+    setDiscountPercent(data.discountPercent || 0);
+    if (data.serverName) setSelectedWaiter(data.serverName);
+    showToast(`Commande en cours chargée (${loadedLines.length} article${loadedLines.length > 1 ? 's' : ''})`);
+  };
+
+  // Ne s'applique que si le panier local est vide, pour ne jamais écraser silencieusement des
+  // articles pas encore envoyés.
   const loadExistingOrderForTable = async (targetTable: string) => {
     try {
       const existing = await getDocs(query(
@@ -627,24 +650,37 @@ export default function POSTactile() {
       ));
       const openOrderDoc = existing.docs.find(d => d.data().status !== 'Annulée');
       if (!openOrderDoc) return;
-      const data = openOrderDoc.data();
-      const loadedLines = (data.lines || []).map((line: any, index: number) => ({
-        id: `resume-${openOrderDoc.id}-${index}`,
-        name: line.name || 'Inconnu',
-        numPrice: Number(line.unitPrice) || 0,
-        qty: Number(line.qty) || 1,
-        modifiers: line.modifiers || null,
-        sentToKitchen: line.sentToKitchen !== false
-      }));
-      setCart(loadedLines);
-      setKitchenOrderId(openOrderDoc.id);
-      setKitchenTableId(targetTable);
-      setKitchenSent(true);
-      setDiscountPercent(data.discountPercent || 0);
-      if (data.serverName) setSelectedWaiter(data.serverName);
-      showToast(`Commande en cours chargée (${loadedLines.length} article${loadedLines.length > 1 ? 's' : ''})`);
+      loadOrderIntoCart(openOrderDoc.id, openOrderDoc.data());
     } catch (error) {
       console.error('Failed to load existing order for table:', error);
+    }
+  };
+
+  // "Commandes par Garçon" — vue d'ensemble des commandes actuellement en cours (non payées, non
+  // annulées), groupées par serveur assigné, pour voir en un coup d'œil ce que chacun a en salle.
+  const openOrdersByWaiter = openOrders.reduce((acc: Record<string, any[]>, order: any) => {
+    const key = order.serverName || 'Non assigné';
+    (acc[key] = acc[key] || []).push(order);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const openOrdersModal = async () => {
+    setIsOrdersByWaiterOpen(true);
+    setIsLoadingOrdersByWaiter(true);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'orders'),
+        where('paymentStatus', '==', 'Non payée')
+      ));
+      const orders = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((o: any) => o.status !== 'Annulée');
+      setOpenOrders(orders);
+    } catch (error) {
+      console.error('Failed to load open orders:', error);
+      showToast('Erreur lors du chargement des commandes en cours', 'error');
+    } finally {
+      setIsLoadingOrdersByWaiter(false);
     }
   };
 
@@ -1836,6 +1872,14 @@ export default function POSTactile() {
                 >
                   {isBuildingXReport ? '...' : 'Rapport X'}
                 </button>
+                <button
+                  type="button"
+                  onClick={openOrdersModal}
+                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-cyan-600 text-white shadow-[0_4px_0_0_#0e7490] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+                  title="Voir les commandes en cours par serveur"
+                >
+                  Commandes par Garçon
+                </button>
                 {showDrawerButton && (
                   <button
                     type="button"
@@ -2844,6 +2888,55 @@ export default function POSTactile() {
                 Retirer l'assignation
               </button>
             )}
+          </motion.div>
+        </div>
+      )}
+      {isOrdersByWaiterOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl flex flex-col max-h-[85vh]"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-[#1A1A1A]">Commandes par Garçon</h2>
+              <button
+                onClick={() => setIsOrdersByWaiterOpen(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="overflow-y-auto pr-2 custom-scrollbar flex-1">
+              {isLoadingOrdersByWaiter ? (
+                <p className="text-gray-400 text-center py-12">Chargement...</p>
+              ) : openOrders.length === 0 ? (
+                <p className="text-gray-400 text-center py-12">Aucune commande en cours pour le moment.</p>
+              ) : (
+                Object.entries(openOrdersByWaiter).map(([waiterName, waiterOrders]: [string, any[]]) => (
+                  <div key={waiterName} className="mb-5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                      <UserCircle size={14} /> {waiterName} · {waiterOrders.length} commande{waiterOrders.length > 1 ? 's' : ''}
+                    </h3>
+                    <div className="space-y-2">
+                      {waiterOrders.map((order: any) => (
+                        <button
+                          key={order.id}
+                          onClick={() => { loadOrderIntoCart(order.id, order); setIsOrdersByWaiterOpen(false); }}
+                          className="w-full flex justify-between items-center p-3 rounded-xl border-2 border-gray-100 hover:bg-gray-50 hover:border-[#F4C75B] transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-[#1A1A1A]">{order.tableLabel || getTableLabel(order.tableId)}</p>
+                            <p className="text-xs text-gray-400">{formatDateTime(order.createdAt)}</p>
+                          </div>
+                          <span className="font-black text-[#F4C75B]">{Number(order.total || 0).toFixed(2)} MAD</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </motion.div>
         </div>
       )}

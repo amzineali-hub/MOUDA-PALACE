@@ -130,6 +130,16 @@ export default function Accounting() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [isEditInvoiceModalOpen, setIsEditInvoiceModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
+  // Devis / Facture Proforma — même structure que les Factures Clients (même formulaire, même
+  // tableau de lignes, même document imprimé), mais dans sa propre collection Firestore (`quotes`,
+  // numérotation DEV-xxxx séparée) pour ne jamais risquer qu'un devis soit compté comme une vraie
+  // facture dans les totaux de Comptabilité (créances en attente, etc.).
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [isNewQuoteModalOpen, setIsNewQuoteModalOpen] = useState(false);
+  const [quoteLines, setQuoteLines] = useState<InvoiceLineInput[]>(emptyInvoiceLines());
+  const [quoteTva, setQuoteTva] = useState<number>(20);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [isViewReportModalOpen, setIsViewReportModalOpen] = useState(false);
@@ -200,6 +210,11 @@ export default function Accounting() {
       csvContent += "ID;Client;ICE;Date;Montant;Statut\n";
       invoices.forEach(inv => {
         csvContent += `${inv.id};${inv.client};${inv.ice};${inv.date};${parseAmount(inv.amount)};${inv.status}\n`;
+      });
+    } else if (activeTab === 'quotes') {
+      csvContent += "ID;Client;ICE;Date;Montant\n";
+      quotes.forEach(q => {
+        csvContent += `${q.id};${q.client};${q.ice};${q.date};${parseAmount(q.amount)}\n`;
       });
     } else if (activeTab === 'expenses') {
       csvContent += "ID;Categorie;Beneficiaire;Date;Methode;Montant\n";
@@ -297,6 +312,30 @@ export default function Accounting() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'quotes'), (snapshot) => {
+      setQuotes(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+    }, (error) => {
+      console.error("Error fetching quotes", error);
+    });
+    return () => unsub();
+  }, []);
+
+  const formatQuoteNumber = (quote: any) => quote.numero ? `DEV-${String(quote.numero).padStart(4, '0')}` : quote.id;
+
+  const handleDeleteQuote = async (quote: any) => {
+    if (window.confirm(`Voulez-vous vraiment supprimer le devis ${formatQuoteNumber(quote)} ?`)) {
+      try {
+        await deleteDoc(doc(db, "quotes", quote.id));
+        logActivity({ action: 'delete', entity: 'quote', entityId: quote.id, summary: `Suppression devis ${formatQuoteNumber(quote)} - ${quote.client || ''} - ${quote.amount || ''}`, before: quote });
+        showToast("Devis supprimé avec succès");
+      } catch (error) {
+        console.error(error);
+        showToast("Erreur lors de la suppression", "error");
+      }
+    }
+  };
+
   // Informations légales de l'établissement (Configuration > Général + Site Web), utilisées
   // pour l'en-tête des factures imprimées — plutôt que des valeurs figées dans le code.
   const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
@@ -319,10 +358,13 @@ export default function Accounting() {
   // l'identifiant Firestore pour ne pas leur faire perdre toute référence affichable.
   const formatInvoiceNumber = (invoice: any) => invoice.numero ? `FAC-${String(invoice.numero).padStart(4, '0')}` : invoice.id;
 
-  const buildInvoiceHtml = (invoice: any) => {
+  const buildInvoiceHtml = (invoice: any, docType: 'facture' | 'devis' = 'facture') => {
     // Détail imprimé : tableau 4 colonnes si des lignes ont été saisies (nouveau format), sinon
     // repli sur l'ancien champ `description` (une seule ligne), puis sur le libellé générique
     // d'origine — pour ne pas casser l'affichage des factures créées avant ce format.
+    // `docType` permet de réutiliser exactement le même document/mise en page pour un Devis /
+    // Facture Proforma — seuls le titre, le numéro et quelques libellés changent.
+    const isDevis = docType === 'devis';
     const lines: InvoiceLine[] = Array.isArray(invoice.lines) ? invoice.lines : [];
     const itemsHtml = lines.length > 0
       ? lines.map((l: InvoiceLine) => `
@@ -338,14 +380,15 @@ export default function Accounting() {
     const montantHT = Number(invoice.montantHT) || 0;
     const tvaRate = Number(invoice.tva) || 0;
     const montantTva = montantHT * tvaRate / 100;
+    const docNumber = isDevis ? formatQuoteNumber(invoice) : formatInvoiceNumber(invoice);
 
     const bodyHtml = `
       <div class="invoice-info">
         <div>
-          <h2>FACTURE</h2>
-          <p><strong>N°:</strong> ${formatInvoiceNumber(invoice)}</p>
+          <h2>${isDevis ? 'DEVIS' : 'FACTURE'}</h2>
+          <p><strong>N°:</strong> ${docNumber}</p>
           <p><strong>Date:</strong> ${invoice.date}</p>
-          <p><strong>Statut:</strong> ${invoice.status || ''}</p>
+          ${isDevis ? '' : `<p><strong>Statut:</strong> ${invoice.status || ''}</p>`}
         </div>
         <div class="client-info">
           <h3>Client</h3>
@@ -378,6 +421,7 @@ export default function Accounting() {
           <tr><th style="text-align: left;">Total HT</th><td style="text-align: right;">${montantHT.toFixed(2)} MAD</td></tr>
         </table>
       </div>
+      ${isDevis ? '<div class="devis-note">Devis valable 30 jours à compter de sa date d\'émission. Ce document ne constitue pas une facture.</div>' : ''}
       <div class="signature-zone">
         <p><strong>Signature &amp; Cachet :</strong></p>
       </div>
@@ -390,7 +434,7 @@ export default function Accounting() {
     `;
 
     return buildLetterheadHtml(companyInfo, window.location.origin, {
-      title: `Facture ${formatInvoiceNumber(invoice)}`,
+      title: `${isDevis ? 'Devis' : 'Facture'} ${docNumber}`,
       bodyHtml,
       extraStyles: `
         .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
@@ -402,6 +446,7 @@ export default function Accounting() {
         .totals table { border: none; }
         .totals th, .totals td { padding: 5px 10px; }
         .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+        .devis-note { clear: both; font-size: 10px; color: #888; font-style: italic; padding-top: 8px; }
         .signature-zone { clear: both; margin-top: 90px; font-size: 13px; }
         .thanks { text-align: center; color: #666; font-size: 12px; padding-top: 40px; padding-bottom: 10px; }
         .manager-block { text-align: center; font-size: 11px; letter-spacing: 0.5px; }
@@ -589,6 +634,10 @@ export default function Accounting() {
     return invoices.filter(inv => (inv.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.client || '').toLowerCase().includes(searchQuery.toLowerCase()) || (inv.ice || '').toLowerCase().includes(searchQuery.toLowerCase()));
   }, [invoices, searchQuery]);
 
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter(q => (q.id || '').toLowerCase().includes(searchQuery.toLowerCase()) || (q.client || '').toLowerCase().includes(searchQuery.toLowerCase()) || (q.ice || '').toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [quotes, searchQuery]);
+
 
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => (rec.displayId || '').toLowerCase().includes(searchQuery.toLowerCase()) || (rec.id || '').toLowerCase().includes(searchQuery.toLowerCase()));
@@ -622,6 +671,7 @@ export default function Accounting() {
           <button 
             onClick={() => {
               if (activeTab === 'invoices') setIsNewModalOpen(true);
+              else if (activeTab === 'quotes') { setQuoteLines(emptyInvoiceLines()); setQuoteTva(20); setIsNewQuoteModalOpen(true); }
               else if (activeTab === 'expenses') setIsNewExpenseModalOpen(true);
               else if (activeTab === 'receipts') setIsNewReceiptModalOpen(true);
             }}
@@ -629,7 +679,7 @@ export default function Accounting() {
           >
             <Plus size={18} />
             <span className="hidden sm:inline">
-              {activeTab === 'invoices' ? 'Nouvelle Facture' : activeTab === 'expenses' ? 'Nouvelle Dépense' : activeTab === 'receipts' ? 'Nouvel Encaissement' : 'Nouveau'}
+              {activeTab === 'invoices' ? 'Nouvelle Facture' : activeTab === 'quotes' ? 'Devis / Proforma' : activeTab === 'expenses' ? 'Nouvelle Dépense' : activeTab === 'receipts' ? 'Nouvel Encaissement' : 'Nouveau'}
             </span>
           </button>
         </div>
@@ -688,13 +738,14 @@ export default function Accounting() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
         <div className="bg-gradient-to-r from-[#1A1A1A] to-[#333] p-2">
           <nav className="flex overflow-x-auto hide-scrollbar gap-2">
-            {['invoices', 'receipts', 'expenses', 'tva', 'reports'].map(tab => (
+            {['invoices', 'quotes', 'receipts', 'expenses', 'tva', 'reports'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#F4C75B]' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 {tab === 'invoices' && 'Factures Clients'}
+                {tab === 'quotes' && 'Devis / Proforma'}
                 {tab === 'receipts' && 'Recettes Caisses'}
                 {tab === 'expenses' && 'Dépenses & Achats'}
                 {tab === 'tva' && 'Déclaration TVA'}
@@ -715,7 +766,7 @@ export default function Accounting() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text"
-              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
+              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'quotes' ? "Rechercher un devis..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] bg-white"
@@ -791,6 +842,60 @@ export default function Accounting() {
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                       Aucune facture trouvée.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'quotes' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4">N° Devis</th>
+                  <th className="px-6 py-4">Client / Partenaire</th>
+                  <th className="px-6 py-4">ICE</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4 text-right">Montant</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredQuotes.map((quote, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-gray-900">{formatQuoteNumber(quote)}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{quote.client}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-gray-500">{quote.ice}</td>
+                    <td className="px-6 py-4 text-gray-500">{quote.date}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900 text-right">{quote.amount}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => { setSelectedQuote(quote); setIsQuoteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le devis">
+                          <Eye size={16} />
+                        </button>
+                        <button onClick={() => {
+                          let printWindow = window.open('', '', 'width=800,height=900');
+                          if (printWindow) {
+                            printWindow.document.write(buildInvoiceHtml(quote, 'devis'));
+                            printWindow.document.close();
+                          }
+                        }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                          <Download size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteQuote(quote)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredQuotes.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      Aucun devis trouvé.
                     </td>
                   </tr>
                 )}
@@ -1360,6 +1465,108 @@ export default function Accounting() {
         </div>
       )}
 
+      {/* New Quote Modal — même structure que Nouvelle Facture, collection/numérotation séparées */}
+      {isNewQuoteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-serif font-semibold">Nouveau Devis / Proforma</h3>
+              <button onClick={() => setIsNewQuoteModalOpen(false)} className="text-gray-400 hover:text-gray-900">
+                <X size={20} />
+              </button>
+            </div>
+            <form className="space-y-4" onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const montantHT = sumInvoiceLines(quoteLines);
+              const tva = Number(formData.get('tva'));
+              const montantTTC = computeTTC(montantHT, tva);
+              const lines = finalizeInvoiceLines(quoteLines);
+              const newQuote = {
+                client: formData.get('client'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
+                ice: formData.get('ice'),
+                lines,
+                montantHT,
+                tva,
+                amount: montantTTC.toFixed(2) + ' MAD',
+                date: formData.get('date'),
+                createdAt: serverTimestamp()
+              };
+
+              const optimisticNumero = quotes.reduce((max, q) => Math.max(max, q.numero || 0), 0) + 1;
+              setQuotes([{ id: 'DEV-NOUVEAU', numero: optimisticNumero, ...newQuote }, ...quotes]);
+              setIsNewQuoteModalOpen(false);
+              setQuoteLines(emptyInvoiceLines());
+              setQuoteTva(20);
+              showToast("Devis créé avec succès");
+
+              try {
+                const quoteRef = doc(collection(db, 'quotes'));
+                const counterRef = doc(db, 'counters', 'quotes');
+                await runTransaction(db, async (tx) => {
+                  const counterSnap = await tx.get(counterRef);
+                  const next = (counterSnap.exists() ? (counterSnap.data().value || 0) : 0) + 1;
+                  tx.set(counterRef, { value: next }, { merge: true });
+                  tx.set(quoteRef, { ...newQuote, numero: next });
+                });
+              } catch (err) {
+                console.error("Error creating quote", err);
+              }
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
+                <input name="client" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du client" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="06 XX XX XX XX" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
+                  <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse du client</label>
+                <input name="address" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Détail du devis</label>
+                <InvoiceLinesTable lines={quoteLines} onChange={setQuoteLines} />
+              </div>
+              <div className="flex justify-end">
+                <div className="w-48">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
+                  <select name="tva" value={quoteTva} onChange={(e) => setQuoteTva(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
+                    {TVA_RATES.map(rate => (
+                      <option key={rate} value={rate}>{rate}%</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="text-sm text-gray-500 text-right space-y-0.5">
+                <p>Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(quoteLines), quoteTva).toFixed(2)} MAD</span></p>
+                {quoteTva > 0 && <p>TVA {quoteTva}% : <span className="font-medium text-gray-900">{(sumInvoiceLines(quoteLines) * quoteTva / 100).toFixed(2)} MAD</span></p>}
+                <p>Total HT : <span className="font-medium text-gray-900">{sumInvoiceLines(quoteLines).toFixed(2)} MAD</span></p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
+              >
+                Créer le devis
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* New Report Modal */}
       {isReportModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1794,6 +2001,77 @@ export default function Accounting() {
                   let printWindow = window.open('', '', 'width=800,height=900');
                   if (printWindow) {
                     printWindow.document.write(buildInvoiceHtml(selectedInvoice));
+                    printWindow.document.close();
+                  }
+                }}
+                className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <Printer size={16} /> Imprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quote Preview Modal — même structure que "Détails de la Facture" */}
+      {isQuoteModalOpen && selectedQuote && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Détails du Devis</h3>
+              <button onClick={() => setIsQuoteModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <div className="flex justify-between mb-6">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Numéro</p>
+                  <p className="font-mono text-lg">{formatQuoteNumber(selectedQuote)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 font-medium">Date</p>
+                  <p className="text-gray-900">{selectedQuote.date}</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl mb-6">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Informations Client</h4>
+                <p className="font-medium text-gray-900">{selectedQuote.client}</p>
+                {selectedQuote.ice && <p className="text-sm text-gray-500 font-mono mt-1">ICE: {selectedQuote.ice}</p>}
+              </div>
+              <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="py-3 px-4 text-left font-medium text-gray-600">Désignation</th>
+                      <th className="py-3 px-4 text-right font-medium text-gray-600">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="py-3 px-4 text-gray-900">Prestation de services</td>
+                      <td className="py-3 px-4 text-right font-medium">{selectedQuote.amount}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl">
+                <span className="font-medium text-gray-700">Total TTC</span>
+                <span className="text-xl font-bold text-[#265C6D]">{selectedQuote.amount}</span>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setIsQuoteModalOpen(false)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={() => {
+                  let printWindow = window.open('', '', 'width=800,height=900');
+                  if (printWindow) {
+                    printWindow.document.write(buildInvoiceHtml(selectedQuote, 'devis'));
                     printWindow.document.close();
                   }
                 }}

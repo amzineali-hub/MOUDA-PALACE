@@ -30,57 +30,72 @@ import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
 import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
 
-// Tableau de détail d'une facture : 5 lignes fixes, 4 colonnes entièrement en saisie manuelle
-// libre (y compris "Montant" — pas de calcul Qté × Prix Unitaire, à la demande du gérant, qui
-// veut garder le contrôle total sur chaque ligne). Le total facturé reste piloté séparément par
-// les champs Montant HT / TVA du formulaire — ce tableau est purement le détail imprimé.
+// Tableau de détail d'une facture : 5 lignes fixes, calées sur le vrai modèle papier du
+// restaurant (Description / Quantité / Prix unitaire HT / Total HT). Contrôlé (pas de simple
+// defaultValue) : Quantité × Prix unitaire HT se recalcule en direct pour le Total HT de chaque
+// ligne, et le formulaire appelant somme les lignes pour le Total HT global — plus de champ
+// "Montant HT" saisi séparément à la main.
 // Définie hors du composant Accounting pour ne pas être redéfinie (et donc remontée, perdant le
 // focus des champs) à chaque rendu.
 const INVOICE_LINE_COUNT = 5;
 
-interface InvoiceLine {
+interface InvoiceLineInput {
   designation: string;
   qte: string;
   prixUnitaire: string;
+}
+
+interface InvoiceLine extends InvoiceLineInput {
   montant: string;
 }
 
-function extractInvoiceLines(formData: FormData): InvoiceLine[] {
-  return Array.from({ length: INVOICE_LINE_COUNT }).map((_, i) => ({
-    designation: String(formData.get(`line${i}_designation`) || '').trim(),
-    qte: String(formData.get(`line${i}_qte`) || '').trim(),
-    prixUnitaire: String(formData.get(`line${i}_prixUnitaire`) || '').trim(),
-    montant: String(formData.get(`line${i}_montant`) || '').trim()
-  })).filter(l => l.designation || l.qte || l.prixUnitaire || l.montant);
-}
+const emptyInvoiceLines = (): InvoiceLineInput[] =>
+  Array.from({ length: INVOICE_LINE_COUNT }, () => ({ designation: '', qte: '', prixUnitaire: '' }));
 
-function InvoiceLinesTable({ defaultLines }: { defaultLines?: InvoiceLine[] }) {
+const invoiceLineTotal = (line: InvoiceLineInput): number => (parseFloat(line.qte) || 0) * (parseFloat(line.prixUnitaire) || 0);
+
+// Total HT global = somme des lignes réellement remplies (une ligne vide ne compte pas comme 0).
+const sumInvoiceLines = (lines: InvoiceLineInput[]): number =>
+  lines.reduce((sum, l) => sum + (l.designation || l.qte || l.prixUnitaire ? invoiceLineTotal(l) : 0), 0);
+
+// Convertit les lignes contrôlées (saisie) en lignes persistées (avec le Total HT calculé figé),
+// en écartant les lignes entièrement vides.
+const finalizeInvoiceLines = (lines: InvoiceLineInput[]): InvoiceLine[] =>
+  lines
+    .filter(l => l.designation || l.qte || l.prixUnitaire)
+    .map(l => ({ ...l, montant: invoiceLineTotal(l).toFixed(2) }));
+
+function InvoiceLinesTable({ lines, onChange }: { lines: InvoiceLineInput[]; onChange: (lines: InvoiceLineInput[]) => void }) {
   const cellClass = "w-full p-1.5 text-sm border-none focus:outline-none focus:ring-1 focus:ring-[#F4C75B] rounded";
+  const updateCell = (i: number, field: keyof InvoiceLineInput, value: string) => {
+    const next = lines.map((l, idx) => idx === i ? { ...l, [field]: value } : l);
+    onChange(next);
+  };
   return (
     <div className="overflow-x-auto border border-gray-200 rounded-lg">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50">
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Désignation</th>
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-24">Qté</th>
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix Unitaire</th>
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Montant</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Description</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-20">Quantité</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unitaire HT</th>
+            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total HT</th>
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: INVOICE_LINE_COUNT }).map((_, i) => (
+          {lines.map((l, i) => (
             <tr key={i}>
               <td className="p-1 border-b border-gray-100 last:border-b-0">
-                <input name={`line${i}_designation`} type="text" defaultValue={defaultLines?.[i]?.designation} className={cellClass} placeholder={i === 0 ? 'Ex : Banquet 40 couverts' : ''} />
+                <input type="text" value={l.designation} onChange={(e) => updateCell(i, 'designation', e.target.value)} className={cellClass} placeholder={i === 0 ? 'Ex : Menu groupe' : ''} />
               </td>
               <td className="p-1 border-b border-gray-100 last:border-b-0">
-                <input name={`line${i}_qte`} type="text" defaultValue={defaultLines?.[i]?.qte} className={cellClass} />
+                <input type="number" step="1" min="0" value={l.qte} onChange={(e) => updateCell(i, 'qte', e.target.value)} className={cellClass} />
               </td>
               <td className="p-1 border-b border-gray-100 last:border-b-0">
-                <input name={`line${i}_prixUnitaire`} type="text" defaultValue={defaultLines?.[i]?.prixUnitaire} className={cellClass} />
+                <input type="number" step="0.01" min="0" value={l.prixUnitaire} onChange={(e) => updateCell(i, 'prixUnitaire', e.target.value)} className={cellClass} />
               </td>
-              <td className="p-1 border-b border-gray-100 last:border-b-0">
-                <input name={`line${i}_montant`} type="text" defaultValue={defaultLines?.[i]?.montant} className={cellClass} />
+              <td className="p-2.5 border-b border-gray-100 last:border-b-0 text-right text-gray-500">
+                {(l.designation || l.qte || l.prixUnitaire) ? `${invoiceLineTotal(l).toFixed(2)} MAD` : ''}
               </td>
             </tr>
           ))}
@@ -99,8 +114,9 @@ export default function Accounting() {
   const [filterDate, setFilterDate] = useState('');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [invoiceHT, setInvoiceHT] = useState('');
+  const [invoiceLines, setInvoiceLines] = useState<InvoiceLineInput[]>(emptyInvoiceLines());
   const [invoiceTva, setInvoiceTva] = useState<number>(20);
+  const [editInvoiceLines, setEditInvoiceLines] = useState<InvoiceLineInput[]>(emptyInvoiceLines());
   const [expenseHT, setExpenseHT] = useState('');
   const [expenseTva, setExpenseTva] = useState<number>(20);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -342,10 +358,10 @@ export default function Accounting() {
       <table>
         <thead>
           <tr>
-            <th>Désignation</th>
-            <th style="text-align: right;">Qté</th>
-            <th style="text-align: right;">Prix Unitaire</th>
-            <th style="text-align: right;">Montant</th>
+            <th>Description</th>
+            <th style="text-align: right;">Quantité</th>
+            <th style="text-align: right;">Prix unitaire HT</th>
+            <th style="text-align: right;">Total HT</th>
           </tr>
         </thead>
         <tbody>
@@ -354,14 +370,23 @@ export default function Accounting() {
       </table>
       <div class="totals">
         <table>
-          ${tvaRate > 0 ? `<tr><th style="text-align: left;">dont TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
+          <tr><th style="text-align: left;">Total HT</th><td style="text-align: right;">${montantHT.toFixed(2)} MAD</td></tr>
+          ${tvaRate > 0 ? `<tr><th style="text-align: left;">TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
           <tr class="grand-total">
             <th style="text-align: left;">NET A PAYER</th>
             <td style="text-align: right;">${invoice.amount}</td>
           </tr>
         </table>
       </div>
+      <div class="signature-zone">
+        <p><strong>Signature &amp; Cachet :</strong></p>
+      </div>
       <div class="thanks">Merci pour votre confiance.</div>
+      <div class="manager-block">
+        <p><strong>${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</strong></p>
+        ${companyInfo.managerName ? `<p>${companyInfo.managerName.toUpperCase()}</p>` : ''}
+        <p>GERANT</p>
+      </div>
     `;
 
     return buildLetterheadHtml(companyInfo, window.location.origin, {
@@ -377,7 +402,10 @@ export default function Accounting() {
         .totals table { border: none; }
         .totals th, .totals td { padding: 5px 10px; }
         .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
-        .thanks { clear: both; text-align: center; color: #666; font-size: 12px; padding-top: 100px; padding-bottom: 20px; }
+        .signature-zone { clear: both; margin-top: 90px; font-size: 13px; }
+        .thanks { text-align: center; color: #666; font-size: 12px; padding-top: 40px; padding-bottom: 10px; }
+        .manager-block { text-align: center; font-size: 11px; letter-spacing: 0.5px; }
+        .manager-block p { margin: 2px 0; }
       `
     });
   };
@@ -742,7 +770,14 @@ export default function Accounting() {
                         }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
                           <Download size={16} />
                         </button>
-                        <button onClick={() => { setEditingInvoice(invoice); setIsEditInvoiceModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100" title="Éditer">
+                        <button onClick={() => {
+                          setEditingInvoice(invoice);
+                          const seeded = Array.isArray(invoice.lines) && invoice.lines.length > 0
+                            ? invoice.lines.map((l: InvoiceLine) => ({ designation: l.designation, qte: l.qte, prixUnitaire: l.prixUnitaire }))
+                            : [];
+                          setEditInvoiceLines([...seeded, ...emptyInvoiceLines()].slice(0, INVOICE_LINE_COUNT));
+                          setIsEditInvoiceModalOpen(true);
+                        }} className="p-1.5 text-gray-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-gray-100" title="Éditer">
                           <Pencil size={16} />
                         </button>
                         <button onClick={() => handleDeleteInvoice(invoice)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
@@ -1145,10 +1180,10 @@ export default function Accounting() {
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              const montantHT = Number(formData.get('montantHT'));
+              const montantHT = sumInvoiceLines(invoiceLines);
               const tva = Number(formData.get('tva'));
               const montantTTC = computeTTC(montantHT, tva);
-              const lines = extractInvoiceLines(formData);
+              const lines = finalizeInvoiceLines(invoiceLines);
               const newInvoice = {
                 client: formData.get('client'),
                 phone: formData.get('phone'),
@@ -1168,7 +1203,7 @@ export default function Accounting() {
               const optimisticNumero = invoices.reduce((max, inv) => Math.max(max, inv.numero || 0), 0) + 1;
               setInvoices([{ id: 'FAC-NOUVEAU', numero: optimisticNumero, ...newInvoice }, ...invoices]);
               setIsNewModalOpen(false);
-              setInvoiceHT('');
+              setInvoiceLines(emptyInvoiceLines());
               setInvoiceTva(20);
               showToast("Facture créée avec succès");
 
@@ -1205,14 +1240,10 @@ export default function Accounting() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Détail de la facture</label>
-                <InvoiceLinesTable />
+                <InvoiceLinesTable lines={invoiceLines} onChange={setInvoiceLines} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant HT (MAD)</label>
-                  <input name="montantHT" required type="number" step="0.01" min="0" value={invoiceHT} onChange={(e) => setInvoiceHT(e.target.value)} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="0.00" />
-                </div>
-                <div>
+              <div className="flex justify-end">
+                <div className="w-48">
                   <label className="block text-sm font-medium text-gray-700 mb-1">TVA</label>
                   <select name="tva" value={invoiceTva} onChange={(e) => setInvoiceTva(Number(e.target.value))} required className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]">
                     {TVA_RATES.map(rate => (
@@ -1221,10 +1252,13 @@ export default function Accounting() {
                   </select>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 text-right">
-                Total TTC : <span className="font-semibold text-gray-900">{computeTTC(Number(invoiceHT) || 0, invoiceTva).toFixed(2)} MAD</span>
-                {invoiceTva > 0 && <span className="text-gray-400"> (dont TVA {invoiceTva}% : {((Number(invoiceHT) || 0) * invoiceTva / 100).toFixed(2)} MAD)</span>}
-              </p>
+              <div className="text-sm text-gray-500 text-right space-y-0.5">
+                <p>Total HT : <span className="font-medium text-gray-900">{sumInvoiceLines(invoiceLines).toFixed(2)} MAD</span></p>
+                <p>
+                  Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(invoiceLines), invoiceTva).toFixed(2)} MAD</span>
+                  {invoiceTva > 0 && <span className="text-gray-400"> (dont TVA {invoiceTva}% : {(sumInvoiceLines(invoiceLines) * invoiceTva / 100).toFixed(2)} MAD)</span>}
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
                 <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
@@ -1254,7 +1288,7 @@ export default function Accounting() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const montant = Number(formData.get('montant'));
-              const lines = extractInvoiceLines(formData);
+              const lines = finalizeInvoiceLines(editInvoiceLines);
               const updatedInvoice = {
                 client: formData.get('client'),
                 phone: formData.get('phone'),
@@ -1296,7 +1330,8 @@ export default function Accounting() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Détail de la facture</label>
-                <InvoiceLinesTable defaultLines={editingInvoice.lines} />
+                <InvoiceLinesTable lines={editInvoiceLines} onChange={setEditInvoiceLines} />
+                <p className="text-xs text-gray-400 text-right mt-1">Total HT des lignes : {sumInvoiceLines(editInvoiceLines).toFixed(2)} MAD</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

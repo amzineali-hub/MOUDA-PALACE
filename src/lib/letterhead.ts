@@ -15,6 +15,7 @@ export interface CompanyInfo {
   patente?: string;
   rc?: string;
   identifiantFiscal?: string;
+  managerName?: string;
 }
 
 // Valeurs par défaut de l'établissement — mêmes valeurs que le préremplissage du formulaire
@@ -31,7 +32,8 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   ice: '002898284000015',
   patente: '13900549',
   rc: '',
-  identifiantFiscal: '50520780'
+  identifiantFiscal: '50520780',
+  managerName: 'Mohammed Houari Guertit'
 };
 
 // Fusionne les données Firestore sur l'état courant en ignorant les champs vides — un champ

@@ -6008,6 +6008,7 @@ function Configuration() {
     patente: '13900549',
     rc: '',
     identifiantFiscal: '50520780',
+    managerName: 'Mohammed Houari Guertit',
     currency: 'MAD (Dirham)',
     timezone: 'UTC+1 (Casablanca)'
   });
@@ -6193,6 +6194,10 @@ function Configuration() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant Fiscal (IF)</label>
                     <input type="text" value={generalConfig.identifiantFiscal} onChange={(e) => setGeneralConfig({...generalConfig, identifiantFiscal: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nom du gérant</label>
+                    <input type="text" value={generalConfig.managerName} onChange={(e) => setGeneralConfig({...generalConfig, managerName: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" placeholder="Ex : Mohammed Houari Guertit" />
                   </div>
                 </div>
               </div>

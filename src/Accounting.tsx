@@ -374,7 +374,10 @@ export default function Accounting() {
           ${tvaRate > 0 ? `<tr><th style="text-align: left;">TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
           <tr class="grand-total">
             <th style="text-align: left;">NET A PAYER</th>
-            <td style="text-align: right;">${invoice.amount}</td>
+            <td style="text-align: right;">
+              ${invoice.amount}
+              ${tvaRate > 0 ? `<div class="tva-note">(dont TVA ${tvaRate}% : ${montantTva.toFixed(2)} MAD)</div>` : ''}
+            </td>
           </tr>
         </table>
       </div>
@@ -402,6 +405,7 @@ export default function Accounting() {
         .totals table { border: none; }
         .totals th, .totals td { padding: 5px 10px; }
         .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
+        .tva-note { font-size: 10px; font-weight: normal; color: #666; margin-top: 2px; }
         .signature-zone { clear: both; margin-top: 90px; font-size: 13px; }
         .thanks { text-align: center; color: #666; font-size: 12px; padding-top: 40px; padding-bottom: 10px; }
         .manager-block { text-align: center; font-size: 11px; letter-spacing: 0.5px; }

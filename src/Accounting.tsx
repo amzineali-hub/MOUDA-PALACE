@@ -370,15 +370,12 @@ export default function Accounting() {
       </table>
       <div class="totals">
         <table>
-          <tr><th style="text-align: left;">Total HT</th><td style="text-align: right;">${montantHT.toFixed(2)} MAD</td></tr>
-          ${tvaRate > 0 ? `<tr><th style="text-align: left;">TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
           <tr class="grand-total">
-            <th style="text-align: left;">NET A PAYER</th>
-            <td style="text-align: right;">
-              ${invoice.amount}
-              ${tvaRate > 0 ? `<div class="tva-note">(dont TVA ${tvaRate}% : ${montantTva.toFixed(2)} MAD)</div>` : ''}
-            </td>
+            <th style="text-align: left;">Total TTC</th>
+            <td style="text-align: right;">${invoice.amount}</td>
           </tr>
+          ${tvaRate > 0 ? `<tr><th style="text-align: left;">TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
+          <tr><th style="text-align: left;">Total HT</th><td style="text-align: right;">${montantHT.toFixed(2)} MAD</td></tr>
         </table>
       </div>
       <div class="signature-zone">
@@ -405,7 +402,6 @@ export default function Accounting() {
         .totals table { border: none; }
         .totals th, .totals td { padding: 5px 10px; }
         .grand-total { font-size: 20px; font-weight: bold; background: #f9f9f9; }
-        .tva-note { font-size: 10px; font-weight: normal; color: #666; margin-top: 2px; }
         .signature-zone { clear: both; margin-top: 90px; font-size: 13px; }
         .thanks { text-align: center; color: #666; font-size: 12px; padding-top: 40px; padding-bottom: 10px; }
         .manager-block { text-align: center; font-size: 11px; letter-spacing: 0.5px; }
@@ -1257,11 +1253,9 @@ export default function Accounting() {
                 </div>
               </div>
               <div className="text-sm text-gray-500 text-right space-y-0.5">
+                <p>Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(invoiceLines), invoiceTva).toFixed(2)} MAD</span></p>
+                {invoiceTva > 0 && <p>TVA {invoiceTva}% : <span className="font-medium text-gray-900">{(sumInvoiceLines(invoiceLines) * invoiceTva / 100).toFixed(2)} MAD</span></p>}
                 <p>Total HT : <span className="font-medium text-gray-900">{sumInvoiceLines(invoiceLines).toFixed(2)} MAD</span></p>
-                <p>
-                  Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(invoiceLines), invoiceTva).toFixed(2)} MAD</span>
-                  {invoiceTva > 0 && <span className="text-gray-400"> (dont TVA {invoiceTva}% : {(sumInvoiceLines(invoiceLines) * invoiceTva / 100).toFixed(2)} MAD)</span>}
-                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>

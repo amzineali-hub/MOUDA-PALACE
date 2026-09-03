@@ -78,8 +78,8 @@ function InvoiceLinesTable({ lines, onChange }: { lines: InvoiceLineInput[]; onC
           <tr className="bg-gray-50">
             <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Description</th>
             <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-20">Quantité</th>
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unitaire HT</th>
-            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total HT</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unitaire</th>
+            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -377,9 +377,15 @@ export default function Accounting() {
         `).join('')
       : `<tr><td colspan="3">${(invoice.description || 'Prestation de services de restauration').toString().replace(/\n/g, '<br/>')}</td><td style="text-align: right;">${invoice.amount}</td></tr>`;
 
+    // TVA = Total TTC − Total HT : formule volontairement dérivée du TTC (source de vérité,
+    // `invoice.amount`) plutôt que recalculée via HT × taux. Ça reste juste que la facture ait
+    // été saisie à l'ancienne façon (prix HT, TVA ajoutée par-dessus) ou à la nouvelle (prix déjà
+    // TTC, TVA extraite du total) — dans les deux cas TTC − HT égale la TVA réellement appliquée
+    // au moment de la création, donc une facture déjà émise se réimprime toujours à l'identique.
     const montantHT = Number(invoice.montantHT) || 0;
     const tvaRate = Number(invoice.tva) || 0;
-    const montantTva = montantHT * tvaRate / 100;
+    const montantTTCValue = parseAmount(invoice.amount);
+    const montantTva = montantTTCValue - montantHT;
     const docNumber = isDevis ? formatQuoteNumber(invoice) : formatInvoiceNumber(invoice);
 
     const bodyHtml = `
@@ -558,9 +564,13 @@ export default function Accounting() {
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       if (!data[key]) return;
       const ht = parseAmount(inv.montantHT);
+      // TVA = TTC − HT plutôt que HT × taux : reste correct que la facture ait été saisie en HT
+      // (ancien mode, TVA ajoutée par-dessus) ou en TTC (nouveau mode, TVA extraite du total) —
+      // voir le même raisonnement dans buildInvoiceHtml.
+      const tvaAmount = parseAmount(inv.amount) - ht;
       data[key].caHT += ht;
-      if (Number(inv.tva) === 20) data[key].tva20 += ht * 0.2;
-      else if (Number(inv.tva) === 10) data[key].tva10 += ht * 0.1;
+      if (Number(inv.tva) === 20) data[key].tva20 += tvaAmount;
+      else if (Number(inv.tva) === 10) data[key].tva10 += tvaAmount;
     });
     expenses.forEach((exp: any) => {
       if (exp.tva === undefined || exp.montantHT === undefined) return;
@@ -1285,9 +1295,12 @@ export default function Accounting() {
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              const montantHT = sumInvoiceLines(invoiceLines);
+              // Le prix unitaire saisi est déjà TTC (à la demande du gérant) : Qté × Prix = Total
+              // TTC de la ligne, la TVA en est extraite (TTC × taux%), pas ajoutée par-dessus.
+              const montantTTC = sumInvoiceLines(invoiceLines);
               const tva = Number(formData.get('tva'));
-              const montantTTC = computeTTC(montantHT, tva);
+              const montantTva = montantTTC * tva / 100;
+              const montantHT = montantTTC - montantTva;
               const lines = finalizeInvoiceLines(invoiceLines);
               const newInvoice = {
                 client: formData.get('client'),
@@ -1358,9 +1371,9 @@ export default function Accounting() {
                 </div>
               </div>
               <div className="text-sm text-gray-500 text-right space-y-0.5">
-                <p>Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(invoiceLines), invoiceTva).toFixed(2)} MAD</span></p>
+                <p>Total TTC : <span className="font-semibold text-gray-900">{sumInvoiceLines(invoiceLines).toFixed(2)} MAD</span></p>
                 {invoiceTva > 0 && <p>TVA {invoiceTva}% : <span className="font-medium text-gray-900">{(sumInvoiceLines(invoiceLines) * invoiceTva / 100).toFixed(2)} MAD</span></p>}
-                <p>Total HT : <span className="font-medium text-gray-900">{sumInvoiceLines(invoiceLines).toFixed(2)} MAD</span></p>
+                <p>Total HT : <span className="font-medium text-gray-900">{(sumInvoiceLines(invoiceLines) - sumInvoiceLines(invoiceLines) * invoiceTva / 100).toFixed(2)} MAD</span></p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
@@ -1478,9 +1491,10 @@ export default function Accounting() {
             <form className="space-y-4" onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              const montantHT = sumInvoiceLines(quoteLines);
+              const montantTTC = sumInvoiceLines(quoteLines);
               const tva = Number(formData.get('tva'));
-              const montantTTC = computeTTC(montantHT, tva);
+              const montantTva = montantTTC * tva / 100;
+              const montantHT = montantTTC - montantTva;
               const lines = finalizeInvoiceLines(quoteLines);
               const newQuote = {
                 client: formData.get('client'),
@@ -1548,9 +1562,9 @@ export default function Accounting() {
                 </div>
               </div>
               <div className="text-sm text-gray-500 text-right space-y-0.5">
-                <p>Total TTC : <span className="font-semibold text-gray-900">{computeTTC(sumInvoiceLines(quoteLines), quoteTva).toFixed(2)} MAD</span></p>
+                <p>Total TTC : <span className="font-semibold text-gray-900">{sumInvoiceLines(quoteLines).toFixed(2)} MAD</span></p>
                 {quoteTva > 0 && <p>TVA {quoteTva}% : <span className="font-medium text-gray-900">{(sumInvoiceLines(quoteLines) * quoteTva / 100).toFixed(2)} MAD</span></p>}
-                <p>Total HT : <span className="font-medium text-gray-900">{sumInvoiceLines(quoteLines).toFixed(2)} MAD</span></p>
+                <p>Total HT : <span className="font-medium text-gray-900">{(sumInvoiceLines(quoteLines) - sumInvoiceLines(quoteLines) * quoteTva / 100).toFixed(2)} MAD</span></p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>

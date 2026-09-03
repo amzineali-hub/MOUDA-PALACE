@@ -30,6 +30,66 @@ import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
 import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
 
+// Tableau de détail d'une facture : 5 lignes fixes, 4 colonnes entièrement en saisie manuelle
+// libre (y compris "Montant" — pas de calcul Qté × Prix Unitaire, à la demande du gérant, qui
+// veut garder le contrôle total sur chaque ligne). Le total facturé reste piloté séparément par
+// les champs Montant HT / TVA du formulaire — ce tableau est purement le détail imprimé.
+// Définie hors du composant Accounting pour ne pas être redéfinie (et donc remontée, perdant le
+// focus des champs) à chaque rendu.
+const INVOICE_LINE_COUNT = 5;
+
+interface InvoiceLine {
+  designation: string;
+  qte: string;
+  prixUnitaire: string;
+  montant: string;
+}
+
+function extractInvoiceLines(formData: FormData): InvoiceLine[] {
+  return Array.from({ length: INVOICE_LINE_COUNT }).map((_, i) => ({
+    designation: String(formData.get(`line${i}_designation`) || '').trim(),
+    qte: String(formData.get(`line${i}_qte`) || '').trim(),
+    prixUnitaire: String(formData.get(`line${i}_prixUnitaire`) || '').trim(),
+    montant: String(formData.get(`line${i}_montant`) || '').trim()
+  })).filter(l => l.designation || l.qte || l.prixUnitaire || l.montant);
+}
+
+function InvoiceLinesTable({ defaultLines }: { defaultLines?: InvoiceLine[] }) {
+  const cellClass = "w-full p-1.5 text-sm border-none focus:outline-none focus:ring-1 focus:ring-[#F4C75B] rounded";
+  return (
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Désignation</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-24">Qté</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix Unitaire</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: INVOICE_LINE_COUNT }).map((_, i) => (
+            <tr key={i}>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input name={`line${i}_designation`} type="text" defaultValue={defaultLines?.[i]?.designation} className={cellClass} placeholder={i === 0 ? 'Ex : Banquet 40 couverts' : ''} />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input name={`line${i}_qte`} type="text" defaultValue={defaultLines?.[i]?.qte} className={cellClass} />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input name={`line${i}_prixUnitaire`} type="text" defaultValue={defaultLines?.[i]?.prixUnitaire} className={cellClass} />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input name={`line${i}_montant`} type="text" defaultValue={defaultLines?.[i]?.montant} className={cellClass} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Accounting() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('invoices');
@@ -244,6 +304,25 @@ export default function Accounting() {
   const formatInvoiceNumber = (invoice: any) => invoice.numero ? `FAC-${String(invoice.numero).padStart(4, '0')}` : invoice.id;
 
   const buildInvoiceHtml = (invoice: any) => {
+    // Détail imprimé : tableau 4 colonnes si des lignes ont été saisies (nouveau format), sinon
+    // repli sur l'ancien champ `description` (une seule ligne), puis sur le libellé générique
+    // d'origine — pour ne pas casser l'affichage des factures créées avant ce format.
+    const lines: InvoiceLine[] = Array.isArray(invoice.lines) ? invoice.lines : [];
+    const itemsHtml = lines.length > 0
+      ? lines.map((l: InvoiceLine) => `
+          <tr>
+            <td>${(l.designation || '').replace(/\n/g, '<br/>')}</td>
+            <td style="text-align: right;">${l.qte || ''}</td>
+            <td style="text-align: right;">${l.prixUnitaire || ''}</td>
+            <td style="text-align: right;">${l.montant || ''}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="3">${(invoice.description || 'Prestation de services de restauration').toString().replace(/\n/g, '<br/>')}</td><td style="text-align: right;">${invoice.amount}</td></tr>`;
+
+    const montantHT = Number(invoice.montantHT) || 0;
+    const tvaRate = Number(invoice.tva) || 0;
+    const montantTva = montantHT * tvaRate / 100;
+
     const bodyHtml = `
       <div class="invoice-info">
         <div>
@@ -263,19 +342,19 @@ export default function Accounting() {
       <table>
         <thead>
           <tr>
-            <th>Description</th>
-            <th style="text-align: right;">Total</th>
+            <th>Désignation</th>
+            <th style="text-align: right;">Qté</th>
+            <th style="text-align: right;">Prix Unitaire</th>
+            <th style="text-align: right;">Montant</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>${(invoice.description || 'Prestation de services de restauration').replace(/\n/g, '<br/>')}</td>
-            <td style="text-align: right;">${invoice.amount}</td>
-          </tr>
+          ${itemsHtml}
         </tbody>
       </table>
       <div class="totals">
         <table>
+          ${tvaRate > 0 ? `<tr><th style="text-align: left;">dont TVA ${tvaRate}%</th><td style="text-align: right;">${montantTva.toFixed(2)} MAD</td></tr>` : ''}
           <tr class="grand-total">
             <th style="text-align: left;">NET A PAYER</th>
             <td style="text-align: right;">${invoice.amount}</td>
@@ -1069,12 +1148,13 @@ export default function Accounting() {
               const montantHT = Number(formData.get('montantHT'));
               const tva = Number(formData.get('tva'));
               const montantTTC = computeTTC(montantHT, tva);
+              const lines = extractInvoiceLines(formData);
               const newInvoice = {
                 client: formData.get('client'),
                 phone: formData.get('phone'),
                 address: formData.get('address'),
                 ice: formData.get('ice'),
-                description: formData.get('description'),
+                lines,
                 montantHT,
                 tva,
                 amount: montantTTC.toFixed(2) + ' MAD',
@@ -1124,8 +1204,8 @@ export default function Accounting() {
                 <input name="address" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description / Objet de la facture</label>
-                <textarea name="description" rows={3} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" placeholder="Ex : Banquet 40 couverts, salle privée du 12/09/2026" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Détail de la facture</label>
+                <InvoiceLinesTable />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1141,7 +1221,10 @@ export default function Accounting() {
                   </select>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 text-right">Total TTC : <span className="font-semibold text-gray-900">{computeTTC(Number(invoiceHT) || 0, invoiceTva).toFixed(2)} MAD</span></p>
+              <p className="text-sm text-gray-500 text-right">
+                Total TTC : <span className="font-semibold text-gray-900">{computeTTC(Number(invoiceHT) || 0, invoiceTva).toFixed(2)} MAD</span>
+                {invoiceTva > 0 && <span className="text-gray-400"> (dont TVA {invoiceTva}% : {((Number(invoiceHT) || 0) * invoiceTva / 100).toFixed(2)} MAD)</span>}
+              </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'échéance</label>
                 <input name="date" required type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
@@ -1171,12 +1254,13 @@ export default function Accounting() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               const montant = Number(formData.get('montant'));
+              const lines = extractInvoiceLines(formData);
               const updatedInvoice = {
                 client: formData.get('client'),
                 phone: formData.get('phone'),
                 address: formData.get('address'),
                 ice: formData.get('ice'),
-                description: formData.get('description'),
+                lines,
                 date: formData.get('date'),
                 status: formData.get('status'),
                 amount: montant.toFixed(2) + ' MAD'
@@ -1211,8 +1295,8 @@ export default function Accounting() {
                 <input name="address" type="text" defaultValue={editingInvoice.address} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description / Objet de la facture</label>
-                <textarea name="description" rows={3} defaultValue={editingInvoice.description} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" placeholder="Ex : Banquet 40 couverts, salle privée du 12/09/2026" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Détail de la facture</label>
+                <InvoiceLinesTable defaultLines={editingInvoice.lines} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -255,6 +255,8 @@ export default function Accounting() {
         <div class="client-info">
           <h3>Client</h3>
           <p><strong>${invoice.client}</strong></p>
+          ${invoice.address ? `<p>${invoice.address}</p>` : ''}
+          ${invoice.phone ? `<p>Tél: ${invoice.phone}</p>` : ''}
           ${invoice.ice ? `<p>ICE: ${invoice.ice}</p>` : ''}
         </div>
       </div>
@@ -267,7 +269,7 @@ export default function Accounting() {
         </thead>
         <tbody>
           <tr>
-            <td>Prestation de services de restauration</td>
+            <td>${(invoice.description || 'Prestation de services de restauration').replace(/\n/g, '<br/>')}</td>
             <td style="text-align: right;">${invoice.amount}</td>
           </tr>
         </tbody>
@@ -1054,7 +1056,7 @@ export default function Accounting() {
       {/* New Invoice Modal */}
       {isNewModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Nouvelle Facture</h3>
               <button onClick={() => setIsNewModalOpen(false)} className="text-gray-400 hover:text-gray-900">
@@ -1069,7 +1071,10 @@ export default function Accounting() {
               const montantTTC = computeTTC(montantHT, tva);
               const newInvoice = {
                 client: formData.get('client'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
                 ice: formData.get('ice'),
+                description: formData.get('description'),
                 montantHT,
                 tva,
                 amount: montantTTC.toFixed(2) + ' MAD',
@@ -1104,9 +1109,23 @@ export default function Accounting() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
                 <input name="client" required type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du client" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" type="tel" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="06 XX XX XX XX" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
+                  <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
-                <input name="ice" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse du client</label>
+                <input name="address" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description / Objet de la facture</label>
+                <textarea name="description" rows={3} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" placeholder="Ex : Banquet 40 couverts, salle privée du 12/09/2026" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1141,7 +1160,7 @@ export default function Accounting() {
       {/* Edit Invoice Modal */}
       {isEditInvoiceModalOpen && editingInvoice && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-serif font-semibold">Éditer la Facture {editingInvoice.id}</h3>
               <button onClick={() => { setIsEditInvoiceModalOpen(false); setEditingInvoice(null); }} className="text-gray-400 hover:text-gray-900">
@@ -1154,7 +1173,10 @@ export default function Accounting() {
               const montant = Number(formData.get('montant'));
               const updatedInvoice = {
                 client: formData.get('client'),
+                phone: formData.get('phone'),
+                address: formData.get('address'),
                 ice: formData.get('ice'),
+                description: formData.get('description'),
                 date: formData.get('date'),
                 status: formData.get('status'),
                 amount: montant.toFixed(2) + ' MAD'
@@ -1174,9 +1196,23 @@ export default function Accounting() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client / Partenaire</label>
                 <input name="client" required type="text" defaultValue={editingInvoice.client} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Nom du client" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <input name="phone" type="tel" defaultValue={editingInvoice.phone} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="06 XX XX XX XX" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
+                  <input name="ice" type="text" defaultValue={editingInvoice.ice} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ICE du Client (15 chiffres)</label>
-                <input name="ice" type="text" defaultValue={editingInvoice.ice} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Ex: 001538629000041" maxLength={15} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse du client</label>
+                <input name="address" type="text" defaultValue={editingInvoice.address} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description / Objet de la facture</label>
+                <textarea name="description" rows={3} defaultValue={editingInvoice.description} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" placeholder="Ex : Banquet 40 couverts, salle privée du 12/09/2026" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

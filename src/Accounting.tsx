@@ -29,6 +29,65 @@ import { useEffect, useMemo } from 'react';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { parseAmount, groupAmountsByMonth, sumAmountsInMonth } from './lib/revenueUtils';
 import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
+import jsPDF from 'jspdf';
+import { toPng } from 'html-to-image';
+
+// Génère un vrai fichier PDF téléchargé localement, sans passer par window.print() — son
+// comportement (bouton "Enregistrer" vs impression directe) dépend de l'imprimante par défaut du
+// poste, ce qui donnait un résultat différent chez le gérant (imprimante branchée → impression
+// directe, pas de moyen simple d'enregistrer) que côté test (pas d'imprimante → "Enregistrer" par
+// défaut). Même mécanisme que RH.tsx `generateAndStorePdf`, sans l'archivage Firebase Storage
+// (pas nécessaire ici, juste le téléchargement local).
+async function downloadDocumentAsPdf(html: string, filename: string) {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-99999px';
+  iframe.style.top = '0';
+  iframe.style.width = '794px';
+  // Volontairement très grand : document.body.scrollHeight est plafonné à AU MOINS la hauteur de
+  // l'iframe — une hauteur trop petite ferait capturer une image gonflée de vide.
+  iframe.style.height = '4000px';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+
+  try {
+    const idoc = iframe.contentDocument;
+    if (!idoc) throw new Error('iframe indisponible');
+    const loadPromise = new Promise<void>((resolve) => { iframe.onload = () => resolve(); });
+    idoc.open();
+    idoc.write(html);
+    idoc.close();
+    await Promise.race([loadPromise, new Promise<void>((resolve) => setTimeout(resolve, 3000))]);
+
+    const images = Array.from(idoc.images);
+    await Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); })));
+    await new Promise((res) => setTimeout(res, 200));
+
+    const bodyEl = idoc.body;
+    // Mesure la vraie fin du contenu via le bas du pied de page (pas scrollHeight, plafonné par
+    // la hauteur de l'iframe — voir commentaire ci-dessus).
+    const footerEl = idoc.querySelector('.lh-footer-bar');
+    const contentHeight = footerEl ? Math.ceil(footerEl.getBoundingClientRect().bottom) : bodyEl.scrollHeight;
+    const dataUrl = await toPng(bodyEl, {
+      quality: 0.95,
+      backgroundColor: '#ffffff',
+      pixelRatio: 2,
+      width: bodyEl.scrollWidth,
+      height: contentHeight
+    });
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const scale = Math.min(pageWidth / bodyEl.scrollWidth, pageHeight / contentHeight, 1);
+    const imgWidth = bodyEl.scrollWidth * scale;
+    const imgHeight = contentHeight * scale;
+    pdf.addImage(dataUrl, 'PNG', (pageWidth - imgWidth) / 2, 0, imgWidth, imgHeight);
+    pdf.save(`${filename.replace(/[\\/:*?"<>|]/g, '-')}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}
 
 // Tableau de détail d'une facture : 5 lignes fixes, calées sur le vrai modèle papier du
 // restaurant (Description / Quantité / Prix unitaire HT / Total HT). Contrôlé (pas de simple
@@ -358,7 +417,7 @@ export default function Accounting() {
   // l'identifiant Firestore pour ne pas leur faire perdre toute référence affichable.
   const formatInvoiceNumber = (invoice: any) => invoice.numero ? `FAC-${String(invoice.numero).padStart(4, '0')}` : invoice.id;
 
-  const buildInvoiceHtml = (invoice: any, docType: 'facture' | 'devis' = 'facture') => {
+  const buildInvoiceHtml = (invoice: any, docType: 'facture' | 'devis' = 'facture', autoPrint = true) => {
     // Détail imprimé : tableau 4 colonnes si des lignes ont été saisies (nouveau format), sinon
     // repli sur l'ancien champ `description` (une seule ligne), puis sur le libellé générique
     // d'origine — pour ne pas casser l'affichage des factures créées avant ce format.
@@ -441,6 +500,7 @@ export default function Accounting() {
     return buildLetterheadHtml(companyInfo, window.location.origin, {
       title: `${isDevis ? 'Proforma' : 'Facture'} ${docNumber}`,
       bodyHtml,
+      autoPrint,
       extraStyles: `
         .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
         .client-info { text-align: right; }
@@ -821,13 +881,7 @@ export default function Accounting() {
                         <button onClick={() => { setSelectedInvoice(invoice); setIsInvoiceModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir la facture">
                           <Eye size={16} />
                         </button>
-                        <button onClick={() => {
-                          let printWindow = window.open('', '', 'width=800,height=900');
-                          if (printWindow) {
-                            printWindow.document.write(buildInvoiceHtml(invoice));
-                            printWindow.document.close();
-                          }
-                        }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                        <button onClick={() => downloadDocumentAsPdf(buildInvoiceHtml(invoice, 'facture', false), formatInvoiceNumber(invoice))} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Enregistrer en PDF">
                           <Download size={16} />
                         </button>
                         <button onClick={() => {
@@ -885,13 +939,7 @@ export default function Accounting() {
                         <button onClick={() => { setSelectedQuote(quote); setIsQuoteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le proforma">
                           <Eye size={16} />
                         </button>
-                        <button onClick={() => {
-                          let printWindow = window.open('', '', 'width=800,height=900');
-                          if (printWindow) {
-                            printWindow.document.write(buildInvoiceHtml(quote, 'devis'));
-                            printWindow.document.close();
-                          }
-                        }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Télécharger PDF">
+                        <button onClick={() => downloadDocumentAsPdf(buildInvoiceHtml(quote, 'devis', false), formatQuoteNumber(quote))} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Enregistrer en PDF">
                           <Download size={16} />
                         </button>
                         <button onClick={() => handleDeleteQuote(quote)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100" title="Supprimer">
@@ -2010,16 +2058,10 @@ export default function Accounting() {
                 Fermer
               </button>
               <button
-                onClick={() => {
-                  let printWindow = window.open('', '', 'width=800,height=900');
-                  if (printWindow) {
-                    printWindow.document.write(buildInvoiceHtml(selectedInvoice));
-                    printWindow.document.close();
-                  }
-                }}
+                onClick={() => downloadDocumentAsPdf(buildInvoiceHtml(selectedInvoice, 'facture', false), formatInvoiceNumber(selectedInvoice))}
                 className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
-                <Printer size={16} /> Imprimer
+                <Download size={16} /> Enregistrer
               </button>
             </div>
           </div>
@@ -2081,16 +2123,10 @@ export default function Accounting() {
                 Fermer
               </button>
               <button
-                onClick={() => {
-                  let printWindow = window.open('', '', 'width=800,height=900');
-                  if (printWindow) {
-                    printWindow.document.write(buildInvoiceHtml(selectedQuote, 'devis'));
-                    printWindow.document.close();
-                  }
-                }}
+                onClick={() => downloadDocumentAsPdf(buildInvoiceHtml(selectedQuote, 'devis', false), formatQuoteNumber(selectedQuote))}
                 className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
               >
-                <Printer size={16} /> Imprimer
+                <Download size={16} /> Enregistrer
               </button>
             </div>
           </div>

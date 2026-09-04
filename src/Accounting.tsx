@@ -78,8 +78,8 @@ function InvoiceLinesTable({ lines, onChange }: { lines: InvoiceLineInput[]; onC
           <tr className="bg-gray-50">
             <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Description</th>
             <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-20">Quantité</th>
-            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unitaire</th>
-            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unitaire TTC</th>
+            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total TTC</th>
           </tr>
         </thead>
         <tbody>
@@ -321,14 +321,14 @@ export default function Accounting() {
     return () => unsub();
   }, []);
 
-  const formatQuoteNumber = (quote: any) => quote.numero ? `DEV-${String(quote.numero).padStart(4, '0')}` : quote.id;
+  const formatQuoteNumber = (quote: any) => quote.numero ? `PRO-${String(quote.numero).padStart(4, '0')}` : quote.id;
 
   const handleDeleteQuote = async (quote: any) => {
-    if (window.confirm(`Voulez-vous vraiment supprimer le devis ${formatQuoteNumber(quote)} ?`)) {
+    if (window.confirm(`Voulez-vous vraiment supprimer le proforma ${formatQuoteNumber(quote)} ?`)) {
       try {
         await deleteDoc(doc(db, "quotes", quote.id));
-        logActivity({ action: 'delete', entity: 'quote', entityId: quote.id, summary: `Suppression devis ${formatQuoteNumber(quote)} - ${quote.client || ''} - ${quote.amount || ''}`, before: quote });
-        showToast("Devis supprimé avec succès");
+        logActivity({ action: 'delete', entity: 'quote', entityId: quote.id, summary: `Suppression proforma ${formatQuoteNumber(quote)} - ${quote.client || ''} - ${quote.amount || ''}`, before: quote });
+        showToast("Proforma supprimé avec succès");
       } catch (error) {
         console.error(error);
         showToast("Erreur lors de la suppression", "error");
@@ -391,7 +391,7 @@ export default function Accounting() {
     const bodyHtml = `
       <div class="invoice-info">
         <div>
-          <h2>${isDevis ? 'DEVIS' : 'FACTURE'}</h2>
+          <h2>${isDevis ? 'PROFORMA' : 'FACTURE'}</h2>
           <p><strong>N°:</strong> ${docNumber}</p>
           <p><strong>Date:</strong> ${invoice.date}</p>
           ${isDevis ? '' : `<p><strong>Statut:</strong> ${invoice.status || ''}</p>`}
@@ -409,8 +409,8 @@ export default function Accounting() {
           <tr>
             <th>Description</th>
             <th style="text-align: right;">Quantité</th>
-            <th style="text-align: right;">Prix unitaire HT</th>
-            <th style="text-align: right;">Total HT</th>
+            <th style="text-align: right;">Prix unitaire TTC</th>
+            <th style="text-align: right;">Total TTC</th>
           </tr>
         </thead>
         <tbody>
@@ -427,20 +427,19 @@ export default function Accounting() {
           <tr><th style="text-align: left;">Total HT</th><td style="text-align: right;">${montantHT.toFixed(2)} MAD</td></tr>
         </table>
       </div>
-      ${isDevis ? '<div class="devis-note">Devis valable 30 jours à compter de sa date d\'émission. Ce document ne constitue pas une facture.</div>' : ''}
+      ${isDevis ? '<div class="devis-note">Proforma valable 30 jours à compter de sa date d\'émission. Ce document ne constitue pas une facture.</div>' : ''}
       <div class="signature-zone">
         <p><strong>Signature &amp; Cachet :</strong></p>
       </div>
       <div class="thanks">Merci pour votre confiance.</div>
       <div class="manager-block">
         <p><strong>${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</strong></p>
-        ${companyInfo.managerName ? `<p>${companyInfo.managerName.toUpperCase()}</p>` : ''}
         <p>GERANT</p>
       </div>
     `;
 
     return buildLetterheadHtml(companyInfo, window.location.origin, {
-      title: `${isDevis ? 'Devis' : 'Facture'} ${docNumber}`,
+      title: `${isDevis ? 'Proforma' : 'Facture'} ${docNumber}`,
       bodyHtml,
       extraStyles: `
         .invoice-info { display: flex; justify-content: space-between; margin-bottom: 40px; }
@@ -689,7 +688,7 @@ export default function Accounting() {
           >
             <Plus size={18} />
             <span className="hidden sm:inline">
-              {activeTab === 'invoices' ? 'Nouvelle Facture' : activeTab === 'quotes' ? 'Devis / Proforma' : activeTab === 'expenses' ? 'Nouvelle Dépense' : activeTab === 'receipts' ? 'Nouvel Encaissement' : 'Nouveau'}
+              {activeTab === 'invoices' ? 'Nouvelle Facture' : activeTab === 'quotes' ? 'Proforma' : activeTab === 'expenses' ? 'Nouvelle Dépense' : activeTab === 'receipts' ? 'Nouvel Encaissement' : 'Nouveau'}
             </span>
           </button>
         </div>
@@ -755,7 +754,7 @@ export default function Accounting() {
                 className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors relative ${activeTab === tab ? 'text-[#F4C75B]' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 {tab === 'invoices' && 'Factures Clients'}
-                {tab === 'quotes' && 'Devis / Proforma'}
+                {tab === 'quotes' && 'Proforma'}
                 {tab === 'receipts' && 'Recettes Caisses'}
                 {tab === 'expenses' && 'Dépenses & Achats'}
                 {tab === 'tva' && 'Déclaration TVA'}
@@ -776,7 +775,7 @@ export default function Accounting() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text"
-              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'quotes' ? "Rechercher un devis..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
+              placeholder={activeTab === 'invoices' ? "Rechercher une facture..." : activeTab === 'quotes' ? "Rechercher un proforma..." : activeTab === 'receipts' ? "Rechercher un encaissement..." : "Rechercher une dépense..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] bg-white"
@@ -865,7 +864,7 @@ export default function Accounting() {
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4">N° Devis</th>
+                  <th className="px-6 py-4">N° Proforma</th>
                   <th className="px-6 py-4">Client / Partenaire</th>
                   <th className="px-6 py-4">ICE</th>
                   <th className="px-6 py-4">Date</th>
@@ -883,7 +882,7 @@ export default function Accounting() {
                     <td className="px-6 py-4 font-medium text-gray-900 text-right">{quote.amount}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { setSelectedQuote(quote); setIsQuoteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le devis">
+                        <button onClick={() => { setSelectedQuote(quote); setIsQuoteModalOpen(true); }} className="p-1.5 text-gray-400 hover:text-[#F4C75B] transition-colors rounded-lg hover:bg-gray-100" title="Voir le proforma">
                           <Eye size={16} />
                         </button>
                         <button onClick={() => {
@@ -905,7 +904,7 @@ export default function Accounting() {
                 {filteredQuotes.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      Aucun devis trouvé.
+                      Aucun proforma trouvé.
                     </td>
                   </tr>
                 )}
@@ -1483,7 +1482,7 @@ export default function Accounting() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-serif font-semibold">Nouveau Devis / Proforma</h3>
+              <h3 className="text-xl font-serif font-semibold">Nouveau Proforma</h3>
               <button onClick={() => setIsNewQuoteModalOpen(false)} className="text-gray-400 hover:text-gray-900">
                 <X size={20} />
               </button>
@@ -1510,11 +1509,11 @@ export default function Accounting() {
               };
 
               const optimisticNumero = quotes.reduce((max, q) => Math.max(max, q.numero || 0), 0) + 1;
-              setQuotes([{ id: 'DEV-NOUVEAU', numero: optimisticNumero, ...newQuote }, ...quotes]);
+              setQuotes([{ id: 'PRO-NOUVEAU', numero: optimisticNumero, ...newQuote }, ...quotes]);
               setIsNewQuoteModalOpen(false);
               setQuoteLines(emptyInvoiceLines());
               setQuoteTva(20);
-              showToast("Devis créé avec succès");
+              showToast("Proforma créé avec succès");
 
               try {
                 const quoteRef = doc(collection(db, 'quotes'));
@@ -1548,7 +1547,7 @@ export default function Accounting() {
                 <input name="address" type="text" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" placeholder="Adresse complète" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Détail du devis</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Détail du proforma</label>
                 <InvoiceLinesTable lines={quoteLines} onChange={setQuoteLines} />
               </div>
               <div className="flex justify-end">
@@ -1574,7 +1573,7 @@ export default function Accounting() {
                 type="submit"
                 className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#333] transition-colors"
               >
-                Créer le devis
+                Créer le proforma
               </button>
             </form>
           </div>
@@ -2032,7 +2031,7 @@ export default function Accounting() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-serif font-semibold text-gray-900">Détails du Devis</h3>
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Détails du Proforma</h3>
               <button onClick={() => setIsQuoteModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100">
                 <X size={20} />
               </button>

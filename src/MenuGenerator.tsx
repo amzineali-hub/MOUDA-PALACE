@@ -663,14 +663,15 @@ if (isPrintView) {
             <form onSubmit={handleSaveItem} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
-                <input 
-                  type="text" 
+                <Combobox
+                  options={recettes.map(r => r.nom || r.name).filter(Boolean)}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Tagine d'Agneau aux Pruneaux" 
-                  required 
-                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]" 
+                  onChange={val => setName(val)}
+                  placeholder="Ex: Tagine d'Agneau aux Pruneaux"
+                  required
+                  className="w-full border border-gray-200 rounded-xl p-3 focus:outline-none focus:border-[#F4C75B]"
                 />
+                <p className="mt-1 text-xs text-gray-400">Choisissez une fiche technique existante pour récupérer son coût matière, ou saisissez un nouveau nom.</p>
               </div>
 
               <div className="grid grid-cols-3 gap-4">

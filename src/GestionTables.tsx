@@ -25,9 +25,9 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
   const [loading, setLoading] = useState(true);
 
   const zones = [
-    { id: 'patio', name: 'Le Patio Central' },
-    { id: 'terrasse', name: 'Terrasse Panoramique' },
-    { id: 'salon', name: 'Salon VIP' },
+    { id: 'patio', name: 'Patio' },
+    { id: 'terrasse', name: 'Rooftop' },
+    { id: 'salon', name: 'Salon Vip' },
   ].map(z => {
     const zoneTables = tables.filter(t => t.zone === z.id);
     return {

@@ -889,7 +889,7 @@ export default function POSTactile() {
   // "Table 1"), so every table is identified internally by its Firestore doc id (fbId),
   // never by the display number alone — matching on the number would silently hit
   // whichever room's table happens to come first in the list.
-  const ZONE_NAMES: Record<string, string> = { patio: 'Le Patio Central', terrasse: 'Terrasse Panoramique', salon: 'Salon VIP' };
+  const ZONE_NAMES: Record<string, string> = { patio: 'Patio', terrasse: 'Rooftop', salon: 'Salon Vip' };
   const ZONE_SHORT: Record<string, string> = { patio: 'P', terrasse: 'T', salon: 'S' };
   const ZONE_ORDER = ['patio', 'terrasse', 'salon'];
 

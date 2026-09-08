@@ -30,6 +30,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [lightboxItem, setLightboxItem] = useState<any | null>(null);
+  const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [ingredientsPreviewItem, setIngredientsPreviewItem] = useState<any | null>(null);
 
   // Form states
@@ -590,9 +591,14 @@ if (isPrintView) {
                       <ZoomIn size={28} className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow" />
                     </div>
                     {item.videoUrl && (
-                      <span className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white p-1.5 rounded-full" title="Vidéo disponible">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setPlayingVideoUrl(item.videoUrl); }}
+                        className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white p-1.5 rounded-full hover:bg-black/90 transition-colors"
+                        title="Voir la vidéo"
+                      >
                         <PlayCircle size={18} />
-                      </span>
+                      </button>
                     )}
                     <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-[#F4C75B] font-serif font-bold px-3 py-1 rounded-full text-sm">
                       {item.price}
@@ -883,7 +889,9 @@ if (isPrintView) {
             <X size={28} />
           </button>
           <div className="max-w-4xl w-full max-h-[85vh] flex flex-col items-center gap-4" onClick={(e) => e.stopPropagation()}>
-            {lightboxItem.videoUrl ? (
+            {lightboxItem.imageUrl ? (
+              <img src={lightboxItem.imageUrl} alt={lightboxItem.name} className="max-w-full max-h-[65vh] object-contain rounded-xl" referrerPolicy="no-referrer" />
+            ) : lightboxItem.videoUrl ? (
               getVideoEmbedUrl(lightboxItem.videoUrl) ? (
                 <iframe
                   src={getVideoEmbedUrl(lightboxItem.videoUrl) as string}
@@ -895,8 +903,6 @@ if (isPrintView) {
               ) : (
                 <video src={lightboxItem.videoUrl} controls autoPlay className="w-full max-h-[65vh] rounded-xl bg-black" />
               )
-            ) : lightboxItem.imageUrl ? (
-              <img src={lightboxItem.imageUrl} alt={lightboxItem.name} className="max-w-full max-h-[65vh] object-contain rounded-xl" referrerPolicy="no-referrer" />
             ) : null}
             <div className="text-center text-white">
               <h3 className="text-xl font-serif font-semibold">{lightboxItem.name}</h3>
@@ -910,6 +916,31 @@ if (isPrintView) {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lecture vidéo d'un plat, déclenchée depuis le badge lecture sur sa vignette */}
+      {playingVideoUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" onClick={() => setPlayingVideoUrl(null)}>
+          <button
+            onClick={() => setPlayingVideoUrl(null)}
+            className="absolute top-5 right-5 text-white/80 hover:text-white transition-colors"
+          >
+            <X size={28} />
+          </button>
+          <div className="max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            {getVideoEmbedUrl(playingVideoUrl) ? (
+              <iframe
+                src={getVideoEmbedUrl(playingVideoUrl) as string}
+                title="Vidéo du plat"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full aspect-video rounded-xl bg-black"
+              />
+            ) : (
+              <video src={playingVideoUrl} controls autoPlay className="w-full max-h-[75vh] rounded-xl bg-black" />
+            )}
           </div>
         </div>
       )}

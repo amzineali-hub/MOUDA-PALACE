@@ -84,13 +84,24 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     };
   }, []);
 
+  const matchedRecipe = useMemo(() =>
+    recettes.find(r => (r.nom || r.name || '').toLowerCase() === name.trim().toLowerCase()),
+    [name, recettes]
+  );
+
   const matchedRecipeCost = useMemo(() => {
-    const recipe = recettes.find(r => (r.nom || r.name || '').toLowerCase() === name.trim().toLowerCase());
-    if (!recipe) return null;
+    if (!matchedRecipe) return null;
     const priceValue = parseAmount(price);
-    const result = computeRecipeCost({ ...recipe, prixVente: priceValue || recipe.prixVente }, inventoryItems);
+    const result = computeRecipeCost({ ...matchedRecipe, prixVente: priceValue || matchedRecipe.prixVente }, inventoryItems);
     return result;
-  }, [name, price, recettes, inventoryItems]);
+  }, [matchedRecipe, price, inventoryItems]);
+
+  // Un plat choisi via le Combobox "Nom du plat" reprend la catégorie de sa fiche technique,
+  // pour éviter qu'il finisse mal classé (ex: plat salé rangé dans "Desserts") par oubli de
+  // changer manuellement le menu déroulant Catégorie après l'avoir sélectionné.
+  useEffect(() => {
+    if (matchedRecipe?.categorie) setCategory(matchedRecipe.categorie);
+  }, [matchedRecipe]);
 
   // Lien facultatif "Gérer la fiche technique" (coûts internes) depuis l'aperçu ingrédients —
   // un plat du menu a une fiche liée s'il existe une fiche technique du même nom.

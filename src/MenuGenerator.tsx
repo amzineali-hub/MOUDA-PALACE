@@ -103,6 +103,14 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     if (matchedRecipe?.categorie) setCategory(matchedRecipe.categorie);
   }, [matchedRecipe]);
 
+  // Sens inverse : choisir une catégorie ne propose ensuite que les fiches techniques de cette
+  // catégorie dans le Combobox "Nom du plat" — évite de retomber sur un plat d'une autre catégorie.
+  const dishOptionsForCategory = useMemo(() => {
+    const catNorm = category.trim().toLowerCase();
+    const scoped = catNorm ? recettes.filter(r => (r.categorie || '').trim().toLowerCase() === catNorm) : recettes;
+    return scoped.map(r => r.nom || r.name).filter(Boolean);
+  }, [recettes, category]);
+
   // Lien facultatif "Gérer la fiche technique" (coûts internes) depuis l'aperçu ingrédients —
   // un plat du menu a une fiche liée s'il existe une fiche technique du même nom.
   const findFicheForDish = (dishName: string) =>
@@ -675,7 +683,7 @@ if (isPrintView) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nom du plat</label>
                 <Combobox
-                  options={recettes.map(r => r.nom || r.name).filter(Boolean)}
+                  options={dishOptionsForCategory}
                   value={name}
                   onChange={val => setName(val)}
                   placeholder="Ex: Tagine d'Agneau aux Pruneaux"

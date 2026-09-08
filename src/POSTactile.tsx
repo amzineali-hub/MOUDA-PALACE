@@ -20,7 +20,7 @@ const CATEGORIES = [
 // Identité de la caisse physique sur laquelle tourne ce poste (Patio / Rooftop) — choisie une
 // fois par machine et stockée en local, pas en base : ça évite un flux d'appairage pour un
 // simple "quel poste est-ce", et garantit que chaque poste ne suit que sa propre session de caisse.
-const STATIONS = ['Patio', 'Rooftop'] as const;
+const STATIONS = ['Patio', 'Rooftop', 'Salon Vip'] as const;
 const STATION_STORAGE_KEY = 'mouda_pos_station';
 
 const TicketReceiptBody = ({ ticket }: { ticket: any }) => (

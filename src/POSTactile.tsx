@@ -394,6 +394,10 @@ export default function POSTactile() {
   const [isQuickTableEntryOpen, setIsQuickTableEntryOpen] = useState(false);
   const [quickEntryZone, setQuickEntryZone] = useState<string | null>(null);
   const [quickEntryNumber, setQuickEntryNumber] = useState('');
+  // Étape finale (couverts) de la saisie rapide de table — n'est renseignée qu'une fois le
+  // numéro de table validé, ce qui fait passer la fenêtre à l'étape "combien de couverts ?".
+  const [quickEntryMatchedTable, setQuickEntryMatchedTable] = useState<any>(null);
+  const [quickEntryCovers, setQuickEntryCovers] = useState(2);
   const [isLoadingOrdersByWaiter, setIsLoadingOrdersByWaiter] = useState(false);
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -664,17 +668,27 @@ export default function POSTactile() {
   // plan de salle visuel pour le geste courant "prendre une commande", plus rapide en plein
   // service. Le plan de salle visuel reste disponible par ailleurs (bouton "X occupées / Y") pour
   // une vue d'ensemble et la gestion de statut.
-  const confirmQuickTableEntry = () => {
+  // Étape 1→2 : valide le numéro de table saisi, puis fait passer la fenêtre à l'étape
+  // "combien de couverts ?" — pré-remplie avec les couverts déjà en place si la table est
+  // occupée, sinon sa capacité, sinon 2 par défaut.
+  const proceedToQuickEntryCovers = () => {
     if (!quickEntryZone || !quickEntryNumber) return;
     const matched = tables.find(t => t.zone === quickEntryZone && String(t.id) === quickEntryNumber);
     if (!matched) {
       showToast(`Aucune table ${quickEntryNumber} dans cette salle.`, 'error');
       return;
     }
-    transferTable(matched.fbId);
+    setQuickEntryMatchedTable(matched);
+    setQuickEntryCovers(matched.currentPax || matched.capacity || 2);
+  };
+
+  const confirmQuickTableEntry = () => {
+    if (!quickEntryMatchedTable) return;
+    transferTable(quickEntryMatchedTable.fbId, quickEntryCovers);
     setIsQuickTableEntryOpen(false);
     setQuickEntryZone(null);
     setQuickEntryNumber('');
+    setQuickEntryMatchedTable(null);
   };
 
   // "Commandes par Garçon" — vue d'ensemble des commandes actuellement en cours (non payées, non
@@ -705,11 +719,12 @@ export default function POSTactile() {
     }
   };
 
-  const transferTable = async (targetTable: string) => {
+  const transferTable = async (targetTable: string, coversOverride?: number) => {
     if (!kitchenOrderId || !selectedTable || targetTable === selectedTable) {
       const isRealTable = targetTable !== 'À emporter';
       const matchedTable = isRealTable ? tables.find(t => t.fbId === targetTable) : null;
-      const covers = isRealTable ? (matchedTable?.currentPax || matchedTable?.capacity || 2) : tableCovers;
+      const fallbackCovers = matchedTable?.currentPax || matchedTable?.capacity || 2;
+      const covers = isRealTable ? (coversOverride ?? fallbackCovers) : tableCovers;
       setSelectedTable(targetTable);
       if (isRealTable) setTableCovers(covers);
       setIsTableModalOpen(false);
@@ -2071,7 +2086,7 @@ export default function POSTactile() {
             <div className="flex flex-wrap items-center gap-2">
               {selectedTable !== 'À emporter' && (
                 <button
-                  onClick={() => { setQuickEntryZone(null); setQuickEntryNumber(''); setIsQuickTableEntryOpen(true); }}
+                  onClick={() => { setQuickEntryZone(null); setQuickEntryNumber(''); setQuickEntryMatchedTable(null); setIsQuickTableEntryOpen(true); }}
                   className="flex items-center gap-2 text-sm bg-sky-500 text-white shadow-[0_4px_0_0_#0369a1] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 px-4 py-2.5 rounded-xl font-bold"
                 >
                   <User size={16} />
@@ -2785,7 +2800,7 @@ export default function POSTactile() {
                   </button>
                 ))}
               </div>
-            ) : (
+            ) : !quickEntryMatchedTable ? (
               <>
                 <button
                   onClick={() => { setQuickEntryZone(null); setQuickEntryNumber(''); }}
@@ -2819,13 +2834,49 @@ export default function POSTactile() {
                     0
                   </button>
                   <button
-                    onClick={confirmQuickTableEntry}
+                    onClick={proceedToQuickEntryCovers}
                     disabled={!quickEntryNumber || isTransferringTable}
                     className="py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold disabled:opacity-40 transition-colors"
                   >
                     ✓
                   </button>
                 </div>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setQuickEntryMatchedTable(null)}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline mb-3"
+                >
+                  ← Modifier le numéro
+                </button>
+                <p className="text-center text-sm text-gray-500 mb-1">
+                  Table {quickEntryNumber} — Combien de couverts ?
+                </p>
+                <div className="flex items-center justify-center gap-6 py-6">
+                  <button
+                    type="button"
+                    onClick={() => setQuickEntryCovers(c => Math.max(1, c - 1))}
+                    className="w-14 h-14 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
+                  >
+                    <Minus size={22} />
+                  </button>
+                  <span className="text-5xl font-black text-[#1A1A1A] w-16 text-center">{quickEntryCovers}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuickEntryCovers(c => c + 1)}
+                    className="w-14 h-14 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
+                  >
+                    <Plus size={22} />
+                  </button>
+                </div>
+                <button
+                  onClick={confirmQuickTableEntry}
+                  disabled={isTransferringTable}
+                  className="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold disabled:opacity-40 transition-colors"
+                >
+                  ✓ Valider
+                </button>
               </>
             )}
           </motion.div>

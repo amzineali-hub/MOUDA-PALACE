@@ -629,7 +629,8 @@ export default function POSTactile() {
       numPrice: Number(line.unitPrice) || 0,
       qty: Number(line.qty) || 1,
       modifiers: line.modifiers || null,
-      sentToKitchen: line.sentToKitchen !== false
+      sentToKitchen: line.sentToKitchen !== false,
+      heldForLater: !!line.heldForLater
     }));
     setCart(loadedLines);
     setKitchenOrderId(orderId);
@@ -1498,7 +1499,8 @@ export default function POSTactile() {
         qty: getLineQuantity(item),
         unitPrice: getLineUnitPrice(item),
         modifiers: item.modifiers || null,
-        sentToKitchen: item.sentToKitchen || sentNow.has(item.id)
+        sentToKitchen: item.sentToKitchen || sentNow.has(item.id),
+        heldForLater: !!item.heldForLater
       }));
 
       await runTransaction(db, async (transaction) => {

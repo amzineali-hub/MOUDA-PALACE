@@ -6,6 +6,7 @@
     }
   ],
   "storage": {
+    "bucket": "clever-datum-pjlsj.firebasestorage.app",
     "rules": "storage.rules"
   }
 }

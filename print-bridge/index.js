@@ -11,6 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { buildKitchenTicketEscPos } = require('./lib/escpos');
 const { sendToPrinter } = require('./lib/printer-socket');
+const { createLogger } = require('./lib/logger');
 
 // Quand empaqueté en .exe (pkg), __dirname pointe vers une image virtuelle en lecture seule
 // embarquée dans l'exécutable — il faut lire config.json à côté du vrai .exe sur le disque pour
@@ -23,7 +24,11 @@ const DEFAULT_CONFIG = {
   kitchenPrinterPort: 9100,
   connectTimeoutMs: 4000,
   codepage: 'cp860',
-  escposTableNumber: 3
+  escposTableNumber: 3,
+  // Un blocage papier/imprimante occupée est courant et transitoire — ces valeurs ne
+  // s'appliquent qu'aux échecs SANS risque de double impression (voir printer-socket.js).
+  printRetries: 2,
+  printRetryDelayMs: 500
 };
 
 function loadConfig() {
@@ -42,14 +47,30 @@ function loadConfig() {
 }
 
 const config = loadConfig();
-// Horodatage manuel (pas toLocaleTimeString) : l'exécutable empaqueté (pkg) n'embarque pas les
-// données ICU complètes, ce qui rend le formatage localisé imprévisible/illisible.
-const pad2 = (n) => String(n).padStart(2, '0');
-const timestamp = () => {
-  const d = new Date();
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
-};
-const log = (msg) => console.log(`[${timestamp()}] ${msg}`);
+const log = createLogger(baseDir);
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Réessaie uniquement les échecs marqués `retryable` par printer-socket.js (imprimante pas
+// encore joignable) — jamais un échec survenu après l'envoi des octets, pour ne pas risquer
+// d'imprimer le même ticket deux fois.
+async function sendWithRetry(buffer, printerConfig, retries, delayMs) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await sendToPrinter(buffer, printerConfig);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!error.retryable || attempt === retries) throw error;
+      log(`print-kitchen: tentative ${attempt + 1} échouée (${error.message}), nouvel essai...`);
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+}
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -89,11 +110,16 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBody(req);
       const data = JSON.parse(raw);
       const buffer = buildKitchenTicketEscPos(data, config);
-      await sendToPrinter(buffer, {
-        host: config.kitchenPrinterHost,
-        port: config.kitchenPrinterPort,
-        connectTimeoutMs: config.connectTimeoutMs
-      });
+      await sendWithRetry(
+        buffer,
+        {
+          host: config.kitchenPrinterHost,
+          port: config.kitchenPrinterPort,
+          connectTimeoutMs: config.connectTimeoutMs
+        },
+        config.printRetries,
+        config.printRetryDelayMs
+      );
       log(`print-kitchen OK (${data.tableLabel || '?'})`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));

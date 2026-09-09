@@ -22,11 +22,19 @@ Node.js n'est nécessaire sur les postes caisse, il embarque tout ce qu'il lui f
      "kitchenPrinterPort": 9100,
      "connectTimeoutMs": 4000,
      "codepage": "cp860",
-     "escposTableNumber": 3
+     "escposTableNumber": 3,
+     "printRetries": 2,
+     "printRetryDelayMs": 500
    }
    ```
+   `printRetries`/`printRetryDelayMs` : nombre de nouvelles tentatives (et délai entre elles) si
+   l'imprimante n'est pas joignable — utile pour un blocage réseau ou une imprimante qui redémarre.
+   Un échec survenu APRÈS l'envoi des octets n'est jamais réessayé (pour ne pas imprimer deux fois
+   le même ticket).
 3. Double-cliquer `print-bridge.exe` pour démarrer le pont (une fenêtre noire (console) s'ouvre et
-   doit rester ouverte — elle sert aussi de journal : chaque ticket envoyé y affiche succès/échec).
+   doit rester ouverte — chaque ticket envoyé y affiche succès/échec ; le même journal est aussi
+   écrit dans `print-bridge.log` à côté de l'exécutable, utile si la fenêtre est fermée par erreur
+   ou si le pont tourne en service Windows sans fenêtre visible, voir section Windows 7 ci-dessous).
 4. Pour un démarrage automatique à l'ouverture de session Windows : `Win+R` → taper
    `shell:startup` → déposer un raccourci vers `print-bridge.exe` dans le dossier qui s'ouvre.
 
@@ -58,6 +66,55 @@ Node.js n'est nécessaire sur les postes caisse, il embarque tout ce qu'il lui f
   `config.json` sur chaque poste qui fait foi.
 - Il ne gère pas les tickets clients ni le tiroir-caisse (imprimantes USB, gérées directement par
   le pilote Windows + `window.print()` côté application — voir POSTactile.tsx).
+
+## Poste Windows 7 32-bit
+
+`print-bridge.exe` est empaqueté pour `node18-win-x64` — **ça ne tournera pas** sur un poste
+Windows 7, pour deux raisons cumulées :
+- Node.js 18+ exige Windows 10 ou plus récent (V8 utilise des API absentes de Windows 7).
+- Windows 7 32-bit exclut de toute façon les builds `x64`.
+
+Reconstruire l'exe en ciblant un Node plus ancien compatible 32-bit (`node14-win-x86` etc.) ne
+marche pas non plus ici : `pkg` n'a pas de binaire de base tout prêt pour ces cibles anciennes et
+tente de recompiler Node depuis les sources, ce qui demande une installation complète de Visual
+Studio (`vcbuild.bat`).
+
+**Solution retenue pour ce poste : installer un vrai Node.js 32-bit et lancer le pont depuis les
+sources** (pas de `.exe`), habillé en service Windows pour la fiabilité :
+
+1. **Installer Node.js 32-bit compatible Windows 7** — télécharger le `.msi` "Windows Installer
+   (.msi) 32-bit" depuis `nodejs.org/dist/`. Essayer dans cet ordre (le premier qui installe et
+   répond à `node -v` dans une invite de commandes convient) :
+   - `v12.22.12` (dernière version LTS documentée comme compatible Windows 7) — le choix le plus
+     sûr, à essayer en premier.
+   - `v14.21.3` en repli si besoin d'API JS plus récentes.
+   - Windows 7 SP1 doit être installé, avec la mise à jour du Universal C Runtime (KB2999226) si
+     elle n'est pas déjà présente — sinon Node échoue au lancement avec une erreur de DLL
+     manquante (`api-ms-win-crt-*.dll`).
+2. Copier le dossier `print-bridge/` (code source, pas le contenu de `dist/`) sur le poste, puis
+   dans une invite de commandes à cet endroit : `npm install` (installe `iconv-lite`, pas de
+   compilation native requise).
+3. Configurer `config.json` comme d'habitude (voir Installation ci-dessus).
+4. Tester manuellement d'abord : `start-bridge.bat` doit afficher "Pont d'impression prêt...".
+   Vérifier `http://127.0.0.1:4321/health`.
+5. **Installer comme service Windows avec [NSSM](https://nssm.cc/)** (fonctionne sur Windows 7,
+   contrairement à un simple raccourci dans `shell:startup` qui exige une session ouverte et ne
+   redémarre pas le pont s'il plante) :
+   ```
+   nssm install MoudaPrintBridge "C:\Program Files\nodejs\node.exe" "C:\MoudaPalace\print-bridge\index.js"
+   nssm set MoudaPrintBridge AppDirectory "C:\MoudaPalace\print-bridge"
+   nssm set MoudaPrintBridge AppExit Default Restart
+   nssm start MoudaPrintBridge
+   ```
+   Le service démarre avant toute connexion utilisateur et NSSM relance automatiquement le
+   processus s'il se termine de façon inattendue. Comme il n'y a plus de fenêtre console visible,
+   toute la surveillance se fait via `print-bridge.log` (créé à côté de `index.js`, tourne
+   automatiquement vers `.log.old` au-delà de 2 Mo).
+
+⚠️ Ce poste étant sous Windows 7, le navigateur utilisé pour l'appli caisse (Chrome/Firefox) tourne
+lui aussi sur une version non maintenue depuis 2023-2025 (plus de correctifs de sécurité, TLS
+potentiellement obsolète face à Firestore). C'est un risque accepté connu pour ce poste, distinct
+du pont d'impression — à garder en tête en cas de comportement erratique de la caisse elle-même.
 
 ## Développement (reconstruire l'exécutable)
 

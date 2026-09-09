@@ -4,5 +4,7 @@
   "kitchenPrinterPort": 9100,
   "connectTimeoutMs": 4000,
   "codepage": "cp860",
-  "escposTableNumber": 3
+  "escposTableNumber": 3,
+  "printRetries": 2,
+  "printRetryDelayMs": 500
 }

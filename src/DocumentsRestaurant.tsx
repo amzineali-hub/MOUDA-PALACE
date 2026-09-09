@@ -257,9 +257,9 @@ export default function DocumentsRestaurant() {
       }, 
       (error) => {
         console.error("Upload error:", error);
-        alert("Erreur lors de l'upload du fichier. Vérifiez les permissions Storage.");
+        alert(`Erreur lors de l'upload du fichier (${error.code || error.message}).`);
         setUploading(false);
-      }, 
+      },
       async () => {
         try {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);

@@ -41,12 +41,14 @@ jobs:
           # Les variables d'environnement injectées lors du build (Next.js / Vite)
           VITE_FIREBASE_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
 
-      - name: Deploy Firestore Rules
+      - name: Deploy Firestore & Storage Rules
         uses: w9jds/firebase-action@master
         with:
           # Seul projet Firebase réellement utilisé par l'application (voir firebase-applet-config.json).
           # "prod-restaurant-fes"/"staging-restaurant-fes" ne correspondaient à aucun projet réel.
-          args: deploy --project clever-datum-pjlsj --only firestore:rules
+          # storage:rules ajouté ici — jusque-là seules les règles Firestore étaient déployées, ce
+          # qui laissait Firebase Storage sur son comportement par défaut (accès refusé).
+          args: deploy --project clever-datum-pjlsj --only firestore:rules,storage:rules
         env:
           # Token stocké de manière sécurisée dans les GitHub Secrets
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

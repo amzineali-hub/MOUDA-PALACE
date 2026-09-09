@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Même modèle d'accès que firestore.rules : uniquement les 3 comptes autorisés de l'ERP.
+    // Absent jusqu'ici (aucun fichier storage.rules n'était déployé par la CI), ce qui laissait
+    // Firebase Storage sur son comportement par défaut (accès refusé) — cause probable des échecs
+    // d'upload (ex. Documents Restaurant, Firebase renvoie `storage/unauthorized`).
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
+        && request.auth.token.email_verified == true;
+    }
+  }
+}

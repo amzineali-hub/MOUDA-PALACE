@@ -102,7 +102,7 @@ import {
   BarChart2,
 AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard, BookImage } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
-import { useAuth, AUTHORIZED_EMAILS, OWNER_EMAIL } from './context/AuthContext';
+import { useAuth, AUTHORIZED_EMAILS } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider, auth, signOut, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch, limit } from 'firebase/firestore';
@@ -490,10 +490,10 @@ function App() {
   const { showToast } = useToast();
 
   // Mots de passe par groupe de modules (Production → Économat, Clientèle → Guest Relations) —
-  // barrière côté UI, pas une frontière de sécurité serveur (les 3 comptes autorisés ont de toute
-  // façon un accès Firestore total, comme partout ailleurs dans l'app). Seul le propriétaire
-  // (isOwner) définit/retire ces mots de passe depuis Configuration > Sécurité & Accès, et
-  // contourne toujours le verrou. sessionStorage fait persister le déverrouillage pour l'onglet
+  // consommés par RoleAccessPortal (portails dédiés depuis l'écran d'accueil), pas par le shell
+  // admin lui-même : les 3 comptes Google autorisés ont tous un accès complet et sans verrou.
+  // Seuls ces 3 comptes (isAdmin dans Configuration) définissent/retirent ces mots de passe depuis
+  // Configuration > Sécurité & Accès. sessionStorage fait persister le déverrouillage pour l'onglet
   // navigateur en cours seulement.
   const [moduleAccess, setModuleAccess] = useState<Record<string, { password?: string }>>({});
   const [unlockedModules, setUnlockedModules] = useState<Record<string, boolean>>(() => {
@@ -6094,7 +6094,11 @@ function ModuleLockScreen({ serviceLabel, onUnlock, onCancel }: { serviceLabel: 
 
 function Configuration() {
   const { user } = useAuth();
-  const isOwner = user?.email === OWNER_EMAIL;
+  // Les 3 comptes Google autorisés ont tous un accès administrateur complet (cohérent avec la
+  // suppression du verrou de module dans le shell principal) — plus de distinction "propriétaire"
+  // pour cet onglet Sécurité & Accès (historique connexions, journal d'activité, mots de passe
+  // Économat/Guest Relations).
+  const isAdmin = !!user?.email && AUTHORIZED_EMAILS.includes(user.email);
   const [activeSettingsTab, setActiveSettingsTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
   const [websiteConfig, setWebsiteConfig] = useState({
@@ -6177,7 +6181,7 @@ function Configuration() {
         if (printingSnap.exists()) {
           setPrintingConfig(prev => ({ ...prev, ...printingSnap.data() }));
         }
-        if (isOwner) {
+        if (isAdmin) {
           const moduleAccessRef = doc(db, 'settings', 'moduleAccess');
           const moduleAccessSnap = await getDoc(moduleAccessRef);
           if (moduleAccessSnap.exists()) {
@@ -6273,7 +6277,7 @@ function Configuration() {
           <SettingsTab active={activeSettingsTab === 'billing'} onClick={() => setActiveSettingsTab('billing')} icon={<CreditCard size={18} />} label="Facturation & Stripe" />
           <SettingsTab active={activeSettingsTab === 'notifications'} onClick={() => setActiveSettingsTab('notifications')} icon={<Bell size={18} />} label="Notifications" />
           <SettingsTab active={activeSettingsTab === 'printing'} onClick={() => setActiveSettingsTab('printing')} icon={<Printer size={18} />} label="Impression cuisine" />
-          {isOwner && (
+          {isAdmin && (
             <SettingsTab active={activeSettingsTab === 'security'} onClick={() => setActiveSettingsTab('security')} icon={<Shield size={18} />} label="Sécurité & Accès" />
           )}
         </div>
@@ -6623,7 +6627,7 @@ function Configuration() {
             </motion.div>
           )}
 
-          {activeSettingsTab === 'security' && isOwner && (
+          {activeSettingsTab === 'security' && isAdmin && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
                 <h3 className="text-xl font-serif font-medium text-[#265C6D] mb-1">Comptes autorisés</h3>

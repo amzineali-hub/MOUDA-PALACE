@@ -506,11 +506,16 @@ function App() {
   });
 
   useEffect(() => {
+    // Attendre `user` : ce document est protégé par les règles Firestore (auth requise), et
+    // App() est monté dès le chargement de la page, avant toute connexion — s'abonner plus tôt
+    // déclenchait un refus de permission non géré sur l'écran de connexion lui-même
+    // (INTERNAL ASSERTION FAILED côté SDK Firestore, bloquant complètement l'accès admin).
+    if (!user) { setModuleAccess({}); return; }
     const unsub = onSnapshot(doc(db, 'settings', 'moduleAccess'), (snap) => {
       setModuleAccess(snap.exists() ? (snap.data() as Record<string, { password?: string }>) : {});
     });
     return () => unsub();
-  }, []);
+  }, [user]);
 
   const MODULE_TABS: Record<string, string> = {
     inventory: 'production', achats: 'production', recettes: 'production',

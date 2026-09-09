@@ -477,9 +477,8 @@ const logLoginEvent = async (user: { email: string | null; displayName: string |
 };
 
 function App() {
-  const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
+  const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner' | 'role_production' | 'role_clientele'>('selection');
   const { user, loading, role } = useAuth();
-  const isOwner = user?.email === OWNER_EMAIL;
   const [activeTab, setActiveTab] = useState('overview');
   // Lien "Voir la fiche technique" depuis Menus digitaux / Flipbook vers Fiches Techniques —
   // le nom du plat est transmis via cet état le temps que l'onglet Fiches Techniques s'ouvre
@@ -517,11 +516,6 @@ function App() {
     return () => unsub();
   }, [user]);
 
-  const MODULE_TABS: Record<string, string> = {
-    inventory: 'production', achats: 'production', recettes: 'production',
-    production_jour: 'production', catalogue_produits: 'production',
-    reservations: 'clientele', menu: 'clientele', tables: 'clientele', b2b: 'clientele'
-  };
   const MODULE_SERVICE_LABEL: Record<string, string> = { production: 'Économat', clientele: 'Guest Relations' };
 
   const unlockModule = (moduleKey: string, password: string): boolean => {
@@ -646,6 +640,20 @@ function App() {
     return <PartnerPortal onBack={() => setAppMode('selection')} />;
   }
 
+  if (appMode === 'role_production' || appMode === 'role_clientele') {
+    const moduleKey = appMode === 'role_production' ? 'production' : 'clientele';
+    return (
+      <RoleAccessPortal
+        moduleKey={moduleKey}
+        serviceLabel={MODULE_SERVICE_LABEL[moduleKey]}
+        moduleAccess={moduleAccess}
+        unlockedModules={unlockedModules}
+        unlockModule={unlockModule}
+        onBack={() => setAppMode('selection')}
+      />
+    );
+  }
+
   if (appMode === 'admin' && !user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#1A1A1A] flex items-center justify-center p-6">
@@ -703,13 +711,6 @@ function App() {
   const isFullScreenMode = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
 
   const isFullScreenView = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
-
-  // Module verrouillé pour l'onglet courant : null si pas de verrou applicable (pas de mot de
-  // passe défini, propriétaire connecté, ou déjà déverrouillé cette session).
-  const activeModuleKey = MODULE_TABS[activeTab] || null;
-  const lockedModule = (!isOwner && activeModuleKey && moduleAccess[activeModuleKey]?.password && !unlockedModules[activeModuleKey])
-    ? activeModuleKey
-    : null;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -953,7 +954,6 @@ function App() {
             icon={<ChefHat size={18} />}
             isExpanded={expandedCategory === 'production'}
             onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
-            locked={!!moduleAccess.production?.password}
           >
             <SubNavItem icon={<Package size={16} />} label="État des Stocks" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
@@ -967,7 +967,6 @@ function App() {
             icon={<Users size={18} />}
             isExpanded={expandedCategory === 'clientele'}
             onClick={() => setExpandedCategory(expandedCategory === 'clientele' ? null : 'clientele')}
-            locked={!!moduleAccess.clientele?.password}
           >
             <SubNavItem icon={<CalendarCheck size={16} />} label="Réservations" active={activeTab === 'reservations'} onClick={() => handleTabChange('reservations')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Menus digitaux" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
@@ -1074,18 +1073,7 @@ function App() {
             className={isFullScreenView ? "h-full" : "min-h-full"}
           >
             <Suspense fallback={<div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><div className="w-8 h-8 border-4 border-[#F4C75B] border-t-transparent rounded-full animate-spin"></div><p>Chargement du module...</p></div>}>
-              {lockedModule ? (
-                <ModuleLockScreen
-                  serviceLabel={MODULE_SERVICE_LABEL[lockedModule]}
-                  onUnlock={(password) => {
-                    if (unlockModule(lockedModule, password)) {
-                      showToast('Module déverrouillé');
-                    } else {
-                      showToast('Mot de passe incorrect', 'error');
-                    }
-                  }}
-                />
-              ) : renderContent()}
+              {renderContent()}
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -6056,7 +6044,7 @@ function Inventory() {
   );
 }
 
-function ModuleLockScreen({ serviceLabel, onUnlock }: { serviceLabel: string, onUnlock: (password: string) => void }) {
+function ModuleLockScreen({ serviceLabel, onUnlock, onCancel }: { serviceLabel: string, onUnlock: (password: string) => void, onCancel?: () => void }) {
   const [password, setPassword] = useState('');
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-6">
@@ -6090,6 +6078,15 @@ function ModuleLockScreen({ serviceLabel, onUnlock }: { serviceLabel: string, on
             <span>Déverrouiller</span>
           </button>
         </form>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium mt-4"
+          >
+            Retour à l'accueil
+          </button>
+        )}
       </motion.div>
     </div>
   );
@@ -6142,7 +6139,7 @@ function Configuration() {
   });
   // Mots de passe des groupes de modules Production (Économat) / Clientèle (Guest Relations) —
   // gérés séparément du bouton "Sauvegarder" global de cet écran (deux entités indépendantes,
-  // chacune avec son propre Enregistrer/Retirer). Voir ModuleLockScreen / MODULE_TABS dans App().
+  // chacune avec son propre Enregistrer/Retirer). Voir ModuleLockScreen / RoleAccessPortal dans App().
   const [moduleAccessConfig, setModuleAccessConfig] = useState<{ production: string, clientele: string }>({ production: '', clientele: '' });
   const [isSavingModuleAccess, setIsSavingModuleAccess] = useState<string | null>(null);
   const { showToast } = useToast();
@@ -6842,7 +6839,7 @@ function IntegrationRow({ name, status, desc }: { name: string, status: string, 
   );
 }
 
-function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') => void }) {
+function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner' | 'role_production' | 'role_clientele') => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#2a2a2a] flex items-center justify-center p-6 relative overflow-hidden group">
       <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none transition-transform duration-[3000ms] ease-out group-hover:scale-110" style={{ backgroundImage: "url('/img1-3.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
@@ -6891,6 +6888,32 @@ function PortalSelection({ onSelect }: { onSelect: (mode: 'admin' | 'partner') =
             <div>
               <h3 className="text-2xl font-serif text-white mb-2">Accès Partenaire</h3>
               <p className="text-gray-400 text-sm">Consultez vos coordonnées, vos performances et vos commissions (Riads/Agences).</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => onSelect('role_production')}
+            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#F4C75B]/50 transition-all text-left flex flex-col items-center text-center gap-6"
+          >
+            <div className="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl group-hover:scale-110 transition-transform">
+              <Package size={40} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-serif text-white mb-2">Accès Économat</h3>
+              <p className="text-gray-400 text-sm">Stocks, achats fournisseurs, fiches techniques et production.</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => onSelect('role_clientele')}
+            className="group relative overflow-hidden bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl hover:bg-white/10 hover:border-[#F4C75B]/50 transition-all text-left flex flex-col items-center text-center gap-6"
+          >
+            <div className="p-4 bg-rose-500/20 text-rose-400 rounded-2xl group-hover:scale-110 transition-transform">
+              <ConciergeBell size={40} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-serif text-white mb-2">Accès Guest Relations</h3>
+              <p className="text-gray-400 text-sm">Réservations, menus digitaux, tables et partenaires B2B.</p>
             </div>
           </button>
         </div>
@@ -7023,6 +7046,142 @@ function PartnerPortal({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Onglets accessibles depuis chaque portail de rôle (Économat/Guest Relations) — mêmes
+// composants que le shell admin (renderContent()), réutilisés tels quels. Définis hors composant
+// pour ne pas recréer les éléments à chaque rendu.
+const ROLE_PORTAL_TABS: Record<'production' | 'clientele', { id: string; label: string; icon: ReactNode; render: () => ReactNode }[]> = {
+  production: [
+    { id: 'inventory', label: 'État des Stocks', icon: <Package size={16} />, render: () => <Inventory /> },
+    { id: 'achats', label: 'Achats fournisseurs', icon: <ShoppingCart size={16} />, render: () => <AchatsFournisseurs /> },
+    { id: 'recettes', label: 'Fiches Techniques', icon: <UtensilsCrossed size={16} />, render: () => <FichesTechniques initialFicheName={null} onConsumeInitialFiche={() => {}} /> },
+    { id: 'production_jour', label: 'Ordres de Fabrication', icon: <Activity size={16} />, render: () => <ProductionJournaliere /> },
+    { id: 'catalogue_produits', label: 'Liste des Produits', icon: <Truck size={16} />, render: () => <CatalogueProduits /> },
+  ],
+  clientele: [
+    { id: 'reservations', label: 'Réservations', icon: <CalendarCheck size={16} />, render: () => <Reservations /> },
+    { id: 'menu', label: 'Menus digitaux', icon: <UtensilsCrossed size={16} />, render: () => <MenuGenerator onOpenFiche={() => {}} /> },
+    { id: 'tables', label: 'Tables', icon: <ConciergeBell size={16} />, render: () => <GestionTables setActiveTab={() => {}} /> },
+    { id: 'b2b', label: 'Partenaires B2B', icon: <Globe size={16} />, render: () => <B2BPortal /> },
+  ]
+};
+
+function RoleAccessPortal({ moduleKey, serviceLabel, moduleAccess, unlockedModules, unlockModule, onBack }: {
+  moduleKey: 'production' | 'clientele',
+  serviceLabel: string,
+  moduleAccess: Record<string, { password?: string }>,
+  unlockedModules: Record<string, boolean>,
+  unlockModule: (moduleKey: string, password: string) => boolean,
+  onBack: () => void
+}) {
+  const { user, loading } = useAuth();
+  const { showToast } = useToast();
+  const tabs = ROLE_PORTAL_TABS[moduleKey];
+  const [activeTab, setActiveTab] = useState(tabs[0].id);
+
+  const exit = async () => {
+    try { await signOut(auth); } catch { /* ignore */ }
+    onBack();
+  };
+
+  if (loading) {
+    return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center font-serif text-[#F4C75B]">Chargement...</div>;
+  }
+
+  // Cet appareil n'a encore jamais servi pour un accès de rôle : il faut une connexion Google
+  // ponctuelle par l'administrateur (un des 3 comptes autorisés) pour que Firestore autorise la
+  // lecture/écriture ensuite — le personnel Économat/Guest Relations ne voit cet écran qu'une
+  // seule fois par appareil, jamais au quotidien.
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#1A1A1A] flex items-center justify-center p-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl text-center">
+            <h1 className="text-2xl font-serif text-[#265C6D] font-semibold mb-1">Mouda Palace</h1>
+            <p className="text-xs text-gray-400 tracking-[0.2em] uppercase mb-6">Accès {serviceLabel}</p>
+            <p className="text-gray-500 text-sm mb-8">Première utilisation sur cet appareil : une connexion (par l'administrateur) est nécessaire avant de pouvoir saisir le mot de passe du service.</p>
+            <button
+              onClick={async () => {
+                try {
+                  await signInWithPopup(auth, googleProvider);
+                } catch (error: any) {
+                  if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                    showToast(error.message || 'Erreur de connexion', 'error');
+                  }
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors mb-4"
+            >
+              <LogIn size={18} />
+              <span>Connexion (administrateur)</span>
+            </button>
+            <button onClick={onBack} className="w-full text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
+              Retour à l'accueil
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!unlockedModules[moduleKey]) {
+    return (
+      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+        <ModuleLockScreen
+          serviceLabel={serviceLabel}
+          onUnlock={(password) => {
+            if (!moduleAccess[moduleKey]?.password) {
+              showToast("Aucun mot de passe défini pour ce service — contactez l'administrateur.", 'error');
+              return;
+            }
+            if (unlockModule(moduleKey, password)) {
+              showToast('Accès autorisé');
+            } else {
+              showToast('Mot de passe incorrect', 'error');
+            }
+          }}
+          onCancel={onBack}
+        />
+      </div>
+    );
+  }
+
+  const current = tabs.find(t => t.id === activeTab) || tabs[0];
+
+  return (
+    <div className="min-h-screen bg-[#FDFBF7]">
+      <header className="bg-[#265C6D] text-white px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="font-serif text-lg">Mouda Palace</h1>
+          <span className="text-[#F4C75B] text-xs uppercase tracking-wider">{serviceLabel}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab.id ? 'bg-[#F4C75B] text-[#265C6D]' : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:bg-[#F4C75B]/10'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+          <button onClick={exit} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors ml-2">
+            <LogOut size={16} />
+            Se déconnecter
+          </button>
+        </div>
+      </header>
+      <main className="p-4 md:p-8">
+        <Suspense fallback={<div className="flex flex-col items-center justify-center h-64 text-gray-500 gap-4"><div className="w-8 h-8 border-4 border-[#F4C75B] border-t-transparent rounded-full animate-spin"></div><p>Chargement du module...</p></div>}>
+          {current.render()}
+        </Suspense>
+      </main>
     </div>
   );
 }

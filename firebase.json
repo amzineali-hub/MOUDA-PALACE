@@ -5,8 +5,10 @@
       "rules": "firestore.rules"
     }
   ],
-  "storage": {
-    "bucket": "clever-datum-pjlsj.firebasestorage.app",
-    "rules": "storage.rules"
-  }
+  "storage": [
+    {
+      "bucket": "clever-datum-pjlsj.firebasestorage.app",
+      "rules": "storage.rules"
+    }
+  ]
 }

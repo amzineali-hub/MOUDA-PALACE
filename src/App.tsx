@@ -38,6 +38,7 @@ import {
   CreditCard,
   Bell,
   Shield,
+  Lock,
   Smartphone,
   Mail,
   Clock,
@@ -226,19 +227,20 @@ function ReviewAnalyzer() {
   );
 }
 
-const NavCategory = ({ title, icon, isExpanded, onClick, children }: any) => (
+const NavCategory = ({ title, icon, isExpanded, onClick, children, locked }: any) => (
   <div className="mb-2">
     <button
       onClick={onClick}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
-        isExpanded 
-          ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20' 
+        isExpanded
+          ? 'bg-[#F4C75B] text-[#265C6D] shadow-lg shadow-[#F4C75B]/20'
           : 'text-[#F4C75B] border border-[#F4C75B]/30 hover:border-[#F4C75B] hover:bg-[#F4C75B]/10'
       }`}
     >
       <div className="flex items-center gap-3">
         {icon}
         <span className="tracking-wide">{title}</span>
+        {locked && <Lock size={13} className="opacity-70" />}
       </div>
       <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
     </button>
@@ -477,6 +479,7 @@ const logLoginEvent = async (user: { email: string | null; displayName: string |
 function App() {
   const [appMode, setAppMode] = useState<'selection' | 'admin' | 'partner'>('admin');
   const { user, loading, role } = useAuth();
+  const isOwner = user?.email === OWNER_EMAIL;
   const [activeTab, setActiveTab] = useState('overview');
   // Lien "Voir la fiche technique" depuis Menus digitaux / Flipbook vers Fiches Techniques —
   // le nom du plat est transmis via cet état le temps que l'onglet Fiches Techniques s'ouvre
@@ -486,6 +489,46 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
+
+  // Mots de passe par groupe de modules (Production → Économat, Clientèle → Guest Relations) —
+  // barrière côté UI, pas une frontière de sécurité serveur (les 3 comptes autorisés ont de toute
+  // façon un accès Firestore total, comme partout ailleurs dans l'app). Seul le propriétaire
+  // (isOwner) définit/retire ces mots de passe depuis Configuration > Sécurité & Accès, et
+  // contourne toujours le verrou. sessionStorage fait persister le déverrouillage pour l'onglet
+  // navigateur en cours seulement.
+  const [moduleAccess, setModuleAccess] = useState<Record<string, { password?: string }>>({});
+  const [unlockedModules, setUnlockedModules] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('mp_unlocked_modules') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'moduleAccess'), (snap) => {
+      setModuleAccess(snap.exists() ? (snap.data() as Record<string, { password?: string }>) : {});
+    });
+    return () => unsub();
+  }, []);
+
+  const MODULE_TABS: Record<string, string> = {
+    inventory: 'production', achats: 'production', recettes: 'production',
+    production_jour: 'production', catalogue_produits: 'production',
+    reservations: 'clientele', menu: 'clientele', tables: 'clientele', b2b: 'clientele'
+  };
+  const MODULE_SERVICE_LABEL: Record<string, string> = { production: 'Économat', clientele: 'Guest Relations' };
+
+  const unlockModule = (moduleKey: string, password: string): boolean => {
+    const expected = moduleAccess[moduleKey]?.password;
+    if (!expected || password !== expected) return false;
+    setUnlockedModules(prev => {
+      const next = { ...prev, [moduleKey]: true };
+      try { sessionStorage.setItem('mp_unlocked_modules', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    return true;
+  };
 
   // Sur mobile, signInWithPopup échoue souvent (popup bloquée / cookies tiers) : on utilise
   // signInWithRedirect à la place, dont le résultat n'arrive qu'après le retour sur la page.
@@ -655,6 +698,13 @@ function App() {
   const isFullScreenMode = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
 
   const isFullScreenView = ['kds', 'finance', 'tables', 'device_simulator'].includes(activeTab);
+
+  // Module verrouillé pour l'onglet courant : null si pas de verrou applicable (pas de mot de
+  // passe défini, propriétaire connecté, ou déjà déverrouillé cette session).
+  const activeModuleKey = MODULE_TABS[activeTab] || null;
+  const lockedModule = (!isOwner && activeModuleKey && moduleAccess[activeModuleKey]?.password && !unlockedModules[activeModuleKey])
+    ? activeModuleKey
+    : null;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -893,11 +943,12 @@ function App() {
             <Sparkles size={16} className="text-[#F4C75B] opacity-70" />
           </button>
 
-          <NavCategory 
-            title="Production" 
-            icon={<ChefHat size={18} />} 
-            isExpanded={expandedCategory === 'production'} 
+          <NavCategory
+            title="Production"
+            icon={<ChefHat size={18} />}
+            isExpanded={expandedCategory === 'production'}
             onClick={() => setExpandedCategory(expandedCategory === 'production' ? null : 'production')}
+            locked={!!moduleAccess.production?.password}
           >
             <SubNavItem icon={<Package size={16} />} label="État des Stocks" active={activeTab === 'inventory'} onClick={() => handleTabChange('inventory')} />
             <SubNavItem icon={<ShoppingCart size={16} />} label="Achats fournisseurs" active={activeTab === 'achats'} onClick={() => handleTabChange('achats')} />
@@ -906,11 +957,12 @@ function App() {
             <SubNavItem icon={<Truck size={16} />} label="Liste des Produits" active={activeTab === 'catalogue_produits'} onClick={() => handleTabChange('catalogue_produits')} />
           </NavCategory>
 
-          <NavCategory 
-            title="Clientèle" 
-            icon={<Users size={18} />} 
-            isExpanded={expandedCategory === 'clientele'} 
+          <NavCategory
+            title="Clientèle"
+            icon={<Users size={18} />}
+            isExpanded={expandedCategory === 'clientele'}
             onClick={() => setExpandedCategory(expandedCategory === 'clientele' ? null : 'clientele')}
+            locked={!!moduleAccess.clientele?.password}
           >
             <SubNavItem icon={<CalendarCheck size={16} />} label="Réservations" active={activeTab === 'reservations'} onClick={() => handleTabChange('reservations')} />
             <SubNavItem icon={<UtensilsCrossed size={16} />} label="Menus digitaux" active={activeTab === 'menu'} onClick={() => handleTabChange('menu')} />
@@ -1017,7 +1069,18 @@ function App() {
             className={isFullScreenView ? "h-full" : "min-h-full"}
           >
             <Suspense fallback={<div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4"><div className="w-8 h-8 border-4 border-[#F4C75B] border-t-transparent rounded-full animate-spin"></div><p>Chargement du module...</p></div>}>
-              {renderContent()}
+              {lockedModule ? (
+                <ModuleLockScreen
+                  serviceLabel={MODULE_SERVICE_LABEL[lockedModule]}
+                  onUnlock={(password) => {
+                    if (unlockModule(lockedModule, password)) {
+                      showToast('Module déverrouillé');
+                    } else {
+                      showToast('Mot de passe incorrect', 'error');
+                    }
+                  }}
+                />
+              ) : renderContent()}
             </Suspense>
           </motion.div>
         </AnimatePresence>
@@ -5987,6 +6050,46 @@ function Inventory() {
     </div>
   );
 }
+
+function ModuleLockScreen({ serviceLabel, onUnlock }: { serviceLabel: string, onUnlock: (password: string) => void }) {
+  const [password, setPassword] = useState('');
+  return (
+    <div className="min-h-[70vh] flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-white rounded-2xl p-8 border border-gray-100 shadow-xl text-center"
+      >
+        <div className="w-14 h-14 rounded-full bg-[#265C6D]/10 text-[#265C6D] flex items-center justify-center mx-auto mb-4">
+          <Lock size={24} />
+        </div>
+        <h2 className="text-2xl font-serif text-[#265C6D] font-semibold mb-2">Module protégé</h2>
+        <p className="text-gray-500 text-sm mb-6">Ce module est réservé au service {serviceLabel}. Entrez le mot de passe pour continuer.</p>
+        <form
+          onSubmit={(e) => { e.preventDefault(); onUnlock(password); setPassword(''); }}
+          className="space-y-4"
+        >
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            placeholder="Mot de passe du service"
+            className="w-full p-3 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors"
+          />
+          <button
+            type="submit"
+            className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors"
+          >
+            <Lock size={18} />
+            <span>Déverrouiller</span>
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 function Configuration() {
   const { user } = useAuth();
   const isOwner = user?.email === OWNER_EMAIL;
@@ -6032,6 +6135,11 @@ function Configuration() {
     kitchenPrinterPort: '9100',
     showManualDrawerButton: true
   });
+  // Mots de passe des groupes de modules Production (Économat) / Clientèle (Guest Relations) —
+  // gérés séparément du bouton "Sauvegarder" global de cet écran (deux entités indépendantes,
+  // chacune avec son propre Enregistrer/Retirer). Voir ModuleLockScreen / MODULE_TABS dans App().
+  const [moduleAccessConfig, setModuleAccessConfig] = useState<{ production: string, clientele: string }>({ production: '', clientele: '' });
+  const [isSavingModuleAccess, setIsSavingModuleAccess] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -6066,6 +6174,17 @@ function Configuration() {
         const printingSnap = await getDoc(printingRef);
         if (printingSnap.exists()) {
           setPrintingConfig(prev => ({ ...prev, ...printingSnap.data() }));
+        }
+        if (isOwner) {
+          const moduleAccessRef = doc(db, 'settings', 'moduleAccess');
+          const moduleAccessSnap = await getDoc(moduleAccessRef);
+          if (moduleAccessSnap.exists()) {
+            const data = moduleAccessSnap.data() as Record<string, { password?: string }>;
+            setModuleAccessConfig({
+              production: data.production?.password || '',
+              clientele: data.clientele?.password || ''
+            });
+          }
         }
       } catch (error) {
         console.error("Erreur lors du chargement de la configuration:", error);
@@ -6106,6 +6225,26 @@ function Configuration() {
       showToast("Erreur lors de la sauvegarde", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // `explicitPassword` (utilisé par "Retirer la protection") évite de dépendre de l'état
+  // `moduleAccessConfig` qui n'est pas encore à jour au moment de l'appel si on venait de le
+  // vider juste avant (mise à jour de state asynchrone) — on passe directement la valeur voulue.
+  const saveModulePassword = async (moduleKey: 'production' | 'clientele', explicitPassword?: string) => {
+    setIsSavingModuleAccess(moduleKey);
+    try {
+      const password = (explicitPassword !== undefined ? explicitPassword : moduleAccessConfig[moduleKey]).trim();
+      await setDoc(doc(db, 'settings', 'moduleAccess'), {
+        [moduleKey]: password ? { password, updatedAt: serverTimestamp() } : null
+      }, { merge: true });
+      setModuleAccessConfig(prev => ({ ...prev, [moduleKey]: password }));
+      showToast(password ? "Mot de passe enregistré" : "Protection retirée");
+    } catch (error) {
+      console.error("Erreur de sauvegarde du mot de passe module:", error);
+      showToast("Erreur lors de la sauvegarde", "error");
+    } finally {
+      setIsSavingModuleAccess(null);
     }
   };
 
@@ -6495,6 +6634,49 @@ function Configuration() {
                   ))}
                 </div>
               </div>
+
+              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-serif font-medium text-[#265C6D] mb-1">Rôles d'accès aux modules</h3>
+                <p className="text-gray-500 text-sm mb-6">Protégez les groupes Production et Clientèle par un mot de passe distinct, pour que le service concerné (Économat, Guest Relations) puisse les utiliser sans accéder au reste de l'ERP. Vous seul (propriétaire) définissez ou retirez ces mots de passe ; votre propre accès reste toujours direct.</p>
+                <div className="space-y-5">
+                  {([
+                    { key: 'production' as const, label: 'Module Production', service: 'Économat' },
+                    { key: 'clientele' as const, label: 'Module Clientèle', service: 'Guest Relations' }
+                  ]).map(({ key, label, service }) => (
+                    <div key={key} className="flex flex-col md:flex-row md:items-end gap-3 p-4 bg-[#FDFBF7] border border-gray-100 rounded-xl">
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{label} — service {service}</label>
+                        <input
+                          type="password"
+                          value={moduleAccessConfig[key]}
+                          onChange={(e) => setModuleAccessConfig(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder="Aucun mot de passe défini"
+                          className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveModulePassword(key)}
+                          disabled={isSavingModuleAccess === key}
+                          className="px-4 py-2.5 bg-[#265C6D] text-white rounded-lg text-sm font-medium hover:bg-[#2F6B7F] transition-colors disabled:opacity-50"
+                        >
+                          Enregistrer
+                        </button>
+                        {moduleAccessConfig[key] && (
+                          <button
+                            onClick={() => saveModulePassword(key, '')}
+                            disabled={isSavingModuleAccess === key}
+                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            Retirer la protection
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <LoginHistoryPanel />
               <ActivityLogPanel />
             </motion.div>

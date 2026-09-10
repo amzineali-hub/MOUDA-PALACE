@@ -37,7 +37,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
 
   // Form states
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Entrées');
+  const [category, setCategory] = useState('Entrées marocaines');
   const [price, setPrice] = useState('');
   const [desc, setDesc] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -54,7 +54,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories dédiées.
   const categories = [
     'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
-    'Entrées', 'Plats Principaux',
+    'Plats Principaux',
     'Desserts',
     'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
     'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
@@ -260,15 +260,19 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   };
 
   // Import ponctuel de MOUDA PALACE MENU.pdf / MENU BOISSON.pdf (voir src/data/pdfMenuImport.ts).
-  // Protégé contre les doublons par nom (insensible à la casse) — peut être relancé sans risque
-  // si de nouveaux articles ont été ajoutés à la liste entretemps. Sans photo (placeholder par
-  // défaut), à illustrer ensuite depuis "Ajouter un plat" / l'édition de chaque article.
+  // Alimente DEUX collections : `menu_items` (le menu digital public affiché/imprimé ici) ET
+  // `fiches_techniques` (sans ingrédients pour l'instant, coût matière à 0 — à compléter plus
+  // tard) — c'est cette seconde collection qui alimente le menu déroulant "Nom du plat" plus bas
+  // dans ce formulaire (`dishOptionsForCategory`), pas `menu_items`. Sans les deux, la liste reste
+  // vide même après avoir peuplé le menu digital. Protégé contre les doublons par nom (insensible
+  // à la casse) dans chaque collection — peut être relancé sans risque. Sans photo (placeholder
+  // par défaut), à illustrer ensuite depuis "Ajouter un plat" / l'édition de chaque article.
   const handlePdfMenuImport = async () => {
     setIsImportingPdfMenu(true);
     try {
-      const existingNames = new Set(menuItems.map(item => (item.name || '').trim().toLowerCase()));
-      const toCreate = PDF_MENU_IMPORT_ITEMS.filter(item => !existingNames.has(item.name.trim().toLowerCase()));
-      for (const item of toCreate) {
+      const existingMenuNames = new Set(menuItems.map(item => (item.name || '').trim().toLowerCase()));
+      const toCreateMenuItems = PDF_MENU_IMPORT_ITEMS.filter(item => !existingMenuNames.has(item.name.trim().toLowerCase()));
+      for (const item of toCreateMenuItems) {
         await addDoc(collection(db, 'menu_items'), {
           name: item.name,
           category: item.category,
@@ -282,8 +286,28 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
           updatedAt: new Date()
         });
       }
-      const skipped = PDF_MENU_IMPORT_ITEMS.length - toCreate.length;
-      showToast(`Import terminé : ${toCreate.length} plat(s) ajouté(s)${skipped > 0 ? `, ${skipped} déjà présent(s) ignoré(s)` : ''}.`);
+
+      const existingFicheNames = new Set(recettes.map(r => (r.nom || r.name || '').trim().toLowerCase()));
+      const toCreateFiches = PDF_MENU_IMPORT_ITEMS.filter(item => !existingFicheNames.has(item.name.trim().toLowerCase()));
+      for (const item of toCreateFiches) {
+        const prixVente = parseAmount(item.price) || 0;
+        await addDoc(collection(db, 'fiches_techniques'), {
+          nom: item.name,
+          categorie: item.category,
+          portions: 1,
+          prixVente,
+          coutMatiere: 0,
+          foodCost: 0,
+          margeBrute: prixVente,
+          ingredients: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      const skippedMenu = PDF_MENU_IMPORT_ITEMS.length - toCreateMenuItems.length;
+      const skippedFiches = PDF_MENU_IMPORT_ITEMS.length - toCreateFiches.length;
+      showToast(`Import terminé : ${toCreateMenuItems.length} plat(s) menu + ${toCreateFiches.length} fiche(s) technique(s) ajoutés${(skippedMenu > 0 || skippedFiches > 0) ? ` (déjà présents ignorés)` : ''}.`);
     } catch (error) {
       console.error(error);
       showToast("Erreur lors de l'import du menu PDF.", "error");

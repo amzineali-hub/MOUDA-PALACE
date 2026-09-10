@@ -366,7 +366,7 @@ function FicheTechniqueForm({ initialData, onClose }: { initialData: any, onClos
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
                   <Combobox
-                    options={[...menuItems.map(m => m.category).filter(Boolean), 'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde', 'Entrées', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément']}
+                    options={[...menuItems.map(m => m.category).filter(Boolean), 'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde', 'Plats Principaux', 'Desserts', 'Boissons', 'Supplément']}
                     value={categorie}
                     onChange={val => setCategorie(val)}
                     className="w-full border border-gray-200 rounded-lg p-2 focus:outline-none focus:border-[#F4C75B] bg-white"

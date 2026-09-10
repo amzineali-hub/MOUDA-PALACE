@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, getDocs, where, runTransaction, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { computeRecipeCost, convertQuantity } from './lib/recipeCost';
-import { resolveItemPrice } from './lib/priceUtils';
+import { computeRecipeCost } from './lib/recipeCost';
 
 export default function ProductionJournaliere() {
   const { showToast } = useToast();
@@ -99,151 +98,29 @@ export default function ProductionJournaliere() {
 
     setIsLoading(true);
     try {
-      // Transaction to decrement inventory and create order
-      await runTransaction(db, async (transaction) => {
-        const recipePortions = parseFloat(recipe.portions) || 1;
-        // Coût réel calculé via le module partagé (même logique que Fiches Techniques / Tableau de Bord / POS)
-        const { totalCost: recipeCostForPortions } = computeRecipeCost(recipe, inventoryItems);
-        const calculatedRealCost = (recipeCostForPortions / recipePortions) * quantiteAProduire;
+      // L'ordre de fabrication est un document/état à l'usage du gérant (à imprimer ou transmettre
+      // au chef de cuisine) — il ne déclenche plus aucune opération de stock (ni décrémentation des
+      // ingrédients, ni crédit du produit fini/semi-fini). Le coût matière ci-dessous est calculé
+      // uniquement à titre indicatif (mêmes prix que Fiches Techniques), pour figurer sur le
+      // document — il ne correspond à aucun mouvement de stock réel. La production réelle et son
+      // impact sur les stocks se gèrent séparément (onglets Entrées & Sorties / Inventaires).
+      const recipePortions = parseFloat(recipe.portions) || 1;
+      const { totalCost: recipeCostForPortions } = computeRecipeCost(recipe, inventoryItems);
+      const coutMatiereEstime = (recipeCostForPortions / recipePortions) * quantiteAProduire;
 
-        // 1. Résout les références des documents concernés (le "qui", pas le "combien" —
-        // les quantités/prix actuels sont relus en direct ci-dessous via transaction.get(),
-        // pas depuis ce state React potentiellement périmé).
-        const ingredientTargets: { ref: any; neededQty: number; itemMeta: any }[] = [];
-        for (const ing of recipe.ingredients || []) {
-          const inventoryItem = inventoryItems.find(i => (i.name || '').toLowerCase() === (ing.nom || '').toLowerCase());
-          if (!inventoryItem) continue; // Ingrédient non rattaché au stock : aucune déduction possible
-
-          const baseQty = parseFloat(ing.quantite) || 0;
-          let neededQty = (baseQty / recipePortions) * quantiteAProduire;
-          const converted = convertQuantity(neededQty, ing.unite, inventoryItem.unit);
-          if (converted !== null) neededQty = converted;
-
-          ingredientTargets.push({ ref: doc(db, 'inventoryItems', inventoryItem.id), neededQty, itemMeta: inventoryItem });
-        }
-
-        let isProducedSemi = false;
-        let producedItemMeta = inventoryItems.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
-        if (!producedItemMeta) {
-          producedItemMeta = semiFinished.find(i => i.name.toLowerCase() === recipe.nom.toLowerCase());
-          if (producedItemMeta) isProducedSemi = true;
-        }
-        const producedItemRef = producedItemMeta ? doc(db, isProducedSemi ? 'semi_finished' : 'inventoryItems', producedItemMeta.id) : null;
-
-        // 2. Toutes les lectures d'abord (obligatoire dans une transaction Firestore)
-        const ingredientSnaps = await Promise.all(ingredientTargets.map(t => transaction.get(t.ref)));
-        const producedSnap = producedItemRef ? await transaction.get(producedItemRef) : null;
-
-        // 3. Puis toutes les écritures, calculées à partir des valeurs fraîchement lues
-        const dateStr = new Date().toLocaleDateString('fr-FR');
-        ingredientTargets.forEach((t, idx) => {
-          const data: any = ingredientSnaps[idx].exists() ? ingredientSnaps[idx].data() : {};
-          const currentQty = parseFloat(data.quantity) || 0;
-          const newQty = Math.max(0, currentQty - t.neededQty);
-          transaction.update(t.ref, { quantity: newQty });
-          const outTxRef = doc(collection(db, 'inventoryTransactions'));
-          transaction.set(outTxRef, {
-            item: data.name || t.itemMeta.name,
-            type: 'out',
-            amount: t.neededQty,
-            unit: data.unit || t.itemMeta.unit || 'kg',
-            reason: `Production: ${recipe.nom}`,
-            user: chefResponsable,
-            date: dateStr,
-            createdAt: serverTimestamp()
-          });
-        });
-
-        // 4. Create production order
-        const newOrderRef = doc(collection(db, 'productionOrders'));
-        transaction.set(newOrderRef, {
-          recipeId: recipe.id,
-          recipeName: recipe.nom,
-          quantiteProduite: quantiteAProduire,
-          chefResponsable,
-          status: 'completed',
-          coutMatiereEstime: calculatedRealCost,
-          timestamp: serverTimestamp()
-        });
-
-
-        // 5. Credit the produced item in inventory or semi_finished
-        const unitCost = quantiteAProduire > 0 ? (calculatedRealCost / quantiteAProduire) : 0;
-
-        if (producedItemRef && producedItemMeta) {
-           const data: any = producedSnap?.exists() ? producedSnap.data() : {};
-           const oldQty = parseFloat(data.quantity) || 0;
-           const oldPrice = resolveItemPrice(data);
-           const newQty = oldQty + quantiteAProduire;
-
-           const newAverageCost = newQty > 0
-               ? ((oldQty * oldPrice) + (quantiteAProduire * unitCost)) / newQty
-               : (unitCost || oldPrice);
-
-           const updateData: any = {
-             quantity: newQty,
-             updatedAt: serverTimestamp(),
-             zone: targetZone,
-             subZone: targetSubZone
-           };
-           if (isProducedSemi) {
-              updateData.cost = newAverageCost;
-           } else {
-              updateData.averageCost = newAverageCost;
-           }
-
-           transaction.update(producedItemRef, updateData);
-
-           const inTxRef = doc(collection(db, 'inventoryTransactions'));
-           transaction.set(inTxRef, {
-             item: data.name || producedItemMeta.name,
-             type: 'in',
-             amount: quantiteAProduire,
-             unit: data.unit || producedItemMeta.unit || 'portion',
-             reason: `Production: ${recipe.nom}`,
-             user: chefResponsable,
-             date: dateStr,
-             createdAt: serverTimestamp()
-           });
-        } else {
-           // check recipe category to decide where it goes
-           const cat = (recipe.categorie || '').toLowerCase();
-           const goesToSemi = cat.includes('semi-fini') || cat.includes('préparation') || cat.includes('base');
-           
-           if (goesToSemi) {
-             const newItemRef = doc(collection(db, 'semi_finished'));
-             transaction.set(newItemRef, {
-               name: recipe.nom,
-               quantity: quantiteAProduire,
-               unit: 'portion',
-               cost: unitCost,
-               createdAt: serverTimestamp(),
-               updatedAt: serverTimestamp(),
-               zone: targetZone,
-               subZone: targetSubZone
-             });
-           } else {
-             const newItemRef = doc(collection(db, 'inventoryItems'));
-             transaction.set(newItemRef, {
-               name: recipe.nom,
-               category: recipe.categorie || 'Produit Fini',
-               quantity: quantiteAProduire,
-               unit: 'portion', // typically portions for recipes
-               minStock: 0,
-               price: unitCost,
-               unitPrice: unitCost,
-               averageCost: unitCost,
-               createdAt: serverTimestamp(),
-               updatedAt: serverTimestamp(),
-               zone: targetZone,
-               subZone: targetSubZone
-             });
-           }
-        }
-
+      await addDoc(collection(db, 'productionOrders'), {
+        recipeId: recipe.id,
+        recipeName: recipe.nom,
+        quantiteProduite: quantiteAProduire,
+        chefResponsable,
+        status: 'completed',
+        coutMatiereEstime,
+        zone: targetZone,
+        subZone: targetSubZone,
+        timestamp: serverTimestamp()
       });
-      
-      showToast("Ordre de fabrication créé et stocks mis à jour.");
+
+      showToast("Ordre de fabrication enregistré.");
       setIsModalOpen(false);
       setSelectedRecipeId('');
       setQuantiteAProduire(1);
@@ -265,7 +142,7 @@ export default function ProductionJournaliere() {
           </div>
           <div>
             <h1 className="text-2xl font-serif font-bold text-gray-900">Production Journalière</h1>
-            <p className="text-gray-500">Ordres de fabrication et décrémentation automatique des stocks</p>
+            <p className="text-gray-500">Document de production à l'usage du chef de cuisine — n'impacte aucun stock automatiquement</p>
           </div>
         </div>
         <button
@@ -452,7 +329,7 @@ export default function ProductionJournaliere() {
               {selectedRecipeId && (
                 <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 mt-2">
                   <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center gap-1.5">
-                    <Package size={16} /> Impacts sur le stock (Estimation)
+                    <Package size={16} /> Besoins matière (Estimation, à titre indicatif)
                   </h4>
                   <ul className="text-xs text-blue-800 space-y-2 max-h-48 overflow-y-auto">
                     {recipes.find(r => r.id === selectedRecipeId)?.ingredients?.map((ing: any, idx: number) => {
@@ -498,7 +375,7 @@ export default function ProductionJournaliere() {
                     })}
                   </ul>
                   <p className="text-xs text-blue-600 mt-2 italic">
-                    La validation décrémentera automatiquement ces quantités des stocks.
+                    Purement indicatif — aucun stock n'est modifié automatiquement à la validation.
                   </p>
                 </div>
               )}

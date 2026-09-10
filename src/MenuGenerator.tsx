@@ -274,10 +274,12 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     // erreur bloquait silencieusement tous les suivants (constaté : seuls 2 articles sur 5 étaient
     // passés dans certaines catégories après un premier clic).
     const existingMenuByName = new Map(menuItems.map(item => [(item.name || '').trim().toLowerCase(), item]));
-    const existingFicheNames = new Set(recettes.map(r => (r.nom || r.name || '').trim().toLowerCase()));
+    const existingFicheByName = new Map(recettes.map(r => [(r.nom || r.name || '').trim().toLowerCase(), r]));
     let createdMenuItems = 0;
     let updatedMenuItems = 0;
+    let recategorizedMenuItems = 0;
     let createdFiches = 0;
+    let recategorizedFiches = 0;
     const failures: string[] = [];
 
     for (const item of PDF_MENU_IMPORT_ITEMS) {
@@ -299,11 +301,19 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
             updatedAt: new Date()
           });
           createdMenuItems++;
-        } else if (!existing.ingredientsText && ingredientsText) {
-          // Déjà importé lors d'un précédent clic (avant l'ajout des listes d'ingrédients) —
-          // on complète seulement ce champ, sans toucher à une photo/description déjà en place.
-          await updateDoc(doc(db, 'menu_items', existing.id), { ingredientsText, updatedAt: new Date() });
-          updatedMenuItems++;
+        } else {
+          // Déjà présent (créé manuellement avant l'ajout des nouvelles catégories, ou lors d'un
+          // précédent clic) — on rattrape la catégorie si elle pointe encore vers l'ancienne
+          // valeur générique ("Entrées"/"Plats Principaux"), et on complète les ingrédients s'ils
+          // manquent, sans toucher à une photo/description déjà en place.
+          const patch: Record<string, any> = {};
+          if (existing.category !== item.category) patch.category = item.category;
+          if (!existing.ingredientsText && ingredientsText) patch.ingredientsText = ingredientsText;
+          if (Object.keys(patch).length > 0) {
+            await updateDoc(doc(db, 'menu_items', existing.id), { ...patch, updatedAt: new Date() });
+            if (patch.category) recategorizedMenuItems++;
+            else updatedMenuItems++;
+          }
         }
       } catch (error) {
         console.error(`Import menu_items "${item.name}" échoué`, error);
@@ -311,7 +321,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
       }
 
       try {
-        if (!existingFicheNames.has(key)) {
+        const existingFiche = existingFicheByName.get(key);
+        if (!existingFiche) {
           const prixVente = parseAmount(item.price) || 0;
           await addDoc(collection(db, 'fiches_techniques'), {
             nom: item.name,
@@ -326,6 +337,9 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
             updatedAt: new Date().toISOString()
           });
           createdFiches++;
+        } else if (existingFiche.categorie !== item.category) {
+          await updateDoc(doc(db, 'fiches_techniques', existingFiche.id), { categorie: item.category, updatedAt: new Date().toISOString() });
+          recategorizedFiches++;
         }
       } catch (error) {
         console.error(`Import fiches_techniques "${item.name}" échoué`, error);
@@ -337,7 +351,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
       console.error('Articles en échec lors de l\'import PDF :', failures);
     }
     showToast(
-      `Import terminé : ${createdMenuItems} plat(s) menu créés, ${updatedMenuItems} complétés (ingrédients), ${createdFiches} fiche(s) technique(s) créées.` +
+      `Import terminé : ${createdMenuItems} plat(s) menu créés, ${recategorizedMenuItems} recatégorisés, ${updatedMenuItems} complétés (ingrédients), ${createdFiches} fiche(s) technique(s) créées, ${recategorizedFiches} fiche(s) recatégorisées.` +
       (failures.length > 0 ? ` ${failures.length} échec(s) (voir console) — recliquez pour réessayer.` : ''),
       failures.length > 0 ? 'error' : undefined
     );

@@ -344,6 +344,35 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     setIsImportingPdfMenu(false);
   };
 
+  // Diagnostic temporaire : le toast d'import affichait "0 créés" alors que l'écran ne montre que
+  // 4 articles sur 93 — donc les documents existent déjà en base mais avec une valeur de
+  // catégorie qui ne correspond pas exactement à celle attendue (espace, casse, etc.), ce qui les
+  // rend invisibles dans leur section. Ce bouton liste, pour chaque article du PDF déjà présent
+  // par son nom, la catégorie RÉELLEMENT stockée à côté de celle attendue. À retirer une fois le
+  // souci identifié.
+  const handlePdfMenuDiagnostic = () => {
+    const byName = new Map(menuItems.map(item => [(item.name || '').trim().toLowerCase(), item]));
+    const mismatches = PDF_MENU_IMPORT_ITEMS
+      .map(item => {
+        const found = byName.get(item.name.trim().toLowerCase());
+        if (!found) return `MANQUANT : "${item.name}"`;
+        if ((found.category || '') !== item.category) {
+          return `CATÉGORIE DIFFÉRENTE : "${item.name}" — attendu "${item.category}", trouvé "${JSON.stringify(found.category)}"`;
+        }
+        return null;
+      })
+      .filter(Boolean) as string[];
+    const lines = [
+      `menu_items en base (total) : ${menuItems.length}`,
+      `fiches_techniques en base (total) : ${recettes.length}`,
+      `Catégories distinctes vues dans menu_items : ${JSON.stringify([...new Set(menuItems.map(m => m.category))])}`,
+      `Sur les ${PDF_MENU_IMPORT_ITEMS.length} articles du PDF : ${mismatches.length} manquant(s) ou mal catégorisé(s).`,
+      ...mismatches.slice(0, 30)
+    ];
+    console.log(lines.join('\n'));
+    alert(lines.join('\n'));
+  };
+
   const handleEdit = (item: any) => {
     setEditingItem(item);
     setName(item.name);
@@ -671,6 +700,10 @@ if (isPrintView) {
           <button onClick={handlePdfMenuImport} disabled={isImportingPdfMenu} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg disabled:opacity-50">
             <Upload size={20} />
             <span>{isImportingPdfMenu ? "Import en cours..." : "Importer le menu PDF"}</span>
+          </button>
+          <button onClick={handlePdfMenuDiagnostic} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg">
+            <ClipboardList size={20} />
+            <span>Diagnostic import</span>
           </button>
           <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setPortions(1); setIngredientsText(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />

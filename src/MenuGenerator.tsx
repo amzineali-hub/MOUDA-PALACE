@@ -53,8 +53,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // que les plats déjà existants avec ces valeurs restent visibles — seules les nouvelles entrées
   // du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories dédiées.
   const categories = [
-    'Entrées marocaines', 'Entrées saveurs du monde', 'Entrées',
-    'Plats marocains', 'Plats saveurs du monde', 'Plats Principaux',
+    'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
+    'Entrées', 'Plats Principaux',
     'Desserts',
     'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
     'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',

@@ -269,13 +269,22 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // par défaut), à illustrer ensuite depuis "Ajouter un plat" / l'édition de chaque article.
   const handlePdfMenuImport = async () => {
     setIsImportingPdfMenu(true);
-    try {
-      const existingMenuByName = new Map(menuItems.map(item => [(item.name || '').trim().toLowerCase(), item]));
-      let createdMenuItems = 0;
-      let updatedMenuItems = 0;
-      for (const item of PDF_MENU_IMPORT_ITEMS) {
-        const existing = existingMenuByName.get(item.name.trim().toLowerCase());
-        const ingredientsText = (item.ingredients || []).join('\n');
+    // Chaque article est traité dans son propre try/catch : un échec isolé (ex. un souci réseau
+    // ponctuel) ne doit plus interrompre tout le lot comme avant — sans ça, un seul article en
+    // erreur bloquait silencieusement tous les suivants (constaté : seuls 2 articles sur 5 étaient
+    // passés dans certaines catégories après un premier clic).
+    const existingMenuByName = new Map(menuItems.map(item => [(item.name || '').trim().toLowerCase(), item]));
+    const existingFicheNames = new Set(recettes.map(r => (r.nom || r.name || '').trim().toLowerCase()));
+    let createdMenuItems = 0;
+    let updatedMenuItems = 0;
+    let createdFiches = 0;
+    const failures: string[] = [];
+
+    for (const item of PDF_MENU_IMPORT_ITEMS) {
+      const key = item.name.trim().toLowerCase();
+      const ingredientsText = (item.ingredients || []).join('\n');
+      try {
+        const existing = existingMenuByName.get(key);
         if (!existing) {
           await addDoc(collection(db, 'menu_items'), {
             name: item.name,
@@ -296,33 +305,43 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
           await updateDoc(doc(db, 'menu_items', existing.id), { ingredientsText, updatedAt: new Date() });
           updatedMenuItems++;
         }
+      } catch (error) {
+        console.error(`Import menu_items "${item.name}" échoué`, error);
+        failures.push(item.name);
       }
 
-      const existingFicheNames = new Set(recettes.map(r => (r.nom || r.name || '').trim().toLowerCase()));
-      const toCreateFiches = PDF_MENU_IMPORT_ITEMS.filter(item => !existingFicheNames.has(item.name.trim().toLowerCase()));
-      for (const item of toCreateFiches) {
-        const prixVente = parseAmount(item.price) || 0;
-        await addDoc(collection(db, 'fiches_techniques'), {
-          nom: item.name,
-          categorie: item.category,
-          portions: 1,
-          prixVente,
-          coutMatiere: 0,
-          foodCost: 0,
-          margeBrute: prixVente,
-          ingredients: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
+      try {
+        if (!existingFicheNames.has(key)) {
+          const prixVente = parseAmount(item.price) || 0;
+          await addDoc(collection(db, 'fiches_techniques'), {
+            nom: item.name,
+            categorie: item.category,
+            portions: 1,
+            prixVente,
+            coutMatiere: 0,
+            foodCost: 0,
+            margeBrute: prixVente,
+            ingredients: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          createdFiches++;
+        }
+      } catch (error) {
+        console.error(`Import fiches_techniques "${item.name}" échoué`, error);
+        failures.push(`${item.name} (fiche)`);
       }
-
-      showToast(`Import terminé : ${createdMenuItems} plat(s) menu créés, ${updatedMenuItems} complétés (ingrédients), ${toCreateFiches.length} fiche(s) technique(s) créées.`);
-    } catch (error) {
-      console.error(error);
-      showToast("Erreur lors de l'import du menu PDF.", "error");
-    } finally {
-      setIsImportingPdfMenu(false);
     }
+
+    if (failures.length > 0) {
+      console.error('Articles en échec lors de l\'import PDF :', failures);
+    }
+    showToast(
+      `Import terminé : ${createdMenuItems} plat(s) menu créés, ${updatedMenuItems} complétés (ingrédients), ${createdFiches} fiche(s) technique(s) créées.` +
+      (failures.length > 0 ? ` ${failures.length} échec(s) (voir console) — recliquez pour réessayer.` : ''),
+      failures.length > 0 ? 'error' : undefined
+    );
+    setIsImportingPdfMenu(false);
   };
 
   const handleEdit = (item: any) => {

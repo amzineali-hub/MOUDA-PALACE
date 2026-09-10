@@ -270,21 +270,32 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const handlePdfMenuImport = async () => {
     setIsImportingPdfMenu(true);
     try {
-      const existingMenuNames = new Set(menuItems.map(item => (item.name || '').trim().toLowerCase()));
-      const toCreateMenuItems = PDF_MENU_IMPORT_ITEMS.filter(item => !existingMenuNames.has(item.name.trim().toLowerCase()));
-      for (const item of toCreateMenuItems) {
-        await addDoc(collection(db, 'menu_items'), {
-          name: item.name,
-          category: item.category,
-          price: item.price,
-          desc: item.desc || '',
-          imageUrl: availableImages[0],
-          videoUrl: '',
-          portions: 1,
-          ingredientsText: (item.ingredients || []).join('\n'),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
+      const existingMenuByName = new Map(menuItems.map(item => [(item.name || '').trim().toLowerCase(), item]));
+      let createdMenuItems = 0;
+      let updatedMenuItems = 0;
+      for (const item of PDF_MENU_IMPORT_ITEMS) {
+        const existing = existingMenuByName.get(item.name.trim().toLowerCase());
+        const ingredientsText = (item.ingredients || []).join('\n');
+        if (!existing) {
+          await addDoc(collection(db, 'menu_items'), {
+            name: item.name,
+            category: item.category,
+            price: item.price,
+            desc: item.desc || '',
+            imageUrl: availableImages[0],
+            videoUrl: '',
+            portions: 1,
+            ingredientsText,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          createdMenuItems++;
+        } else if (!existing.ingredientsText && ingredientsText) {
+          // Déjà importé lors d'un précédent clic (avant l'ajout des listes d'ingrédients) —
+          // on complète seulement ce champ, sans toucher à une photo/description déjà en place.
+          await updateDoc(doc(db, 'menu_items', existing.id), { ingredientsText, updatedAt: new Date() });
+          updatedMenuItems++;
+        }
       }
 
       const existingFicheNames = new Set(recettes.map(r => (r.nom || r.name || '').trim().toLowerCase()));
@@ -305,9 +316,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
         });
       }
 
-      const skippedMenu = PDF_MENU_IMPORT_ITEMS.length - toCreateMenuItems.length;
-      const skippedFiches = PDF_MENU_IMPORT_ITEMS.length - toCreateFiches.length;
-      showToast(`Import terminé : ${toCreateMenuItems.length} plat(s) menu + ${toCreateFiches.length} fiche(s) technique(s) ajoutés${(skippedMenu > 0 || skippedFiches > 0) ? ` (déjà présents ignorés)` : ''}.`);
+      showToast(`Import terminé : ${createdMenuItems} plat(s) menu créés, ${updatedMenuItems} complétés (ingrédients), ${toCreateFiches.length} fiche(s) technique(s) créées.`);
     } catch (error) {
       console.error(error);
       showToast("Erreur lors de l'import du menu PDF.", "error");

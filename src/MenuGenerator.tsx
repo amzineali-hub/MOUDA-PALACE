@@ -12,6 +12,7 @@ import { getVideoEmbedUrl } from './lib/videoUtils';
 import { slugify } from './lib/slug';
 import DishIngredientsModal from './components/DishIngredientsModal';
 import PdfDocumentFlipbook from './components/PdfDocumentFlipbook';
+import { PDF_MENU_IMPORT_ITEMS } from './data/pdfMenuImport';
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -32,6 +33,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [lightboxItem, setLightboxItem] = useState<any | null>(null);
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [ingredientsPreviewItem, setIngredientsPreviewItem] = useState<any | null>(null);
+  const [isImportingPdfMenu, setIsImportingPdfMenu] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -47,7 +49,18 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // public du plat (photo, description, prix), pour être au même endroit que le reste.
   const [ingredientsText, setIngredientsText] = useState('');
 
-  const categories = ['Entrées', 'Plats Principaux', 'Desserts', 'Boissons'];
+  // Catégories legacy ('Entrées', 'Plats Principaux', 'Boissons') gardées en fin de liste pour
+  // que les plats déjà existants avec ces valeurs restent visibles — seules les nouvelles entrées
+  // du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories dédiées.
+  const categories = [
+    'Entrées marocaines', 'Entrées saveurs du monde', 'Entrées',
+    'Plats marocains', 'Plats saveurs du monde', 'Plats Principaux',
+    'Desserts',
+    'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
+    'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
+    'Tapas', 'Chicha',
+    'Boissons'
+  ];
 
   const availableImages = [
     "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fes-medina-medium.jpg",
@@ -243,6 +256,39 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     } catch (error) {
       console.error(error);
       showToast("Erreur lors de l'enregistrement.", "error");
+    }
+  };
+
+  // Import ponctuel de MOUDA PALACE MENU.pdf / MENU BOISSON.pdf (voir src/data/pdfMenuImport.ts).
+  // Protégé contre les doublons par nom (insensible à la casse) — peut être relancé sans risque
+  // si de nouveaux articles ont été ajoutés à la liste entretemps. Sans photo (placeholder par
+  // défaut), à illustrer ensuite depuis "Ajouter un plat" / l'édition de chaque article.
+  const handlePdfMenuImport = async () => {
+    setIsImportingPdfMenu(true);
+    try {
+      const existingNames = new Set(menuItems.map(item => (item.name || '').trim().toLowerCase()));
+      const toCreate = PDF_MENU_IMPORT_ITEMS.filter(item => !existingNames.has(item.name.trim().toLowerCase()));
+      for (const item of toCreate) {
+        await addDoc(collection(db, 'menu_items'), {
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          desc: item.desc || '',
+          imageUrl: availableImages[0],
+          videoUrl: '',
+          portions: 1,
+          ingredientsText: '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      const skipped = PDF_MENU_IMPORT_ITEMS.length - toCreate.length;
+      showToast(`Import terminé : ${toCreate.length} plat(s) ajouté(s)${skipped > 0 ? `, ${skipped} déjà présent(s) ignoré(s)` : ''}.`);
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'import du menu PDF.", "error");
+    } finally {
+      setIsImportingPdfMenu(false);
     }
   };
 
@@ -569,6 +615,10 @@ if (isPrintView) {
           <button onClick={() => setIsPrintView(true)} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg">
             <Printer size={20} />
             <span>Génération du Menu</span>
+          </button>
+          <button onClick={handlePdfMenuImport} disabled={isImportingPdfMenu} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg disabled:opacity-50">
+            <Upload size={20} />
+            <span>{isImportingPdfMenu ? "Import en cours..." : "Importer le menu PDF"}</span>
           </button>
           <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setPortions(1); setIngredientsText(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />

@@ -281,7 +281,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
           imageUrl: availableImages[0],
           videoUrl: '',
           portions: 1,
-          ingredientsText: '',
+          ingredientsText: (item.ingredients || []).join('\n'),
           createdAt: new Date(),
           updatedAt: new Date()
         });

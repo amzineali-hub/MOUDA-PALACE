@@ -2,9 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
-import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users, AlertTriangle } from 'lucide-react';
+import { ChefHat, Plus, Activity, Clock, CheckCircle, Package, ArrowRight, X, Trash2, Users, AlertTriangle, Eye, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { computeRecipeCost } from './lib/recipeCost';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
+import { downloadDocumentAsPdf } from './lib/pdfExport';
+
+const ZONE_LABELS: Record<string, string> = {
+  economat: 'Économat',
+  chambre_froide: 'Chambre Froide',
+  chambre_negative: 'Chambre Négative',
+  cave: 'Cave',
+  consommables: 'Consommables'
+};
 
 export default function ProductionJournaliere() {
   const { showToast } = useToast();
@@ -12,7 +22,7 @@ export default function ProductionJournaliere() {
   const [productionOrders, setProductionOrders] = useState<any[]>([]);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [semiFinished, setSemiFinished] = useState<any[]>([]);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState('');
   const [quantiteAProduire, setQuantiteAProduire] = useState(1);
@@ -22,6 +32,17 @@ export default function ProductionJournaliere() {
   const [targetSubZone, setTargetSubZone] = useState('');
   const [subZones, setSubZones] = useState<any[]>([]);
   const [expectedCovers, setExpectedCovers] = useState(0);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+
+  // Coordonnées de l'établissement (Configuration > Général), pour l'en-tête du PDF de l'ordre de
+  // fabrication — même mécanisme que les factures/devis dans Accounting.tsx.
+  const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
+  useEffect(() => {
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev: any) => mergeCompanyInfo(prev, snap.data()));
+    });
+    return () => unsubGeneral();
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'subZones'), (snapshot) => {
@@ -81,6 +102,72 @@ export default function ProductionJournaliere() {
         showToast("Erreur lors de la suppression", "error");
       }
     }
+  };
+
+  // Document imprimable/téléchargeable de l'ordre de fabrication (à remettre au chef de cuisine) —
+  // même papier en-tête que les factures/documents RH, sans TVA/client puisque c'est un document
+  // interne, pas commercial.
+  const buildProductionOrderHtml = (order: any, autoPrint = true) => {
+    const dateStr = order.timestamp?.toDate
+      ? new Date(order.timestamp.toDate()).toLocaleString('fr-FR')
+      : new Date().toLocaleString('fr-FR');
+    const zoneLabel = ZONE_LABELS[order.zone] || order.zone || '—';
+    const subZoneName = subZones.find(sz => sz.id === order.subZone)?.name;
+
+    const bodyHtml = `
+      <div class="order-info">
+        <div>
+          <h2>ORDRE DE FABRICATION</h2>
+          <p><strong>Date &amp; heure :</strong> ${dateStr}</p>
+          <p><strong>Chef responsable :</strong> ${order.chefResponsable || '—'}</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Recette</th>
+            <th style="text-align: right;">Quantité à produire</th>
+            <th style="text-align: right;">Destination</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${order.recipeName || ''}</td>
+            <td style="text-align: right;">${order.quantiteProduite} portions</td>
+            <td style="text-align: right;">${zoneLabel}${subZoneName ? ` — ${subZoneName}` : ''}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="totals">
+        <table>
+          <tr class="grand-total">
+            <th style="text-align: left;">Coût matière estimé</th>
+            <td style="text-align: right;">${Number(order.coutMatiereEstime || 0).toFixed(2)} DH</td>
+          </tr>
+        </table>
+      </div>
+      <p class="internal-note">Document interne de production — ne constitue ni une facture ni un mouvement de stock.</p>
+      <div class="signature-zone">
+        <p><strong>Signature du chef de cuisine :</strong></p>
+      </div>
+    `;
+
+    return buildLetterheadHtml(companyInfo, window.location.origin, {
+      title: `Ordre de Fabrication - ${order.recipeName || ''}`,
+      bodyHtml,
+      autoPrint,
+      extraStyles: `
+        .order-info { margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+        td { border-bottom: 1px solid #eee; padding: 10px; }
+        .totals { display: flex; justify-content: flex-end; margin-bottom: 30px; }
+        .totals table { width: 300px; }
+        .grand-total th, .grand-total td { font-size: 16px; font-weight: bold; color: #265C6D; }
+        .internal-note { color: #888; font-size: 11px; font-style: italic; margin-bottom: 40px; }
+        .signature-zone { margin-top: 60px; }
+      `
+    });
   };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -222,13 +309,29 @@ export default function ProductionJournaliere() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => handleDeleteOrder(order.id)}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-2 text-gray-400 hover:text-[#265C6D] hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Voir"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => downloadDocumentAsPdf(buildProductionOrderHtml(order, false), `Ordre-Fabrication-${order.recipeName}`)}
+                          className="p-2 text-gray-400 hover:text-[#F4C75B] hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Télécharger en PDF"
+                        >
+                          <Download size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -399,6 +502,69 @@ export default function ProductionJournaliere() {
               </div>
             </form>
           </motion.div>
+        </div>
+      )}
+
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-serif font-semibold text-gray-900">Ordre de Fabrication</h3>
+              <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-900 transition-colors p-1 rounded-md hover:bg-gray-100">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Recette</p>
+                  <p className="font-bold text-[#265C6D]">{selectedOrder.recipeName}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 font-medium">Date & heure</p>
+                  <p className="text-gray-900">
+                    {selectedOrder.timestamp?.toDate ? new Date(selectedOrder.timestamp.toDate()).toLocaleString('fr-FR') : '—'}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Quantité à produire</p>
+                  <p className="font-medium text-gray-900">{selectedOrder.quantiteProduite} portions</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Chef responsable</p>
+                  <p className="font-medium text-gray-900 flex items-center gap-1.5"><ChefHat size={14} className="text-gray-400" /> {selectedOrder.chefResponsable}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Destination</p>
+                  <p className="font-medium text-gray-900">
+                    {ZONE_LABELS[selectedOrder.zone] || selectedOrder.zone || '—'}
+                    {subZones.find(sz => sz.id === selectedOrder.subZone)?.name ? ` — ${subZones.find(sz => sz.id === selectedOrder.subZone)?.name}` : ''}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium mb-1">Coût matière (indicatif)</p>
+                  <p className="font-medium text-gray-900">{Number(selectedOrder.coutMatiereEstime || 0).toFixed(2)} DH</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 italic">Document interne — n'affecte aucun stock.</p>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              >
+                Fermer
+              </button>
+              <button
+                onClick={() => downloadDocumentAsPdf(buildProductionOrderHtml(selectedOrder, false), `Ordre-Fabrication-${selectedOrder.recipeName}`)}
+                className="flex-1 bg-[#F4C75B] text-[#1A1A1A] py-2 rounded-lg font-medium hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <Download size={16} /> Télécharger en PDF
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell, Wine, Beer, Cigarette } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
@@ -10,12 +10,47 @@ import { calculatePosSubtotal, createPosOrderId, getLineTotal, getLineUnitPrice,
 import { computeStationBreakdown } from './lib/posShifts';
 import Combobox from './components/Combobox';
 
-const CATEGORIES = [
-  { id: 'Entrées', name: 'Entrées', icon: <Utensils size={18} /> },
-  { id: 'Plats Principaux', name: 'Plats Principaux', icon: <Utensils size={18} /> },
-  { id: 'Desserts', name: 'Desserts', icon: <Coffee size={18} /> },
-  { id: 'Boissons', name: 'Boissons', icon: <GlassWater size={18} /> },
+// Ordre d'affichage préféré des onglets catégories du POS — repris tel quel de la liste des
+// menus digitaux (MenuGenerator.tsx / Flipbook.tsx), qui écrivent/lisent la même collection
+// Firestore `menu_items` que le POS. Les onglets du POS sont calculés dynamiquement à partir des
+// catégories réellement présentes dans `menu_items` (voir buildCategoryTabs plus bas) : un plat
+// ajouté depuis les menus digitaux apparaît donc automatiquement en caisse, sans réglage manuel —
+// cette liste ne sert qu'à ranger les onglets dans un ordre stable plutôt que dans l'ordre
+// d'arrivée Firestore. Une catégorie qui n'y figure pas (nouvelle catégorie créée plus tard) est
+// simplement ajoutée à la fin, triée alphabétiquement.
+const CATEGORY_ORDER = [
+  'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
+  'Plats Principaux',
+  'Desserts',
+  'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
+  'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
+  'Tapas', 'Chicha'
 ];
+
+// Anciennes catégories génériques du POS (avant le passage aux catégories fines des menus
+// digitaux) : "Entrées" et "Boissons" faisaient doublon avec "Entrées marocaines" / "Boissons
+// Fraîches" — deux onglets pour des plats qui auraient dû être au même endroit. Repliées ici sur
+// une catégorie précise plutôt que retirées, pour ne perdre aucun plat déjà enregistré sous
+// l'ancien nom générique (un item avec category="Boissons" continue de s'afficher, sous l'onglet
+// "Boissons Fraîches").
+const CATEGORY_ALIASES: Record<string, string> = {
+  'Entrées': 'Entrées marocaines',
+  'Boissons': 'Boissons Fraîches',
+};
+const normalizeCategory = (cat: string | undefined | null): string => {
+  const c = (cat || '').trim();
+  return CATEGORY_ALIASES[c] || c;
+};
+
+const getCategoryIcon = (cat: string) => {
+  const c = cat.toLowerCase();
+  if (c.includes('vin') || c.includes('champagne') || c.includes('spiritueux') || c.includes('digestif')) return <Wine size={18} />;
+  if (c.includes('bière')) return <Beer size={18} />;
+  if (c.includes('chicha')) return <Cigarette size={18} />;
+  if (c.includes('boisson') || c.includes('jus') || c.includes('cocktail')) return <GlassWater size={18} />;
+  if (c.includes('dessert')) return <Coffee size={18} />;
+  return <Utensils size={18} />;
+};
 
 // Identité de la caisse physique sur laquelle tourne ce poste (Patio / Rooftop) — choisie une
 // fois par machine et stockée en local, pas en base : ça évite un flux d'appairage pour un
@@ -928,6 +963,25 @@ export default function POSTactile() {
     return () => unsubscribe();
   }, []);
 
+  // Onglets catégories du POS, dérivés en direct des catégories réellement présentes dans
+  // `menu_items` — la même collection que les menus digitaux (voir CATEGORY_ORDER plus haut).
+  // C'est ce qui fait qu'un plat ajouté aux menus digitaux "remonte" automatiquement en caisse :
+  // pas de liste séparée à tenir à jour côté POS.
+  const categoryTabs = useMemo(() => {
+    const present = new Set(menuItems.map(item => normalizeCategory(item.category)).filter(Boolean));
+    const ordered = CATEGORY_ORDER.filter(cat => present.has(cat));
+    const extra = Array.from(present).filter(cat => !CATEGORY_ORDER.includes(cat)).sort((a, b) => a.localeCompare(b));
+    return [...ordered, ...extra];
+  }, [menuItems]);
+
+  // Si la catégorie active n'existe plus (première charge, ou catégorie vidée), on se replie sur
+  // la première catégorie disponible plutôt que d'afficher un onglet actif inexistant.
+  useEffect(() => {
+    if (categoryTabs.length > 0 && !categoryTabs.includes(activeCategory)) {
+      setActiveCategory(categoryTabs[0]);
+    }
+  }, [categoryTabs, activeCategory]);
+
   useEffect(() => {
     const unsubTables = onSnapshot(query(collection(db, 'tables')), (snapshot) => {
       setTables(snapshot.docs.map(doc => ({ ...doc.data(), fbId: doc.id })));
@@ -1123,7 +1177,7 @@ export default function POSTactile() {
 
       return [...matchedMenu, ...additionalItems, ...additionalInventory];
     }
-    return menuItems.filter(item => item.category === activeCategory);
+    return menuItems.filter(item => normalizeCategory(item.category) === activeCategory);
   })();
 
   // Ajouter/modifier un article déjà envoyé en cuisine ne réinitialise plus toute la commande
@@ -1883,14 +1937,19 @@ export default function POSTactile() {
   };
 
   // Helper for generating colors based on category
+  // Couvre les catégories du POS étendu (voir CATEGORY_ORDER) : classement par mot-clé plutôt que
+  // par valeur exacte pour ne pas avoir à retoucher cette fonction à chaque nouvelle catégorie de
+  // menu digital.
   const getCategoryColor = (cat: string) => {
-    switch(cat) {
-      case 'Entrées': return 'from-green-400 to-emerald-500 shadow-green-500/40 text-white';
-      case 'Plats Principaux': return 'from-[#F4C75B] to-orange-500 shadow-[#F4C75B]/40 text-[#1A1A1A]';
-      case 'Desserts': return 'from-pink-400 to-rose-500 shadow-rose-500/40 text-white';
-      case 'Boissons': return 'from-blue-400 to-indigo-500 shadow-blue-500/40 text-white';
-      default: return 'from-gray-700 to-gray-900 shadow-gray-900/40 text-white';
+    const c = (cat || '').toLowerCase();
+    if (c.includes('entrée') || c.includes('tapas')) return 'from-green-400 to-emerald-500 shadow-green-500/40 text-white';
+    if (c.includes('plat')) return 'from-[#F4C75B] to-orange-500 shadow-[#F4C75B]/40 text-[#1A1A1A]';
+    if (c.includes('dessert')) return 'from-pink-400 to-rose-500 shadow-rose-500/40 text-white';
+    if (c.includes('chicha')) return 'from-stone-500 to-stone-700 shadow-stone-700/40 text-white';
+    if (c.includes('boisson') || c.includes('vin') || c.includes('bière') || c.includes('cocktail') || c.includes('mocktail') || c.includes('jus') || c.includes('champagne') || c.includes('spiritueux') || c.includes('digestif')) {
+      return 'from-blue-400 to-indigo-500 shadow-blue-500/40 text-white';
     }
+    return 'from-gray-700 to-gray-900 shadow-gray-900/40 text-white';
   };
 
   const cashAmount = parsePosPrice(cashReceived);
@@ -1925,134 +1984,142 @@ export default function POSTactile() {
   return (
     <div className="flex flex-col h-full min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F4F5]">
       <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
-        {/* Left Side - Menu Area */}
-        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 min-w-0">
-          {/* Header & Categories */}
-          <div className="p-6 bg-[#F4F4F5] z-10 flex flex-col gap-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
-                <p className="text-gray-500 mt-1">Terminal de point de vente 3D synchronisé</p>
-                {!isOnline && (
-                  <div className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    Hors ligne — les actions seront synchronisées à la reconnexion
-                  </div>
-                )}
+        {/* Sidebar gauche — titre, recherche et actions de caisse (Rembourser, Rapport X,
+            Commandes par Garçon, tiroir, mode édition...), regroupées à part pour laisser la
+            colonne du milieu directement collée au panneau ticket (voir demande gérant :
+            "ceux d'en haut à mettre à gauche, les boutons des plats à droite juxtaposés au
+            panneau des tickets"). */}
+        <div className="w-full lg:w-72 flex-shrink-0 bg-white lg:m-4 lg:mr-0 rounded-t-3xl lg:rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 overflow-y-auto">
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
+            <p className="text-gray-500 text-sm mt-1">Terminal de point de vente 3D synchronisé</p>
+            {!isOnline && (
+              <div className="mt-2 flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                Hors ligne — synchro à la reconnexion
               </div>
-              <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                <button
-                  type="button"
-                  onClick={changeStation}
-                  title="Changer la caisse configurée sur cet appareil"
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#cda25b] hover:brightness-105 transition-all duration-150 active:shadow-none active:translate-y-1"
-                >
-                  Caisse : {station}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShiftMode(activeShift ? 'close' : 'open');
-                    setShiftCashAmount('');
-                    setIsShiftModalOpen(true);
-                  }}
-                  className={`px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
-                >
-                  {activeShift ? `Caisse ouverte · ${station} · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : `Caisse fermée · ${station}`}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsTableModalOpen(true)}
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
-                  title="Voir l'état des tables"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  {tables.filter(t => t.status === 'occupee').length} occupée{tables.filter(t => t.status === 'occupee').length > 1 ? 's' : ''} / {tables.length}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRefundTicketId('');
-                    setRefundReason('');
-                    setRefundPin('');
-                    setRefundSelections({});
-                    setIsRefundModalOpen(true);
-                  }}
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-rose-500 text-white shadow-[0_4px_0_0_#be123c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
-                  title="Rembourser un ticket déjà payé"
-                >
-                  Rembourser
-                </button>
-                <button
-                  type="button"
-                  onClick={buildDailyXReport}
-                  disabled={isBuildingXReport}
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50"
-                  title="État complet des mouvements de caisse et du chiffre d'affaires de la journée"
-                >
-                  {isBuildingXReport ? '...' : 'Rapport X'}
-                </button>
-                <button
-                  type="button"
-                  onClick={openOrdersModal}
-                  className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-cyan-600 text-white shadow-[0_4px_0_0_#0e7490] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
-                  title="Voir les commandes en cours par serveur"
-                >
-                  Commandes par Garçon
-                </button>
-                {showDrawerButton && (
-                  <button
-                    type="button"
-                    onClick={openDrawer}
-                    className="px-4 py-3 rounded-2xl font-bold text-sm whitespace-nowrap bg-gray-700 text-white shadow-[0_4px_0_0_#1f2937] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
-                    title="Ouvrir le tiroir-caisse hors vente (rendu de monnaie, début de service...)"
-                  >
-                    Ouvrir le tiroir
-                  </button>
-                )}
-                <div className="relative flex-1 md:w-72">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="Rechercher un plat..." 
-                    className="w-full pl-12 pr-4 py-3 bg-white border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4C75B] text-gray-700 font-medium transition-all"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <button
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  className={`p-3 rounded-2xl transition-colors ${isEditMode ? 'bg-red-100 text-red-600' : 'bg-white text-gray-500 hover:bg-gray-50 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'}`}
-                  title={isEditMode ? "Désactiver le mode édition" : "Activer le mode édition (suppression)"}
-                >
-                  <Trash2 size={20} />
-                </button>
-              </div>
-            </div>
+            )}
+          </div>
 
-            {/* Barre d'onglets catégories — bandeau coloré avec onglet actif surligné en clair,
-                plus proche d'une caisse type tablette (onglets en haut) qu'une rangée de boutons
-                séparés. */}
-            <div className="flex bg-[#265C6D] rounded-2xl p-1.5 gap-1 overflow-x-auto">
-              {CATEGORIES.map(cat => (
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Rechercher un plat..."
+              className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4C75B] text-gray-700 font-medium transition-all"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={changeStation}
+            title="Changer la caisse configurée sur cet appareil"
+            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#cda25b] hover:brightness-105 transition-all duration-150 active:shadow-none active:translate-y-1"
+          >
+            Caisse : {station}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShiftMode(activeShift ? 'close' : 'open');
+              setShiftCashAmount('');
+              setIsShiftModalOpen(true);
+            }}
+            className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+          >
+            {activeShift ? `Caisse ouverte · ${station} · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : `Caisse fermée · ${station}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsTableModalOpen(true)}
+            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+            title="Voir l'état des tables"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />
+            {tables.filter(t => t.status === 'occupee').length} occupée{tables.filter(t => t.status === 'occupee').length > 1 ? 's' : ''} / {tables.length}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRefundTicketId('');
+              setRefundReason('');
+              setRefundPin('');
+              setRefundSelections({});
+              setIsRefundModalOpen(true);
+            }}
+            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white shadow-[0_4px_0_0_#be123c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+            title="Rembourser un ticket déjà payé"
+          >
+            Rembourser
+          </button>
+          <button
+            type="button"
+            onClick={buildDailyXReport}
+            disabled={isBuildingXReport}
+            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50"
+            title="État complet des mouvements de caisse et du chiffre d'affaires de la journée"
+          >
+            {isBuildingXReport ? '...' : 'Rapport X'}
+          </button>
+          <button
+            type="button"
+            onClick={openOrdersModal}
+            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-cyan-600 text-white shadow-[0_4px_0_0_#0e7490] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+            title="Voir les commandes en cours par serveur"
+          >
+            Commandes par Garçon
+          </button>
+          {showDrawerButton && (
+            <button
+              type="button"
+              onClick={openDrawer}
+              className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-gray-700 text-white shadow-[0_4px_0_0_#1f2937] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+              title="Ouvrir le tiroir-caisse hors vente (rendu de monnaie, début de service...)"
+            >
+              Ouvrir le tiroir
+            </button>
+          )}
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`w-full flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm transition-colors mt-auto ${isEditMode ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'}`}
+            title={isEditMode ? "Désactiver le mode édition" : "Activer le mode édition (suppression)"}
+          >
+            <Trash2 size={18} />
+            {isEditMode ? 'Quitter le mode édition' : 'Mode édition'}
+          </button>
+        </div>
+
+        {/* Colonne du milieu — rail vertical des catégories + grille produits, juxtaposée au
+            panneau ticket. Rail vertical plutôt qu'un bandeau horizontal : avec ~19 catégories
+            (menus digitaux), un défilement horizontal devenait vite illisible. */}
+        <div className="flex-1 flex flex-col lg:flex-row min-h-[60vh] lg:min-h-0 min-w-0">
+          {/* Rail des catégories */}
+          <div className="lg:w-60 flex-shrink-0 p-6 lg:pr-3 bg-[#F4F4F5]">
+            <div className="flex lg:flex-col bg-[#265C6D] rounded-2xl p-1.5 gap-1 overflow-x-auto lg:overflow-y-auto lg:max-h-full">
+              {categoryTabs.map(cat => (
                 <button
-                  key={cat.id}
-                  onClick={() => { setActiveCategory(cat.id); setSearchQuery(''); }}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all duration-200 ${
-                    activeCategory === cat.id && !searchQuery
+                  key={cat}
+                  onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-left transition-all duration-200 ${
+                    activeCategory === cat && !searchQuery
                       ? 'bg-white text-[#265C6D] shadow-sm'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  {cat.icon}
-                  {cat.name}
+                  {getCategoryIcon(cat)}
+                  <span className="whitespace-nowrap lg:whitespace-normal">{cat}</span>
                 </button>
               ))}
+              {categoryTabs.length === 0 && (
+                <span className="px-4 py-3 text-white/60 text-sm font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
+              )}
             </div>
           </div>
 
           {/* Items Grid */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="flex-1 overflow-y-auto px-6 pb-6 lg:pt-6">
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (

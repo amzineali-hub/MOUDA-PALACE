@@ -1,20 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, deleteDoc, doc, updateDoc, getDocs, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { motion } from 'framer-motion';
-import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2, Pencil, LayoutGrid } from 'lucide-react';
-
-// Plan standard du Rooftop (demande gérant, sept. 2026) : tables 1-4 en 2 couverts, 5-10 en 4
-// couverts, 11 en 8 couverts. Numérotation simple (pas de préfixe de salle) : le matching
-// POS↔Tables se fait sur l'id Firestore, pas sur ce label — voir commit "fix: table numbers
-// collide across salles" — donc réutiliser "1".."11" comme dans les autres salles ne pose pas de
-// problème, et colle au plan tel que dessiné par le gérant.
-const ROOFTOP_STANDARD_PLAN: { id: string; capacity: number; shape: 'rond' | 'carre' | 'rectangle' }[] = [
-  ...[1, 2, 3, 4].map(n => ({ id: `${n}`, capacity: 2, shape: 'rond' as const })),
-  ...[5, 6, 7, 8, 9, 10].map(n => ({ id: `${n}`, capacity: 4, shape: 'carre' as const })),
-  { id: '11', capacity: 8, shape: 'rectangle' as const },
-];
+import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2, Pencil, RefreshCw } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
 export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: string) => void }) {
@@ -23,7 +12,6 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
   const [newTable, setNewTable] = useState({ id: '', capacity: 2, shape: 'carre' });
   const [editingTable, setEditingTable] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({ id: '', capacity: 2, shape: 'carre' });
-  const [isImportingPlan, setIsImportingPlan] = useState(false);
 
   const [tables, setTables] = useState<any[]>([
     { id: 'T1', capacity: 2, status: 'occupee', shape: 'rond', zone: 'patio' },
@@ -151,57 +139,42 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     }
   };
 
-  // Applique le plan standard Rooftop : crée les tables manquantes ET corrige la capacité/forme
-  // de celles qui existent déjà sous ce numéro mais ne correspondent pas encore au plan (ex. une
-  // table "5" déjà en service à 2 couverts alors que le plan en prévoit 4) — un simple import de
-  // ce qui manque ne suffisait pas si des tables pré-existantes portaient déjà ces numéros avec
-  // une capacité différente. Ne touche jamais le statut/l'occupation en cours : sûr même sur une
-  // table actuellement occupée.
-  const handleImportRooftopPlan = async () => {
-    const existingByLabel = new Map(
-      tables.filter(t => t.zone === 'terrasse').map(t => [String(t.id || '').trim().toUpperCase(), t])
-    );
-    const toCreate = ROOFTOP_STANDARD_PLAN.filter(t => !existingByLabel.has(t.id.toUpperCase()));
-    const toFix = ROOFTOP_STANDARD_PLAN.filter(t => {
-      const existing = existingByLabel.get(t.id.toUpperCase());
-      return existing && existing.fbId && (existing.capacity !== t.capacity || existing.shape !== t.shape);
-    });
-    if (toCreate.length === 0 && toFix.length === 0) {
-      showToast("Le plan standard Rooftop est déjà appliqué.");
-      return;
-    }
-    setIsImportingPlan(true);
+  // "Resynchroniser les statuts" : remet à "Libre" toute table marquée "Occupée" qui n'a plus
+  // aucune commande non payée rattachée — corrige les statuts restés bloqués sur "Occupée" (tests,
+  // démo, ou une commande annulée/payée qui n'aurait pas correctement libéré sa table). Ne touche
+  // jamais "Réservée" ou "Nettoyage" (statuts manuels délibérés, pas liés à une commande), ni une
+  // table "Occupée" qui a bien une commande en cours.
+  const [isResyncing, setIsResyncing] = useState(false);
+  const handleResyncStatuses = async () => {
+    setIsResyncing(true);
     try {
-      for (const t of toCreate) {
-        await addDoc(collection(db, 'tables'), {
-          id: t.id,
-          zone: 'terrasse',
-          capacity: t.capacity,
-          shape: t.shape,
-          status: 'libre',
-          currentPax: 0,
-          time: null,
-          reservation: null,
-          createdAt: serverTimestamp()
-        });
+      const openOrdersSnap = await getDocs(query(collection(db, 'orders'), where('paymentStatus', '==', 'Non payée')));
+      const occupiedTableIds = new Set(
+        openOrdersSnap.docs
+          .filter(d => d.data().status !== 'Annulée')
+          .map(d => d.data().tableId)
+          .filter(Boolean)
+      );
+      const staleOccupied = tables.filter(t => t.fbId && t.status === 'occupee' && !occupiedTableIds.has(t.fbId));
+      if (staleOccupied.length === 0) {
+        showToast("Aucune table à corriger — les statuts sont déjà cohérents.");
+        return;
       }
-      for (const t of toFix) {
-        const existing = existingByLabel.get(t.id.toUpperCase());
-        await updateDoc(doc(db, 'tables', existing.fbId), {
-          capacity: t.capacity,
-          shape: t.shape,
-          updatedAt: serverTimestamp()
-        });
+      if (!window.confirm(`${staleOccupied.length} table(s) marquée(s) "Occupée" sans commande en cours vont repasser "Libre". Continuer ?`)) {
+        return;
       }
-      const parts = [];
-      if (toCreate.length > 0) parts.push(`${toCreate.length} créée(s)`);
-      if (toFix.length > 0) parts.push(`${toFix.length} corrigée(s)`);
-      showToast(`Plan Rooftop appliqué — ${parts.join(', ')}.`);
+      await Promise.all(staleOccupied.map(t => updateDoc(doc(db, 'tables', t.fbId), {
+        status: 'libre',
+        currentPax: 0,
+        time: null,
+        updatedAt: serverTimestamp()
+      })));
+      showToast(`${staleOccupied.length} table(s) remise(s) à "Libre".`);
     } catch (err) {
-      console.error("Error importing Rooftop plan", err);
-      showToast("Erreur lors de l'application du plan Rooftop", "error");
+      console.error("Error resyncing table statuses", err);
+      showToast("Erreur lors de la resynchronisation", "error");
     } finally {
-      setIsImportingPlan(false);
+      setIsResyncing(false);
     }
   };
 
@@ -236,17 +209,15 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
         </div>
         
         <div className="flex items-center gap-3">
-          {activeZone === 'terrasse' && (
-            <button
-              onClick={handleImportRooftopPlan}
-              disabled={isImportingPlan}
-              className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
-              title="Crée/corrige les tables 1 à 11 (2 couverts pour 1-4, 4 couverts pour 5-10, 8 couverts pour 11)"
-            >
-              <LayoutGrid size={18} />
-              <span>{isImportingPlan ? 'Création...' : 'Importer le plan standard'}</span>
-            </button>
-          )}
+          <button
+            onClick={handleResyncStatuses}
+            disabled={isResyncing}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+            title="Repasse à « Libre » toute table « Occupée » qui n'a plus de commande en cours (tests, démo, ou commande annulée sans libération) — sans toucher aux tables réservées ou en nettoyage"
+          >
+            <RefreshCw size={18} />
+            <span>{isResyncing ? 'Vérification...' : 'Resynchroniser les statuts'}</span>
+          </button>
           <button onClick={() => setIsAddingTable(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-sm">
             <Plus size={18} />
             <span>Nouvelle Table</span>

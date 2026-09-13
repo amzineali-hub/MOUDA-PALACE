@@ -3,13 +3,27 @@ import { collection, onSnapshot, addDoc, serverTimestamp, query, orderBy, delete
 import { db } from './firebase';
 import { useToast } from './context/ToastContext';
 import { motion } from 'framer-motion';
-import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2 } from 'lucide-react';
+import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2, Pencil, LayoutGrid } from 'lucide-react';
+
+// Plan standard du Rooftop (demande gérant, sept. 2026) : tables 1-4 en 2 couverts, 5-10 en 4
+// couverts, 11 en 8 couverts. Numérotation simple (pas de préfixe de salle) : le matching
+// POS↔Tables se fait sur l'id Firestore, pas sur ce label — voir commit "fix: table numbers
+// collide across salles" — donc réutiliser "1".."11" comme dans les autres salles ne pose pas de
+// problème, et colle au plan tel que dessiné par le gérant.
+const ROOFTOP_STANDARD_PLAN: { id: string; capacity: number; shape: 'rond' | 'carre' | 'rectangle' }[] = [
+  ...[1, 2, 3, 4].map(n => ({ id: `${n}`, capacity: 2, shape: 'rond' as const })),
+  ...[5, 6, 7, 8, 9, 10].map(n => ({ id: `${n}`, capacity: 4, shape: 'carre' as const })),
+  { id: '11', capacity: 8, shape: 'rectangle' as const },
+];
 import { AnimatePresence } from 'framer-motion';
 
 export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: string) => void }) {
   const [activeZone, setActiveZone] = useState('patio');
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [newTable, setNewTable] = useState({ id: '', capacity: 2, shape: 'carre' });
+  const [editingTable, setEditingTable] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ id: '', capacity: 2, shape: 'carre' });
+  const [isImportingPlan, setIsImportingPlan] = useState(false);
 
   const [tables, setTables] = useState<any[]>([
     { id: 'T1', capacity: 2, status: 'occupee', shape: 'rond', zone: 'patio' },
@@ -61,8 +75,11 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     e.preventDefault();
     const tableId = newTable.id.trim().toUpperCase();
     if (!tableId) return showToast("Veuillez saisir un identifiant pour la table");
-    if (tables.some(table => String(table.id || '').trim().toUpperCase() === tableId)) {
-      return showToast("Cet identifiant de table existe déjà", "error");
+    // Unicité par salle seulement : plusieurs salles ont chacune leur propre "Table 1" en
+    // production (le matching POS↔Tables se fait sur l'id Firestore, pas sur ce label — voir
+    // commit "fix: table numbers collide across salles"), donc un doublon inter-salles est normal.
+    if (tables.some(table => table.zone === activeZone && String(table.id || '').trim().toUpperCase() === tableId)) {
+      return showToast("Cet identifiant de table existe déjà dans cette salle", "error");
     }
     
     try {
@@ -101,6 +118,93 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     }
   };
 
+  const openEditTable = (table: any) => {
+    if (!table.fbId) {
+      showToast("Cette table n'est pas synchronisée", "error");
+      return;
+    }
+    setEditingTable(table);
+    setEditForm({ id: table.id, capacity: table.capacity, shape: table.shape || 'carre' });
+  };
+
+  const handleSaveEditTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTable?.fbId) return;
+    const tableId = editForm.id.trim().toUpperCase();
+    if (!tableId) return showToast("Veuillez saisir un identifiant pour la table");
+    const duplicate = tables.some(t => t.fbId !== editingTable.fbId && t.zone === editingTable.zone && String(t.id || '').trim().toUpperCase() === tableId);
+    if (duplicate) {
+      return showToast("Cet identifiant de table existe déjà dans cette salle", "error");
+    }
+    try {
+      await updateDoc(doc(db, 'tables', editingTable.fbId), {
+        id: tableId,
+        capacity: editForm.capacity,
+        shape: editForm.shape,
+        updatedAt: serverTimestamp()
+      });
+      showToast("Table mise à jour avec succès");
+      setEditingTable(null);
+    } catch (err) {
+      console.error("Error updating table", err);
+      showToast("Erreur lors de la mise à jour de la table", "error");
+    }
+  };
+
+  // Applique le plan standard Rooftop : crée les tables manquantes ET corrige la capacité/forme
+  // de celles qui existent déjà sous ce numéro mais ne correspondent pas encore au plan (ex. une
+  // table "5" déjà en service à 2 couverts alors que le plan en prévoit 4) — un simple import de
+  // ce qui manque ne suffisait pas si des tables pré-existantes portaient déjà ces numéros avec
+  // une capacité différente. Ne touche jamais le statut/l'occupation en cours : sûr même sur une
+  // table actuellement occupée.
+  const handleImportRooftopPlan = async () => {
+    const existingByLabel = new Map(
+      tables.filter(t => t.zone === 'terrasse').map(t => [String(t.id || '').trim().toUpperCase(), t])
+    );
+    const toCreate = ROOFTOP_STANDARD_PLAN.filter(t => !existingByLabel.has(t.id.toUpperCase()));
+    const toFix = ROOFTOP_STANDARD_PLAN.filter(t => {
+      const existing = existingByLabel.get(t.id.toUpperCase());
+      return existing && existing.fbId && (existing.capacity !== t.capacity || existing.shape !== t.shape);
+    });
+    if (toCreate.length === 0 && toFix.length === 0) {
+      showToast("Le plan standard Rooftop est déjà appliqué.");
+      return;
+    }
+    setIsImportingPlan(true);
+    try {
+      for (const t of toCreate) {
+        await addDoc(collection(db, 'tables'), {
+          id: t.id,
+          zone: 'terrasse',
+          capacity: t.capacity,
+          shape: t.shape,
+          status: 'libre',
+          currentPax: 0,
+          time: null,
+          reservation: null,
+          createdAt: serverTimestamp()
+        });
+      }
+      for (const t of toFix) {
+        const existing = existingByLabel.get(t.id.toUpperCase());
+        await updateDoc(doc(db, 'tables', existing.fbId), {
+          capacity: t.capacity,
+          shape: t.shape,
+          updatedAt: serverTimestamp()
+        });
+      }
+      const parts = [];
+      if (toCreate.length > 0) parts.push(`${toCreate.length} créée(s)`);
+      if (toFix.length > 0) parts.push(`${toFix.length} corrigée(s)`);
+      showToast(`Plan Rooftop appliqué — ${parts.join(', ')}.`);
+    } catch (err) {
+      console.error("Error importing Rooftop plan", err);
+      showToast("Erreur lors de l'application du plan Rooftop", "error");
+    } finally {
+      setIsImportingPlan(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'occupee': return 'bg-red-50 border-red-200 text-red-700';
@@ -132,7 +236,17 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
         </div>
         
         <div className="flex items-center gap-3">
-          
+          {activeZone === 'terrasse' && (
+            <button
+              onClick={handleImportRooftopPlan}
+              disabled={isImportingPlan}
+              className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+              title="Crée/corrige les tables 1 à 11 (2 couverts pour 1-4, 4 couverts pour 5-10, 8 couverts pour 11)"
+            >
+              <LayoutGrid size={18} />
+              <span>{isImportingPlan ? 'Création...' : 'Importer le plan standard'}</span>
+            </button>
+          )}
           <button onClick={() => setIsAddingTable(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-sm">
             <Plus size={18} />
             <span>Nouvelle Table</span>
@@ -200,26 +314,36 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                   {(!table.shape || table.shape === 'carre') && <Square size={18} className="text-current opacity-70" />}
                   <span className="text-lg font-bold">{table.id}</span>
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    if (!table.fbId) {
-                      showToast("Cette table n'est pas synchronisée", "error");
-                      return;
-                    }
-                    if (table.status === 'occupee' || table.status === 'reservee') {
-                      showToast("Libérez ou transférez cette table avant suppression", "error");
-                      return;
-                    }
-                    if (window.confirm(`Voulez-vous vraiment supprimer la table ${table.id} ?`)) {
-                      deleteDoc(doc(db, 'tables', table.fbId)).then(() => showToast('Table supprimée')).catch(() => showToast('Erreur lors de la suppression', 'error'));
-                    }
-                  }}
-                  className="text-current opacity-50 hover:opacity-100 hover:text-red-600 transition-colors"
-                  title="Supprimer la table"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEditTable(table)}
+                    className="text-current opacity-50 hover:opacity-100 transition-colors"
+                    title="Modifier la table"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!table.fbId) {
+                        showToast("Cette table n'est pas synchronisée", "error");
+                        return;
+                      }
+                      if (table.status === 'occupee' || table.status === 'reservee') {
+                        showToast("Libérez ou transférez cette table avant suppression", "error");
+                        return;
+                      }
+                      if (window.confirm(`Voulez-vous vraiment supprimer la table ${table.id} ?`)) {
+                        deleteDoc(doc(db, 'tables', table.fbId)).then(() => showToast('Table supprimée')).catch(() => showToast('Erreur lors de la suppression', 'error'));
+                      }
+                    }}
+                    className="text-current opacity-50 hover:opacity-100 hover:text-red-600 transition-colors"
+                    title="Supprimer la table"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
               
               <select
@@ -349,6 +473,100 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
                     className="flex-1 py-3 rounded-xl bg-[#1A1A1A] text-white font-medium hover:bg-gray-800 transition-colors shadow-sm"
                   >
                     Créer la table
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de modification de table */}
+      <AnimatePresence>
+        {editingTable && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex justify-between items-center p-6 border-b border-gray-100">
+                <h3 className="text-xl font-semibold text-[#1A1A1A]">Modifier la table ({zones.find(z => z.id === editingTable.zone)?.name})</h3>
+                <button onClick={() => setEditingTable(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEditTable} className="p-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant</label>
+                  <input
+                    type="text"
+                    value={editForm.id}
+                    onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                    placeholder="Numéro ou nom de table"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Capacité (Pax)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={editForm.capacity}
+                    onChange={(e) => setEditForm({ ...editForm, capacity: parseInt(e.target.value) || 2 })}
+                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Forme de la table</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, shape: 'carre' })}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${editForm.shape === 'carre' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                    >
+                      <Square size={24} className="mb-1" />
+                      <span className="text-xs font-medium">Carré</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, shape: 'rond' })}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${editForm.shape === 'rond' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                    >
+                      <Circle size={24} className="mb-1" />
+                      <span className="text-xs font-medium">Rond</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, shape: 'rectangle' })}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${editForm.shape === 'rectangle' ? 'border-[#F4C75B] bg-orange-50 text-[#F4C75B]' : 'border-gray-100 text-gray-500 hover:border-gray-200'}`}
+                    >
+                      <RectangleHorizontal size={24} className="mb-1" />
+                      <span className="text-xs font-medium">Rectangle</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTable(null)}
+                    className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 rounded-xl bg-[#1A1A1A] text-white font-medium hover:bg-gray-800 transition-colors shadow-sm"
+                  >
+                    Enregistrer
                   </button>
                 </div>
               </form>

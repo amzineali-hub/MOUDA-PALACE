@@ -2279,11 +2279,11 @@ export default function POSTactile() {
                         <button
                           type="button"
                           onClick={() => releaseForDelivery(item.id)}
-                          className="mt-2 pt-2 border-t border-gray-50 w-full text-left text-sm font-extrabold flex items-center gap-1.5 text-amber-600 hover:text-amber-700"
+                          className="mt-2 w-full flex items-center justify-center gap-2 bg-amber-500 text-white font-bold text-sm py-2.5 rounded-xl shadow-[0_4px_0_0_#b45309] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
                           title="Ce plat est déjà envoyé et préparé en cuisine, en attente du feu vert pour être servi"
                         >
                           <Bell size={16} />
-                          À suivre — Livrer maintenant
+                          Livrer maintenant
                         </button>
                       ) : (
                         <div className="mt-2 pt-2 border-t border-gray-50 text-[11px] font-bold text-emerald-600 flex items-center gap-1">

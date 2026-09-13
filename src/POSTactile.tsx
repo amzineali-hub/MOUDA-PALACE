@@ -2091,35 +2091,37 @@ export default function POSTactile() {
           </button>
         </div>
 
-        {/* Colonne du milieu — rail vertical des catégories + grille produits, juxtaposée au
-            panneau ticket. Rail vertical plutôt qu'un bandeau horizontal : avec ~19 catégories
-            (menus digitaux), un défilement horizontal devenait vite illisible. */}
-        <div className="flex-1 flex flex-col lg:flex-row min-h-[60vh] lg:min-h-0 min-w-0">
-          {/* Rail des catégories */}
-          <div className="lg:w-60 flex-shrink-0 p-6 lg:pr-3 bg-[#F4F4F5]">
-            <div className="flex lg:flex-col bg-[#265C6D] rounded-2xl p-1.5 gap-1 overflow-x-auto lg:overflow-y-auto lg:max-h-full">
+        {/* Colonne du milieu — catégories (grille qui retombe à la ligne) + grille produits,
+            juxtaposée au panneau ticket. En plusieurs lignes plutôt qu'en rail étroit sur toute la
+            hauteur ou en bandeau à défilement horizontal : avec ~17 catégories (menus digitaux),
+            les deux étaient peu pratiques — ici tout est visible d'un coup, sans grignoter la
+            largeur de la grille de plats. */}
+        <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 min-w-0">
+          {/* Catégories */}
+          <div className="p-6 pb-3 bg-[#F4F4F5] z-10">
+            <div className="flex flex-wrap bg-[#265C6D] rounded-2xl p-1.5 gap-1">
               {categoryTabs.map(cat => (
                 <button
                   key={cat}
                   onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-left transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 ${
                     activeCategory === cat && !searchQuery
                       ? 'bg-white text-[#265C6D] shadow-sm'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {getCategoryIcon(cat)}
-                  <span className="whitespace-nowrap lg:whitespace-normal">{cat}</span>
+                  {cat}
                 </button>
               ))}
               {categoryTabs.length === 0 && (
-                <span className="px-4 py-3 text-white/60 text-sm font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
+                <span className="px-4 py-2.5 text-white/60 text-sm font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
               )}
             </div>
           </div>
 
           {/* Items Grid */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6 lg:pt-6">
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (

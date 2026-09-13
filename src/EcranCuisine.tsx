@@ -138,6 +138,12 @@ export default function EcranCuisine() {
                 )}
               </div>
 
+              {task.heldForLater && (
+                <div className="mb-3 rounded-lg bg-amber-100 border border-amber-300 px-3 py-2 text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                  <Clock size={14} /> À SUIVRE — préparer, ne pas servir tout de suite
+                </div>
+              )}
+
               {task.modifiers && Object.values(task.modifiers).some(Boolean) && (
                 <div className="mb-3 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-sm text-amber-900">
                   {[task.modifiers.cooking, task.modifiers.extra, task.modifiers.note].filter(Boolean).join(' · ')}

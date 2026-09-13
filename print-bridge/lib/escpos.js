@@ -28,6 +28,12 @@ function itemLine(item, codepage) {
   const name = item.name || 'Article';
   const parts = [BOLD_ON, text(`${qty}x ${name}\n`, codepage), BOLD_OFF];
 
+  // Plat "à suivre" (voir releaseForDelivery dans POSTactile.tsx) : préparer, mais ne pas sortir
+  // tout de suite — la cuisine reçoit une alerte "SERVIR MAINTENANT" séparée le moment venu.
+  if (item.heldForLater) {
+    parts.push(BOLD_ON, text('*** A SUIVRE - NE PAS SERVIR TOUT DE SUITE ***\n', codepage), BOLD_OFF);
+  }
+
   const modifiers = item.modifiers;
   if (modifiers && (modifiers.cooking || modifiers.extra || modifiers.note)) {
     const modText = [modifiers.cooking, modifiers.extra, modifiers.note].filter(Boolean).join(' · ');

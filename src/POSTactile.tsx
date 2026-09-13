@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
@@ -132,6 +132,58 @@ const sendKitchenTicket = async (data: KitchenTicketData, showToast: (msg: strin
   }
 };
 
+// Projette les articles envoyés en cuisine vers l'Écran Cuisine (KDS, voir EcranCuisine.tsx) sous
+// forme de bons individuels dans `productionTasks`. Best-effort comme l'impression du ticket
+// cuisine ci-dessus : si ça échoue, la commande Firestore et le ticket papier restent la source de
+// vérité, la cuisine ne perd pas la commande — seul l'affichage en temps réel sur le KDS en pâtit.
+// Retourne l'id du bon créé pour chaque ligne (clé = id de ligne du panier POS), utilisé ensuite
+// par releaseForDelivery pour mettre à jour le bon correspondant quand un plat "à suivre" est
+// libéré pour le service.
+const addKitchenTasks = async (
+  orderId: string,
+  tableId: string | null,
+  tableLabel: string,
+  items: any[]
+): Promise<Record<string, string>> => {
+  const taskIdByLineId: Record<string, string> = {};
+  for (const item of items) {
+    try {
+      const ref = await addDoc(collection(db, 'productionTasks'), {
+        orderId,
+        tableId: tableId || null,
+        tableLabel,
+        item: item.name || 'Inconnu',
+        modifiers: item.modifiers || null,
+        qty: getLineQuantity(item),
+        category: item.category || 'Autres',
+        heldForLater: !!item.heldForLater,
+        status: 'À faire',
+        progress: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      taskIdByLineId[item.id] = ref.id;
+    } catch (error) {
+      console.error('Création du bon cuisine échouée pour', item.name, error);
+    }
+  }
+  return taskIdByLineId;
+};
+
+// Forme persistée d'une ligne de commande dans `orders.lines`. `kdsTaskId` (l'id du bon créé par
+// addKitchenTasks) est inclus pour que releaseForDelivery retrouve le bon Écran Cuisine à mettre
+// à jour même après une reprise de commande (loadOrderIntoCart), où le panier local repart d'un
+// state neuf sans référence en mémoire vers les bons déjà créés.
+const buildOrderLines = (items: any[]) => items.map(item => ({
+  name: item.name || 'Inconnu',
+  qty: getLineQuantity(item),
+  unitPrice: getLineUnitPrice(item),
+  modifiers: item.modifiers || null,
+  sentToKitchen: !!item.sentToKitchen,
+  heldForLater: !!item.heldForLater,
+  kdsTaskId: item.kdsTaskId || null
+}));
+
 // Ticket client (paiement) — 80mm, sans ligne TVA (retirée du ticket à la demande du gérant).
 const buildCustomerTicketHtml = (ticket: any): string => {
   const num = (v: any) => Number(v || 0).toFixed(2);
@@ -177,7 +229,10 @@ const buildCustomerTicketHtml = (ticket: any): string => {
 };
 
 // Ticket cuisine — pas de prix ni TVA, juste ce qu'il faut préparer. `waveLabel` distingue
-// l'envoi initial d'un envoi "à suivre" ultérieur (plat par plat) pour la même commande.
+// l'envoi initial d'un envoi "Suite" ultérieur (articles ajoutés après coup) pour la même
+// commande. Les plats marqués "à suivre" (heldForLater) sont mentionnés avec un encart — ils
+// doivent être préparés comme le reste, mais pas servis avant le feu vert (voir
+// releaseForDelivery côté POS, qui imprime alors une alerte "SERVIR MAINTENANT" séparée).
 const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; time: string; items: any[] }): string => {
   return `
     <html>
@@ -191,6 +246,7 @@ const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; t
           .meta { text-align: center; font-size: 11px; color: #333; margin-bottom: 10px; }
           .item { font-size: 15px; font-weight: bold; margin: 6px 0; }
           .mods { font-size: 11px; color: #333; margin: 0 0 4px 12px; }
+          .hold { font-size: 12px; font-weight: bold; border: 1px solid #000; display: inline-block; padding: 2px 6px; margin: 0 0 6px 0; }
           hr { border: none; border-top: 2px dashed #000; margin: 8px 0; }
         </style>
       </head>
@@ -201,6 +257,7 @@ const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; t
         <hr/>
         ${data.items.map(item => `
           <div class="item">${getLineQuantity(item)}x ${item.name}</div>
+          ${item.heldForLater ? `<div class="hold">⏳ À SUIVRE — préparer, ne pas servir tout de suite</div>` : ''}
           ${item.modifiers && Object.values(item.modifiers).some(Boolean) ? `<div class="mods">${[item.modifiers.cooking, item.modifiers.extra, item.modifiers.note].filter(Boolean).join(' · ')}</div>` : ''}
         `).join('')}
         <hr/>
@@ -634,7 +691,8 @@ export default function POSTactile() {
       qty: Number(line.qty) || 1,
       modifiers: line.modifiers || null,
       sentToKitchen: line.sentToKitchen !== false,
-      heldForLater: !!line.heldForLater
+      heldForLater: !!line.heldForLater,
+      kdsTaskId: line.kdsTaskId || null
     }));
     setCart(loadedLines);
     setKitchenOrderId(orderId);
@@ -1111,11 +1169,46 @@ export default function POSTactile() {
     });
   };
 
-  // Bascule "À suivre" : un plat marqué ainsi n'est pas inclus dans le prochain envoi cuisine —
-  // il permet d'envoyer une commande plat par plat plutôt que d'une seule traite. Retirer la
-  // marque (ou cliquer de nouveau "Envoyer en Cuisine") l'inclut dans l'envoi suivant.
+  // Bascule "À suivre" : un plat marqué ainsi est envoyé et préparé en cuisine avec le reste de la
+  // commande (il n'est PAS retenu hors du ticket cuisine) — il est seulement mentionné dessus
+  // comme plat suivant, pour que le chef le sache et le prépare sans le sortir tout de suite. Une
+  // fois envoyé, le bouton devient "Livrer maintenant" (voir releaseForDelivery) pour donner le
+  // feu vert de service au moment voulu.
   const toggleHoldForLater = (id: string) => {
     setCart(prev => prev.map(item => item.id === id ? { ...item, heldForLater: !item.heldForLater } : item));
+  };
+
+  // Donne le feu vert de service à un plat "à suivre" déjà envoyé et préparé en cuisine : met à
+  // jour la commande et l'écran cuisine, et imprime une courte alerte pour que le chef sache que
+  // c'est le moment de dresser et d'envoyer ce plat. Si le plat n'a pas encore été envoyé, il n'y
+  // a rien à notifier en cuisine — on retire juste la marque.
+  const releaseForDelivery = async (id: string) => {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    if (!item.sentToKitchen) {
+      setCart(prev => prev.map(i => (i.id === id ? { ...i, heldForLater: false } : i)));
+      return;
+    }
+    setCart(prev => prev.map(i => (i.id === id ? { ...i, heldForLater: false, releasedForService: true } : i)));
+    try {
+      if (kitchenOrderId) {
+        const updatedLines = buildOrderLines(cart.map(i => (i.id === id ? { ...i, heldForLater: false } : i)));
+        await updateDoc(doc(db, 'orders', kitchenOrderId), { lines: updatedLines, updatedAt: serverTimestamp() });
+      }
+      if (item.kdsTaskId) {
+        await updateDoc(doc(db, 'productionTasks', item.kdsTaskId), { heldForLater: false, updatedAt: serverTimestamp() }).catch(() => {});
+      }
+      await sendKitchenTicket({
+        tableLabel: getTableLabel(kitchenTableId || selectedTable, true),
+        waveLabel: '🔔 SERVIR MAINTENANT',
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        items: [item]
+      }, showToast);
+      showToast(`${item.name} : service activé`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'activation de la livraison", 'error');
+    }
   };
 
   const subtotal = calculatePosSubtotal(cart);
@@ -1487,10 +1580,12 @@ export default function POSTactile() {
     }
   };
 
-  // Articles pas encore partis en cuisine : ni déjà envoyés, ni marqués "à suivre". Un envoi
-  // n'imprime et ne transmet que cette liste — ce qui permet un envoi en plusieurs vagues
-  // (plat par plat) plutôt qu'une commande d'une seule traite.
-  const itemsPendingSend = cart.filter(item => !item.heldForLater && !item.sentToKitchen);
+  // Articles pas encore partis en cuisine. Les plats marqués "à suivre" (heldForLater) en font
+  // partie : ils sont envoyés et préparés comme le reste, seulement mentionnés sur le ticket
+  // comme plats suivants (voir buildKitchenTicketHtml) — ce qui reste retenu, c'est uniquement
+  // leur service (voir releaseForDelivery), pas leur envoi en cuisine. Ce filtre permet en plus
+  // un envoi en plusieurs vagues pour les articles ajoutés après un premier envoi.
+  const itemsPendingSend = cart.filter(item => !item.sentToKitchen);
 
   const handleSendKitchen = async () => {
     if (cart.length === 0) {
@@ -1498,7 +1593,7 @@ export default function POSTactile() {
       return;
     }
     if (itemsPendingSend.length === 0) {
-      showToast("Rien de nouveau à envoyer — retirez « À suivre » sur un plat pour l'envoyer.", "error");
+      showToast("Rien de nouveau à envoyer en cuisine.", "error");
       return;
     }
 
@@ -1509,14 +1604,7 @@ export default function POSTactile() {
       const now = new Date();
       const time = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       const sentNow = new Set(itemsPendingSend.map(item => item.id));
-      const allLines = cart.map(item => ({
-        name: item.name || 'Inconnu',
-        qty: getLineQuantity(item),
-        unitPrice: getLineUnitPrice(item),
-        modifiers: item.modifiers || null,
-        sentToKitchen: item.sentToKitchen || sentNow.has(item.id),
-        heldForLater: !!item.heldForLater
-      }));
+      const allLines = buildOrderLines(cart.map(item => ({ ...item, sentToKitchen: item.sentToKitchen || sentNow.has(item.id) })));
 
       await runTransaction(db, async (transaction) => {
         if (isFirstWave) {
@@ -1560,10 +1648,23 @@ export default function POSTactile() {
 
       await sendKitchenTicket({
         tableLabel: getTableLabel(selectedTable, true),
-        waveLabel: isFirstWave ? 'Commande' : 'À suivre',
+        waveLabel: isFirstWave ? 'Commande' : 'Suite',
         time,
         items: itemsPendingSend
       }, showToast);
+
+      const taskIds = await addKitchenTasks(orderId, selectedTable, getTableLabel(selectedTable, true), itemsPendingSend);
+      if (Object.keys(taskIds).length > 0) {
+        setCart(prev => {
+          const updated = prev.map(item => (taskIds[item.id] ? { ...item, kdsTaskId: taskIds[item.id] } : item));
+          // Persiste les ids des bons cuisine sur la commande pour que releaseForDelivery les
+          // retrouve même après une reprise de commande (table rouverte plus tard, panier repartant
+          // d'un state neuf — voir loadOrderIntoCart).
+          updateDoc(orderRef, { lines: buildOrderLines(updated), updatedAt: serverTimestamp() })
+            .catch(err => console.error('Persist des ids de bons cuisine échoué', err));
+          return updated;
+        });
+      }
 
       showToast(isFirstWave ? "Commande envoyée en cuisine !" : "Suite envoyée en cuisine !", "success");
     } catch (e: any) {
@@ -1744,6 +1845,7 @@ export default function POSTactile() {
           time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
           items: itemsPendingSend
         }, showToast);
+        await addKitchenTasks(orderId, kitchenTableId || selectedTable, getTableLabel(kitchenTableId || selectedTable, true), itemsPendingSend);
       }
 
       setTicketToPrint({
@@ -1928,15 +2030,18 @@ export default function POSTactile() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3 pb-2">
+            {/* Barre d'onglets catégories — bandeau coloré avec onglet actif surligné en clair,
+                plus proche d'une caisse type tablette (onglets en haut) qu'une rangée de boutons
+                séparés. */}
+            <div className="flex bg-[#265C6D] rounded-2xl p-1.5 gap-1 overflow-x-auto">
               {CATEGORIES.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => { setActiveCategory(cat.id); setSearchQuery(''); }}
-                                    className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-bold whitespace-nowrap transition-all duration-300 ${
+                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all duration-200 ${
                     activeCategory === cat.id && !searchQuery
-                      ? 'bg-[#1A1A1A] text-[#F4C75B] shadow-[inset_0_4px_8px_rgba(0,0,0,0.6)] translate-y-[4px]' 
-                      : 'bg-white text-gray-500 hover:text-gray-900 shadow-[0_6px_0_#d1d5db,0_10px_15px_rgba(0,0,0,0.1)] border border-gray-100 -translate-y-[2px] active:translate-y-[4px] active:shadow-[0_0px_0_#d1d5db]'
+                      ? 'bg-white text-[#265C6D] shadow-sm'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {cat.icon}
@@ -1957,10 +2062,10 @@ export default function POSTactile() {
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 #d1d5db, 0 8px 10px rgba(0,0,0,0.1)" }}
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_6px_0_#d1d5db,0_10px_16px_rgba(0,0,0,0.1)] transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-sm transition-all"
                   >
                     <Plus size={22} className="mb-1" />
                     <span className="font-bold text-[10px] sm:text-xs text-center">Ajouter un article</span>
@@ -1968,33 +2073,32 @@ export default function POSTactile() {
 
                   {filteredItems.map(item => {
                     const colorClass = getCategoryColor(item.category);
-                    const textColor = colorClass.includes('text-white') ? 'text-white/90' : 'text-[#1A1A1A]/80';
-                    const priceColor = colorClass.includes('text-white') ? 'text-white' : 'text-[#1A1A1A]';
                     const resolvedImage = getItemImageUrl(item);
 
+                    // Carte plate (photo + nom + prix sur fond blanc) plutôt que les anciennes
+                    // tuiles "bonbon" en dégradé plein cadre — se rapproche d'une caisse tablette
+                    // classique (grille de produits illustrés) plutôt que d'un clavier de boutons.
                     return (
                       <motion.div
                         layout
                         initial={{ opacity: 0, scale: 0.8, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                        whileHover={{ scale: 1.05, y: -5 }}
-                        whileTap={{ scale: 0.95, y: 4, boxShadow: "0 4px 0 rgba(0,0,0,0.25), 0 8px 10px rgba(0,0,0,0.3), inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2)" }}
+                        whileHover={{ y: -3 }}
+                        whileTap={{ scale: 0.96 }}
                         key={item.id}
                         onClick={() => !isEditMode && openModifierPanel(item)}
-                        className={`relative overflow-hidden flex flex-col justify-between aspect-square rounded-xl sm:rounded-2xl p-2 sm:p-2.5 text-left bg-gradient-to-br ${colorClass} shadow-[0_6px_0_rgba(0,0,0,0.25),0_10px_16px_rgba(0,0,0,0.3),inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.2)] border border-white/20 transition-all`}
+                        className="relative overflow-hidden flex flex-col aspect-square rounded-xl sm:rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md text-left transition-all"
                       >
-                        {/* Full Image Background if available */}
-                        {resolvedImage ? (
-                          <>
-                            <div className="absolute inset-0">
-                              <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
+                        <div className={`relative flex-[3] min-h-0 overflow-hidden ${!resolvedImage ? `bg-gradient-to-br ${colorClass}` : ''}`}>
+                          {resolvedImage ? (
+                            <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Utensils size={22} className="opacity-60" />
                             </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 rounded-2xl" />
-                          </>
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50 pointer-events-none rounded-2xl" />
-                        )}
+                          )}
+                        </div>
 
                         {isEditMode && (
                           <div
@@ -2004,15 +2108,16 @@ export default function POSTactile() {
                             <Trash2 size={12} />
                           </div>
                         )}
-                        <div className="relative z-10 flex flex-col h-full justify-between">
-                          <span className={`font-bold text-[11px] sm:text-sm leading-tight flex-1 drop-shadow-sm break-words line-clamp-3 ${resolvedImage ? 'text-white' : priceColor}`}>
+
+                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-1.5 sm:px-2.5 py-1">
+                          <span className="font-bold text-[11px] sm:text-sm leading-tight text-[#1A1A1A] break-words line-clamp-2">
                             {item.name}
                           </span>
-                          <div className="mt-auto flex flex-wrap items-baseline">
-                            <span className={`font-black text-sm sm:text-lg drop-shadow-md ${resolvedImage ? 'text-white' : priceColor}`}>
+                          <div className="mt-auto flex items-baseline gap-1 pt-0.5">
+                            <span className="font-black text-sm sm:text-base text-[#F4C75B]">
                               {item.numPrice}
                             </span>
-                            <span className={`font-bold text-[9px] sm:text-[10px] ml-1 ${resolvedImage ? 'text-white/80' : textColor}`}>MAD</span>
+                            <span className="font-bold text-[9px] sm:text-[10px] text-gray-400">MAD</span>
                           </div>
                         </div>
                       </motion.div>
@@ -2170,20 +2275,32 @@ export default function POSTactile() {
                     </div>
 
                     {item.sentToKitchen ? (
-                      <div className="mt-2 pt-2 border-t border-gray-50 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                        ✓ Envoyé en cuisine
-                      </div>
+                      item.heldForLater ? (
+                        <button
+                          type="button"
+                          onClick={() => releaseForDelivery(item.id)}
+                          className="mt-2 pt-2 border-t border-gray-50 w-full text-left text-sm font-extrabold flex items-center gap-1.5 text-amber-600 hover:text-amber-700"
+                          title="Ce plat est déjà envoyé et préparé en cuisine, en attente du feu vert pour être servi"
+                        >
+                          <Bell size={16} />
+                          À suivre — Livrer maintenant
+                        </button>
+                      ) : (
+                        <div className="mt-2 pt-2 border-t border-gray-50 text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                          ✓ Envoyé en cuisine{item.releasedForService ? ' · Service activé' : ''}
+                        </div>
+                      )
                     ) : (
                       <button
                         type="button"
                         onClick={() => toggleHoldForLater(item.id)}
                         className={`mt-2 pt-2 border-t border-gray-50 w-full text-left text-sm font-extrabold flex items-center gap-1.5 ${item.heldForLater ? 'text-amber-600' : 'text-[#265C6D] hover:text-[#1A1A1A]'}`}
-                        title="Ne pas envoyer ce plat avec le reste — l'envoyer plus tard séparément"
+                        title="Envoyé et mentionné sur le ticket cuisine comme plat suivant — la cuisine le prépare mais ne le sert pas tout de suite"
                       >
                         <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${item.heldForLater ? 'border-amber-500 bg-amber-500' : 'border-[#265C6D]'}`}>
                           {item.heldForLater && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </span>
-                        À suivre {item.heldForLater ? '(retenu)' : ''}
+                        À suivre {item.heldForLater ? '(plat suivant)' : ''}
                       </button>
                     )}
                   </motion.div>

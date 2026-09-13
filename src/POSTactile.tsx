@@ -22,20 +22,30 @@ const CATEGORY_ORDER = [
   'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
   'Plats Principaux',
   'Desserts',
-  'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
-  'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
+  'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison',
+  'Cocktails et Mocktails', 'Bières', 'Vins', 'Champagne, Spiritueux et Digestifs',
   'Tapas', 'Chicha'
 ];
 
-// Anciennes catégories génériques du POS (avant le passage aux catégories fines des menus
-// digitaux) : "Entrées" et "Boissons" faisaient doublon avec "Entrées marocaines" / "Boissons
-// Fraîches" — deux onglets pour des plats qui auraient dû être au même endroit. Repliées ici sur
-// une catégorie précise plutôt que retirées, pour ne perdre aucun plat déjà enregistré sous
-// l'ancien nom générique (un item avec category="Boissons" continue de s'afficher, sous l'onglet
-// "Boissons Fraîches").
+// Catégories repliées sur un onglet plus large, pour réduire le nombre total d'onglets et
+// permettre un texte plus grand sur l'écran tactile (demande gérant) :
+// - "Entrées"/"Boissons" (anciennes catégories génériques du POS, avant le passage aux catégories
+//   fines des menus digitaux) → repliées sur leur équivalent précis le plus proche.
+// - Vins Blancs & Rosé / Vins Rouges → "Vins"
+// - Cocktails / Mocktails → "Cocktails et Mocktails"
+// - Champagnes & Prosecco / Spiritueux / Digestifs → "Champagne, Spiritueux et Digestifs"
+// Repliées ici plutôt que retirées, pour ne perdre aucun plat déjà enregistré sous l'ancien nom :
+// un item avec category="Cocktails" continue de s'afficher, sous l'onglet "Cocktails et Mocktails".
 const CATEGORY_ALIASES: Record<string, string> = {
   'Entrées': 'Entrées marocaines',
   'Boissons': 'Boissons Fraîches',
+  'Vins Blancs & Rosé': 'Vins',
+  'Vins Rouges': 'Vins',
+  'Cocktails': 'Cocktails et Mocktails',
+  'Mocktails': 'Cocktails et Mocktails',
+  'Champagnes & Prosecco': 'Champagne, Spiritueux et Digestifs',
+  'Spiritueux': 'Champagne, Spiritueux et Digestifs',
+  'Digestifs': 'Champagne, Spiritueux et Digestifs',
 };
 const normalizeCategory = (cat: string | undefined | null): string => {
   const c = (cat || '').trim();
@@ -44,12 +54,12 @@ const normalizeCategory = (cat: string | undefined | null): string => {
 
 const getCategoryIcon = (cat: string) => {
   const c = cat.toLowerCase();
-  if (c.includes('vin') || c.includes('champagne') || c.includes('spiritueux') || c.includes('digestif')) return <Wine size={18} />;
-  if (c.includes('bière')) return <Beer size={18} />;
-  if (c.includes('chicha')) return <Cigarette size={18} />;
-  if (c.includes('boisson') || c.includes('jus') || c.includes('cocktail')) return <GlassWater size={18} />;
-  if (c.includes('dessert')) return <Coffee size={18} />;
-  return <Utensils size={18} />;
+  if (c.includes('vin') || c.includes('champagne') || c.includes('spiritueux') || c.includes('digestif')) return <Wine size={22} />;
+  if (c.includes('bière')) return <Beer size={22} />;
+  if (c.includes('chicha')) return <Cigarette size={22} />;
+  if (c.includes('boisson') || c.includes('jus') || c.includes('cocktail')) return <GlassWater size={22} />;
+  if (c.includes('dessert')) return <Coffee size={22} />;
+  return <Utensils size={22} />;
 };
 
 // Identité de la caisse physique sur laquelle tourne ce poste (Patio / Rooftop) — choisie une
@@ -1989,12 +1999,12 @@ export default function POSTactile() {
             colonne du milieu directement collée au panneau ticket (voir demande gérant :
             "ceux d'en haut à mettre à gauche, les boutons des plats à droite juxtaposés au
             panneau des tickets"). */}
-        <div className="w-full lg:w-72 flex-shrink-0 bg-white lg:m-4 lg:mr-0 rounded-t-3xl lg:rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 overflow-y-auto">
+        <div className="w-full lg:w-80 flex-shrink-0 bg-white lg:m-4 lg:mr-0 rounded-t-3xl lg:rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 overflow-y-auto">
           <div>
-            <h1 className="text-2xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
-            <p className="text-gray-500 text-sm mt-1">Terminal de point de vente 3D synchronisé</p>
+            <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
+            <p className="text-gray-500 text-base mt-1">Terminal de point de vente 3D synchronisé</p>
             {!isOnline && (
-              <div className="mt-2 flex items-center gap-2 text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+              <div className="mt-2 flex items-center gap-2 text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
                 Hors ligne — synchro à la reconnexion
               </div>
@@ -2002,11 +2012,11 @@ export default function POSTactile() {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
               placeholder="Rechercher un plat..."
-              className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4C75B] text-gray-700 font-medium transition-all"
+              className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-none shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F4C75B] text-gray-700 text-base font-medium transition-all"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -2016,7 +2026,7 @@ export default function POSTactile() {
             type="button"
             onClick={changeStation}
             title="Changer la caisse configurée sur cet appareil"
-            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#cda25b] hover:brightness-105 transition-all duration-150 active:shadow-none active:translate-y-1"
+            className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-[#F4C75B] text-[#1A1A1A] shadow-[0_4px_0_0_#cda25b] hover:brightness-105 transition-all duration-150 active:shadow-none active:translate-y-1"
           >
             Caisse : {station}
           </button>
@@ -2027,17 +2037,17 @@ export default function POSTactile() {
               setShiftCashAmount('');
               setIsShiftModalOpen(true);
             }}
-            className={`w-full text-left px-4 py-3 rounded-2xl font-bold text-sm ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+            className={`w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base ${activeShift ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
           >
             {activeShift ? `Caisse ouverte · ${station} · ${Number(activeShift.totalSales || 0).toFixed(2)} MAD` : `Caisse fermée · ${station}`}
           </button>
           <button
             type="button"
             onClick={() => setIsTableModalOpen(true)}
-            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
+            className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center gap-2 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]"
             title="Voir l'état des tables"
           >
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" />
+            <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
             {tables.filter(t => t.status === 'occupee').length} occupée{tables.filter(t => t.status === 'occupee').length > 1 ? 's' : ''} / {tables.length}
           </button>
           <button
@@ -2049,7 +2059,7 @@ export default function POSTactile() {
               setRefundSelections({});
               setIsRefundModalOpen(true);
             }}
-            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-rose-500 text-white shadow-[0_4px_0_0_#be123c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+            className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-rose-500 text-white shadow-[0_4px_0_0_#be123c] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
             title="Rembourser un ticket déjà payé"
           >
             Rembourser
@@ -2058,7 +2068,7 @@ export default function POSTactile() {
             type="button"
             onClick={buildDailyXReport}
             disabled={isBuildingXReport}
-            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50"
+            className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-indigo-500 text-white shadow-[0_4px_0_0_#4338ca] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1 disabled:opacity-50"
             title="État complet des mouvements de caisse et du chiffre d'affaires de la journée"
           >
             {isBuildingXReport ? '...' : 'Rapport X'}
@@ -2066,7 +2076,7 @@ export default function POSTactile() {
           <button
             type="button"
             onClick={openOrdersModal}
-            className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-cyan-600 text-white shadow-[0_4px_0_0_#0e7490] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+            className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-cyan-600 text-white shadow-[0_4px_0_0_#0e7490] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
             title="Voir les commandes en cours par serveur"
           >
             Commandes par Garçon
@@ -2075,7 +2085,7 @@ export default function POSTactile() {
             <button
               type="button"
               onClick={openDrawer}
-              className="w-full text-left px-4 py-3 rounded-2xl font-bold text-sm bg-gray-700 text-white shadow-[0_4px_0_0_#1f2937] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+              className="w-full text-left px-5 py-3.5 rounded-2xl font-bold text-base bg-gray-700 text-white shadow-[0_4px_0_0_#1f2937] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
               title="Ouvrir le tiroir-caisse hors vente (rendu de monnaie, début de service...)"
             >
               Ouvrir le tiroir
@@ -2083,10 +2093,10 @@ export default function POSTactile() {
           )}
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`w-full flex items-center gap-2 px-4 py-3 rounded-2xl font-bold text-sm transition-colors mt-auto ${isEditMode ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'}`}
+            className={`w-full flex items-center gap-2 px-5 py-3.5 rounded-2xl font-bold text-base transition-colors mt-auto ${isEditMode ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]'}`}
             title={isEditMode ? "Désactiver le mode édition" : "Activer le mode édition (suppression)"}
           >
-            <Trash2 size={18} />
+            <Trash2 size={20} />
             {isEditMode ? 'Quitter le mode édition' : 'Mode édition'}
           </button>
         </div>
@@ -2099,12 +2109,12 @@ export default function POSTactile() {
         <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 min-w-0">
           {/* Catégories */}
           <div className="p-6 pb-3 bg-[#F4F4F5] z-10">
-            <div className="flex flex-wrap bg-[#265C6D] rounded-2xl p-1.5 gap-1">
+            <div className="flex flex-wrap bg-[#265C6D] rounded-2xl p-2 gap-1.5">
               {categoryTabs.map(cat => (
                 <button
                   key={cat}
                   onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-lg whitespace-nowrap transition-all duration-200 ${
                     activeCategory === cat && !searchQuery
                       ? 'bg-white text-[#265C6D] shadow-sm'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -2115,7 +2125,7 @@ export default function POSTactile() {
                 </button>
               ))}
               {categoryTabs.length === 0 && (
-                <span className="px-4 py-2.5 text-white/60 text-sm font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
+                <span className="px-5 py-3 text-white/60 text-base font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
               )}
             </div>
           </div>
@@ -2125,7 +2135,7 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
                 <AnimatePresence mode="popLayout">
                   {/* Bouton d'ajout */}
                   <motion.button
@@ -2136,8 +2146,8 @@ export default function POSTactile() {
                     onClick={() => setIsAddModalOpen(true)}
                     className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-sm transition-all"
                   >
-                    <Plus size={22} className="mb-1" />
-                    <span className="font-bold text-[10px] sm:text-xs text-center">Ajouter un article</span>
+                    <Plus size={32} className="mb-1" />
+                    <span className="font-bold text-xs sm:text-sm text-center">Ajouter un article</span>
                   </motion.button>
 
                   {filteredItems.map(item => {
@@ -2164,7 +2174,7 @@ export default function POSTactile() {
                             <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Utensils size={22} className="opacity-60" />
+                              <Utensils size={28} className="opacity-60" />
                             </div>
                           )}
                         </div>
@@ -2174,19 +2184,19 @@ export default function POSTactile() {
                             onClick={(e) => handleDeleteItem(e, item.id)}
                             className="absolute top-1 right-1 z-20 bg-red-500 text-white p-1.5 rounded-full shadow-lg hover:bg-red-600 transition-colors"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                           </div>
                         )}
 
-                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-1.5 sm:px-2.5 py-1">
-                          <span className="font-bold text-[11px] sm:text-sm leading-tight text-[#1A1A1A] break-words line-clamp-2">
+                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-2 sm:px-3 py-1.5">
+                          <span className="font-bold text-sm sm:text-base leading-tight text-[#1A1A1A] break-words line-clamp-2">
                             {item.name}
                           </span>
                           <div className="mt-auto flex items-baseline gap-1 pt-0.5">
-                            <span className="font-black text-sm sm:text-base text-[#F4C75B]">
+                            <span className="font-black text-base sm:text-lg text-[#F4C75B]">
                               {item.numPrice}
                             </span>
-                            <span className="font-bold text-[9px] sm:text-[10px] text-gray-400">MAD</span>
+                            <span className="font-bold text-[11px] sm:text-xs text-gray-400">MAD</span>
                           </div>
                         </div>
                       </motion.div>

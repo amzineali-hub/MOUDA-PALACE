@@ -1,10 +1,28 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import generateBlogHandler from './api/generate-blog.js';
+import analyzeReviewHandler from './api/analyze-review.js';
+import translateMenuHandler from './api/translate-menu.js';
+import publishContentHandler from './api/publish-content.js';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Les fonctions dans api/ sont écrites au format Vercel (handler(req, res), req.body déjà
+  // parsé) — express.json() reproduit ce comportement pour qu'elles marchent à l'identique ici,
+  // sans dupliquer leur logique. Nécessaire pour que ces routes existent aussi en dev local
+  // (`npm run dev`) et sur le déploiement Node/Cloud Run (dist/server.cjs), et pas seulement sur
+  // Vercel où vercel.json s'en charge.
+  app.use('/api/generate-blog', express.json({ limit: '5mb' }));
+  app.use('/api/analyze-review', express.json({ limit: '5mb' }));
+  app.use('/api/translate-menu', express.json({ limit: '5mb' }));
+  app.use('/api/publish-content', express.json({ limit: '5mb' }));
+  app.post('/api/generate-blog', generateBlogHandler);
+  app.post('/api/analyze-review', analyzeReviewHandler);
+  app.post('/api/translate-menu', translateMenuHandler);
+  app.post('/api/publish-content', publishContentHandler);
 
   // API routes
   app.get('/api/health', (req, res) => {

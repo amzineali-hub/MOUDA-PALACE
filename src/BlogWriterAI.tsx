@@ -4,9 +4,32 @@ import { motion } from 'motion/react';
 import { Upload, PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
+import { marked } from 'marked';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import SeoAnalytics from './components/SeoAnalytics';
+
+// Récupère l'image de couverture d'un article (chemin relatif vers un asset de l'app, ou data URL
+// si l'utilisateur en a importé une) et la ré-encode en base64 brut pour l'upload vers la
+// médiathèque WordPress via /api/publish-content (voir handlePublish) — WordPress exige un id de
+// média existant pour `featured_media`, pas une simple URL d'image externe.
+const resolveImageForUpload = async (imageUrl: string): Promise<{ filename: string; contentType: string; dataBase64: string } | null> => {
+  if (!imageUrl) return null;
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const contentType = blob.type || 'image/jpeg';
+    const extension = contentType.split('/')[1]?.split('+')[0] || 'jpg';
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return { filename: `mouda-palace-${Date.now()}.${extension}`, contentType, dataBase64: btoa(binary) };
+  } catch (e) {
+    console.error('Image resolution failed', e);
+    return null;
+  }
+};
 
 export default function BlogWriterAI() {
   const [activeTab, setActiveTab] = useState<'generator' | 'analytics'>('generator');
@@ -25,6 +48,9 @@ export default function BlogWriterAI() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [wpUrl, setWpUrl] = useState('');
+  const [wpUsername, setWpUsername] = useState('');
+  const [wpPassword, setWpPassword] = useState('');
   const [websiteConfig, setWebsiteConfig] = useState<any>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
 
@@ -58,10 +84,12 @@ export default function BlogWriterAI() {
         const wpDocRef = doc(db, "settings", "website");
         const wpDocSnap = await getDoc(wpDocRef);
         if (wpDocSnap.exists()) {
-          setWebsiteConfig(wpDocSnap.data());
-          if (wpDocSnap.data().webhookUrl) {
-            setWebhookUrl(wpDocSnap.data().webhookUrl);
-          }
+          const data = wpDocSnap.data();
+          setWebsiteConfig(data);
+          if (data.webhookUrl) setWebhookUrl(data.webhookUrl);
+          if (data.url) setWpUrl(data.url);
+          if (data.username) setWpUsername(data.username);
+          if (data.password) setWpPassword(data.password);
         } else {
           // Fallback to old webhook config if website config doesn't exist yet
           const docRef = doc(db, "settings", "webhook");
@@ -173,33 +201,18 @@ export default function BlogWriterAI() {
 
       showToast('Article généré et sauvegardé avec succès !');
 
-      // Auto-publish via Webhook if configured
-      if (webhookUrl) {
-        try {
-          fetch(webhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              id: docRef.id,
-              topic,
-              keywords,
-              content: data.article,
-              imageUrl: finalImageUrl
-            })
-          }).then(response => {
-            if (response.ok || response.type === 'opaque') {
-              showToast("Article automatiquement publié via Webhook !");
-              updateDoc(doc(db, 'blog_posts', docRef.id), { published: true, publishedAt: serverTimestamp() });
-              setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);
-            }
-          }).catch(err => console.error("Auto-publish webhook failed:", err));
-        } catch (e) {
-          console.error("Auto-publish dispatch failed", e);
-        }
+      // Publication automatique si WordPress ou un Webhook est configuré — réutilise handlePublish
+      // (WordPress en priorité, Webhook en secours) pour ne pas dupliquer la logique de publication.
+      if (websiteConfig?.url || webhookUrl) {
+        handlePublish({
+          id: docRef.id,
+          topic,
+          keywords,
+          content: data.article,
+          imageUrl: finalImageUrl
+        });
       }
-      
+
     } catch (error: any) {
       console.error(error);
       showToast(error.message || "Erreur lors de la génération de l'article.", "error");
@@ -215,14 +228,24 @@ export default function BlogWriterAI() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSaveWebhook = async () => {
+  // Un seul document `settings/website` porte à la fois les identifiants WordPress (utilisés en
+  // priorité par handlePublish) et l'URL de webhook de secours — le mélange des deux existait déjà
+  // côté lecture (loadConfig), il manquait juste cet écran pour les saisir.
+  const handleSaveWebsiteConfig = async () => {
     try {
-      await setDoc(doc(db, "settings", "webhook"), { url: webhookUrl });
-      showToast("URL Webhook sauvegardée");
+      const config = {
+        url: wpUrl.trim(),
+        username: wpUsername.trim(),
+        password: wpPassword,
+        webhookUrl: webhookUrl.trim()
+      };
+      await setDoc(doc(db, "settings", "website"), config, { merge: true });
+      setWebsiteConfig(config);
+      showToast("Paramètres de publication enregistrés");
       setIsSettingsOpen(false);
     } catch (e) {
       console.error(e);
-      showToast("Erreur lors de la sauvegarde du webhook");
+      showToast("Erreur lors de la sauvegarde des paramètres", "error");
     }
   };
 
@@ -240,24 +263,39 @@ export default function BlogWriterAI() {
       if (websiteConfig?.url && websiteConfig?.username && websiteConfig?.password) {
         method = 'WordPress';
         const cleanUrl = websiteConfig.url.replace(/\/$/, '');
-        
-        // Use html-to-markdown or just send markdown (WordPress generally needs HTML, but we'll send it as is for now or use a simple converter if needed, though markdown works if they have a plugin. Actually, let's just send the content)
-        // Wait, WordPress REST API expects HTML in the 'content' field. But our 'content' is markdown.
-        // We'll send it anyway, WordPress block editor sometimes parses markdown or we can convert it. 
-        // For standard publishing, let's just send what we have.
-        
-        
-        // Simple Markdown to HTML formatting for WordPress
-        let htmlContent = article.content
-          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
-          .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-          .replace(/^\> (.*$)/gim, '<blockquote>$1</blockquote>')
-          .replace(/\n\n/gim, '<br><br>')
-          .replace(/\n/gim, '<br>');
+        const authHeader = "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`);
+
+        // Vraie conversion Markdown → HTML (l'ancienne version regex ne gérait ni les listes ni
+        // les formats imbriqués) — WordPress exige du HTML dans `content`, pas du Markdown brut.
+        const htmlContent = String(marked.parse(article.content || ''));
+
+        // Image mise en avant : upload en médiathèque WordPress en tentative isolée — un échec
+        // ici ne doit pas empêcher la publication de l'article (mieux vaut un article sans photo
+        // que pas d'article du tout).
+        let featuredMediaId: number | null = null;
+        const imageData = await resolveImageForUpload(article.imageUrl);
+        if (imageData) {
+          try {
+            const mediaResponse = await fetch(`/api/publish-content`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "wordpress-media",
+                url: `${cleanUrl}/wp-json/wp/v2/media`,
+                headers: { Authorization: authHeader },
+                payload: imageData
+              })
+            });
+            if (mediaResponse.ok) {
+              const mediaResult = await mediaResponse.json();
+              featuredMediaId = mediaResult?.details?.id ?? null;
+            } else {
+              console.warn('Featured image upload failed, publishing without it');
+            }
+          } catch (e) {
+            console.warn('Featured image upload failed, publishing without it', e);
+          }
+        }
 
         const wpResponse = await fetch(`/api/publish-content`, {
           method: "POST",
@@ -268,16 +306,17 @@ export default function BlogWriterAI() {
             type: "wordpress",
             url: `${cleanUrl}/wp-json/wp/v2/posts`,
             headers: {
-              "Authorization": "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`)
+              "Authorization": authHeader
             },
             payload: {
               title: article.topic,
-              content: htmlContent, 
-              status: 'publish'
+              content: htmlContent,
+              status: 'publish',
+              ...(featuredMediaId ? { featured_media: featuredMediaId } : {})
             }
           })
         });
-        
+
         if (wpResponse.ok) {
           publishedSuccessfully = true;
         } else {
@@ -799,42 +838,90 @@ export default function BlogWriterAI() {
         </div>, document.body
       )}
 
-      {/* Modal Webhook */}
+      {/* Modal Paramètres de publication */}
       {isSettingsOpen && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl"
+            className="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl max-h-[90vh]"
           >
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#F4C75B]" /> Webhook Config</h2>
+              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#F4C75B]" /> Paramètres de publication</h2>
               <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
                 <X size={20} />
               </button>
             </div>
-            
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-500">
-                Configurez l'URL du webhook Make ou Zapier pour automatiser la publication des articles sur votre blog.
-              </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">URL du Webhook</label>
-                <input
-                  type="text"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="https://hook.eu1.make.com/..."
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                />
+
+            <div className="p-6 space-y-6 overflow-y-auto">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">WordPress (moudapalace.com)</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Publication directe sur le blog, utilisée en priorité si renseignée. Utilisez un
+                    <span className="font-semibold"> Mot de passe d'application</span> WordPress
+                    (Utilisateurs → Votre profil → Mots de passe d'application) — jamais votre mot
+                    de passe de connexion principal, celui-ci est révocable indépendamment.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">URL du site</label>
+                  <input
+                    type="text"
+                    value={wpUrl}
+                    onChange={(e) => setWpUrl(e.target.value)}
+                    placeholder="https://moudapalace.com"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom d'utilisateur</label>
+                  <input
+                    type="text"
+                    value={wpUsername}
+                    onChange={(e) => setWpUsername(e.target.value)}
+                    placeholder="admin"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe d'application</label>
+                  <input
+                    type="password"
+                    value={wpPassword}
+                    onChange={(e) => setWpPassword(e.target.value)}
+                    placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 space-y-4">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Webhook (secours)</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Utilisé uniquement si WordPress n'est pas configuré ci-dessus — Make, Zapier, ou
+                    tout autre automatisme recevant l'article en POST.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">URL du Webhook</label>
+                  <input
+                    type="text"
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
+                    placeholder="https://hook.eu1.make.com/..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
               </div>
             </div>
-            
+
             <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
               <button onClick={() => setIsSettingsOpen(false)} className="px-6 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-gray-200 transition-colors">
                 Annuler
               </button>
-              <button onClick={handleSaveWebhook} className="px-6 py-2.5 rounded-xl font-medium text-white bg-[#1A1A1A] hover:bg-[#2a2a2a] shadow-lg shadow-[#1A1A1A]/20 flex items-center gap-2 transition-all">
+              <button onClick={handleSaveWebsiteConfig} className="px-6 py-2.5 rounded-xl font-medium text-white bg-[#1A1A1A] hover:bg-[#2a2a2a] shadow-lg shadow-[#1A1A1A]/20 flex items-center gap-2 transition-all">
                 <Save size={18} /> Enregistrer
               </button>
             </div>

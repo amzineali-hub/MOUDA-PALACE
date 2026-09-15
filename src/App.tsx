@@ -721,7 +721,7 @@ function App() {
       case 'b2b':
         return <B2BPortal />;
       case 'blog':
-        return <BlogWriterAI />;
+        return <BlogWriterAI setActiveTab={handleTabChange} />;
       case 'seo_analytics':
         return <SeoAnalyticsContainer />;
       case 'menu':
@@ -6099,7 +6099,16 @@ function Configuration() {
   // pour cet onglet Sécurité & Accès (historique connexions, journal d'activité, mots de passe
   // Économat/Guest Relations).
   const isAdmin = !!user?.email && AUTHORIZED_EMAILS.includes(user.email);
-  const [activeSettingsTab, setActiveSettingsTab] = useState('general');
+  // Permet à d'autres modules (ex: le bouton "Configurer" du générateur de blog) d'ouvrir
+  // directement le sous-onglet "Site Web" au lieu du sous-onglet général par défaut — même idiome
+  // que open-calendar/open-floorplan pour les réservations.
+  const [activeSettingsTab, setActiveSettingsTab] = useState(() => {
+    if (sessionStorage.getItem('open-settings-website')) {
+      sessionStorage.removeItem('open-settings-website');
+      return 'website';
+    }
+    return 'general';
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [websiteConfig, setWebsiteConfig] = useState({
     url: 'https://moudapalace.com',
@@ -6118,6 +6127,7 @@ function Configuration() {
     rc: '',
     identifiantFiscal: '50520780',
     managerName: 'Mohammed Houari Guertit',
+    hours: '',
     currency: 'MAD (Dirham)',
     timezone: 'UTC+1 (Casablanca)'
   });
@@ -6343,6 +6353,11 @@ function Configuration() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nom du gérant</label>
                     <input type="text" value={generalConfig.managerName} onChange={(e) => setGeneralConfig({...generalConfig, managerName: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" placeholder="Ex : Mohammed Houari Guertit" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horaires d'ouverture</label>
+                    <input type="text" value={generalConfig.hours} onChange={(e) => setGeneralConfig({...generalConfig, hours: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors" placeholder="Ex : Tous les jours, 12h-23h" />
+                    <p className="text-xs text-gray-400 mt-1">Utilisées dans le bloc "En bref" ajouté en fin d'article de blog.</p>
                   </div>
                 </div>
               </div>

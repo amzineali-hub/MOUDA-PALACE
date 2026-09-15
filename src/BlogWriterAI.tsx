@@ -8,6 +8,62 @@ import { marked } from 'marked';
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import SeoAnalytics from './components/SeoAnalytics';
+import { DEFAULT_COMPANY_INFO, mergeCompanyInfo, type CompanyInfo } from './lib/letterhead';
+
+// Bloc factuel ajouté en fin de chaque article généré (voir handleGenerate) : adresse, horaires,
+// contact — des faits stables sur l'établissement, pas propres au sujet de l'article. Contrairement
+// au corps du texte (rédigé par l'IA, volontairement poétique — voir api/generate-blog.js), ce
+// bloc est construit ici de façon déterministe à partir de la fiche établissement (Configuration >
+// Général) : ce sont des faits qui doivent rester exacts et identiques d'un article à l'autre, pas
+// quelque chose qu'on laisse un modèle de langage reformuler (et risquer de se tromper) à chaque
+// génération. Objectif : donner aux moteurs de recherche génératifs (ChatGPT, Perplexity, Google AI
+// Overviews...) un résumé net et citable, en plus du texte immersif destiné aux lecteurs humains.
+const buildFactBlock = (info: CompanyInfo): string => {
+  const name = info.name || 'Mouda Palace';
+  const lines = [
+    `- **Établissement** : ${name}${info.category ? ` — ${info.category}` : ''}`,
+    info.address ? `- **Adresse** : ${info.address}` : null,
+    info.hours ? `- **Horaires** : ${info.hours}` : null,
+    `- **Cuisine** : Gastronomie marocaine raffinée (tajines, pastillas, mets fassis)`,
+    `- **Ambiance** : Riad traditionnel au cœur de la médina de Fès — patio, terrasses (dont le Mouda Rooftop) et salons calmes et spacieux`,
+    info.phone ? `- **Téléphone** : ${info.phone}` : null,
+    info.email ? `- **Contact** : ${info.email}` : null,
+    info.website ? `- **Site** : ${info.website}` : null,
+  ].filter(Boolean);
+  return `\n\n---\n\n### En bref — ${name}\n\n${lines.join('\n')}\n`;
+};
+
+// Extrait/méta-description envoyé à WordPress (champ `excerpt`, repris par défaut par les plugins
+// SEO type Yoast/RankMath) — dérivé du vrai texte de l'article plutôt que laissé vide comme avant,
+// pour ne pas dépendre d'un format de réponse IA supplémentaire à faire respecter.
+const buildExcerpt = (markdown: string, maxLength = 155): string => {
+  const plain = (markdown || '')
+    .replace(/^#{1,6}\s+.*$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^>\s?/gm, '')
+    .replace(/[#*_`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (plain.length <= maxLength) return plain;
+  const truncated = plain.slice(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return `${truncated.slice(0, lastSpace > 0 ? lastSpace : maxLength)}…`;
+};
+
+// L'article généré commence par un titre H1 Markdown ("# ..." — voir le prompt dans
+// api/generate-blog.js). On l'extrait pour l'utiliser comme titre WordPress (au lieu du sujet brut
+// tapé dans le formulaire) et on le retire du corps envoyé à WordPress, sinon le titre se
+// retrouverait affiché deux fois sur la page publiée (une fois par le thème via le champ titre,
+// une fois en tête du corps de l'article).
+const extractTitle = (markdown: string, fallback: string): { title: string; body: string } => {
+  const match = (markdown || '').match(/^#\s+(.+?)\s*$/m);
+  if (!match) return { title: fallback, body: markdown };
+  const title = match[1].trim();
+  const body = markdown.slice(0, match.index) + markdown.slice((match.index || 0) + match[0].length);
+  return { title: title || fallback, body: body.replace(/^\s+/, '') };
+};
 
 // Récupère l'image de couverture d'un article (chemin relatif vers un asset de l'app, ou data URL
 // si l'utilisateur en a importé une) et la ré-encode en base64 brut pour l'upload vers la
@@ -31,8 +87,7 @@ const resolveImageForUpload = async (imageUrl: string): Promise<{ filename: stri
   }
 };
 
-export default function BlogWriterAI() {
-  const [activeTab, setActiveTab] = useState<'generator' | 'analytics'>('generator');
+export default function BlogWriterAI({ setActiveTab }: { setActiveTab?: (tab: string) => void }) {
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -46,13 +101,15 @@ export default function BlogWriterAI() {
   const [editContent, setEditContent] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // WordPress/Webhook sont configurés dans Paramètres > Site Web (Configuration, App.tsx) — ce
+  // module se contente de les lire ; l'écran d'édition n'existe qu'à un seul endroit pour éviter
+  // deux formulaires qui écrivent sur le même document Firestore sans se voir l'un l'autre.
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [wpUrl, setWpUrl] = useState('');
-  const [wpUsername, setWpUsername] = useState('');
-  const [wpPassword, setWpPassword] = useState('');
   const [websiteConfig, setWebsiteConfig] = useState<any>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
+  // Fiche établissement (Configuration > Général) — même source que les documents imprimés
+  // (RH, factures), utilisée ici pour construire le bloc "En bref" (voir buildFactBlock).
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo>(DEFAULT_COMPANY_INFO);
 
   const availableImages = [
     "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fez-medina-medium.jpg",
@@ -87,9 +144,6 @@ export default function BlogWriterAI() {
           const data = wpDocSnap.data();
           setWebsiteConfig(data);
           if (data.webhookUrl) setWebhookUrl(data.webhookUrl);
-          if (data.url) setWpUrl(data.url);
-          if (data.username) setWpUsername(data.username);
-          if (data.password) setWpPassword(data.password);
         } else {
           // Fallback to old webhook config if website config doesn't exist yet
           const docRef = doc(db, "settings", "webhook");
@@ -104,9 +158,14 @@ export default function BlogWriterAI() {
     };
     loadConfig();
 
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev) => mergeCompanyInfo(prev, snap.data()));
+    });
 
-  
-  return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubGeneral();
+    };
   }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
@@ -176,7 +235,12 @@ export default function BlogWriterAI() {
       }
 
       const data = await response.json();
-      
+
+      // Le corps reste tel que rédigé par l'IA (voir api/generate-blog.js) ; le bloc "En bref" est
+      // ajouté ici, déterministe, pour ne jamais dépendre du modèle pour des faits qui doivent
+      // rester exacts (voir buildFactBlock plus haut).
+      const fullContent = `${data.article}${buildFactBlock(companyInfo)}`;
+
       let finalImageUrl = imageUrl;
       if (!finalImageUrl) {
         finalImageUrl = availableImages[Math.floor(Math.random() * availableImages.length)];
@@ -186,7 +250,7 @@ export default function BlogWriterAI() {
       const docRef = await addDoc(collection(db, 'blog_posts'), {
         topic,
         keywords,
-        content: data.article,
+        content: fullContent,
         imageUrl: finalImageUrl,
         createdAt: serverTimestamp()
       });
@@ -195,7 +259,7 @@ export default function BlogWriterAI() {
         id: docRef.id,
         topic,
         keywords,
-        content: data.article,
+        content: fullContent,
         imageUrl: finalImageUrl
       });
 
@@ -208,7 +272,7 @@ export default function BlogWriterAI() {
           id: docRef.id,
           topic,
           keywords,
-          content: data.article,
+          content: fullContent,
           imageUrl: finalImageUrl
         });
       }
@@ -228,27 +292,6 @@ export default function BlogWriterAI() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Un seul document `settings/website` porte à la fois les identifiants WordPress (utilisés en
-  // priorité par handlePublish) et l'URL de webhook de secours — le mélange des deux existait déjà
-  // côté lecture (loadConfig), il manquait juste cet écran pour les saisir.
-  const handleSaveWebsiteConfig = async () => {
-    try {
-      const config = {
-        url: wpUrl.trim(),
-        username: wpUsername.trim(),
-        password: wpPassword,
-        webhookUrl: webhookUrl.trim()
-      };
-      await setDoc(doc(db, "settings", "website"), config, { merge: true });
-      setWebsiteConfig(config);
-      showToast("Paramètres de publication enregistrés");
-      setIsSettingsOpen(false);
-    } catch (e) {
-      console.error(e);
-      showToast("Erreur lors de la sauvegarde des paramètres", "error");
-    }
-  };
-
   const handlePublish = async (article: any) => {
     if (!websiteConfig?.url && !webhookUrl) {
       showToast("Veuillez configurer WordPress ou le Webhook dans les paramètres", "error");
@@ -258,16 +301,25 @@ export default function BlogWriterAI() {
     try {
       let publishedSuccessfully = false;
       let method = '';
-      
+      let wpPostId: number | null = null;
+      let wpLink: string | null = null;
+
       // Try WordPress REST API first if credentials exist
       if (websiteConfig?.url && websiteConfig?.username && websiteConfig?.password) {
         method = 'WordPress';
         const cleanUrl = websiteConfig.url.replace(/\/$/, '');
         const authHeader = "Basic " + btoa(`${websiteConfig.username}:${websiteConfig.password.replace(/\s+/g, '')}`);
 
+        // Le corps généré commence par un titre H1 Markdown ("# ..." — voir le prompt dans
+        // api/generate-blog.js) : c'est lui, pas `article.topic` (le sujet tel que tapé dans le
+        // formulaire), qui doit devenir le titre WordPress — sinon soit le titre WordPress reste
+        // le sujet brut, soit (si topic contient déjà un titre) le "#" apparaît tel quel dans le
+        // titre publié et le titre se retrouve dupliqué en tête du corps de l'article.
+        const { title: wpTitle, body: wpBody } = extractTitle(article.content || '', article.topic);
+
         // Vraie conversion Markdown → HTML (l'ancienne version regex ne gérait ni les listes ni
         // les formats imbriqués) — WordPress exige du HTML dans `content`, pas du Markdown brut.
-        const htmlContent = String(marked.parse(article.content || ''));
+        const htmlContent = String(marked.parse(wpBody));
 
         // Image mise en avant : upload en médiathèque WordPress en tentative isolée — un échec
         // ici ne doit pas empêcher la publication de l'article (mieux vaut un article sans photo
@@ -297,6 +349,9 @@ export default function BlogWriterAI() {
           }
         }
 
+        // Un article déjà publié une première fois porte l'id du post WordPress créé (voir plus
+        // bas) — le republier met à jour ce même post au lieu d'en créer un doublon sur le site.
+        const postsEndpoint = `${cleanUrl}/wp-json/wp/v2/posts`;
         const wpResponse = await fetch(`/api/publish-content`, {
           method: "POST",
           headers: {
@@ -304,13 +359,14 @@ export default function BlogWriterAI() {
           },
           body: JSON.stringify({
             type: "wordpress",
-            url: `${cleanUrl}/wp-json/wp/v2/posts`,
+            url: article.wpPostId ? `${postsEndpoint}/${article.wpPostId}` : postsEndpoint,
             headers: {
               "Authorization": authHeader
             },
             payload: {
-              title: article.topic,
+              title: wpTitle,
               content: htmlContent,
+              excerpt: buildExcerpt(wpBody),
               status: 'publish',
               ...(featuredMediaId ? { featured_media: featuredMediaId } : {})
             }
@@ -319,6 +375,9 @@ export default function BlogWriterAI() {
 
         if (wpResponse.ok) {
           publishedSuccessfully = true;
+          const result = await wpResponse.json().catch(() => null);
+          wpPostId = result?.details?.id ?? article.wpPostId ?? null;
+          wpLink = result?.details?.link ?? null;
         } else {
           const err = await wpResponse.json();
           let msg = "Erreur de publication";
@@ -338,6 +397,7 @@ export default function BlogWriterAI() {
       // Fallback to webhook
       else if (webhookUrl) {
         method = 'Webhook';
+        const { title: webhookTitle, body: webhookBody } = extractTitle(article.content || '', article.topic);
         const response = await fetch(`/api/publish-content`, {
           method: "POST",
           headers: {
@@ -349,8 +409,10 @@ export default function BlogWriterAI() {
             payload: {
               id: article.id,
               topic: article.topic,
+              title: webhookTitle,
               keywords: article.keywords,
-              content: article.content,
+              content: webhookBody,
+              excerpt: buildExcerpt(webhookBody),
               imageUrl: article.imageUrl
             }
           })
@@ -364,9 +426,12 @@ export default function BlogWriterAI() {
 
       if (publishedSuccessfully) {
         showToast(`Article publié avec succès via ${method} !`);
-        await updateDoc(doc(db, 'blog_posts', article.id), { published: true, publishedAt: serverTimestamp() });
+        const updates: Record<string, any> = { published: true, publishedAt: serverTimestamp() };
+        if (wpPostId) updates.wpPostId = wpPostId;
+        if (wpLink) updates.wpLink = wpLink;
+        await updateDoc(doc(db, 'blog_posts', article.id), updates);
         if (activeArticle && activeArticle.id === article.id) {
-          setActiveArticle((prev: any) => prev ? { ...prev, published: true } : prev);
+          setActiveArticle((prev: any) => prev ? { ...prev, published: true, ...(wpPostId ? { wpPostId } : {}), ...(wpLink ? { wpLink } : {}) } : prev);
         }
       }
     } catch (error: any) {
@@ -435,12 +500,13 @@ export default function BlogWriterAI() {
               <p className="text-gray-500 mt-1">Générez des articles de blog optimisés et poétiques pour Mouda Palace</p>
             </div>
           </div>
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
+          <button
+            onClick={() => { sessionStorage.setItem('open-settings-website', 'true'); setActiveTab?.('config'); }}
             className="p-2 text-gray-400 hover:text-[#F4C75B] hover:bg-[#F4C75B]/10 rounded-lg transition-colors flex items-center gap-2"
+            title="WordPress et Webhook se configurent dans Paramètres > Site Web"
           >
             <Settings size={20} />
-            <span className="text-sm font-medium hidden md:inline">Webhook</span>
+            <span className="text-sm font-medium hidden md:inline">Publication</span>
           </button>
         </div>
 
@@ -832,97 +898,6 @@ export default function BlogWriterAI() {
               >
                 <Save size={18} />
                 Enregistrer
-              </button>
-            </div>
-          </motion.div>
-        </div>, document.body
-      )}
-
-      {/* Modal Paramètres de publication */}
-      {isSettingsOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl max-h-[90vh]"
-          >
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-serif text-[#1A1A1A] flex items-center gap-2"><Settings size={20} className="text-[#F4C75B]" /> Paramètres de publication</h2>
-              <button onClick={() => setIsSettingsOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6 overflow-y-auto">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-bold text-gray-900">WordPress (moudapalace.com)</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Publication directe sur le blog, utilisée en priorité si renseignée. Utilisez un
-                    <span className="font-semibold"> Mot de passe d'application</span> WordPress
-                    (Utilisateurs → Votre profil → Mots de passe d'application) — jamais votre mot
-                    de passe de connexion principal, celui-ci est révocable indépendamment.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">URL du site</label>
-                  <input
-                    type="text"
-                    value={wpUrl}
-                    onChange={(e) => setWpUrl(e.target.value)}
-                    placeholder="https://moudapalace.com"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom d'utilisateur</label>
-                  <input
-                    type="text"
-                    value={wpUsername}
-                    onChange={(e) => setWpUsername(e.target.value)}
-                    placeholder="admin"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mot de passe d'application</label>
-                  <input
-                    type="password"
-                    value={wpPassword}
-                    onChange={(e) => setWpPassword(e.target.value)}
-                    placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 space-y-4">
-                <div>
-                  <p className="text-sm font-bold text-gray-900">Webhook (secours)</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Utilisé uniquement si WordPress n'est pas configuré ci-dessus — Make, Zapier, ou
-                    tout autre automatisme recevant l'article en POST.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">URL du Webhook</label>
-                  <input
-                    type="text"
-                    value={webhookUrl}
-                    onChange={(e) => setWebhookUrl(e.target.value)}
-                    placeholder="https://hook.eu1.make.com/..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#F4C75B] focus:border-transparent outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setIsSettingsOpen(false)} className="px-6 py-2.5 rounded-xl font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                Annuler
-              </button>
-              <button onClick={handleSaveWebsiteConfig} className="px-6 py-2.5 rounded-xl font-medium text-white bg-[#1A1A1A] hover:bg-[#2a2a2a] shadow-lg shadow-[#1A1A1A]/20 flex items-center gap-2 transition-all">
-                <Save size={18} /> Enregistrer
               </button>
             </div>
           </motion.div>

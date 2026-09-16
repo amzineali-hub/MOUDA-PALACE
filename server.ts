@@ -1,3 +1,8 @@
+// Charge .env en local (dotenv est déjà une dépendance mais n'était importé nulle part — sans
+// ça, les endpoints qui lisent process.env, comme api/generate-blog.js, ne trouvent jamais leur
+// clé en dev local, seulement une fois déployés où la plateforme (Vercel/Cloud Run) injecte les
+// variables d'environnement directement). Sans effet si aucun fichier .env n'existe.
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';

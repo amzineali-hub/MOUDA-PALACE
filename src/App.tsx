@@ -102,9 +102,9 @@ import {
   BarChart2,
 AlertCircle, Monitor, Calendar, File, Heart , Layers, CalendarClock, Edit, User, Edit3, Activity, LayoutDashboard, BookImage } from 'lucide-react';
 import { isCriticalStock } from './lib/inventory';
-import { useAuth, AUTHORIZED_EMAILS } from './context/AuthContext';
+import { useAuth, AUTHORIZED_EMAILS, ROLE_PORTAL_EMAILS } from './context/AuthContext';
 import { useToast } from './context/ToastContext';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider, auth, signOut, db } from './firebase';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, googleProvider, auth, signOut, signInWithEmailAndPassword, db } from './firebase';
 import { collection, query, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, updateDoc, orderBy, deleteDoc, writeBatch, limit } from 'firebase/firestore';
 const Accounting = lazy(() => import('./Accounting'));
 const MenuGenerator = lazy(() => import('./MenuGenerator'));
@@ -489,56 +489,11 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast } = useToast();
 
-  // Mots de passe par groupe de modules (Production → Économat, Clientèle → Guest Relations) —
-  // consommés par RoleAccessPortal (portails dédiés depuis l'écran d'accueil), pas par le shell
-  // admin lui-même : les 3 comptes Google autorisés ont tous un accès complet et sans verrou.
-  // Seuls ces 3 comptes (isAdmin dans Configuration) définissent/retirent ces mots de passe depuis
-  // Configuration > Sécurité & Accès. sessionStorage fait persister le déverrouillage pour l'onglet
-  // navigateur en cours seulement.
-  const [moduleAccess, setModuleAccess] = useState<Record<string, { password?: string }>>({});
-  const [unlockedModules, setUnlockedModules] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('mp_unlocked_modules') || '{}');
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    // Attendre `user` : ce document est protégé par les règles Firestore (auth requise), et
-    // App() est monté dès le chargement de la page, avant toute connexion — s'abonner plus tôt
-    // déclenchait un refus de permission non géré sur l'écran de connexion lui-même
-    // (INTERNAL ASSERTION FAILED côté SDK Firestore, bloquant complètement l'accès admin).
-    if (!user) { setModuleAccess({}); return; }
-    const unsub = onSnapshot(doc(db, 'settings', 'moduleAccess'), (snap) => {
-      setModuleAccess(snap.exists() ? (snap.data() as Record<string, { password?: string }>) : {});
-    });
-    return () => unsub();
-  }, [user]);
-
+  // Libellés des portails de rôle (Production → Économat, Clientèle → Guest Relations) — la
+  // vérification du mot de passe du service et l'authentification elles-mêmes se font directement
+  // via les comptes Firebase email/mot de passe dédiés (voir RoleAccessPortal, ROLE_PORTAL_EMAILS
+  // dans AuthContext.tsx), plus ici.
   const MODULE_SERVICE_LABEL: Record<string, string> = { production: 'Économat', clientele: 'Guest Relations' };
-
-  const unlockModule = (moduleKey: string, password: string): boolean => {
-    const expected = moduleAccess[moduleKey]?.password;
-    if (!expected || password !== expected) return false;
-    setUnlockedModules(prev => {
-      const next = { ...prev, [moduleKey]: true };
-      try { sessionStorage.setItem('mp_unlocked_modules', JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-    return true;
-  };
-
-  // Reverrouille un module de rôle (bouton "Se déconnecter" dans RoleAccessPortal) sans toucher à
-  // la session Firebase du poste — voir le commentaire sur `exit` dans RoleAccessPortal pour
-  // pourquoi signOut(auth) ne doit jamais être appelé depuis ce bouton.
-  const lockModule = (moduleKey: string) => {
-    setUnlockedModules(prev => {
-      const next = { ...prev, [moduleKey]: false };
-      try { sessionStorage.setItem('mp_unlocked_modules', JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  };
 
   // Sur mobile, signInWithPopup échoue souvent (popup bloquée / cookies tiers) : on utilise
   // signInWithRedirect à la place, dont le résultat n'arrive qu'après le retour sur la page.
@@ -657,10 +612,6 @@ function App() {
       <RoleAccessPortal
         moduleKey={moduleKey}
         serviceLabel={MODULE_SERVICE_LABEL[moduleKey]}
-        moduleAccess={moduleAccess}
-        unlockedModules={unlockedModules}
-        unlockModule={unlockModule}
-        lockModule={lockModule}
         onBack={() => setAppMode('selection')}
       />
     );
@@ -6056,7 +6007,7 @@ function Inventory() {
   );
 }
 
-function ModuleLockScreen({ serviceLabel, onUnlock, onCancel }: { serviceLabel: string, onUnlock: (password: string) => void, onCancel?: () => void }) {
+function ModuleLockScreen({ serviceLabel, onUnlock, onCancel, isSubmitting }: { serviceLabel: string, onUnlock: (password: string) => void, onCancel?: () => void, isSubmitting?: boolean }) {
   const [password, setPassword] = useState('');
   return (
     <div className="min-h-[70vh] flex items-center justify-center p-6">
@@ -6079,15 +6030,17 @@ function ModuleLockScreen({ serviceLabel, onUnlock, onCancel }: { serviceLabel: 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
+            disabled={isSubmitting}
             placeholder="Mot de passe du service"
-            className="w-full p-3 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors"
+            className="w-full p-3 border border-gray-200 rounded-lg text-center focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors disabled:opacity-50"
           />
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors disabled:opacity-50"
           >
             <Lock size={18} />
-            <span>Déverrouiller</span>
+            <span>{isSubmitting ? 'Vérification...' : 'Déverrouiller'}</span>
           </button>
         </form>
         {onCancel && (
@@ -6163,11 +6116,6 @@ function Configuration() {
     kitchenPrinterPort: '9100',
     showManualDrawerButton: true
   });
-  // Mots de passe des groupes de modules Production (Économat) / Clientèle (Guest Relations) —
-  // gérés séparément du bouton "Sauvegarder" global de cet écran (deux entités indépendantes,
-  // chacune avec son propre Enregistrer/Retirer). Voir ModuleLockScreen / RoleAccessPortal dans App().
-  const [moduleAccessConfig, setModuleAccessConfig] = useState<{ production: string, clientele: string }>({ production: '', clientele: '' });
-  const [isSavingModuleAccess, setIsSavingModuleAccess] = useState<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -6202,17 +6150,6 @@ function Configuration() {
         const printingSnap = await getDoc(printingRef);
         if (printingSnap.exists()) {
           setPrintingConfig(prev => ({ ...prev, ...printingSnap.data() }));
-        }
-        if (isAdmin) {
-          const moduleAccessRef = doc(db, 'settings', 'moduleAccess');
-          const moduleAccessSnap = await getDoc(moduleAccessRef);
-          if (moduleAccessSnap.exists()) {
-            const data = moduleAccessSnap.data() as Record<string, { password?: string }>;
-            setModuleAccessConfig({
-              production: data.production?.password || '',
-              clientele: data.clientele?.password || ''
-            });
-          }
         }
       } catch (error) {
         console.error("Erreur lors du chargement de la configuration:", error);
@@ -6253,26 +6190,6 @@ function Configuration() {
       showToast("Erreur lors de la sauvegarde", "error");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // `explicitPassword` (utilisé par "Retirer la protection") évite de dépendre de l'état
-  // `moduleAccessConfig` qui n'est pas encore à jour au moment de l'appel si on venait de le
-  // vider juste avant (mise à jour de state asynchrone) — on passe directement la valeur voulue.
-  const saveModulePassword = async (moduleKey: 'production' | 'clientele', explicitPassword?: string) => {
-    setIsSavingModuleAccess(moduleKey);
-    try {
-      const password = (explicitPassword !== undefined ? explicitPassword : moduleAccessConfig[moduleKey]).trim();
-      await setDoc(doc(db, 'settings', 'moduleAccess'), {
-        [moduleKey]: password ? { password, updatedAt: serverTimestamp() } : null
-      }, { merge: true });
-      setModuleAccessConfig(prev => ({ ...prev, [moduleKey]: password }));
-      showToast(password ? "Mot de passe enregistré" : "Protection retirée");
-    } catch (error) {
-      console.error("Erreur de sauvegarde du mot de passe module:", error);
-      showToast("Erreur lors de la sauvegarde", "error");
-    } finally {
-      setIsSavingModuleAccess(null);
     }
   };
 
@@ -6670,44 +6587,20 @@ function Configuration() {
 
               <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
                 <h3 className="text-xl font-serif font-medium text-[#265C6D] mb-1">Rôles d'accès aux modules</h3>
-                <p className="text-gray-500 text-sm mb-6">Protégez les groupes Production et Clientèle par un mot de passe distinct, pour que le service concerné (Économat, Guest Relations) puisse les utiliser sans accéder au reste de l'ERP. Vous seul (propriétaire) définissez ou retirez ces mots de passe ; votre propre accès reste toujours direct.</p>
-                <div className="space-y-5">
-                  {([
-                    { key: 'production' as const, label: 'Module Production', service: 'Économat' },
-                    { key: 'clientele' as const, label: 'Module Clientèle', service: 'Guest Relations' }
-                  ]).map(({ key, label, service }) => (
-                    <div key={key} className="flex flex-col md:flex-row md:items-end gap-3 p-4 bg-[#FDFBF7] border border-gray-100 rounded-xl">
-                      <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{label} — service {service}</label>
-                        <input
-                          type="password"
-                          value={moduleAccessConfig[key]}
-                          onChange={(e) => setModuleAccessConfig(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder="Aucun mot de passe défini"
-                          className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B] focus:ring-1 focus:ring-[#F4C75B] transition-colors"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => saveModulePassword(key)}
-                          disabled={isSavingModuleAccess === key}
-                          className="px-4 py-2.5 bg-[#265C6D] text-white rounded-lg text-sm font-medium hover:bg-[#2F6B7F] transition-colors disabled:opacity-50"
-                        >
-                          Enregistrer
-                        </button>
-                        {moduleAccessConfig[key] && (
-                          <button
-                            onClick={() => saveModulePassword(key, '')}
-                            disabled={isSavingModuleAccess === key}
-                            className="px-4 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-                          >
-                            Retirer la protection
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-gray-500 text-sm mb-6">
+                  Production (Économat) et Clientèle (Guest Relations) utilisent chacun un compte
+                  Firebase email/mot de passe dédié, indépendant de vos comptes Google — c'est ce
+                  qui permet au personnel de ces services d'utiliser l'ERP sans jamais dépendre de
+                  votre propre session, et sans accéder au reste de l'application.
+                </p>
+                <p className="text-gray-500 text-sm mb-6">
+                  Le mot de passe de chaque service se gère directement dans la Console Firebase
+                  (pas ici) : <strong>Authentication → Users</strong>, cherchez le compte
+                  <code className="mx-1 px-1.5 py-0.5 bg-[#FDFBF7] border border-gray-200 rounded text-xs">role-portal-production@mouda-palace.internal</code>
+                  (Économat) ou
+                  <code className="mx-1 px-1.5 py-0.5 bg-[#FDFBF7] border border-gray-200 rounded text-xs">role-portal-clientele@mouda-palace.internal</code>
+                  (Guest Relations), puis "Réinitialiser le mot de passe".
+                </p>
               </div>
 
               <LoginHistoryPanel />
@@ -7100,88 +6993,63 @@ const ROLE_PORTAL_TABS: Record<'production' | 'clientele', { id: string; label: 
   ]
 };
 
-function RoleAccessPortal({ moduleKey, serviceLabel, moduleAccess, unlockedModules, unlockModule, lockModule, onBack }: {
+function RoleAccessPortal({ moduleKey, serviceLabel, onBack }: {
   moduleKey: 'production' | 'clientele',
   serviceLabel: string,
-  moduleAccess: Record<string, { password?: string }>,
-  unlockedModules: Record<string, boolean>,
-  unlockModule: (moduleKey: string, password: string) => boolean,
-  lockModule: (moduleKey: string) => void,
   onBack: () => void
 }) {
   const { user, loading } = useAuth();
   const { showToast } = useToast();
   const tabs = ROLE_PORTAL_TABS[moduleKey];
   const [activeTab, setActiveTab] = useState(tabs[0].id);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // "Se déconnecter" ici ne doit reverrouiller QUE ce module (mot de passe local à ressaisir),
-  // jamais appeler signOut(auth) : ce portail partage la session Firebase du poste avec tout le
-  // reste de l'appareil (c'est ce qui évite à Économat/Guest Relations de repasser par "Connexion
-  // (administrateur)" à chaque usage — voir plus bas). Un signOut ici tuait cette session pour tout
-  // l'appareil ; comme le personnel de ces portails n'a pas de compte Google autorisé, plus
-  // personne ne pouvait rouvrir le module sans qu'un administrateur revienne se connecter en
-  // personne sur ce poste — exactement le blocage remonté par le gérant.
-  const exit = () => {
-    lockModule(moduleKey);
+  // Le mot de passe du service EST le mot de passe d'un compte Firebase email/mot de passe dédié,
+  // créé une fois par le gérant dans la Console Firebase (Authentication > Users) — voir
+  // ROLE_PORTAL_EMAILS dans AuthContext.tsx. Pas de compte Google, pas de serveur intermédiaire :
+  // "déverrouillé" veut dire "cette session précise (cet email dédié) est active", pas juste "un
+  // mot de passe local a été tapé une fois dans cet onglet".
+  const expectedEmail = ROLE_PORTAL_EMAILS[moduleKey];
+  const isUnlocked = user?.email === expectedEmail;
+
+  // Cette session étant dédiée et indépendante (pas partagée avec la session Google d'un
+  // administrateur), se déconnecter ici ne referme plus qu'elle — sans effet sur le reste de
+  // l'appareil, contrairement à avant.
+  const exit = async () => {
+    try { await signOut(auth); } catch { /* ignore */ }
     onBack();
+  };
+
+  const handleUnlock = async (password: string) => {
+    setIsAuthenticating(true);
+    try {
+      await signInWithEmailAndPassword(auth, expectedEmail, password);
+      showToast('Accès autorisé');
+    } catch (error: any) {
+      console.error(error);
+      if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found'].includes(error.code)) {
+        showToast('Mot de passe incorrect', 'error');
+      } else if (error.code === 'auth/too-many-requests') {
+        showToast('Trop de tentatives — réessayez dans quelques minutes', 'error');
+      } else {
+        showToast(error.message || 'Erreur de connexion', 'error');
+      }
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   if (loading) {
     return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center font-serif text-[#F4C75B]">Chargement...</div>;
   }
 
-  // Cet appareil n'a encore jamais servi pour un accès de rôle : il faut une connexion Google
-  // ponctuelle par l'administrateur (un des 3 comptes autorisés) pour que Firestore autorise la
-  // lecture/écriture ensuite — le personnel Économat/Guest Relations ne voit cet écran qu'une
-  // seule fois par appareil, jamais au quotidien.
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#1A1A1A] flex items-center justify-center p-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-xl text-center">
-            <h1 className="text-2xl font-serif text-[#265C6D] font-semibold mb-1">Mouda Palace</h1>
-            <p className="text-xs text-gray-400 tracking-[0.2em] uppercase mb-6">Accès {serviceLabel}</p>
-            <p className="text-gray-500 text-sm mb-8">Première utilisation sur cet appareil : une connexion (par l'administrateur) est nécessaire avant de pouvoir saisir le mot de passe du service.</p>
-            <button
-              onClick={async () => {
-                try {
-                  await signInWithPopup(auth, googleProvider);
-                } catch (error: any) {
-                  if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-                    showToast(error.message || 'Erreur de connexion', 'error');
-                  }
-                }
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-[#F4C75B] text-[#265C6D] py-3 px-4 rounded-lg font-medium hover:bg-[#E5B745] transition-colors mb-4"
-            >
-              <LogIn size={18} />
-              <span>Connexion (administrateur)</span>
-            </button>
-            <button onClick={onBack} className="w-full text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
-              Retour à l'accueil
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (!unlockedModules[moduleKey]) {
+  if (!isUnlocked) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
         <ModuleLockScreen
           serviceLabel={serviceLabel}
-          onUnlock={(password) => {
-            if (!moduleAccess[moduleKey]?.password) {
-              showToast("Aucun mot de passe défini pour ce service — contactez l'administrateur.", 'error');
-              return;
-            }
-            if (unlockModule(moduleKey, password)) {
-              showToast('Accès autorisé');
-            } else {
-              showToast('Mot de passe incorrect', 'error');
-            }
-          }}
+          onUnlock={handleUnlock}
+          isSubmitting={isAuthenticating}
           onCancel={onBack}
         />
       </div>

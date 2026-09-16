@@ -1,23 +1,80 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuthorizedAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
+        && request.auth.token.email_verified == true;
+    }
+
+    // Portails de rôle Économat / Guest Relations (voir RoleAccessPortal dans App.tsx) : des
+    // comptes Firebase email/mot de passe dédiés et fixes, créés une fois par le gérant dans la
+    // Console Firebase (Authentication > Users) — jamais des comptes Google, et le mot de passe du
+    // service EST directement le mot de passe de ce compte. Doit rester synchronisé avec
+    // ROLE_PORTAL_EMAILS dans src/context/AuthContext.tsx.
+    function isRolePortal(email) {
+      return request.auth != null && request.auth.token.email == email;
+    }
+    function isEconomat() { return isRolePortal('role-portal-production@mouda-palace.internal'); }
+    function isGuestRelations() { return isRolePortal('role-portal-clientele@mouda-palace.internal'); }
+
     // Fiches ingrédients publiées volontairement par le gérant, destinées au grand public
     // (lien partagé depuis le site WordPress) — nom, photo, portions, ingrédients avec
     // quantités uniquement. Ne doit JAMAIS contenir de coût, marge ou prix fournisseur :
     // c'est une collection séparée de `fiches_techniques` (données internes), remplie
     // uniquement via le bouton "Publier" de l'app. Lecture publique assumée ; écriture
-    // toujours réservée aux comptes autorisés.
+    // réservée aux comptes autorisés et à Guest Relations (MenuGenerator).
     match /public_dish_cards/{cardId} {
       allow read: if true;
-      allow write: if request.auth != null
-        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
-        && request.auth.token.email_verified == true;
+      allow write: if isAuthorizedAdmin() || isGuestRelations();
     }
 
+    // Fiche établissement (adresse, horaires, contact...) — déjà semi-publique (imprimée sur les
+    // documents clients), lecture seule pour les deux portails de rôle.
+    match /settings/general {
+      allow read: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
+    }
+
+    // --- Économat (Production) : Stocks, Achats, Fiches techniques, Ordres de fabrication,
+    // Liste des produits. Jamais `staff` (données personnel/paie) ni le reste de `settings`
+    // (identifiants WordPress, mots de passe des services) — volontairement exclus.
+    match /inventoryItems/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); allow read: if isGuestRelations(); }
+    match /inventoryCategories/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /inventoryTransactions/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /wasteRecords/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /fournisseurs/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /commandes/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    // Restreint au compteur de numérotation des commandes fournisseurs (id "commandes_<année>") —
+    // cette collection porte aussi la numérotation séquentielle des factures, qui doit rester
+    // réservée aux comptes autorisés.
+    match /counters/{id} { allow read, write: if isAuthorizedAdmin() || (isEconomat() && id.matches('commandes_.*')); }
+    match /expenses/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /recipes/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /semi_finished/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /productionOrders/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+    match /subZones/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat(); }
+
+    // Partagées entre les deux portails (fiches techniques utilisées par Achats/Production ET par
+    // les menus digitaux ; réservations consultées en lecture par Production pour planifier, mais
+    // seule Guest Relations les crée/modifie).
+    match /fiches_techniques/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations(); }
+    match /menu_items/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations(); }
+    match /reservations/{id} {
+      allow read: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
+      allow write: if isAuthorizedAdmin() || isGuestRelations();
+    }
+
+    // --- Guest Relations (Clientèle) : Réservations, Tables, Menus digitaux, Partenaires B2B.
+    match /waitlist/{id} { allow read, write: if isAuthorizedAdmin() || isGuestRelations(); }
+    match /tables/{id} { allow read, write: if isAuthorizedAdmin() || isGuestRelations(); }
+    match /partners/{id} { allow read, write: if isAuthorizedAdmin() || isGuestRelations(); }
+    // Commandes POS — Guest Relations n'a besoin que de consulter le statut de paiement d'une
+    // table (voir GestionTables.tsx), jamais d'écrire : les montants/paiements restent réservés
+    // à la Caisse Tactile (comptes autorisés uniquement).
+    match /orders/{id} { allow read: if isAuthorizedAdmin() || isGuestRelations(); }
+
     match /{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
-        && request.auth.token.email_verified == true;
+      allow read, write: if isAuthorizedAdmin();
     }
   }
 }

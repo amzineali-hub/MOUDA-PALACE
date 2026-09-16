@@ -454,6 +454,28 @@ export default function BlogWriterAI({ setActiveTab }: { setActiveTab?: (tab: st
     }
   };
 
+  // Ajoute le bloc "En bref" (voir buildFactBlock) à un article déjà sauvegardé mais généré avant
+  // l'ajout de cette fonctionnalité — complète le texte existant sans le régénérer (le corps
+  // rédigé par l'IA n'est jamais touché). Republier ensuite l'article met à jour la page WordPress
+  // avec le bloc inclus.
+  const handleAddFactBlock = async (article: any) => {
+    if ((article.content || '').includes('### En bref')) {
+      showToast('Ce bloc est déjà présent sur cet article.');
+      return;
+    }
+    try {
+      const newContent = `${article.content || ''}${buildFactBlock(companyInfo)}`;
+      await updateDoc(doc(db, 'blog_posts', article.id), { content: newContent });
+      if (activeArticle && activeArticle.id === article.id) {
+        setActiveArticle((prev: any) => prev ? { ...prev, content: newContent } : prev);
+      }
+      showToast('Bloc "En bref" ajouté — republiez l\'article pour mettre à jour le site.');
+    } catch (e) {
+      console.error(e);
+      showToast("Erreur lors de l'ajout du bloc", 'error');
+    }
+  };
+
   const handleEditClick = (article: any) => {
     setEditingArticleId(article.id);
     setEditTopic(article.topic || '');
@@ -750,7 +772,16 @@ export default function BlogWriterAI({ setActiveTab }: { setActiveTab?: (tab: st
                           {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         </button>
                       )}
-                      <button 
+                      {!(article.content || '').includes('### En bref') && (
+                        <button
+                          onClick={() => handleAddFactBlock(article)}
+                          className="text-gray-400 hover:text-[#265C6D] transition-colors p-1"
+                          title="Ajouter le bloc « En bref » (adresse, horaires, contact...) en fin d'article — pour les articles générés avant l'ajout de cette fonctionnalité"
+                        >
+                          <Sparkles size={16} />
+                        </button>
+                      )}
+                      <button
                         onClick={() => handleEditClick(article)}
                         className="text-gray-400 hover:text-[#F4C75B] transition-colors p-1"
                         title="Éditer"

@@ -6,7 +6,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, update
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, auth, storage } from './firebase';
 import PlanningScheduler from './components/PlanningScheduler';
-import { computePayroll, computeAbsenceDeduction } from './lib/payroll';
+import { computePayroll, computeAbsenceDeduction, MONTHLY_WORKING_DAYS_BASIS, MONTHLY_HOURS_BASIS } from './lib/payroll';
 import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
 import jsPDF from 'jspdf';
 import { toPng } from 'html-to-image';
@@ -1949,7 +1949,7 @@ export default function RH() {
                 <table className="w-full border-collapse border border-black text-xs text-center">
                   <tbody>
                     <tr className="font-bold">
-                      <td className="border border-black py-1 w-[15%]">CUMUL<br/>JOUR</td>
+                      <td className="border border-black py-1 w-[15%]">JOURS<br/>TRAVAILLÉS</td>
                       <td className="border border-black py-1 w-[20%]">CUMUL<br/>BASE CONGRES</td>
                       <td className="border border-black py-1 w-[20%]">CUMUL BASE<br/>IMPOSABLE</td>
                       <td className="border border-black py-1 w-[25%]">CUMUL<br/>RETENUE CIMR</td>
@@ -1957,7 +1957,19 @@ export default function RH() {
                       <td className="border-t border-black bg-white" colSpan={2} rowSpan={2}></td>
                     </tr>
                     <tr>
-                      <td className="border border-black py-2"></td>
+                      <td className="border border-black py-2 bg-yellow-300">
+                        {(() => {
+                          // Jours effectivement travaillés = base de 26 jours ouvrés/mois (voir
+                          // MONTHLY_WORKING_DAYS_BASIS) moins les absences du bulletin — journées
+                          // complètes directement, heures partielles converties au prorata
+                          // (191h/26j, même base que la ligne ABSENCE ci-dessus).
+                          const hoursPerDay = MONTHLY_HOURS_BASIS / MONTHLY_WORKING_DAYS_BASIS;
+                          const absenceDays = (Number(selectedPayslip.absenceFullDays) || 0)
+                            + ((Number(selectedPayslip.absenceHours) || 0) / hoursPerDay);
+                          const joursTravailles = Math.max(0, MONTHLY_WORKING_DAYS_BASIS - absenceDays);
+                          return Number.isInteger(joursTravailles) ? joursTravailles : joursTravailles.toFixed(1);
+                        })()}
+                      </td>
                       <td className="border border-black py-2"></td>
                       <td className="border border-black py-2"></td>
                       <td className="border border-black py-2"></td>

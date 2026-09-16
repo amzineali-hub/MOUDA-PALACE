@@ -529,6 +529,17 @@ function App() {
     return true;
   };
 
+  // Reverrouille un module de rôle (bouton "Se déconnecter" dans RoleAccessPortal) sans toucher à
+  // la session Firebase du poste — voir le commentaire sur `exit` dans RoleAccessPortal pour
+  // pourquoi signOut(auth) ne doit jamais être appelé depuis ce bouton.
+  const lockModule = (moduleKey: string) => {
+    setUnlockedModules(prev => {
+      const next = { ...prev, [moduleKey]: false };
+      try { sessionStorage.setItem('mp_unlocked_modules', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   // Sur mobile, signInWithPopup échoue souvent (popup bloquée / cookies tiers) : on utilise
   // signInWithRedirect à la place, dont le résultat n'arrive qu'après le retour sur la page.
   useEffect(() => {
@@ -649,6 +660,7 @@ function App() {
         moduleAccess={moduleAccess}
         unlockedModules={unlockedModules}
         unlockModule={unlockModule}
+        lockModule={lockModule}
         onBack={() => setAppMode('selection')}
       />
     );
@@ -7088,12 +7100,13 @@ const ROLE_PORTAL_TABS: Record<'production' | 'clientele', { id: string; label: 
   ]
 };
 
-function RoleAccessPortal({ moduleKey, serviceLabel, moduleAccess, unlockedModules, unlockModule, onBack }: {
+function RoleAccessPortal({ moduleKey, serviceLabel, moduleAccess, unlockedModules, unlockModule, lockModule, onBack }: {
   moduleKey: 'production' | 'clientele',
   serviceLabel: string,
   moduleAccess: Record<string, { password?: string }>,
   unlockedModules: Record<string, boolean>,
   unlockModule: (moduleKey: string, password: string) => boolean,
+  lockModule: (moduleKey: string) => void,
   onBack: () => void
 }) {
   const { user, loading } = useAuth();
@@ -7101,8 +7114,15 @@ function RoleAccessPortal({ moduleKey, serviceLabel, moduleAccess, unlockedModul
   const tabs = ROLE_PORTAL_TABS[moduleKey];
   const [activeTab, setActiveTab] = useState(tabs[0].id);
 
-  const exit = async () => {
-    try { await signOut(auth); } catch { /* ignore */ }
+  // "Se déconnecter" ici ne doit reverrouiller QUE ce module (mot de passe local à ressaisir),
+  // jamais appeler signOut(auth) : ce portail partage la session Firebase du poste avec tout le
+  // reste de l'appareil (c'est ce qui évite à Économat/Guest Relations de repasser par "Connexion
+  // (administrateur)" à chaque usage — voir plus bas). Un signOut ici tuait cette session pour tout
+  // l'appareil ; comme le personnel de ces portails n'a pas de compte Google autorisé, plus
+  // personne ne pouvait rouvrir le module sans qu'un administrateur revienne se connecter en
+  // personne sur ce poste — exactement le blocage remonté par le gérant.
+  const exit = () => {
+    lockModule(moduleKey);
     onBack();
   };
 

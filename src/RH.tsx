@@ -1157,12 +1157,45 @@ export default function RH() {
                        <td className="p-4 text-gray-600">{item.period}</td>
                        <td className="p-4 text-gray-600">{item.base} MAD</td>
                        <td className="p-4 text-gray-600">
-                         {Number.isInteger(joursTravaillesListe) ? joursTravaillesListe : joursTravaillesListe.toFixed(1)} / {MONTHLY_WORKING_DAYS_BASIS}
-                         {absenceDeduction > 0 && (
-                           <div className="text-xs font-normal text-red-500">
-                             {[Number(item.absenceFullDays) > 0 ? `${item.absenceFullDays}j` : '', Number(item.absenceHours) > 0 ? `${item.absenceHours}h` : ''].filter(Boolean).join(' + ')} d'absence
-                           </div>
-                         )}
+                         <div className="flex items-center gap-1.5">
+                           <input
+                             type="number"
+                             min="0"
+                             step="0.5"
+                             defaultValue={item.absenceFullDays || ''}
+                             placeholder="0"
+                             title="Jours d'absence — saisie manuelle par le gérant"
+                             onBlur={async (e) => {
+                               const newAbsenceFullDays = Number(e.target.value) || 0;
+                               if (newAbsenceFullDays === (Number(item.absenceFullDays) || 0)) return;
+                               try {
+                                 const baseSalary = Number(item.base) || 0;
+                                 const existingHours = Number(item.absenceHours) || 0;
+                                 // Même barème que computeAbsenceDeduction (src/lib/payroll.ts) : taux
+                                 // journalier (base/26j) pour les jours pleins saisis ici, taux horaire
+                                 // (base/191h) pour les heures partielles déjà suivies séparément —
+                                 // calculé à la main plutôt qu'avec la fonction (qui attend un tableau
+                                 // de longueur entière, incompatible avec une demi-journée).
+                                 const dailyRate = baseSalary / MONTHLY_WORKING_DAYS_BASIS;
+                                 const hourlyRate = baseSalary / MONTHLY_HOURS_BASIS;
+                                 const newAbsenceDeduction = dailyRate * newAbsenceFullDays + hourlyRate * existingHours;
+                                 await updateDoc(doc(db, 'payroll', item.id), {
+                                   absenceFullDays: newAbsenceFullDays,
+                                   absenceDeduction: newAbsenceDeduction
+                                 });
+                                 showToast("Jours d'absence mis à jour");
+                               } catch (err) {
+                                 console.error(err);
+                                 showToast('Erreur lors de la mise à jour', 'error');
+                               }
+                             }}
+                             className="w-16 border border-gray-200 rounded-lg p-1.5 text-sm focus:outline-none focus:border-[#F4C75B]"
+                           />
+                           <span className="text-xs text-gray-400">j. absence</span>
+                         </div>
+                         <div className="text-xs text-gray-400 mt-1">
+                           {Number.isInteger(joursTravaillesListe) ? joursTravaillesListe : joursTravaillesListe.toFixed(1)} / {MONTHLY_WORKING_DAYS_BASIS} travaillés
+                         </div>
                        </td>
                        <td className="p-4 text-gray-600">
                          <input

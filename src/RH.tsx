@@ -1132,6 +1132,7 @@ export default function RH() {
                      <th className="p-4 font-medium text-gray-600">Employé</th>
                      <th className="p-4 font-medium text-gray-600">Période</th>
                      <th className="p-4 font-medium text-gray-600">Base</th>
+                     <th className="p-4 font-medium text-gray-600">Jours travaillés</th>
                      <th className="p-4 font-medium text-gray-600">Avance/Salaire</th>
                      <th className="p-4 font-medium text-gray-600">Net</th>
                      <th className="p-4 font-medium text-gray-600">Statut</th>
@@ -1144,11 +1145,25 @@ export default function RH() {
                      const avance = Number(item.avance) || 0;
                      const absenceDeduction = Number(item.absenceDeduction) || 0;
                      const netAPayer = grossNet - avance - absenceDeduction;
+                     // Même calcul que sur le bulletin imprimé (voir "JOURS TRAVAILLÉS" dans la
+                     // modale Payslip Document) : 26 jours ouvrés/mois moins les absences,
+                     // journées complètes directement, heures partielles au prorata (191h/26j).
+                     const hoursPerDay = MONTHLY_HOURS_BASIS / MONTHLY_WORKING_DAYS_BASIS;
+                     const absenceDaysEquiv = (Number(item.absenceFullDays) || 0) + ((Number(item.absenceHours) || 0) / hoursPerDay);
+                     const joursTravaillesListe = Math.max(0, MONTHLY_WORKING_DAYS_BASIS - absenceDaysEquiv);
                      return (
                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
                        <td className="p-4 font-medium text-gray-900">{item.name}</td>
                        <td className="p-4 text-gray-600">{item.period}</td>
                        <td className="p-4 text-gray-600">{item.base} MAD</td>
+                       <td className="p-4 text-gray-600">
+                         {Number.isInteger(joursTravaillesListe) ? joursTravaillesListe : joursTravaillesListe.toFixed(1)} / {MONTHLY_WORKING_DAYS_BASIS}
+                         {absenceDeduction > 0 && (
+                           <div className="text-xs font-normal text-red-500">
+                             {[Number(item.absenceFullDays) > 0 ? `${item.absenceFullDays}j` : '', Number(item.absenceHours) > 0 ? `${item.absenceHours}h` : ''].filter(Boolean).join(' + ')} d'absence
+                           </div>
+                         )}
+                       </td>
                        <td className="p-4 text-gray-600">
                          <input
                            type="number"
@@ -1195,7 +1210,7 @@ export default function RH() {
                    })}
                    {filteredPayrollList.length === 0 && (
                      <tr>
-                       <td colSpan={7} className="p-8 text-center text-gray-500">{payrollSearchQuery ? 'Aucune fiche ne correspond à cette recherche.' : 'Aucune fiche de paie générée.'}</td>
+                       <td colSpan={8} className="p-8 text-center text-gray-500">{payrollSearchQuery ? 'Aucune fiche ne correspond à cette recherche.' : 'Aucune fiche de paie générée.'}</td>
                      </tr>
                    )}
                  </tbody>

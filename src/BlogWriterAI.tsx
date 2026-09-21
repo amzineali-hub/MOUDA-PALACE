@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
-import { Upload, PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award } from 'lucide-react';
+import { Upload, PenTool, Sparkles, Loader2, Copy, Check, FileText, Clock, Trash2, ArrowRight, Edit2, X, Save, Settings, Send, TrendingUp, MousePointerClick, Award, RefreshCw } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ReactMarkdown from 'react-markdown';
 import { marked } from 'marked';
@@ -762,20 +762,19 @@ export default function BlogWriterAI({ setActiveTab }: { setActiveTab?: (tab: st
                       {article.topic}
                     </h3>
                     <div className="flex gap-2">
-                      {article.published ? (
+                      {article.published && (
                         <div className="text-green-500 p-1" title="Publié">
                           <Check size={16} />
                         </div>
-                      ) : (
-                        <button 
-                          onClick={() => handlePublish(article)}
-                          disabled={isPublishing === article.id}
-                          className="text-gray-400 hover:text-green-500 disabled:opacity-50 transition-colors p-1"
-                          title="Publier via Webhook"
-                        >
-                          {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                        </button>
                       )}
+                      <button
+                        onClick={() => handlePublish(article)}
+                        disabled={isPublishing === article.id}
+                        className="text-gray-400 hover:text-green-500 disabled:opacity-50 transition-colors p-1"
+                        title={article.published ? "Republier (met à jour le titre, l'image et le contenu sur le site)" : "Publier via Webhook"}
+                      >
+                        {isPublishing === article.id ? <Loader2 size={16} className="animate-spin" /> : (article.published ? <RefreshCw size={16} /> : <Send size={16} />)}
+                      </button>
                       {!(article.content || '').includes('### En bref') && (
                         <button
                           onClick={() => handleAddFactBlock(article)}

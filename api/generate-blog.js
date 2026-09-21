@@ -6,9 +6,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      // Message reconnu et traduit côté client (voir BlogWriterAI.tsx handleGenerate) — avant ce
+      // contrôle explicite, une clé absente tombait dans le catch générique ci-dessous et
+      // affichait juste "Erreur lors de la génération", impossible à diagnostiquer sans les logs
+      // serveur.
+      return res.status(500).json({ error: "API key not found" });
+    }
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const { topic, keywords } = req.body;
-    
+
     const prompt = `# Role & Identity
 You are the elite Editor-in-Chief and SEO Copywriter for "Mouda Palace", an exclusive luxury destination, traditional riyad, and upscale culinary sanctuary located in the heart of Fes, Morocco. Your mission is to craft captivating, immersive, and culturally rich blog articles that position Mouda Palace as the ultimate haven of serenity, space, and authentic heritage.
 
@@ -50,6 +57,10 @@ Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
     res.status(200).json({ article: responseText });
   } catch (error) {
     console.error("Error generating blog:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    // Le vrai message d'erreur (quota Gemini dépassé, clé invalide, modèle inconnu...) est
+    // renvoyé tel quel — un "Internal Server Error" générique masquait la cause réelle et rendait
+    // le diagnostic impossible sans accès aux logs Vercel.
+    const detail = error?.message || String(error);
+    res.status(500).json({ error: detail || "Internal Server Error", status: error?.status });
   }
 }

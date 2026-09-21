@@ -231,6 +231,10 @@ export default function BlogWriterAI({ setActiveTab }: { setActiveTab?: (tab: st
         let errMsg = 'Erreur lors de la génération';
         if (errData.error === "API key not found") errMsg = "La clé d'API Gemini est manquante. Vérifiez les paramètres.";
         else if (errData.error && errData.error.includes("401")) errMsg = "La clé d'API Gemini utilisée semble invalide.";
+        // Sinon on affiche le vrai message renvoyé par le serveur (voir api/generate-blog.js) —
+        // par exemple un quota Gemini dépassé ou un modèle indisponible — plutôt que le message
+        // générique, pour pouvoir diagnostiquer sans avoir besoin des logs Vercel.
+        else if (errData.error) errMsg = errData.error;
         throw new Error(errMsg);
       }
 

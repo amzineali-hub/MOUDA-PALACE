@@ -617,7 +617,12 @@ function App() {
     );
   }
 
-  if (appMode === 'admin' && !user) {
+  // Un compte de portail de rôle (Économat/Guest Relations) reste volontairement connecté d'une
+  // visite à l'autre (voir AuthContext.tsx) — sans ce deuxième test, `user` serait "vrai" pour lui
+  // aussi et il tomberait tout droit dans le shell admin complet en repassant par "Espace
+  // Administration" sans repasser par une vraie connexion Google.
+  const isAuthorizedAdminUser = !!user?.email && AUTHORIZED_EMAILS.includes(user.email);
+  if (appMode === 'admin' && !isAuthorizedAdminUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#265C6D] to-[#1A1A1A] flex items-center justify-center p-6">
         <motion.div

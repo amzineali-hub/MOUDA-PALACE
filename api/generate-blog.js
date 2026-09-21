@@ -42,15 +42,26 @@ Every article you generate must follow this structure:
 # Output Language
 Write all content in French unless explicitly requested otherwise.
 
+# Length Constraint
+Keep the article between 400 and 600 words. Be concise and evocative rather than exhaustive — this is a strict limit, not a target to approach from below.
+
 # User Request
 Sujet principal : ${topic || "La magie de Fès et l'hospitalité du Mouda Palace"}
 Mots-clés / Instructions spécifiques : ${keywords || 'aucun'}
 
-Rédige un article complet en Markdown, avec un titre accrocheur au début.`;
+Rédige un article en Markdown (400 à 600 mots), avec un titre accrocheur au début.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
-      contents: prompt
+      contents: prompt,
+      config: {
+        // Le plan Vercel Hobby coupe la fonction à 10s ; une génération avec réflexion (thinking)
+        // active par défaut sur les modèles 3.x dépasse largement ce délai et renvoie une erreur
+        // Vercel non-JSON (voir le catch générique ci-dessous, jamais atteint dans ce cas). Le
+        // thinking est désactivé et la sortie plafonnée pour rester sous la limite.
+        thinkingConfig: { thinkingLevel: 'MINIMAL' },
+        maxOutputTokens: 1500,
+      },
     });
 
     const responseText = response.text || "";

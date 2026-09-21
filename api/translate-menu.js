@@ -38,6 +38,10 @@ Ne renvoie QUE le tableau JSON valide. Ne rajoute pas de texte avant ou après.`
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
+      // Thinking désactivé : le plan Vercel Hobby coupe la fonction à 10s, et le thinking (actif
+      // par défaut sur les modèles 3.x) peut à lui seul dépasser ce délai (voir generate-blog.js).
+      // Particulièrement sensible ici : la sortie est multipliée par 7 langues par plat.
+      config: { thinkingConfig: { thinkingLevel: 'MINIMAL' } },
       contents: prompt
     });
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell, Wine, Beer, Cigarette } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell, Wine, Beer, Cigarette, ChevronDown } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
@@ -456,6 +456,11 @@ const buildShiftReportHtml = (report: any): string => {
 export default function POSTactile() {
   const { showToast } = useToast();
   const [activeCategory, setActiveCategory] = useState('Plats Principaux');
+  // La grille des catégories se replie automatiquement après un choix pour laisser toute la
+  // hauteur à la grille de plats (voir la barre compacte ci-dessous, toujours visible, qui sert
+  // à la redéplier) — demande gérant : plus d'espace tactile pour les articles une fois la
+  // catégorie choisie.
+  const [isCategoryBarExpanded, setIsCategoryBarExpanded] = useState(true);
   const [cart, setCart] = useState<any[]>([]);
 
   const handleClearCart = () => {
@@ -1999,7 +2004,7 @@ export default function POSTactile() {
             colonne du milieu directement collée au panneau ticket (voir demande gérant :
             "ceux d'en haut à mettre à gauche, les boutons des plats à droite juxtaposés au
             panneau des tickets"). */}
-        <div className="w-full lg:w-80 flex-shrink-0 bg-white lg:m-4 lg:mr-0 rounded-t-3xl lg:rounded-3xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 overflow-y-auto">
+        <div className="w-full lg:w-80 flex-shrink-0 bg-white lg:m-4 lg:mr-0 rounded-t-3xl lg:rounded-3xl border border-gray-100 shadow-[0_6px_0_0_#e5e7eb,0_18px_30px_-14px_rgba(0,0,0,0.18)] p-5 flex flex-col gap-3 overflow-y-auto">
           <div>
             <h1 className="text-3xl font-serif font-bold text-[#1A1A1A] tracking-tight">Caisse Tactile</h1>
             <p className="text-gray-500 text-base mt-1">Terminal de point de vente 3D synchronisé</p>
@@ -2107,27 +2112,59 @@ export default function POSTactile() {
             les deux étaient peu pratiques — ici tout est visible d'un coup, sans grignoter la
             largeur de la grille de plats. */}
         <div className="flex-1 flex flex-col min-h-[60vh] lg:min-h-0 min-w-0">
-          {/* Catégories */}
+          {/* Catégories — bandeau compact toujours visible (catégorie active + bouton pour
+              déplier/replier) au-dessus de la grille complète, qui se replie en glissant vers le
+              haut une fois un choix fait. */}
           <div className="p-6 pb-3 bg-[#F4F4F5] z-10">
-            <div className="flex flex-wrap bg-[#265C6D] rounded-2xl p-2 gap-1.5">
-              {categoryTabs.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => { setActiveCategory(cat); setSearchQuery(''); }}
-                  className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-lg whitespace-nowrap transition-all duration-200 ${
-                    activeCategory === cat && !searchQuery
-                      ? 'bg-white text-[#265C6D] shadow-sm'
-                      : 'text-white/70 hover:text-white hover:bg-white/10'
-                  }`}
+            <button
+              type="button"
+              onClick={() => setIsCategoryBarExpanded(v => !v)}
+              className="w-full flex items-center justify-between gap-2 bg-[#265C6D] rounded-2xl px-6 py-3.5 text-white shadow-[0_4px_0_0_#173840] hover:brightness-110 transition-all duration-150 active:shadow-none active:translate-y-1"
+            >
+              <span className="flex items-center gap-2 font-bold text-lg">
+                {getCategoryIcon(activeCategory)}
+                {activeCategory}
+              </span>
+              <motion.span
+                animate={{ rotate: isCategoryBarExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-white/70"
+              >
+                <ChevronDown size={22} />
+              </motion.span>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {isCategoryBarExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+                  className="overflow-hidden"
                 >
-                  {getCategoryIcon(cat)}
-                  {cat}
-                </button>
-              ))}
-              {categoryTabs.length === 0 && (
-                <span className="px-5 py-3 text-white/60 text-base font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
+                  <div className="flex flex-wrap bg-[#265C6D] rounded-2xl p-2 gap-1.5 mt-1.5 shadow-[inset_0_3px_8px_rgba(0,0,0,0.25)]">
+                    {categoryTabs.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => { setActiveCategory(cat); setSearchQuery(''); setIsCategoryBarExpanded(false); }}
+                        className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-lg whitespace-nowrap transition-all duration-150 ${
+                          activeCategory === cat && !searchQuery
+                            ? 'bg-white text-[#265C6D] shadow-[0_3px_0_0_#d1d5db] active:shadow-none active:translate-y-[3px]'
+                            : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95'
+                        }`}
+                      >
+                        {getCategoryIcon(cat)}
+                        {cat}
+                      </button>
+                    ))}
+                    {categoryTabs.length === 0 && (
+                      <span className="px-5 py-3 text-white/60 text-base font-medium">Aucun plat dans les menus digitaux pour l'instant.</span>
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
 
           {/* Items Grid */}
@@ -2135,19 +2172,20 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 <AnimatePresence mode="popLayout">
                   {/* Bouton d'ajout */}
                   <motion.button
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.96 }}
+                    whileHover={{ y: -4, boxShadow: '0 8px 0 0 #eef0f2, 0 16px 24px -10px rgba(0,0,0,0.15)' }}
+                    whileTap={{ y: 0, scale: 0.96, boxShadow: '0 2px 0 0 #eef0f2, 0 4px 8px -2px rgba(0,0,0,0.1)' }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                     onClick={() => setIsAddModalOpen(true)}
-                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-xl sm:rounded-2xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-sm transition-all"
+                    className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_4px_0_0_#eef0f2] transition-all"
                   >
-                    <Plus size={32} className="mb-1" />
-                    <span className="font-bold text-xs sm:text-sm text-center">Ajouter un article</span>
+                    <Plus size={36} className="mb-1" />
+                    <span className="font-bold text-sm sm:text-base text-center">Ajouter un article</span>
                   </motion.button>
 
                   {filteredItems.map(item => {
@@ -2163,18 +2201,19 @@ export default function POSTactile() {
                         initial={{ opacity: 0, scale: 0.8, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                        whileHover={{ y: -3 }}
-                        whileTap={{ scale: 0.96 }}
+                        whileHover={{ y: -4, boxShadow: '0 10px 0 0 #eef0f2, 0 20px 30px -10px rgba(0,0,0,0.2)' }}
+                        whileTap={{ y: 0, scale: 0.96, boxShadow: '0 2px 0 0 #eef0f2, 0 4px 8px -2px rgba(0,0,0,0.15)' }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                         key={item.id}
                         onClick={() => !isEditMode && openModifierPanel(item)}
-                        className="relative overflow-hidden flex flex-col aspect-square rounded-xl sm:rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md text-left transition-all"
+                        className="relative overflow-hidden flex flex-col aspect-square rounded-2xl sm:rounded-3xl bg-white border border-gray-100 shadow-[0_5px_0_0_#eef0f2,0_10px_18px_-8px_rgba(0,0,0,0.12)] text-left"
                       >
                         <div className={`relative flex-[3] min-h-0 overflow-hidden ${!resolvedImage ? `bg-gradient-to-br ${colorClass}` : ''}`}>
                           {resolvedImage ? (
                             <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Utensils size={28} className="opacity-60" />
+                              <Utensils size={32} className="opacity-60" />
                             </div>
                           )}
                         </div>
@@ -2188,15 +2227,15 @@ export default function POSTactile() {
                           </div>
                         )}
 
-                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-2 sm:px-3 py-1.5">
-                          <span className="font-bold text-sm sm:text-base leading-tight text-[#1A1A1A] break-words line-clamp-2">
+                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-2.5 sm:px-3.5 py-2">
+                          <span className="font-bold text-base sm:text-lg leading-tight text-[#1A1A1A] break-words line-clamp-2">
                             {item.name}
                           </span>
                           <div className="mt-auto flex items-baseline gap-1 pt-0.5">
-                            <span className="font-black text-base sm:text-lg text-[#F4C75B]">
+                            <span className="font-black text-lg sm:text-xl text-[#F4C75B]">
                               {item.numPrice}
                             </span>
-                            <span className="font-bold text-[11px] sm:text-xs text-gray-400">MAD</span>
+                            <span className="font-bold text-xs sm:text-sm text-gray-400">MAD</span>
                           </div>
                         </div>
                       </motion.div>
@@ -2214,7 +2253,7 @@ export default function POSTactile() {
         </div>
 
         {/* Right Side - Ticket / Cart Area */}
-        <div className="w-full lg:w-[480px] bg-white flex flex-col shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
+        <div className="w-full lg:w-[480px] bg-white flex flex-col shadow-[0_6px_0_0_#e5e7eb,-10px_10px_30px_-15px_rgba(0,0,0,0.18)] z-20 lg:m-4 mt-4 lg:mt-4 rounded-t-3xl lg:rounded-3xl overflow-hidden border border-gray-100 flex-shrink-0 min-h-[500px] lg:min-h-0">
 
           {/* Ticket Header — 2 rangées : titre+actions rapides en haut, contexte (table/serveur/
               sur place) en dessous sur une rangée qui passe à la ligne si besoin. Tout tenir sur

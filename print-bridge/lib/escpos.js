@@ -56,6 +56,9 @@ function buildKitchenTicketEscPos(data, { codepage = 'cp860', escposTableNumber 
     text(`${data.tableLabel}\n`, codepage),
     BOLD_OFF,
     text(`${data.waveLabel} - ${data.time}\n`, codepage),
+    // Note globale de commande (allergie, occasion spéciale...) — voir ticketNote dans
+    // POSTactile.tsx. Distincte des notes par plat (modifiers.note), encadrée pour ressortir.
+    ...(data.note ? [BOLD_ON, text('*'.repeat(32) + '\n', codepage), text(`NOTE: ${data.note}\n`, codepage), text('*'.repeat(32) + '\n', codepage), BOLD_OFF] : []),
     text(separator, codepage),
     ...(data.items || []).map((item) => itemLine(item, codepage)),
     text(separator, codepage),

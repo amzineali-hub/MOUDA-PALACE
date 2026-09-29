@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from './components/ConfirmModal';
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell, Wine, Beer, Cigarette, ChevronDown } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, User, UserCircle, Utensils, Receipt, Coffee, GlassWater, X, Bell, Wine, Beer, Cigarette, ChevronDown, StickyNote, Delete } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import { collection, onSnapshot, query, orderBy, limit, where, getDocs, addDoc, doc, serverTimestamp, deleteDoc, runTransaction, writeBatch, updateDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
@@ -156,7 +156,7 @@ const printHtmlDocument = (html: string) => {
 // page est servie en HTTPS, donc ce fetch fonctionne quel que soit l'hébergement de l'app.
 const KITCHEN_BRIDGE_URL = 'http://127.0.0.1:4321';
 
-type KitchenTicketData = { tableLabel: string; waveLabel: string; time: string; items: any[] };
+type KitchenTicketData = { tableLabel: string; waveLabel: string; time: string; items: any[]; note?: string };
 
 const sendKitchenTicket = async (data: KitchenTicketData, showToast: (msg: string, type?: 'success' | 'error') => void) => {
   try {
@@ -278,7 +278,7 @@ const buildCustomerTicketHtml = (ticket: any): string => {
 // commande. Les plats marqués "à suivre" (heldForLater) sont mentionnés avec un encart — ils
 // doivent être préparés comme le reste, mais pas servis avant le feu vert (voir
 // releaseForDelivery côté POS, qui imprime alors une alerte "SERVIR MAINTENANT" séparée).
-const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; time: string; items: any[] }): string => {
+const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; time: string; items: any[]; note?: string }): string => {
   return `
     <html>
       <head>
@@ -292,6 +292,7 @@ const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; t
           .item { font-size: 15px; font-weight: bold; margin: 6px 0; }
           .mods { font-size: 11px; color: #333; margin: 0 0 4px 12px; }
           .hold { font-size: 12px; font-weight: bold; border: 1px solid #000; display: inline-block; padding: 2px 6px; margin: 0 0 6px 0; }
+          .note { font-size: 13px; font-weight: bold; border: 2px solid #000; padding: 6px; margin: 0 0 10px; }
           hr { border: none; border-top: 2px dashed #000; margin: 8px 0; }
         </style>
       </head>
@@ -299,6 +300,7 @@ const buildKitchenTicketHtml = (data: { tableLabel: string; waveLabel: string; t
         <h2>CUISINE</h2>
         <div class="table">${data.tableLabel}</div>
         <div class="meta">${data.waveLabel} — ${data.time}</div>
+        ${data.note ? `<div class="note">📝 ${data.note}</div>` : ''}
         <hr/>
         ${data.items.map(item => `
           <div class="item">${getLineQuantity(item)}x ${item.name}</div>
@@ -477,6 +479,7 @@ export default function POSTactile() {
     setDiscountPercent(0);
     setDiscountReason('');
     setDiscountApprovedBy(null);
+    setTicketNote('');
     setKitchenSent(false);
     setKitchenOrderId(null);
     setKitchenTableId(null);
@@ -538,6 +541,12 @@ export default function POSTactile() {
   const [discountPin, setDiscountPin] = useState('');
   const [discountApprovedBy, setDiscountApprovedBy] = useState<{ name: string; empId: string } | null>(null);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
+  // Note globale de commande (allergie, occasion spéciale...) — distincte des notes par plat déjà
+  // possibles via les modificateurs. Imprimée en évidence sur le ticket cuisine (voir
+  // buildKitchenTicketHtml) pour que le chef ne la rate pas.
+  const [ticketNote, setTicketNote] = useState('');
+  const [noteDraft, setNoteDraft] = useState('');
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [staffMembers, setStaffMembers] = useState<any[]>([]);
   // TVA retirée du ticket à la demande du gérant — les prix menu sont le montant final facturé.
   // Le champ est conservé (toujours à 0) pour ne pas casser la forme des documents déjà écrits
@@ -750,6 +759,7 @@ export default function POSTactile() {
     setSelectedTable(data.tableId || null);
     setKitchenSent(true);
     setDiscountPercent(data.discountPercent || 0);
+    setTicketNote(data.note || '');
     if (data.serverName) setSelectedWaiter(data.serverName);
     showToast(`Commande en cours chargée (${loadedLines.length} article${loadedLines.length > 1 ? 's' : ''})`);
   };
@@ -1689,6 +1699,7 @@ export default function POSTactile() {
             total,
             discountPercent,
             discountAmount,
+            note: ticketNote || null,
             status: 'En cuisine',
             paymentStatus: 'Non payée',
             createdAt: serverTimestamp(),
@@ -1704,6 +1715,7 @@ export default function POSTactile() {
             total,
             discountPercent,
             discountAmount,
+            note: ticketNote || null,
             updatedAt: serverTimestamp()
           });
         }
@@ -1719,7 +1731,8 @@ export default function POSTactile() {
         tableLabel: getTableLabel(selectedTable, true),
         waveLabel: isFirstWave ? 'Commande' : 'Suite',
         time,
-        items: itemsPendingSend
+        items: itemsPendingSend,
+        note: ticketNote || undefined
       }, showToast);
 
       const taskIds = await addKitchenTasks(orderId, selectedTable, getTableLabel(selectedTable, true), itemsPendingSend);
@@ -1876,6 +1889,7 @@ export default function POSTactile() {
           total,
           discountPercent,
           discountAmount,
+          note: ticketNote || null,
           status: 'Clôturée',
           paymentStatus: 'Payée',
           paymentMethod: method,
@@ -1912,7 +1926,8 @@ export default function POSTactile() {
           tableLabel: getTableLabel(kitchenTableId || selectedTable, true),
           waveLabel: 'Commande (payée directement)',
           time: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-          items: itemsPendingSend
+          items: itemsPendingSend,
+          note: ticketNote || undefined
         }, showToast);
         await addKitchenTasks(orderId, kitchenTableId || selectedTable, getTableLabel(kitchenTableId || selectedTable, true), itemsPendingSend);
       }
@@ -2150,7 +2165,7 @@ export default function POSTactile() {
                         onClick={() => { setActiveCategory(cat); setSearchQuery(''); setIsCategoryBarExpanded(false); }}
                         className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-lg whitespace-nowrap transition-all duration-150 ${
                           activeCategory === cat && !searchQuery
-                            ? 'bg-white text-[#265C6D] shadow-[0_3px_0_0_#d1d5db] active:shadow-none active:translate-y-[3px]'
+                            ? `bg-gradient-to-br ${getCategoryColor(cat)} shadow-[0_3px_0_0_rgba(0,0,0,0.25)] active:shadow-none active:translate-y-[3px]`
                             : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95'
                         }`}
                       >
@@ -2284,6 +2299,15 @@ export default function POSTactile() {
                   title="Appliquer une remise"
                 >
                   %
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setNoteDraft(ticketNote); setIsNoteModalOpen(true); }}
+                  disabled={cart.length === 0}
+                  className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${ticketNote ? 'bg-amber-100 text-amber-700' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+                  title="Note de commande (imprimée sur le ticket cuisine)"
+                >
+                  <StickyNote size={18} />
                 </button>
                 {selectedTable && selectedTable !== 'À emporter' && (
                   <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-1 py-1 gap-1" title="Nombre de couverts">
@@ -2526,6 +2550,34 @@ export default function POSTactile() {
         </div>
       )}
 
+      {/* Note de commande — globale, imprimée en évidence sur le ticket cuisine (voir
+          buildKitchenTicketHtml / print-bridge/lib/escpos.js), distincte des notes par plat. */}
+      {isNoteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Note de commande</h3>
+                <p className="text-sm text-gray-500 mt-1">Imprimée en évidence sur le ticket cuisine</p>
+              </div>
+              <button type="button" onClick={() => setIsNoteModalOpen(false)} className="text-gray-400 hover:text-gray-700"><X size={22} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); setTicketNote(noteDraft.trim()); setIsNoteModalOpen(false); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
+                <textarea autoFocus value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} rows={3} className="w-full p-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:border-[#F4C75B]" placeholder="Ex. allergie arachide, anniversaire..." />
+              </div>
+              <div className="flex gap-3">
+                {ticketNote && (
+                  <button type="button" onClick={() => { setTicketNote(''); setNoteDraft(''); setIsNoteModalOpen(false); }} className="flex-1 py-3 rounded-xl bg-red-50 text-red-600 font-semibold">Retirer</button>
+                )}
+                <button type="submit" className="flex-1 py-3 rounded-xl bg-[#265C6D] text-white font-bold">Enregistrer</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
       {/* Cancel sent order modal */}
       {isCancelOrderModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
@@ -2746,15 +2798,51 @@ export default function POSTactile() {
               handleCheckout('Espèces', { cashReceived: cashAmount, changeDue: cashChange });
             }}>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Montant reçu (MAD)</label>
-              <input
-                autoFocus
-                type="text"
-                inputMode="decimal"
-                value={cashReceived}
-                onChange={(event) => setCashReceived(event.target.value)}
-                placeholder={total.toFixed(2)}
-                className="w-full p-4 text-2xl font-bold border border-gray-200 rounded-xl focus:outline-none focus:border-[#F4C75B]"
-              />
+              <div className="w-full p-4 text-2xl font-bold border border-gray-200 rounded-xl bg-gray-50 text-right min-h-[60px]">
+                {cashReceived || <span className="text-gray-300">{total.toFixed(2)}</span>}
+              </div>
+              {/* Pavé tactile plutôt qu'un clavier système — plus rapide sur un poste tactile,
+                  même idée que la référence caisse fournie par le gérant. */}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setCashReceived(prev => prev + d)}
+                    className="py-4 rounded-xl bg-gray-100 text-gray-900 text-xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
+                  >
+                    {d}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setCashReceived(prev => (prev.includes('.') ? prev : prev + '.'))}
+                  className="py-4 rounded-xl bg-gray-100 text-gray-900 text-xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
+                >
+                  .
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCashReceived(prev => prev + '0')}
+                  className="py-4 rounded-xl bg-gray-100 text-gray-900 text-xl font-bold hover:bg-gray-200 active:scale-95 transition-all"
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCashReceived(prev => prev.slice(0, -1))}
+                  className="py-4 rounded-xl bg-gray-100 text-gray-900 flex items-center justify-center hover:bg-gray-200 active:scale-95 transition-all"
+                >
+                  <Delete size={22} />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCashReceived('')}
+                className="w-full mt-2 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-bold hover:bg-red-100 active:scale-95 transition-all"
+              >
+                Effacer tout
+              </button>
               <div className={`mt-4 rounded-xl p-4 flex justify-between items-center ${cashAmount >= total ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'}`}>
                 <span className="font-semibold">Monnaie à rendre</span>
                 <span className="text-xl font-black">{cashChange.toFixed(2)} MAD</span>

@@ -14,6 +14,55 @@ import DishIngredientsModal from './components/DishIngredientsModal';
 import PdfDocumentFlipbook from './components/PdfDocumentFlipbook';
 import { PDF_MENU_IMPORT_ITEMS } from './data/pdfMenuImport';
 
+// Redimensionne une image choisie localement en JPEG compact (max 800px), encodé en data URL —
+// stocké directement dans le champ `imageUrl` du plat (pas d'upload vers Firebase Storage ici).
+// Partagé entre le formulaire "Ajouter/Modifier un plat" et le panneau "Photos manquantes"
+// (upload rapide par carte, sans ouvrir le formulaire) pour ne pas dupliquer ce calcul deux fois.
+function resizeImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Catégories boissons (voir `categories` plus bas) — sert à filtrer le panneau "Photos manquantes".
+const DRINK_CATEGORIES = [
+  'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
+  'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux',
+  'Digestifs', 'Tapas', 'Chicha', 'Boissons'
+];
+
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
@@ -34,6 +83,8 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [ingredientsPreviewItem, setIngredientsPreviewItem] = useState<any | null>(null);
   const [isImportingPdfMenu, setIsImportingPdfMenu] = useState(false);
+  const [isMissingPhotosOpen, setIsMissingPhotosOpen] = useState(false);
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -371,43 +422,29 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     setIsAddModalOpen(true);
   };
 
-      const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          let width = img.width;
-          let height = img.height;
+    if (file) resizeImageFile(file).then(setImageUrl);
+  };
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          setImageUrl(dataUrl);
-        };
-        img.src = reader.result as string;
-      };
-      reader.readAsDataURL(file);
+  // Upload rapide depuis le panneau "Photos manquantes" — enregistre directement dans Firestore
+  // sans passer par le formulaire "Modifier" (nom/prix/catégorie ne changent pas).
+  const handleQuickPhotoUpload = async (itemId: string, file: File) => {
+    setUploadingItemId(itemId);
+    try {
+      const dataUrl = await resizeImageFile(file);
+      await updateDoc(doc(db, 'menu_items', itemId), { imageUrl: dataUrl, updatedAt: new Date() });
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'ajout de la photo.", "error");
+    } finally {
+      setUploadingItemId(null);
     }
   };
+
+  const missingDrinkPhotoItems = menuItems.filter(item =>
+    DRINK_CATEGORIES.includes(item.category) && item.imageUrl === availableImages[0]
+  );
 
 
     
@@ -686,6 +723,12 @@ if (isPrintView) {
             <Upload size={20} />
             <span>{isImportingPdfMenu ? "Import en cours..." : "Importer le menu PDF"}</span>
           </button>
+          {missingDrinkPhotoItems.length > 0 && (
+            <button onClick={() => setIsMissingPhotosOpen(true)} className="flex items-center w-full sm:w-auto gap-2 bg-white/10 text-white border border-white/20 px-5 py-3 rounded-xl font-medium hover:bg-white/20 transition-colors shadow-lg">
+              <ImageIcon size={20} />
+              <span>Photos boissons manquantes ({missingDrinkPhotoItems.length})</span>
+            </button>
+          )}
           <button onClick={() => { setEditingItem(null); setName(""); setCategory(categories[0]); setPrice(""); setDesc(""); setImageUrl(""); setVideoUrl(""); setPortions(1); setIngredientsText(""); setIsAddModalOpen(true); }} className="flex items-center w-full sm:w-auto gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-3 rounded-xl font-medium hover:bg-[#E5B745] transition-colors shadow-lg">
             <Plus size={20} />
             <span>Ajouter un plat</span>
@@ -1220,6 +1263,66 @@ if (isPrintView) {
         }}
         onCancel={() => setDishToDelete(null)}
       />
+
+      {isMissingPhotosOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-4xl overflow-hidden shadow-xl flex flex-col max-h-[90vh]"
+          >
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Photos boissons manquantes</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Cliquez sur une carte pour choisir une photo depuis votre ordinateur — elle est enregistrée immédiatement.
+                </p>
+              </div>
+              <button onClick={() => setIsMissingPhotosOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              {missingDrinkPhotoItems.length === 0 ? (
+                <div className="text-center text-gray-400 py-12">
+                  <ImageIcon size={32} className="mx-auto mb-3" />
+                  Toutes les boissons ont une photo.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {missingDrinkPhotoItems.map(item => (
+                    <label
+                      key={item.id}
+                      className="relative border-2 border-dashed border-gray-200 rounded-xl p-3 flex flex-col items-center text-center gap-2 cursor-pointer hover:border-[#F4C75B] hover:bg-[#FDFBF7] transition-colors"
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingItemId === item.id}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleQuickPhotoUpload(item.id, file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <div className="w-full h-20 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">
+                        {uploadingItemId === item.id ? (
+                          <span className="text-xs text-gray-500">Envoi...</span>
+                        ) : (
+                          <Upload size={20} />
+                        )}
+                      </div>
+                      <p className="text-xs font-medium text-gray-900 leading-tight">{item.name}</p>
+                      <p className="text-[10px] text-gray-400">{item.category}</p>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

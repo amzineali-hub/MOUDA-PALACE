@@ -6,6 +6,16 @@ import { motion } from 'framer-motion';
 import { Search, Plus, Maximize, User, Clock, Utensils, CalendarDays, MoreHorizontal, X, Circle, Square, RectangleHorizontal, Trash2, Pencil, RefreshCw } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
+// Plan de tables Rooftop (zone 'terrasse') fourni par le gérant : tables 1-4 (2 couverts),
+// 5-10 (4 couverts), 11 (8 couverts) — voir handleSeedRooftopPlan, qui crée celles qui manquent
+// encore dans cette salle. Capacité/forme restent éditables ensuite au cas par cas (crayon sur
+// chaque table), ce plan n'est qu'un point de départ.
+const ROOFTOP_TABLE_PLAN: { id: string; capacity: number; shape: 'carre' | 'rectangle' }[] = [
+  ...[1, 2, 3, 4].map(n => ({ id: String(n), capacity: 2, shape: 'carre' as const })),
+  ...[5, 6, 7, 8, 9, 10].map(n => ({ id: String(n), capacity: 4, shape: 'carre' as const })),
+  { id: '11', capacity: 8, shape: 'rectangle' }
+];
+
 export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: string) => void }) {
   const [activeZone, setActiveZone] = useState('patio');
   const [isAddingTable, setIsAddingTable] = useState(false);
@@ -91,6 +101,38 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
     }
   };
 
+  // Crée les tables du plan Rooftop (ROOFTOP_TABLE_PLAN) qui n'existent pas encore dans la salle
+  // 'terrasse' — protégé contre les doublons par identifiant (relançable sans risque). Capacité et
+  // forme restent modifiables ensuite au cas par cas via le crayon sur chaque table.
+  const [isSeedingRooftop, setIsSeedingRooftop] = useState(false);
+  const handleSeedRooftopPlan = async () => {
+    setIsSeedingRooftop(true);
+    try {
+      const existingIds = new Set(
+        tables.filter(t => t.zone === 'terrasse').map(t => String(t.id || '').trim().toUpperCase())
+      );
+      const toCreate = ROOFTOP_TABLE_PLAN.filter(t => !existingIds.has(t.id.toUpperCase()));
+      for (const t of toCreate) {
+        await addDoc(collection(db, 'tables'), {
+          id: t.id,
+          zone: 'terrasse',
+          capacity: t.capacity,
+          shape: t.shape,
+          status: 'libre',
+          currentPax: 0,
+          time: null,
+          reservation: null,
+          createdAt: serverTimestamp()
+        });
+      }
+      showToast(toCreate.length > 0 ? `${toCreate.length} table(s) créée(s) pour le Rooftop.` : "Le plan Rooftop est déjà complet.");
+    } catch (err) {
+      console.error("Error seeding rooftop plan", err);
+      showToast("Erreur lors de la création du plan Rooftop", "error");
+    } finally {
+      setIsSeedingRooftop(false);
+    }
+  };
 
   const handleUpdateStatus = async (fbId: string, newStatus: string) => {
     if (!fbId) {
@@ -218,6 +260,22 @@ export default function GestionTables({ setActiveTab }: { setActiveTab?: (tab: s
             <RefreshCw size={18} />
             <span>{isResyncing ? 'Vérification...' : 'Resynchroniser les statuts'}</span>
           </button>
+          {activeZone === 'terrasse' && (() => {
+            const existingIds = new Set(tables.filter(t => t.zone === 'terrasse').map(t => String(t.id || '').trim().toUpperCase()));
+            const missingCount = ROOFTOP_TABLE_PLAN.filter(t => !existingIds.has(t.id.toUpperCase())).length;
+            if (missingCount === 0) return null;
+            return (
+              <button
+                onClick={handleSeedRooftopPlan}
+                disabled={isSeedingRooftop}
+                className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+                title="Crée les tables 1-11 du plan Rooftop (1-4: 2 couverts, 5-10: 4 couverts, 11: 8 couverts)"
+              >
+                <Plus size={18} />
+                <span>{isSeedingRooftop ? 'Création...' : `Créer le plan Rooftop (${missingCount})`}</span>
+              </button>
+            );
+          })()}
           <button onClick={() => setIsAddingTable(true)} className="flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-sm">
             <Plus size={18} />
             <span>Nouvelle Table</span>

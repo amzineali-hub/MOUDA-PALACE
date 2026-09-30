@@ -718,7 +718,7 @@ if (isPrintView) {
                       }}
                     />
                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-[#1A1A1A] uppercase tracking-[0.3em] mb-3">Mouda Palace</h1>
-                    <p className="text-[11px] sm:text-xs text-gray-500 uppercase tracking-[0.3em] mb-6">Restaurant Gastronomique · Lounge Rooftop</p>
+                    <p className="text-xs sm:text-sm text-gray-600 font-semibold uppercase tracking-[0.3em] mb-6">Restaurant Gastronomique · Lounge Rooftop</p>
                     <div className="flex items-center justify-center gap-3">
                       <span className="h-px w-16 md:w-24 bg-[#D4AF37]"></span>
                       <span className="text-[#D4AF37] text-xs">✦</span>
@@ -734,19 +734,19 @@ if (isPrintView) {
                       return (
                         <div key={cat} className="break-inside-avoid">
                           <div className="text-center mb-8 md:mb-10">
-                            <h2 className="text-sm md:text-base font-serif text-[#1A1A1A] uppercase tracking-[0.35em]">{cat}</h2>
+                            <h2 className="text-lg md:text-xl font-serif font-bold text-[#1A1A1A] uppercase tracking-[0.35em]">{cat}</h2>
                             <span className="inline-block h-px w-10 bg-[#D4AF37] mt-2"></span>
                           </div>
-                          <div className="space-y-7 md:space-y-8">
+                          <div className="space-y-8 md:space-y-9">
                             {itemsInCat.map(item => (
                               <div key={item.id} className="text-center break-inside-avoid">
                                 <div className="flex items-baseline justify-center gap-3">
-                                  <h3 className="text-base md:text-lg font-serif text-[#1A1A1A] tracking-wide">{item.name}</h3>
+                                  <h3 className="text-lg md:text-xl font-serif font-bold text-[#1A1A1A] tracking-wide">{item.name}</h3>
                                   <span className="flex-1 max-w-16 border-b border-dotted border-[#D4AF37]/60 relative -top-1"></span>
-                                  <span className="text-base md:text-lg font-serif text-[#8B5A2B] whitespace-nowrap">{item.price}</span>
+                                  <span className="text-lg md:text-xl font-serif font-bold text-[#5C3A21] whitespace-nowrap">{item.price}</span>
                                 </div>
                                 {item.desc && (
-                                  <p className="text-xs md:text-sm text-gray-500 italic mt-1.5 max-w-md mx-auto leading-relaxed">{item.desc}</p>
+                                  <p className="text-sm md:text-base text-gray-600 italic mt-2 max-w-md mx-auto leading-relaxed">{item.desc}</p>
                                 )}
                               </div>
                             ))}
@@ -758,8 +758,8 @@ if (isPrintView) {
 
                   <div className="mt-16 md:mt-20 pt-6 text-center">
                     <span className="inline-block h-px w-24 bg-[#D4AF37] mb-5"></span>
-                    <p className="text-sm font-serif uppercase tracking-[0.3em] text-[#1A1A1A]">Mouda Palace</p>
-                    <p className="text-xs text-gray-400 tracking-wider mt-1">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina · +212 5 35 00 00 00</p>
+                    <p className="text-sm font-serif font-bold uppercase tracking-[0.3em] text-[#1A1A1A]">Mouda Palace</p>
+                    <p className="text-xs text-gray-600 tracking-wider mt-1">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina · +212 5 35 00 00 00</p>
                   </div>
                 </div>
               </div>

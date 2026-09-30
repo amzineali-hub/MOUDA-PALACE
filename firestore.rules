@@ -58,7 +58,13 @@ service cloud.firestore {
     // les menus digitaux ; réservations consultées en lecture par Production pour planifier, mais
     // seule Guest Relations les crée/modifie).
     match /fiches_techniques/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations(); }
-    match /menu_items/{id} { allow read, write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations(); }
+    // Lecture publique assumée : /carte (PublicMenu.tsx) affiche le menu en direct sur le site
+    // WordPress (page Elementor /menu/, voir commentaire dans main.tsx) — mêmes données déjà
+    // visibles dans l'appli (nom, catégorie, prix, description, photo), jamais coût/marge.
+    match /menu_items/{id} {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
+    }
     match /reservations/{id} {
       allow read: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
       allow write: if isAuthorizedAdmin() || isGuestRelations();

@@ -63,6 +63,13 @@ const DRINK_CATEGORIES = [
   'Digestifs', 'Tapas', 'Chicha', 'Boissons'
 ];
 
+// Tri par prix croissant au sein d'un même poste — utilisé partout où un groupe de plats d'une
+// même catégorie est affiché (tableau de bord, les deux modèles d'impression), pour ne pas le
+// répéter trois fois avec le même risque de divergence.
+function sortItemsByPrice<T extends { price?: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => parseAmount(a.price) - parseAmount(b.price));
+}
+
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
@@ -107,9 +114,10 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
     'Plats Principaux',
     'Desserts',
+    'Tapas',
     'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
     'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
-    'Tapas', 'Chicha',
+    'Chicha',
     'Boissons'
   ];
 
@@ -558,13 +566,14 @@ if (isPrintView) {
                     }}
                   />
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-4 uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] px-2 text-center">Mouda Palace</h1>
+                <p className="text-sm sm:text-base text-white/80 tracking-[0.2em] uppercase mb-4">Restaurant Gastronomique, Lounge Rooftop</p>
                 <p className="text-2xl text-[#F4C75B] font-serif italic tracking-wider">La Carte</p>
               </div>
 
               <div className="space-y-16">
                 {categories.map((cat) => {
-                  const itemsInCat = menuItems.filter(i => i.category === cat);
+                  const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                   if (itemsInCat.length === 0) return null;
 
                   return (
@@ -621,16 +630,17 @@ if (isPrintView) {
                       WebkitMaskPosition: 'center'
                     }}
                   />
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-2 uppercase tracking-[0.1em] md:tracking-[0.15em]">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white uppercase tracking-[0.1em] md:tracking-[0.15em]">
                     MOUDA PALACE
                   </h1>
+                  <p className="text-sm sm:text-base text-white/80 tracking-[0.2em] uppercase mb-2">Restaurant Gastronomique, Lounge Rooftop</p>
                   <p className="text-xl md:text-2xl text-[#F4C75B] font-serif italic tracking-wider">La Carte</p>
                 </div>
 
                 <div className="relative z-10">
                   <div className="space-y-10 md:space-y-12">
                     {categories.map((cat) => {
-                      const itemsInCat = menuItems.filter(i => i.category === cat);
+                      const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                       if (itemsInCat.length === 0) return null;
                       return (
                         <div key={cat} className="break-inside-avoid">
@@ -737,7 +747,7 @@ if (isPrintView) {
       </div>
 
       {categories.map(category => {
-        const items = menuItems.filter(item => item.category === category);
+        const items = sortItemsByPrice(menuItems.filter(item => item.category === category));
         if (items.length === 0) return null;
         return (
           <div key={category} className="space-y-4">

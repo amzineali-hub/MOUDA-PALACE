@@ -50,5 +50,9 @@ jobs:
           # qui laissait Firebase Storage sur son comportement par défaut (accès refusé).
           args: deploy --project clever-datum-pjlsj --only firestore:rules,storage:rules
         env:
-          # Token stocké de manière sécurisée dans les GitHub Secrets
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          # `firebase login:ci` (FIREBASE_TOKEN) a été retiré des versions récentes du CLI Firebase
+          # embarquées par cette action (constaté : échec "Either FIREBASE_TOKEN or GCP_SA_KEY or
+          # GOOGLE_APPLICATION_CREDENTIALS is required" après une mise à jour silencieuse de l'image
+          # w9jds/firebase-action@master). Remplacé par un compte de service Google Cloud — voir
+          # README pour la procédure de création du secret GCP_SA_KEY.
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}

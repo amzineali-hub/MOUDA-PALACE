@@ -727,7 +727,7 @@ if (isPrintView) {
                     <p className="text-lg md:text-xl text-[#D4AF37] font-serif italic tracking-wider mt-4">Menu Prestige</p>
                   </div>
 
-                  <div className="space-y-12 md:space-y-16 max-w-2xl mx-auto">
+                  <div className="space-y-12 md:space-y-16 max-w-3xl mx-auto">
                     {categories.map((cat) => {
                       const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                       if (itemsInCat.length === 0) return null;
@@ -737,17 +737,24 @@ if (isPrintView) {
                             <h2 className="text-lg md:text-xl font-serif font-bold text-[#1A1A1A] uppercase tracking-[0.35em]">{cat}</h2>
                             <span className="inline-block h-px w-10 bg-[#D4AF37] mt-2"></span>
                           </div>
-                          <div className="space-y-8 md:space-y-9">
+                          <div className="space-y-6 md:space-y-7">
                             {itemsInCat.map(item => (
-                              <div key={item.id} className="text-center break-inside-avoid">
-                                <div className="flex items-baseline justify-center gap-3">
-                                  <h3 className="text-lg md:text-xl font-serif font-bold text-[#1A1A1A] tracking-wide">{item.name}</h3>
-                                  <span className="flex-1 max-w-16 border-b border-dotted border-[#D4AF37]/60 relative -top-1"></span>
-                                  <span className="text-lg md:text-xl font-serif font-bold text-[#5C3A21] whitespace-nowrap">{item.price}</span>
+                              <div key={item.id} className="flex items-center gap-4 sm:gap-5 text-left break-inside-avoid">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-full overflow-hidden border-2 border-[#D4AF37]/50 bg-[#FFFDF7]">
+                                  {item.imageUrl && (
+                                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                  )}
                                 </div>
-                                {item.desc && (
-                                  <p className="text-sm md:text-base text-gray-600 italic mt-2 max-w-md mx-auto leading-relaxed">{item.desc}</p>
-                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-baseline gap-3">
+                                    <h3 className="text-lg md:text-xl font-serif font-bold text-[#1A1A1A] tracking-wide">{item.name}</h3>
+                                    <span className="flex-1 min-w-8 border-b border-dotted border-[#D4AF37]/60 relative -top-1"></span>
+                                    <span className="text-lg md:text-xl font-serif font-bold text-[#5C3A21] whitespace-nowrap">{item.price}</span>
+                                  </div>
+                                  {item.desc && (
+                                    <p className="text-sm md:text-base text-gray-600 italic mt-1.5 leading-relaxed">{item.desc}</p>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1304,7 +1311,7 @@ if (isPrintView) {
                    </div>
                 </div>
                 <h3 className="text-xl font-bold text-[#1A1A1A] mb-2">Prestige</h3>
-                <p className="text-sm text-gray-500 text-center">Épuré et raffiné, sans photos — filets dorés et typographie soignée, esprit gastronomique.</p>
+                <p className="text-sm text-gray-500 text-center">Épuré et raffiné, photos en médaillon — filets dorés et typographie soignée, esprit gastronomique.</p>
               </button>
             </div>
           </motion.div>

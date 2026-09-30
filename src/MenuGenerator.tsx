@@ -81,7 +81,7 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [isPrintView, setIsPrintView] = useState(false);
-  const [printTemplate, setPrintTemplate] = useState<'moderne' | 'traditionnel'>('moderne');
+  const [printTemplate, setPrintTemplate] = useState<'moderne' | 'traditionnel' | 'prestige'>('moderne');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [dishToDelete, setDishToDelete] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -607,8 +607,8 @@ if (isPrintView) {
                 })}
               </div>
             </div>
-          ) : (
-            <div 
+          ) : printTemplate === 'traditionnel' ? (
+            <div
               className="relative p-2 sm:p-4 md:p-12 min-h-[1100px] shadow-2xl rounded-sm print:shadow-none print:p-8 print:m-0 overflow-hidden print:overflow-visible bg-[#FAF3E0]"
               style={{ backgroundImage: "url('/menu_traditionnel.jpeg')", backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
             >
@@ -697,6 +697,68 @@ if (isPrintView) {
                   <div className="text-center md:text-right font-bold tracking-wider text-[#7a1c15]">
                     <p>MOUDA PALACE</p>
                     <p className="font-sans text-sm tracking-normal font-normal mt-1">+212 5 35 00 00 00</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Prestige — pas de photos, papier ivoire, filets dorés fins, typographie resserrée :
+            // registre "menu de restaurant gastronomique" plutôt que carte illustrée, en
+            // complément des deux modèles existants (photos + couleurs vives).
+            <div className="relative p-6 sm:p-10 md:p-16 min-h-[1100px] print:p-10 print:m-0 bg-[#FFFDF7]">
+              <div className="border border-[#D4AF37]/50 p-1 print:border-[#D4AF37]">
+                <div className="border border-[#D4AF37]/50 p-6 sm:p-10 md:p-14 print:border-[#D4AF37]">
+                  <div className="text-center mb-14 md:mb-20">
+                    <div
+                      className="mx-auto h-14 w-16 md:h-16 md:w-20 bg-[#3d1e0f] mb-5"
+                      style={{
+                        maskImage: 'url(/mouda-1-1-1.png)', maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center',
+                        WebkitMaskImage: 'url(/mouda-1-1-1.png)', WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center'
+                      }}
+                    />
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-[#1A1A1A] uppercase tracking-[0.3em] mb-3">Mouda Palace</h1>
+                    <p className="text-[11px] sm:text-xs text-gray-500 uppercase tracking-[0.3em] mb-6">Restaurant Gastronomique · Lounge Rooftop</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="h-px w-16 md:w-24 bg-[#D4AF37]"></span>
+                      <span className="text-[#D4AF37] text-xs">✦</span>
+                      <span className="h-px w-16 md:w-24 bg-[#D4AF37]"></span>
+                    </div>
+                    <p className="text-lg md:text-xl text-[#D4AF37] font-serif italic tracking-wider mt-4">Menu Prestige</p>
+                  </div>
+
+                  <div className="space-y-12 md:space-y-16 max-w-2xl mx-auto">
+                    {categories.map((cat) => {
+                      const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
+                      if (itemsInCat.length === 0) return null;
+                      return (
+                        <div key={cat} className="break-inside-avoid">
+                          <div className="text-center mb-8 md:mb-10">
+                            <h2 className="text-sm md:text-base font-serif text-[#1A1A1A] uppercase tracking-[0.35em]">{cat}</h2>
+                            <span className="inline-block h-px w-10 bg-[#D4AF37] mt-2"></span>
+                          </div>
+                          <div className="space-y-7 md:space-y-8">
+                            {itemsInCat.map(item => (
+                              <div key={item.id} className="text-center break-inside-avoid">
+                                <div className="flex items-baseline justify-center gap-3">
+                                  <h3 className="text-base md:text-lg font-serif text-[#1A1A1A] tracking-wide">{item.name}</h3>
+                                  <span className="flex-1 max-w-16 border-b border-dotted border-[#D4AF37]/60 relative -top-1"></span>
+                                  <span className="text-base md:text-lg font-serif text-[#D4AF37] whitespace-nowrap">{item.price}</span>
+                                </div>
+                                {item.desc && (
+                                  <p className="text-xs md:text-sm text-gray-500 italic mt-1.5 max-w-md mx-auto leading-relaxed">{item.desc}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-16 md:mt-20 pt-6 text-center">
+                    <span className="inline-block h-px w-24 bg-[#D4AF37] mb-5"></span>
+                    <p className="text-sm font-serif uppercase tracking-[0.3em] text-[#1A1A1A]">Mouda Palace</p>
+                    <p className="text-xs text-gray-400 tracking-wider mt-1">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina · +212 5 35 00 00 00</p>
                   </div>
                 </div>
               </div>
@@ -1155,7 +1217,7 @@ if (isPrintView) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden"
+            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden"
           >
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
               <h2 className="text-2xl font-serif font-bold text-gray-900">Choisir le modèle d'impression</h2>
@@ -1163,7 +1225,7 @@ if (isPrintView) {
                 <X size={24} />
               </button>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Option 1: Moderne */}
               <button
                 onClick={() => {
@@ -1214,6 +1276,34 @@ if (isPrintView) {
                 </div>
                 <h3 className="text-xl font-bold text-[#7a1c15] mb-2">Traditionnel</h3>
                 <p className="text-sm text-gray-500 text-center">Inspiré de l'artisanat marocain avec fond texturé et photos des plats.</p>
+              </button>
+
+              {/* Option 3: Prestige */}
+              <button
+                onClick={() => {
+                  setPrintTemplate('prestige');
+                  setIsTemplateModalOpen(false);
+                  setIsPrintView(true);
+                }}
+                className="flex flex-col items-center text-left border-2 border-gray-100 hover:border-[#D4AF37] rounded-2xl p-6 transition-all hover:shadow-lg group"
+              >
+                <div className="w-full aspect-[1/1.4] bg-[#FFFDF7] rounded-xl mb-4 border border-[#D4AF37]/40 flex flex-col items-center p-4 relative overflow-hidden group-hover:bg-[#fffaf0] transition-colors">
+                   <div className="w-6 h-6 rounded-full border border-[#1A1A1A]/20 flex items-center justify-center mb-3">
+                     <span className="text-[7px] font-bold text-gray-400">LOGO</span>
+                   </div>
+                   <div className="w-2/3 h-1.5 bg-[#1A1A1A] rounded mb-2"></div>
+                   <div className="flex items-center gap-1 mb-5">
+                     <span className="h-px w-4 bg-[#D4AF37]"></span>
+                     <span className="w-1/3 h-1 bg-[#D4AF37] rounded"></span>
+                     <span className="h-px w-4 bg-[#D4AF37]"></span>
+                   </div>
+                   <div className="w-full space-y-3">
+                     <div className="flex justify-center w-full"><div className="w-1/3 h-1 bg-[#1A1A1A]/70 rounded"></div></div>
+                     <div className="flex justify-center w-full"><div className="w-1/4 h-1 bg-[#1A1A1A]/50 rounded"></div></div>
+                   </div>
+                </div>
+                <h3 className="text-xl font-bold text-[#1A1A1A] mb-2">Prestige</h3>
+                <p className="text-sm text-gray-500 text-center">Épuré et raffiné, sans photos — filets dorés et typographie soignée, esprit gastronomique.</p>
               </button>
             </div>
           </motion.div>

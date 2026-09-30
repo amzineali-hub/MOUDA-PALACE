@@ -13,48 +13,7 @@ import { slugify } from './lib/slug';
 import DishIngredientsModal from './components/DishIngredientsModal';
 import PdfDocumentFlipbook from './components/PdfDocumentFlipbook';
 import { PDF_MENU_IMPORT_ITEMS } from './data/pdfMenuImport';
-
-// Redimensionne une image choisie localement en JPEG compact (max 800px), encodé en data URL —
-// stocké directement dans le champ `imageUrl` du plat (pas d'upload vers Firebase Storage ici).
-// Partagé entre le formulaire "Ajouter/Modifier un plat" et le panneau "Photos manquantes"
-// (upload rapide par carte, sans ouvrir le formulaire) pour ne pas dupliquer ce calcul deux fois.
-function resizeImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+import { resizeImageFile } from './lib/imageResize';
 
 // Catégories boissons (voir `categories` plus bas) — sert à filtrer le panneau "Photos manquantes".
 const DRINK_CATEGORIES = [

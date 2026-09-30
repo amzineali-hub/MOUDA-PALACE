@@ -15,6 +15,7 @@ import { computeRecipeCost } from './lib/recipeCost';
 import { resolveItemPrice } from './lib/priceUtils';
 import { TVA_RATES, computeTTC } from './lib/tva';
 import { getUnitOptions } from './lib/units';
+import { resizeImageFile } from './lib/imageResize';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { LineChart, Line } from 'recharts';
 import { 
@@ -381,7 +382,8 @@ const getCategoryImageUrl = (category: string) => {
     "Hygiène & Entretien": 'https://images.unsplash.com/photo-1585421514738-01798e348b17?auto=format&fit=crop&w=150&q=80',
     "Fruits": 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=150&q=80',
     "Légumes": 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&w=150&q=80',
-    "Poissons": 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80'
+    "Poissons": 'https://images.unsplash.com/photo-1615141982883-c7ad0e69fd62?auto=format&fit=crop&w=150&q=80',
+    "Tenues & Uniformes": 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=150&q=80'
   };
   return images[category] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=150&q=80';
 };
@@ -3205,7 +3207,7 @@ function Inventory() {
   const [stockItemsData, setStockItemsData] = useState<any[]>([]);
 
   const categories = useMemo(() => {
-    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Patisseie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien"];
+    const defaultCats = ['Épices', 'Épicerie', 'Viandes', 'Volailles', 'Fruits Secs', 'Herbes', 'Fruits & Légumes', 'Poissons & Fruits de mer', 'Boulangerie', 'Patisseie', 'Produits Laitiers', 'Boissons', 'Boissons Alcoolisées', 'Sauces', 'Conserves', 'Sirops', "Matériel", "Services", "Hygiène & Entretien", "Tenues & Uniformes"];
     const dbCats = stockItemsData.map(item => normalizeCategory(item.category)).filter(Boolean);
     const dbFournisseurCats = fournisseurs.map(f => normalizeCategory(f.category || f.categorie)).filter(Boolean);
     return Array.from(new Set([...defaultCats, ...dbCats, ...dbFournisseurCats]))
@@ -3680,7 +3682,7 @@ function Inventory() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-2 rounded-full ${item.status === 'ok' ? 'bg-green-500' : item.status === 'alert' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
-                          <img src={getCategoryImageUrl(item.category)} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 bg-gray-50 flex-shrink-0" referrerPolicy="no-referrer" />
+                          <img src={item.imageUrl || getCategoryImageUrl(item.category)} alt={item.name} className="w-10 h-10 rounded-lg object-cover border border-gray-100 bg-gray-50 flex-shrink-0" referrerPolicy="no-referrer" />
                           <span className="font-medium text-gray-900">{item.name}</span>
                         </div>
                       </td>
@@ -4703,7 +4705,8 @@ function Inventory() {
               const unitPrice = Number(formData.get('unitPrice') || 0);
               const tva = Number(formData.get('tva') || 20);
               const expirationDate = formData.get('expirationDate') as string;
-              
+              const imageUrl = formData.get('imageUrl') as string;
+
               if (!categories.includes(category)) {
                 try {
                   await addDoc(collection(db, 'inventoryCategories'), { name: category });
@@ -4723,6 +4726,7 @@ function Inventory() {
                 tva,
                 minStock: 10,
                 expirationDate: expirationDate || null,
+                imageUrl: imageUrl || null,
                 createdAt: serverTimestamp()
               };
               try {
@@ -4792,7 +4796,31 @@ function Inventory() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration (Optionnel)</label>
                 <input name="expirationDate" type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
-              <button 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photo (Optionnel)</label>
+                <div className="flex items-center gap-3">
+                  <img id="add-product-image-preview" alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50 hidden" />
+                  <input type="hidden" name="imageUrl" id="add-product-imageUrl" />
+                  <label className="cursor-pointer text-sm text-[#265C6D] font-medium hover:underline">
+                    Choisir une photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const dataUrl = await resizeImageFile(file);
+                        const preview = document.getElementById('add-product-image-preview') as HTMLImageElement | null;
+                        const hidden = document.getElementById('add-product-imageUrl') as HTMLInputElement | null;
+                        if (preview) { preview.src = dataUrl; preview.classList.remove('hidden'); }
+                        if (hidden) hidden.value = dataUrl;
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+              <button
                 type="submit"
                 className="w-full bg-[#265C6D] text-white py-3 rounded-xl font-medium mt-4 hover:bg-[#2F6B7F] transition-colors"
               >
@@ -4867,7 +4895,31 @@ function Inventory() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date d'expiration</label>
                 <input id="edit-exp" type="date" defaultValue={selectedProduct.expirationDate || ''} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
               </div>
-              <button 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Photo</label>
+                <div className="flex items-center gap-3">
+                  <img id="edit-image-preview" src={selectedProduct.imageUrl || getCategoryImageUrl(selectedProduct.category)} alt="" className="w-14 h-14 rounded-lg object-cover border border-gray-200 bg-gray-50" referrerPolicy="no-referrer" />
+                  <input type="hidden" id="edit-imageUrl" defaultValue={selectedProduct.imageUrl || ''} />
+                  <label className="cursor-pointer text-sm text-[#265C6D] font-medium hover:underline">
+                    Changer la photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const dataUrl = await resizeImageFile(file);
+                        const preview = document.getElementById('edit-image-preview') as HTMLImageElement | null;
+                        const hidden = document.getElementById('edit-imageUrl') as HTMLInputElement | null;
+                        if (preview) preview.src = dataUrl;
+                        if (hidden) hidden.value = dataUrl;
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+              <button
                 type="button"
                 onClick={async (e) => {
                   e.preventDefault();
@@ -4882,6 +4934,7 @@ function Inventory() {
                   const priceStr = (document.getElementById('edit-price') as HTMLInputElement)?.value;
                   const newPrice = priceStr ? Number(priceStr) : (selectedProduct.price || 0);
                   const newTva = Number((document.getElementById('edit-tva') as HTMLSelectElement)?.value ?? 20);
+                  const newImageUrl = (document.getElementById('edit-imageUrl') as HTMLInputElement)?.value;
 
                   if (selectedProduct.id) {
                     try {
@@ -4896,6 +4949,7 @@ function Inventory() {
                         averageCost: newPrice,
                         tva: newTva,
                         expirationDate: newExp || null,
+                        imageUrl: newImageUrl || null,
                         updatedAt: serverTimestamp()
                       });
                       showToast(`Paramètres mis à jour pour ${selectedProduct.name}`);

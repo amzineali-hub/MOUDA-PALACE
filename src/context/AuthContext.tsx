@@ -7,7 +7,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 // seuls ces comptes sont autorisés à se connecter. Toute autre tentative est déconnectée
 // immédiatement, sans jamais créer de document dans la collection `users`.
 // Doit rester synchronisé avec la liste dans firestore.rules.
-export const AUTHORIZED_EMAILS = ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com'];
+export const AUTHORIZED_EMAILS = ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com', 'saloua.moudapalace@gmail.com'];
 
 // Comptes techniques dédiés des portails de rôle (Économat/Guest Relations — voir
 // RoleAccessPortal dans App.tsx). Ce ne sont pas des comptes Google : des comptes Firebase

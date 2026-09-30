@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAuthorizedAdmin() {
       return request.auth != null
-        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com']
+        && request.auth.token.email in ['amzine.ali@gmail.com', 'contact@moudapalace.com', 'moudapalace@gmail.com', 'saloua.moudapalace@gmail.com']
         && request.auth.token.email_verified == true;
     }
 

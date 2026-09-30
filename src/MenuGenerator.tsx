@@ -535,6 +535,7 @@ if (isPrintView) {
               >
                 <option value="moderne">Modèle Moderne (Minimaliste)</option>
                 <option value="traditionnel">Modèle Traditionnel (Marocain)</option>
+                <option value="prestige">Modèle Prestige (Raffiné)</option>
               </select>
               <div className="w-full sm:w-auto flex flex-col items-center gap-1">
                 <button onClick={handlePrint} className="w-full flex justify-center items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-5 py-2.5 rounded-lg font-medium shadow-sm hover:bg-[#E5B745] transition-colors">
@@ -578,9 +579,9 @@ if (isPrintView) {
 
                   return (
                     <div key={cat} className="break-inside-avoid">
-                      <h2 className="text-2xl sm:text-3xl font-serif text-[#F4C75B] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-4 sm:gap-6">
-                        <span className="h-[1px] w-12 bg-[#F4C75B]"></span> 
-                        {cat} 
+                      <h2 className="text-2xl sm:text-3xl font-serif text-[#8B5A2B] text-center mb-10 uppercase tracking-widest flex items-center justify-center gap-4 sm:gap-6">
+                        <span className="h-[1px] w-12 bg-[#F4C75B]"></span>
+                        {cat}
                         <span className="h-[1px] w-12 bg-[#F4C75B]"></span>
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
@@ -595,7 +596,7 @@ if (isPrintView) {
                               <div className="flex justify-between items-baseline mb-2 gap-4">
                                 <h3 className="text-lg md:text-xl font-serif font-bold text-gray-900">{item.name}</h3>
                                 <div className="flex-1 border-b-2 border-dotted border-gray-300 relative -top-1"></div>
-                                <span className="text-lg font-serif font-bold text-[#F4C75B] whitespace-nowrap">{item.price}</span>
+                                <span className="text-lg font-serif font-bold text-[#8B5A2B] whitespace-nowrap">{item.price}</span>
                               </div>
                               <p className="text-sm text-gray-600 italic leading-relaxed">{item.desc}</p>
                             </div>
@@ -742,7 +743,7 @@ if (isPrintView) {
                                 <div className="flex items-baseline justify-center gap-3">
                                   <h3 className="text-base md:text-lg font-serif text-[#1A1A1A] tracking-wide">{item.name}</h3>
                                   <span className="flex-1 max-w-16 border-b border-dotted border-[#D4AF37]/60 relative -top-1"></span>
-                                  <span className="text-base md:text-lg font-serif text-[#D4AF37] whitespace-nowrap">{item.price}</span>
+                                  <span className="text-base md:text-lg font-serif text-[#8B5A2B] whitespace-nowrap">{item.price}</span>
                                 </div>
                                 {item.desc && (
                                   <p className="text-xs md:text-sm text-gray-500 italic mt-1.5 max-w-md mx-auto leading-relaxed">{item.desc}</p>

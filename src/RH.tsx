@@ -36,6 +36,10 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
   const [selectedStaffId, setSelectedStaffId] = useState(staffData[0]?.id || '');
   const [baseSalary, setBaseSalary] = useState<number>(staffData[0]?.baseSalary || 4000);
   const [avance, setAvance] = useState<number>(0);
+  // Saisie manuelle du gérant au moment de générer la fiche — en complément des absences déjà
+  // déclarées une à une via "Signaler une absence" (pendingAbsences ci-dessous), pour les cas où
+  // il connaît juste un nombre de jours d'absence du mois sans vouloir les dater individuellement.
+  const [manualAbsenceDays, setManualAbsenceDays] = useState<number>(0);
 
   // staffData se charge en asynchrone (Firestore) : si la sélection initiale (faite avant
   // que la liste ne soit prête) ne correspond à aucun employé réel, on bascule sur le
@@ -52,6 +56,7 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
     if (staff && staff.baseSalary) {
       setBaseSalary(staff.baseSalary);
     }
+    setManualAbsenceDays(0);
   }, [selectedStaffId, staffData]);
 
   // Calculs Code du Travail Marocain (simplifiés) — voir src/lib/payroll.ts
@@ -62,9 +67,15 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
   // (base / 191) pour une absence partielle avec des heures saisies, sinon taux journalier
   // (base / 26) pour une journée complète — voir src/lib/payroll.ts.
   const pendingAbsences = absencesList.filter(a => a.employeeId === selectedStaffId && !a.payslipId);
-  const absenceFullDays = pendingAbsences.filter(a => !a.hours).length;
+  const loggedAbsenceFullDays = pendingAbsences.filter(a => !a.hours).length;
   const absenceHours = pendingAbsences.filter(a => a.hours > 0).reduce((sum, a) => sum + a.hours, 0);
-  const absenceDeduction = computeAbsenceDeduction(baseSalary, pendingAbsences);
+  // Jours d'absence totaux = ceux déjà déclarés un à un (loggedAbsenceFullDays) + la saisie
+  // manuelle directe du gérant dans ce formulaire (manualAbsenceDays) — même taux journalier
+  // (base / 26) pour les deux, voir src/lib/payroll.ts.
+  const absenceFullDays = loggedAbsenceFullDays + manualAbsenceDays;
+  const absenceDeduction = computeAbsenceDeduction(baseSalary, pendingAbsences) + (baseSalary / MONTHLY_WORKING_DAYS_BASIS) * manualAbsenceDays;
+  const hoursPerDay = MONTHLY_HOURS_BASIS / MONTHLY_WORKING_DAYS_BASIS;
+  const joursTravailles = Math.max(0, MONTHLY_WORKING_DAYS_BASIS - absenceFullDays - (absenceHours / hoursPerDay));
   const finalNet = netSalary - avance - absenceDeduction;
 
   if (!isOpen) return null;
@@ -152,12 +163,35 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
                 placeholder="0"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Jours d'absence (saisie manuelle)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={manualAbsenceDays || ''}
+                  onChange={(e) => setManualAbsenceDays(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-[#F4C75B]"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Jours travaillés</label>
+                <input
+                  type="text"
+                  readOnly
+                  value={`${joursTravailles.toFixed(joursTravailles % 1 === 0 ? 0 : 1)} / ${MONTHLY_WORKING_DAYS_BASIS}`}
+                  className="w-full p-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                />
+              </div>
+            </div>
 
             {pendingAbsences.length > 0 && (
               <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-xs text-red-700">
                 <p className="font-medium mb-1">{pendingAbsences.length} absence(s) non déduite(s) pour cet employé :</p>
                 <p>{pendingAbsences.map(a => `${a.date}${a.hours > 0 ? ` (${a.hours}h)` : ''}`).join(', ')}</p>
-                <p className="mt-1">Déduction au prorata{absenceFullDays > 0 ? ` (${absenceFullDays} j complet(s))` : ''}{absenceHours > 0 ? ` (${absenceHours}h partielles)` : ''} : <strong>-{absenceDeduction.toFixed(2)} MAD</strong> — sera appliquée automatiquement à la génération.</p>
+                <p className="mt-1">Déduction au prorata{loggedAbsenceFullDays > 0 ? ` (${loggedAbsenceFullDays} j complet(s))` : ''}{absenceHours > 0 ? ` (${absenceHours}h partielles)` : ''} : <strong>-{computeAbsenceDeduction(baseSalary, pendingAbsences).toFixed(2)} MAD</strong> — sera appliquée automatiquement à la génération.</p>
               </div>
             )}
 
@@ -183,7 +217,7 @@ function PayrollModal({ isOpen, onClose, staffData, absencesList, onGenerate }: 
               )}
               {absenceDeduction > 0 && (
                 <div className="flex justify-between text-gray-600">
-                  <span>Absences ({pendingAbsences.length})</span>
+                  <span>Absences ({absenceFullDays}{absenceHours > 0 ? ` j + ${absenceHours}h` : ' j'})</span>
                   <span className="font-medium text-red-600">-{absenceDeduction.toFixed(2)}</span>
                 </div>
               )}

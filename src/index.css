@@ -23,6 +23,13 @@
   .print\:hidden { display: none !important; }
 }
 
+/* Supprime l'en-tête/pied de page que Chrome ajoute par défaut à l'impression (URL, titre,
+   numéro de page) : avec une marge de page nulle, le navigateur n'a plus la place de les
+   dessiner. Les documents imprimés gardent leur propre marge via le padding de leur conteneur. */
+@page {
+  margin: 0;
+}
+
 
 
 @media print {

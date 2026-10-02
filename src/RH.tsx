@@ -1855,15 +1855,15 @@ export default function RH() {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-gray-100 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           >
-            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-white print:hidden">
               <h3 className="text-xl font-serif font-medium text-gray-900">
                 Bulletin de Paie - {selectedPayslip.name}
               </h3>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => {
                     setTimeout(() => window.print(), 100);
-                  }} 
+                  }}
                   className="px-4 py-1.5 bg-[#F4C75B] text-[#1A1A1A] text-sm font-medium rounded-lg hover:bg-[#E5B745] transition-colors flex items-center gap-2"
                 >
                   <Printer size={16} /> Imprimer

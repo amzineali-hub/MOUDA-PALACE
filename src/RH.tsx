@@ -303,6 +303,10 @@ export default function RH() {
   }, []);
 
   const [payrollSearchQuery, setPayrollSearchQuery] = useState('');
+  // Brouillon local des jours d'absence en cours de saisie dans Historique des Paies, pour que
+  // "X / 26 travaillés" se mette à jour à chaque frappe plutôt qu'uniquement après avoir quitté le
+  // champ (l'enregistrement Firestore, lui, continue de se faire au blur — voir plus bas).
+  const [draftAbsenceDays, setDraftAbsenceDays] = useState<Record<string, number>>({});
   const filteredPayrollList = payrollList.filter(item =>
     !payrollSearchQuery || (item.period || '').toLowerCase().includes(payrollSearchQuery.toLowerCase())
   );
@@ -1174,7 +1178,7 @@ export default function RH() {
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
-                   {filteredPayrollList.map((item, idx) => {
+                   {filteredPayrollList.map((item) => {
                      const grossNet = parseFloat(item.net) || 0;
                      const avance = Number(item.avance) || 0;
                      const absenceDeduction = Number(item.absenceDeduction) || 0;
@@ -1183,10 +1187,11 @@ export default function RH() {
                      // modale Payslip Document) : 26 jours ouvrés/mois moins les absences,
                      // journées complètes directement, heures partielles au prorata (191h/26j).
                      const hoursPerDay = MONTHLY_HOURS_BASIS / MONTHLY_WORKING_DAYS_BASIS;
-                     const absenceDaysEquiv = (Number(item.absenceFullDays) || 0) + ((Number(item.absenceHours) || 0) / hoursPerDay);
+                     const displayedAbsenceDays = draftAbsenceDays[item.id] !== undefined ? draftAbsenceDays[item.id] : (Number(item.absenceFullDays) || 0);
+                     const absenceDaysEquiv = displayedAbsenceDays + ((Number(item.absenceHours) || 0) / hoursPerDay);
                      const joursTravaillesListe = Math.max(0, MONTHLY_WORKING_DAYS_BASIS - absenceDaysEquiv);
                      return (
-                     <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                     <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                        <td className="p-4 font-medium text-gray-900">{item.name}</td>
                        <td className="p-4 text-gray-600">{item.period}</td>
                        <td className="p-4 text-gray-600">{item.base} MAD</td>
@@ -1196,12 +1201,16 @@ export default function RH() {
                              type="number"
                              min="0"
                              step="0.5"
-                             defaultValue={item.absenceFullDays || ''}
+                             value={displayedAbsenceDays || ''}
                              placeholder="0"
                              title="Jours d'absence — saisie manuelle par le gérant"
+                             onChange={(e) => setDraftAbsenceDays(prev => ({ ...prev, [item.id]: Number(e.target.value) || 0 }))}
                              onBlur={async (e) => {
                                const newAbsenceFullDays = Number(e.target.value) || 0;
-                               if (newAbsenceFullDays === (Number(item.absenceFullDays) || 0)) return;
+                               if (newAbsenceFullDays === (Number(item.absenceFullDays) || 0)) {
+                                 setDraftAbsenceDays(prev => { const next = { ...prev }; delete next[item.id]; return next; });
+                                 return;
+                               }
                                try {
                                  const baseSalary = Number(item.base) || 0;
                                  const existingHours = Number(item.absenceHours) || 0;
@@ -1217,6 +1226,7 @@ export default function RH() {
                                    absenceFullDays: newAbsenceFullDays,
                                    absenceDeduction: newAbsenceDeduction
                                  });
+                                 setDraftAbsenceDays(prev => { const next = { ...prev }; delete next[item.id]; return next; });
                                  showToast("Jours d'absence mis à jour");
                                } catch (err) {
                                  console.error(err);

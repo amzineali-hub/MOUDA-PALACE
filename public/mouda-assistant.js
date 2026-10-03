@@ -73,10 +73,46 @@
   var sendEl = panel.querySelector('#mp-assist-send');
   var closeEl = panel.querySelector('#mp-assist-close');
 
+  // Repère les liens Markdown [texte](url) et les URL nues (http/https uniquement) pour les
+  // rendre cliquables, sans jamais passer le texte généré par l'IA à innerHTML : chaque segment
+  // est ajouté soit en noeud texte (createTextNode), soit en vraie balise <a> construite à la
+  // main (createElement + textContent) — impossible d'y injecter du HTML/script.
+  var LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>"')]+)/g;
+
   function addMessage(role, text) {
     var el = document.createElement('div');
     el.className = 'mp-msg ' + (role === 'user' ? 'user' : 'bot');
-    el.textContent = text; // jamais innerHTML — le texte peut venir du modèle IA
+
+    var lastIndex = 0;
+    var match;
+    LINK_RE.lastIndex = 0;
+    while ((match = LINK_RE.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        el.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+      }
+      var linkText = match[1] || match[3];
+      var rawUrl = match[2] || match[3];
+      // Ponctuation de fin de phrase accidentellement capturée dans une URL nue (ex: "...menu/.")
+      var trailing = '';
+      var urlMatch = rawUrl.match(/^(.*[^.,;:!?)])([.,;:!?)]+)$/);
+      if (urlMatch) { rawUrl = urlMatch[1]; trailing = urlMatch[2]; if (!match[1]) linkText = rawUrl; }
+
+      var a = document.createElement('a');
+      a.href = rawUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.color = role === 'user' ? '#fff' : TEAL;
+      a.style.textDecoration = 'underline';
+      a.textContent = linkText;
+      el.appendChild(a);
+      if (trailing) el.appendChild(document.createTextNode(trailing));
+
+      lastIndex = LINK_RE.lastIndex;
+    }
+    if (lastIndex < text.length) {
+      el.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+
     msgsEl.appendChild(el);
     msgsEl.scrollTop = msgsEl.scrollHeight;
     return el;

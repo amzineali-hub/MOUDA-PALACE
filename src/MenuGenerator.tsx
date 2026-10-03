@@ -656,7 +656,7 @@ if (isPrintView) {
                   </div>
                   <div className="text-center md:text-right font-bold tracking-wider text-[#7a1c15]">
                     <p>MOUDA PALACE</p>
-                    <p className="font-sans text-sm tracking-normal font-normal mt-1">+212 5 35 00 00 00</p>
+                    <p className="font-sans text-sm tracking-normal font-normal mt-1">+212 661-357191</p>
                   </div>
                 </div>
               </div>
@@ -725,7 +725,7 @@ if (isPrintView) {
                   <div className="mt-16 md:mt-20 pt-6 text-center">
                     <span className="inline-block h-px w-24 bg-[#D4AF37] mb-5"></span>
                     <p className="text-sm font-serif font-bold uppercase tracking-[0.3em] text-[#1A1A1A]">Mouda Palace</p>
-                    <p className="text-xs text-gray-600 tracking-wider mt-1">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina · +212 5 35 00 00 00</p>
+                    <p className="text-xs text-gray-600 tracking-wider mt-1">7 Derb Agoual Sefli, Talaa Sghira, Fès Médina · +212 661-357191</p>
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import generateBlogHandler from './api/generate-blog.js';
 import analyzeReviewHandler from './api/analyze-review.js';
 import translateMenuHandler from './api/translate-menu.js';
 import publishContentHandler from './api/publish-content.js';
+import siteAssistantHandler from './api/site-assistant.js';
 
 async function startServer() {
   const app = express();
@@ -24,10 +25,15 @@ async function startServer() {
   app.use('/api/analyze-review', express.json({ limit: '5mb' }));
   app.use('/api/translate-menu', express.json({ limit: '5mb' }));
   app.use('/api/publish-content', express.json({ limit: '5mb' }));
+  app.use('/api/site-assistant', express.json({ limit: '1mb' }));
   app.post('/api/generate-blog', generateBlogHandler);
   app.post('/api/analyze-review', analyzeReviewHandler);
   app.post('/api/translate-menu', translateMenuHandler);
   app.post('/api/publish-content', publishContentHandler);
+  // OPTIONS en plus de POST : seul endpoint appelé en cross-origin (depuis moudapalace.com), donc
+  // le seul à recevoir un préflight CORS — voir ALLOWED_ORIGINS dans api/site-assistant.js.
+  app.post('/api/site-assistant', siteAssistantHandler);
+  app.options('/api/site-assistant', siteAssistantHandler);
 
   // API routes
   app.get('/api/health', (req, res) => {

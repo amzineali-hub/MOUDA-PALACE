@@ -10,6 +10,83 @@ import { computeTTC } from './lib/tva';
 import { calculateStockStatus } from './lib/inventory';
 import { resolveItemPrice } from './lib/priceUtils';
 import { computeUpdatedSupplierRating } from './lib/supplierRating';
+import { buildLetterheadHtml, DEFAULT_COMPANY_INFO, mergeCompanyInfo } from './lib/letterhead';
+
+// Lignes libres du Bon de Commande "Rédaction" (bouton dédié, distinct de "Créer une commande" :
+// celle-ci se limite aux articles déjà présents dans l'inventaire, sans prix ni lignes ajoutables —
+// la Rédaction accepte n'importe quelle désignation libre, avec prix estimé optionnel, et un nombre
+// de lignes extensible via "+ Ajouter une ligne").
+interface DraftOrderLine {
+  designation: string;
+  qty: string;
+  unit: string;
+  unitPrice: string;
+}
+
+const emptyDraftOrderLine = (): DraftOrderLine => ({ designation: '', qty: '', unit: '', unitPrice: '' });
+const emptyDraftOrderLines = (): DraftOrderLine[] => Array.from({ length: 3 }, emptyDraftOrderLine);
+const draftOrderLineTotal = (line: DraftOrderLine): number => (parseFloat(line.qty) || 0) * (parseFloat(line.unitPrice) || 0);
+const sumDraftOrderLines = (lines: DraftOrderLine[]): number =>
+  lines.reduce((sum, l) => sum + (l.designation || l.qty || l.unitPrice ? draftOrderLineTotal(l) : 0), 0);
+
+function DraftOrderLinesTable({ lines, onChange }: { lines: DraftOrderLine[]; onChange: (lines: DraftOrderLine[]) => void }) {
+  const cellClass = "w-full p-1.5 text-sm border-none focus:outline-none focus:ring-1 focus:ring-[#F4C75B] rounded";
+  const updateCell = (i: number, field: keyof DraftOrderLine, value: string) => {
+    onChange(lines.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
+  };
+  const removeLine = (i: number) => {
+    onChange(lines.length > 1 ? lines.filter((_, idx) => idx !== i) : [emptyDraftOrderLine()]);
+  };
+  return (
+    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200">Désignation</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-20">Quantité</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-24">Unité</th>
+            <th className="text-left font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Prix unit. estimé</th>
+            <th className="text-right font-medium text-gray-600 p-2 border-b border-gray-200 w-28">Total</th>
+            <th className="w-8 border-b border-gray-200"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i}>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input type="text" value={l.designation} onChange={(e) => updateCell(i, 'designation', e.target.value)} className={cellClass} placeholder={i === 0 ? 'Ex : Tomates fraîches' : ''} />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input type="number" step="0.01" min="0" value={l.qty} onChange={(e) => updateCell(i, 'qty', e.target.value)} className={cellClass} />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input type="text" value={l.unit} onChange={(e) => updateCell(i, 'unit', e.target.value)} className={cellClass} placeholder="kg, L, pièce..." />
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0">
+                <input type="number" step="0.01" min="0" value={l.unitPrice} onChange={(e) => updateCell(i, 'unitPrice', e.target.value)} className={cellClass} />
+              </td>
+              <td className="p-2.5 border-b border-gray-100 last:border-b-0 text-right text-gray-500">
+                {(l.designation || l.qty || l.unitPrice) ? `${draftOrderLineTotal(l).toFixed(2)} MAD` : ''}
+              </td>
+              <td className="p-1 border-b border-gray-100 last:border-b-0 text-center">
+                <button type="button" onClick={() => removeLine(i)} className="text-gray-300 hover:text-red-500 transition-colors" title="Supprimer la ligne">
+                  <Trash2 size={14} />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button
+        type="button"
+        onClick={() => onChange([...lines, emptyDraftOrderLine()])}
+        className="w-full flex items-center justify-center gap-1.5 text-sm text-[#265C6D] font-medium py-2 border-t border-gray-200 hover:bg-gray-50 transition-colors"
+      >
+        <Plus size={14} /> Ajouter une ligne
+      </button>
+    </div>
+  );
+}
 
 export default function AchatsFournisseurs() {
   const [activeTab, setActiveTab] = useState<'commandes' | 'fournisseurs' | 'previsions' | 'reception'>('commandes');
@@ -26,6 +103,20 @@ export default function AchatsFournisseurs() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isSupplierDetailsModalOpen, setIsSupplierDetailsModalOpen] = useState(false);
   const { showToast } = useToast();
+
+  // "Rédaction Bon de Commande" — générateur de document libre (entête/logo réels, lignes et
+  // champs libres), distinct de "Créer une commande" qui crée un enregistrement suivi en base.
+  const [isDraftOrderModalOpen, setIsDraftOrderModalOpen] = useState(false);
+  const [draftOrderLines, setDraftOrderLines] = useState<DraftOrderLine[]>(emptyDraftOrderLines());
+  const [companyInfo, setCompanyInfo] = useState<any>(DEFAULT_COMPANY_INFO);
+  useEffect(() => {
+    const unsubGeneral = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+      if (snap.exists()) setCompanyInfo((prev: any) => mergeCompanyInfo(prev, snap.data()));
+    }, (error) => {
+      console.error("Error fetching company settings", error);
+    });
+    return () => unsubGeneral();
+  }, []);
 
   const handleGeneratePrevisions = () => {
     setIsGeneratingPrevisions(true);
@@ -236,6 +327,10 @@ export default function AchatsFournisseurs() {
           <button onClick={() => setIsNewSupplierModalOpen(true)} className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm">
             <Store size={18} />
             <span>Nouveau fournisseur</span>
+          </button>
+          <button onClick={() => { setDraftOrderLines(emptyDraftOrderLines()); setIsDraftOrderModalOpen(true); }} className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors shadow-sm">
+            <FileText size={18} />
+            <span>Rédaction Bon de Commande</span>
           </button>
           <button onClick={() => { setSelectedCommande(null); setProductSearch(''); setOrderSelections({}); setIsNewOrderModalOpen(true); }} className="flex items-center gap-2 bg-[#F4C75B] text-[#1A1A1A] px-4 py-2 rounded-lg font-medium hover:bg-[#C89845] transition-colors shadow-sm">
             <Plus size={18} />
@@ -796,6 +891,154 @@ Détails <ChevronRight size={16} />
       )}
 
       
+      {/* Modal Rédaction Bon de Commande — document libre à en-tête réel, non lié à un suivi Firestore */}
+      {isDraftOrderModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsDraftOrderModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">Rédaction Bon de Commande</h3>
+            <p className="text-sm text-gray-500 mb-6">Document libre à envoyer au fournisseur — en-tête Mouda Palace, lignes et champs libres.</p>
+
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const supplierName = (formData.get('supplier') as string || '').trim();
+              const deliveryDate = formData.get('deliveryDate') as string;
+              const reference = (formData.get('reference') as string || '').trim();
+              const notes = (formData.get('notes') as string || '').trim();
+
+              const filledLines = draftOrderLines.filter(l => l.designation || l.qty || l.unitPrice);
+              if (filledLines.length === 0) {
+                showToast("Veuillez renseigner au moins une ligne", "error");
+                return;
+              }
+
+              const total = sumDraftOrderLines(draftOrderLines);
+              const hasPrices = filledLines.some(l => parseFloat(l.unitPrice) > 0);
+
+              const bodyHtml = `
+                <div class="po-info">
+                  <div>
+                    <h2>BON DE COMMANDE</h2>
+                    ${reference ? `<p><strong>Référence :</strong> ${reference}</p>` : ''}
+                    <p><strong>Date d'émission :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+                    ${deliveryDate ? `<p><strong>Livraison souhaitée :</strong> ${new Date(deliveryDate).toLocaleDateString('fr-FR')}</p>` : ''}
+                  </div>
+                  <div class="po-supplier">
+                    <h3>Fournisseur</h3>
+                    <p><strong>${supplierName || 'À préciser'}</strong></p>
+                  </div>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Désignation</th>
+                      <th style="text-align: right;">Quantité</th>
+                      <th>Unité</th>
+                      ${hasPrices ? '<th style="text-align: right;">Prix unit. estimé</th><th style="text-align: right;">Total</th>' : ''}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${filledLines.map(l => `
+                      <tr>
+                        <td>${(l.designation || '').replace(/\n/g, '<br/>')}</td>
+                        <td style="text-align: right;">${l.qty || ''}</td>
+                        <td>${l.unit || ''}</td>
+                        ${hasPrices ? `<td style="text-align: right;">${l.unitPrice ? `${parseFloat(l.unitPrice).toFixed(2)} MAD` : ''}</td><td style="text-align: right;">${(l.designation || l.qty || l.unitPrice) ? `${draftOrderLineTotal(l).toFixed(2)} MAD` : ''}</td>` : ''}
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+                ${hasPrices ? `
+                  <div class="totals">
+                    <table>
+                      <tr class="grand-total">
+                        <th style="text-align: left;">Total estimé</th>
+                        <td style="text-align: right;">${total.toFixed(2)} MAD</td>
+                      </tr>
+                    </table>
+                  </div>
+                ` : ''}
+                ${notes ? `<div class="po-notes"><strong>Notes / conditions :</strong><p>${notes.replace(/\n/g, '<br/>')}</p></div>` : ''}
+                <p class="po-mention">Merci de bien vouloir confirmer la réception de cette commande et respecter les délais de livraison convenus.${hasPrices ? '' : ' Les prix seront communiqués par vos soins à la livraison.'}</p>
+                <div class="signature-zone">
+                  <p><strong>Signature &amp; Cachet :</strong></p>
+                </div>
+                <div class="manager-block">
+                  <p><strong>${(companyInfo.name || 'MOUDA PALACE').toUpperCase()}</strong></p>
+                  <p>GERANT</p>
+                </div>
+              `;
+
+              const html = buildLetterheadHtml(companyInfo, window.location.origin, {
+                title: `Bon de Commande${reference ? ` ${reference}` : ''}`,
+                bodyHtml,
+                extraStyles: `
+                  .po-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+                  .po-supplier { text-align: right; }
+                  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+                  th { border-bottom: 2px solid #eee; padding: 10px; text-align: left; }
+                  td { border-bottom: 1px solid #eee; padding: 10px; }
+                  .totals { display: flex; justify-content: flex-end; margin-bottom: 24px; }
+                  .totals table { width: 280px; }
+                  .grand-total th, .grand-total td { font-size: 15px; font-weight: bold; border-top: 2px solid #1a1a1a; border-bottom: none; }
+                  .po-notes { margin-bottom: 20px; }
+                  .po-mention { font-size: 13px; color: #555; }
+                  .signature-zone { margin-top: 50px; }
+                  .manager-block { margin-top: 40px; text-align: right; }
+                `
+              });
+
+              const printWindow = window.open('', '', 'width=800,height=900');
+              if (printWindow) {
+                printWindow.document.write(html);
+                printWindow.document.close();
+              }
+              setIsDraftOrderModalOpen(false);
+            }}>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                  <Combobox name="supplier" options={suppliersList} className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] bg-white" placeholder="Nom du fournisseur" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de livraison souhaitée</label>
+                  <input name="deliveryDate" type="date" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Référence (optionnel)</label>
+                <input name="reference" type="text" placeholder="Ex : BC-2026-014" className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B]" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Articles</label>
+                <DraftOrderLinesTable lines={draftOrderLines} onChange={setDraftOrderLines} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes / conditions (optionnel)</label>
+                <textarea name="notes" rows={3} placeholder="Ex : Livraison avant 10h, emballage sous vide..." className="w-full border border-gray-200 rounded-lg p-2.5 focus:outline-none focus:border-[#F4C75B] resize-none" />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-[#F4C75B] text-[#1A1A1A] py-3 rounded-xl font-medium mt-2 hover:bg-[#E5B745] transition-colors flex items-center justify-center gap-2"
+              >
+                <FileText size={18} /> Générer le Bon de Commande
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal Nouvelle Commande */}
 
       {isNewOrderModalOpen && (

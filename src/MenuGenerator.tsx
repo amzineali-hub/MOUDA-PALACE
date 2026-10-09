@@ -400,6 +400,13 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
     DRINK_CATEGORIES.includes(item.category) && item.imageUrl === availableImages[0]
   );
 
+  // Garde-fou : plats dont la catégorie n'est plus dans `categories` (ex: restes de l'ancien
+  // import PDF jamais nettoyés sous une catégorie générique "Entrées") — invisibles dans la
+  // grille normale ci-dessous puisqu'elle ne boucle que sur `categories`, donc jamais vus ni
+  // supprimables sans ce panneau. Voir aussi le même filet de sécurité côté PublicMenu.tsx
+  // (`extraCategories`), qui lui les affiche plutôt que de les cacher.
+  const orphanCategoryItems = menuItems.filter(item => item.category && !categories.includes(item.category));
+
 
     
   const handlePrint = async () => {
@@ -761,6 +768,31 @@ if (isPrintView) {
           </button>
         </div>
       </div>
+
+      {orphanCategoryItems.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-5 space-y-3">
+          <h2 className="text-lg font-serif font-bold text-red-700 flex items-center gap-2">
+            <X size={18} className="text-red-500" />
+            Catégorie non reconnue ({orphanCategoryItems.length}) — invisibles sur la carte
+          </h2>
+          <p className="text-sm text-red-600">
+            Ces fiches ont une catégorie qui n'existe plus dans le menu (ex: restes d'un ancien import). Vérifiez qu'elles ne sont pas déjà en double avec une fiche correctement classée avant de les supprimer.
+          </p>
+          <div className="divide-y divide-red-100">
+            {orphanCategoryItems.map(item => (
+              <div key={item.id} className="flex items-center justify-between py-2">
+                <div>
+                  <span className="font-medium text-gray-900">{item.name}</span>
+                  <span className="text-sm text-gray-500 ml-2">({item.category}) — {item.price}</span>
+                </div>
+                <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-100 transition-colors" title="Supprimer">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {categories.map(category => {
         const items = sortItemsByPrice(menuItems.filter(item => item.category === category));

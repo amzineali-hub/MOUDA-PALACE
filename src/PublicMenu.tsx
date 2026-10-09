@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X, ZoomIn } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { MENU_CATEGORY_ORDER, sortItemsByPrice } from './lib/menuOrder';
@@ -27,6 +28,16 @@ interface MenuItemData {
 export default function PublicMenu() {
   const [items, setItems] = useState<MenuItemData[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  // Plein écran au clic sur une photo — surtout utile en version PC, où les vignettes de la grille
+  // restent petites comparé au mobile (une seule colonne, déjà plus grande naturellement).
+  const [lightboxItem, setLightboxItem] = useState<MenuItemData | null>(null);
+
+  useEffect(() => {
+    if (!lightboxItem) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxItem(null); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightboxItem]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,9 +107,17 @@ export default function PublicMenu() {
                 {sortItemsByPrice(items.filter(i => i.category === category)).map(item => (
                   <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                     {item.imageUrl && (
-                      <div className="h-40 bg-gray-100">
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLightboxItem(item)}
+                        className="h-40 bg-gray-100 relative group w-full cursor-zoom-in"
+                        aria-label={`Agrandir la photo de ${item.name}`}
+                      >
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105" referrerPolicy="no-referrer" />
+                        <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn size={28} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </span>
+                      </button>
                     )}
                     <div className="p-4 flex-1 flex flex-col">
                       <h3 className="font-serif font-semibold text-gray-900 leading-tight">{item.name}</h3>
@@ -116,6 +135,34 @@ export default function PublicMenu() {
       <footer className="text-center text-xs text-gray-400 tracking-widest uppercase py-10">
         Mouda Palace · Fès
       </footer>
+
+      {lightboxItem && (
+        <div
+          className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 md:p-10"
+          onClick={() => setLightboxItem(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxItem(null)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors"
+            aria-label="Fermer"
+          >
+            <X size={24} />
+          </button>
+          <figure className="max-w-5xl max-h-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lightboxItem.imageUrl}
+              alt={lightboxItem.name}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+              referrerPolicy="no-referrer"
+            />
+            <figcaption className="text-white text-center mt-4">
+              <p className="font-serif text-lg">{lightboxItem.name}</p>
+              <p className="text-[#F4C75B] font-bold">{lightboxItem.price}</p>
+            </figcaption>
+          </figure>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
+import { MENU_CATEGORY_ORDER, sortItemsByPrice } from './lib/menuOrder';
 
 // Page publique, sans connexion — /carte, destinée à être intégrée (lien ou <iframe>) depuis le
 // site WordPress (moudapalace.com/menu/), qui est construit avec Elementor : plutôt que de pousser
@@ -10,15 +11,9 @@ import { db } from './firebase';
 // à refaire après un changement de menu. Rendue en dehors de AuthContext/ToastContext, comme
 // PublicDishCard : lecture seule, aucune donnée de coût/marge (menu_items ne contient que ce qui
 // est déjà public dans l'appli : nom, catégorie, prix de vente, description, photo).
-const CATEGORY_ORDER = [
-  'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
-  'Plats Principaux',
-  'Desserts',
-  'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
-  'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
-  'Tapas', 'Chicha',
-  'Boissons', 'Entrées'
-];
+// L'ordre des catégories vient de src/lib/menuOrder.ts, partagé avec MenuGenerator.tsx — ne plus en
+// garder une copie locale ici, c'est exactement ce qui avait fait diverger les deux affichages.
+const CATEGORY_ORDER = MENU_CATEGORY_ORDER;
 
 interface MenuItemData {
   id: string;
@@ -98,7 +93,7 @@ export default function PublicMenu() {
                 {category}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.filter(i => i.category === category).map(item => (
+                {sortItemsByPrice(items.filter(i => i.category === category)).map(item => (
                   <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
                     {item.imageUrl && (
                       <div className="h-40 bg-gray-100">

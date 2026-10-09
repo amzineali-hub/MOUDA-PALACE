@@ -14,6 +14,7 @@ import DishIngredientsModal from './components/DishIngredientsModal';
 import PdfDocumentFlipbook from './components/PdfDocumentFlipbook';
 import { PDF_MENU_IMPORT_ITEMS } from './data/pdfMenuImport';
 import { resizeImageFile } from './lib/imageResize';
+import { MENU_CATEGORY_ORDER, sortItemsByPrice } from './lib/menuOrder';
 
 // Catégories boissons (voir `categories` plus bas) — sert à filtrer le panneau "Photos manquantes".
 const DRINK_CATEGORIES = [
@@ -21,13 +22,6 @@ const DRINK_CATEGORIES = [
   'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux',
   'Digestifs', 'Tapas', 'Chicha', 'Boissons'
 ];
-
-// Tri par prix croissant au sein d'un même poste — utilisé partout où un groupe de plats d'une
-// même catégorie est affiché (tableau de bord, les deux modèles d'impression), pour ne pas le
-// répéter trois fois avec le même risque de divergence.
-function sortItemsByPrice<T extends { price?: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => parseAmount(a.price) - parseAmount(b.price));
-}
 
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
@@ -66,19 +60,12 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // public du plat (photo, description, prix), pour être au même endroit que le reste.
   const [ingredientsText, setIngredientsText] = useState('');
 
-  // Catégories legacy ('Entrées', 'Plats Principaux', 'Boissons') gardées en fin de liste pour
-  // que les plats déjà existants avec ces valeurs restent visibles — seules les nouvelles entrées
-  // du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories dédiées.
-  const categories = [
-    'Entrées marocaines', 'Entrées saveurs du monde', 'Plats marocains', 'Plats saveurs du monde',
-    'Plats Principaux',
-    'Desserts',
-    'Tapas',
-    'Boissons Fraîches', 'Boissons Chaudes', 'Jus Maison', 'Mocktails', 'Cocktails',
-    'Bières', 'Vins Blancs & Rosé', 'Vins Rouges', 'Champagnes & Prosecco', 'Spiritueux', 'Digestifs',
-    'Chicha',
-    'Boissons'
-  ];
+  // Ordre partagé avec la page publique (voir src/lib/menuOrder.ts) — les deux affichages doivent
+  // rester identiques. 'Plats Principaux' et 'Boissons' sont des catégories legacy gardées en fin
+  // de liste pour que les plats déjà existants avec ces valeurs restent visibles ; les nouvelles
+  // entrées du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories
+  // dédiées.
+  const categories = MENU_CATEGORY_ORDER;
 
   const availableImages = [
     "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fes-medina-medium.jpg",

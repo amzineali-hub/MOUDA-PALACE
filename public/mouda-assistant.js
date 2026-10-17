@@ -20,12 +20,12 @@
     'Segoe UI,Arial,sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:20px;' +
     'box-shadow:0 4px 14px rgba(0,0,0,.18);white-space:nowrap;transition:opacity .15s ease,transform .15s ease;}' +
     '#mp-assist-label.hidden{opacity:0;pointer-events:none;transform:translateX(6px);}' +
-    '#mp-assist-bubble{width:72px;height:72px;border-radius:50%;flex-shrink:0;' +
+    '#mp-assist-bubble{width:88px;height:88px;border-radius:50%;flex-shrink:0;' +
     'background:' + TEAL + ';border:none;cursor:pointer;' +
     'box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;' +
     'transition:transform .15s ease;}' +
     '#mp-assist-bubble:hover{transform:scale(1.06);}' +
-    '#mp-assist-bubble-logo{width:52px;height:auto;display:block;' +
+    '#mp-assist-bubble-logo{width:68px;height:auto;display:block;' +
     'filter:brightness(0) invert(1);}' +
     '#mp-assist-panel{position:fixed;bottom:92px;right:20px;width:min(360px,calc(100vw - 32px));' +
     'height:min(480px,calc(100vh - 140px));background:#fff;border-radius:16px;overflow:hidden;' +

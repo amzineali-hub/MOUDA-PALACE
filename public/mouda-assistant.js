@@ -20,15 +20,13 @@
     'Segoe UI,Arial,sans-serif;font-size:13px;font-weight:600;padding:8px 14px;border-radius:20px;' +
     'box-shadow:0 4px 14px rgba(0,0,0,.18);white-space:nowrap;transition:opacity .15s ease,transform .15s ease;}' +
     '#mp-assist-label.hidden{opacity:0;pointer-events:none;transform:translateX(6px);}' +
-    '#mp-assist-bubble{width:60px;height:60px;border-radius:50%;flex-shrink:0;' +
+    '#mp-assist-bubble{width:72px;height:72px;border-radius:50%;flex-shrink:0;' +
     'background:' + TEAL + ';border:none;cursor:pointer;' +
     'box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;' +
     'transition:transform .15s ease;}' +
     '#mp-assist-bubble:hover{transform:scale(1.06);}' +
-    '#mp-assist-bubble-logo{width:30px;height:34px;background:' + GOLD + ';' +
-    'mask-image:url(https://mouda-palace.vercel.app/mouda-1-1-1.png);mask-size:contain;' +
-    'mask-repeat:no-repeat;mask-position:center;-webkit-mask-image:url(https://mouda-palace.vercel.app/mouda-1-1-1.png);' +
-    '-webkit-mask-size:contain;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;}' +
+    '#mp-assist-bubble-logo{width:38px;height:auto;display:block;' +
+    'filter:brightness(0) invert(1);}' +
     '#mp-assist-panel{position:fixed;bottom:92px;right:20px;width:min(360px,calc(100vw - 32px));' +
     'height:min(480px,calc(100vh - 140px));background:#fff;border-radius:16px;overflow:hidden;' +
     'box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:999999;display:none;flex-direction:column;' +
@@ -70,8 +68,10 @@
   var bubble = document.createElement('button');
   bubble.id = 'mp-assist-bubble';
   bubble.setAttribute('aria-label', 'Assistant IA Mouda Palace');
-  var bubbleLogo = document.createElement('div');
+  var bubbleLogo = document.createElement('img');
   bubbleLogo.id = 'mp-assist-bubble-logo';
+  bubbleLogo.src = 'https://mouda-palace.vercel.app/mouda-1-1-1.png';
+  bubbleLogo.alt = '';
   bubble.appendChild(bubbleLogo);
 
   launcher.appendChild(label);

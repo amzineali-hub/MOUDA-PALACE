@@ -25,7 +25,7 @@
     'box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;' +
     'transition:transform .15s ease;}' +
     '#mp-assist-bubble:hover{transform:scale(1.06);}' +
-    '#mp-assist-bubble-logo{width:38px;height:auto;display:block;' +
+    '#mp-assist-bubble-logo{width:52px;height:auto;display:block;' +
     'filter:brightness(0) invert(1);}' +
     '#mp-assist-panel{position:fixed;bottom:92px;right:20px;width:min(360px,calc(100vw - 32px));' +
     'height:min(480px,calc(100vh - 140px));background:#fff;border-radius:16px;overflow:hidden;' +

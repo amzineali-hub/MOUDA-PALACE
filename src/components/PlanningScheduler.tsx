@@ -122,7 +122,7 @@ const ROLE_CATEGORY_ORDER = ['Cuisine', 'Salle & Service', 'Bar', 'Management', 
 const getRoleCategory = (role: string): typeof ROLE_CATEGORY_ORDER[number] => {
   const r = (role || '').toLowerCase();
   if (r.includes('chef de rang') || r.includes('agent d\'acceuil') || r.includes('agent d\'accueil') || r.includes('serveur') || r.includes('service') || r.includes('salle') || r.includes('hôte') || r.includes('hote') || r.includes('accueil')) return 'Salle & Service';
-  if (r.includes('cuisine') || r.includes('cuisinier') || r.includes('chef') || r.includes('commis') || r.includes('comis') || r.includes('pâtissier') || r.includes('patissier')) return 'Cuisine';
+  if (r.includes('cuisin') || r.includes('chef') || r.includes('commis') || r.includes('comis') || r.includes('pâtissi') || r.includes('patissi')) return 'Cuisine';
   if (r.includes('bar') || r.includes('mixologue')) return 'Bar';
   if (r.includes('manager') || r.includes('responsable') || r.includes('directeur') || r.includes('gérant') || r.includes('gerant')) return 'Management';
   if (r.includes('ménage') || r.includes('menage') || r.includes('entretien') || r.includes('nettoyage')) return 'Ménage & Entretien';

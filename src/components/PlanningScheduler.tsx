@@ -116,16 +116,17 @@ const roleToColor = (role: string): Shift['colorType'] => {
 };
 
 // Regroupement par spécialité pour le planning imprimé/exporté — volontairement distinct de
-// roleToColor (qui classerait à tort "Chef de Rang" en cuisine à cause du mot "chef" : ici les
-// intitulés de salle/service sont vérifiés en priorité, avant le test générique "chef"/"cuisine").
+// roleToColor (qui classerait à tort "Chef de Rang"/"Chef d'Entretien" en cuisine à cause du mot
+// "chef" : ici, tous les intitulés "Chef de X" non-cuisine sont vérifiés en priorité, AVANT le
+// test générique "chef" qui sert de repli pour la cuisine (Chef de Partie, Chef Pâtissier...).
 const ROLE_CATEGORY_ORDER = ['Cuisine', 'Salle & Service', 'Bar', 'Management', 'Ménage & Entretien', 'Autre'] as const;
 const getRoleCategory = (role: string): typeof ROLE_CATEGORY_ORDER[number] => {
   const r = (role || '').toLowerCase();
   if (r.includes('chef de rang') || r.includes('agent d\'acceuil') || r.includes('agent d\'accueil') || r.includes('serveur') || r.includes('service') || r.includes('salle') || r.includes('hôte') || r.includes('hote') || r.includes('accueil')) return 'Salle & Service';
-  if (r.includes('cuisin') || r.includes('chef') || r.includes('commis') || r.includes('comis') || r.includes('pâtissi') || r.includes('patissi')) return 'Cuisine';
-  if (r.includes('bar') || r.includes('mixologue')) return 'Bar';
-  if (r.includes('manager') || r.includes('responsable') || r.includes('directeur') || r.includes('gérant') || r.includes('gerant')) return 'Management';
   if (r.includes('ménage') || r.includes('menage') || r.includes('entretien') || r.includes('nettoyage')) return 'Ménage & Entretien';
+  if (r.includes('manager') || r.includes('responsable') || r.includes('directeur') || r.includes('gérant') || r.includes('gerant')) return 'Management';
+  if (r.includes('bar') || r.includes('mixologue')) return 'Bar';
+  if (r.includes('cuisin') || r.includes('chef') || r.includes('commis') || r.includes('comis') || r.includes('pâtissi') || r.includes('patissi')) return 'Cuisine';
   return 'Autre';
 };
 const sortEmployeesBySpecialty = (emps: Employee[]): Employee[] =>

@@ -115,6 +115,26 @@ const roleToColor = (role: string): Shift['colorType'] => {
   return 'green';
 };
 
+// Regroupement par spécialité pour le planning imprimé/exporté — volontairement distinct de
+// roleToColor (qui classerait à tort "Chef de Rang" en cuisine à cause du mot "chef" : ici les
+// intitulés de salle/service sont vérifiés en priorité, avant le test générique "chef"/"cuisine").
+const ROLE_CATEGORY_ORDER = ['Cuisine', 'Salle & Service', 'Bar', 'Management', 'Ménage & Entretien', 'Autre'] as const;
+const getRoleCategory = (role: string): typeof ROLE_CATEGORY_ORDER[number] => {
+  const r = (role || '').toLowerCase();
+  if (r.includes('chef de rang') || r.includes('agent d\'acceuil') || r.includes('agent d\'accueil') || r.includes('serveur') || r.includes('service') || r.includes('salle') || r.includes('hôte') || r.includes('hote') || r.includes('accueil')) return 'Salle & Service';
+  if (r.includes('cuisine') || r.includes('cuisinier') || r.includes('chef') || r.includes('commis') || r.includes('comis') || r.includes('pâtissier') || r.includes('patissier')) return 'Cuisine';
+  if (r.includes('bar') || r.includes('mixologue')) return 'Bar';
+  if (r.includes('manager') || r.includes('responsable') || r.includes('directeur') || r.includes('gérant') || r.includes('gerant')) return 'Management';
+  if (r.includes('ménage') || r.includes('menage') || r.includes('entretien') || r.includes('nettoyage')) return 'Ménage & Entretien';
+  return 'Autre';
+};
+const sortEmployeesBySpecialty = (emps: Employee[]): Employee[] =>
+  [...emps].sort((a, b) => {
+    const catDiff = ROLE_CATEGORY_ORDER.indexOf(getRoleCategory(a.role)) - ROLE_CATEGORY_ORDER.indexOf(getRoleCategory(b.role));
+    if (catDiff !== 0) return catDiff;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
 const computeHours = (startTime: string, endTime: string) => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
@@ -629,9 +649,10 @@ export default function PlanningScheduler({ staffData }: { staffData: any[] }) {
     if (isExportingPdf) return;
     setIsExportingPdf(true);
     try {
+      const sortedEmployees = sortEmployeesBySpecialty(visibleEmployees);
       const chunks: Employee[][] = [];
-      for (let i = 0; i < visibleEmployees.length; i += EMPLOYEES_PER_PDF_PAGE) {
-        chunks.push(visibleEmployees.slice(i, i + EMPLOYEES_PER_PDF_PAGE));
+      for (let i = 0; i < sortedEmployees.length; i += EMPLOYEES_PER_PDF_PAGE) {
+        chunks.push(sortedEmployees.slice(i, i + EMPLOYEES_PER_PDF_PAGE));
       }
       if (chunks.length === 0) chunks.push([]);
       const htmlPages = chunks.map((chunk, idx) => buildLetterheadHtml(companyInfo, window.location.origin, {

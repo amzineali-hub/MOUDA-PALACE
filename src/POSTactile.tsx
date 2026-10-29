@@ -2187,7 +2187,7 @@ export default function POSTactile() {
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-400">Chargement du menu...</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                 <AnimatePresence mode="popLayout">
                   {/* Bouton d'ajout */}
                   <motion.button
@@ -2199,8 +2199,8 @@ export default function POSTactile() {
                     onClick={() => setIsAddModalOpen(true)}
                     className="relative overflow-hidden flex flex-col justify-center items-center aspect-square rounded-2xl sm:rounded-3xl p-1.5 sm:p-2.5 border-2 border-dashed border-gray-300 text-gray-400 hover:text-[#F4C75B] hover:border-[#F4C75B] hover:bg-[#F4C75B]/5 bg-white shadow-[0_4px_0_0_#eef0f2] transition-all"
                   >
-                    <Plus size={36} className="mb-1" />
-                    <span className="font-bold text-sm sm:text-base text-center">Ajouter un article</span>
+                    <Plus size={44} className="mb-1" />
+                    <span className="font-bold text-base sm:text-lg text-center">Ajouter un article</span>
                   </motion.button>
 
                   {filteredItems.map(item => {
@@ -2228,7 +2228,7 @@ export default function POSTactile() {
                             <img src={resolvedImage} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Utensils size={32} className="opacity-60" />
+                              <Utensils size={40} className="opacity-60" />
                             </div>
                           )}
                         </div>
@@ -2242,15 +2242,15 @@ export default function POSTactile() {
                           </div>
                         )}
 
-                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-2.5 sm:px-3.5 py-2">
-                          <span className="font-bold text-base sm:text-lg leading-tight text-[#1A1A1A] break-words line-clamp-2">
+                        <div className="flex-[2] min-h-0 flex flex-col justify-center px-3 sm:px-4 py-2.5">
+                          <span className="font-bold text-lg sm:text-xl leading-tight text-[#1A1A1A] break-words line-clamp-2">
                             {item.name}
                           </span>
-                          <div className="mt-auto flex items-baseline gap-1 pt-0.5">
-                            <span className="font-black text-lg sm:text-xl text-[#F4C75B]">
+                          <div className="mt-auto flex items-baseline gap-1.5 pt-1">
+                            <span className="font-black text-xl sm:text-2xl text-[#F4C75B]">
                               {item.numPrice}
                             </span>
-                            <span className="font-bold text-xs sm:text-sm text-gray-400">MAD</span>
+                            <span className="font-bold text-sm sm:text-base text-gray-400">MAD</span>
                           </div>
                         </div>
                       </motion.div>

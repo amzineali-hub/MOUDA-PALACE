@@ -61,7 +61,13 @@
     'box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .15s ease;}' +
     '#mp-wa-bubble:hover{transform:scale(1.06);}' +
     '#mp-wa-bubble svg{width:34px;height:34px;}' +
-    '@media (max-width:420px){#mp-wa-bubble{left:16px;width:56px;height:56px;}#mp-wa-bubble svg{width:30px;height:30px;}}';
+    '@media (max-width:420px){#mp-wa-bubble{left:16px;width:56px;height:56px;}#mp-wa-bubble svg{width:30px;height:30px;}}' +
+    '#mp-music-toggle{position:fixed;top:20px;left:20px;width:48px;height:48px;border-radius:50%;' +
+    'background:' + TEAL + ';border:none;cursor:pointer;z-index:999999;display:flex;align-items:center;' +
+    'justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.22);transition:transform .15s ease;}' +
+    '#mp-music-toggle:hover{transform:scale(1.08);}' +
+    '#mp-music-toggle svg{width:22px;height:22px;}' +
+    '@media (max-width:420px){#mp-music-toggle{top:16px;left:16px;width:42px;height:42px;}#mp-music-toggle svg{width:19px;height:19px;}}';
   document.head.appendChild(style);
 
   var launcher = document.createElement('div');
@@ -207,5 +213,94 @@
         sendEl.disabled = false;
         inputEl.focus();
       });
+  });
+
+  // Musique de fond — reprise entre pages (navigation classique, rechargement complet à chaque
+  // lien) via sessionStorage : position + état lu/pause sauvegardés en continu, puis restaurés au
+  // chargement suivant. Les navigateurs bloquent le son automatique avant toute interaction ; si la
+  // première tentative échoue, on retente au premier clic/touche/touche-clavier de la page, une
+  // seule fois — ensuite, Chrome/Firefox autorisent la suite sans redemander pour le reste de la
+  // visite. Jamais de boucle : le morceau s'arrête naturellement à la fin (demande du gérant).
+  var MUSIC_URL = 'https://moudapalace.com/wp-content/uploads/2026/10/chanson-mouda-palace.mp3';
+  var TIME_KEY = 'mp-music-time';
+  var PLAYING_KEY = 'mp-music-playing';
+
+  var audio = document.createElement('audio');
+  audio.id = 'mp-music-audio';
+  audio.src = MUSIC_URL;
+  audio.preload = 'auto';
+  document.body.appendChild(audio);
+
+  var musicBtn = document.createElement('button');
+  musicBtn.id = 'mp-music-toggle';
+  musicBtn.setAttribute('aria-label', 'Activer/couper la musique');
+  var ICON_NOTE = '<svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M9 17V5l12-2v12M9 17a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-4a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var ICON_MUTED = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M9 17V5l12-2v12"/><circle cx="6" cy="17" r="3"/><circle cx="18" cy="13" r="3"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
+  musicBtn.innerHTML = ICON_NOTE;
+  document.body.appendChild(musicBtn);
+
+  function savePosition() {
+    try { sessionStorage.setItem(TIME_KEY, String(audio.currentTime)); } catch (e) {}
+  }
+
+  var resumeTime = 0;
+  try { resumeTime = parseFloat(sessionStorage.getItem(TIME_KEY) || '0') || 0; } catch (e) {}
+  audio.addEventListener('loadedmetadata', function () {
+    if (resumeTime > 0 && resumeTime < audio.duration) audio.currentTime = resumeTime;
+  });
+
+  var wantsPlaying = true;
+  try { wantsPlaying = sessionStorage.getItem(PLAYING_KEY) !== 'false'; } catch (e) {}
+
+  function markPlaying(isPlaying) {
+    musicBtn.innerHTML = isPlaying ? ICON_NOTE : ICON_MUTED;
+    try { sessionStorage.setItem(PLAYING_KEY, isPlaying ? 'true' : 'false'); } catch (e) {}
+  }
+
+  function attemptPlay() {
+    var p = audio.play();
+    if (p && p.catch) {
+      p.then(function () { markPlaying(true); }).catch(function () {
+        markPlaying(false);
+        var onFirstGesture = function () {
+          document.removeEventListener('click', onFirstGesture);
+          document.removeEventListener('touchstart', onFirstGesture);
+          document.removeEventListener('keydown', onFirstGesture);
+          if (wantsPlaying) audio.play().then(function () { markPlaying(true); }).catch(function () {});
+        };
+        document.addEventListener('click', onFirstGesture);
+        document.addEventListener('touchstart', onFirstGesture);
+        document.addEventListener('keydown', onFirstGesture);
+      });
+    }
+  }
+
+  if (wantsPlaying) {
+    attemptPlay();
+  } else {
+    markPlaying(false);
+  }
+
+  musicBtn.addEventListener('click', function () {
+    if (audio.paused) {
+      audio.play().then(function () { markPlaying(true); }).catch(function () {});
+    } else {
+      audio.pause();
+      markPlaying(false);
+    }
+  });
+
+  var lastSaved = 0;
+  audio.addEventListener('timeupdate', function () {
+    var now = Date.now();
+    if (now - lastSaved > 2000) { lastSaved = now; savePosition(); }
+  });
+  window.addEventListener('beforeunload', function () {
+    savePosition();
+    try { sessionStorage.setItem(PLAYING_KEY, audio.paused ? 'false' : 'true'); } catch (e) {}
+  });
+  audio.addEventListener('ended', function () {
+    try { sessionStorage.removeItem(TIME_KEY); sessionStorage.removeItem(PLAYING_KEY); } catch (e) {}
+    markPlaying(false);
   });
 })();

@@ -66,8 +66,8 @@
     'background:' + TEAL + ';border:none;cursor:pointer;z-index:999999;display:flex;align-items:center;' +
     'justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.22);transition:transform .15s ease;}' +
     '#mp-music-toggle:hover{transform:scale(1.08);}' +
-    '#mp-music-toggle svg{width:22px;height:22px;}' +
-    '@media (max-width:420px){#mp-music-toggle{top:16px;left:16px;width:42px;height:42px;}#mp-music-toggle svg{width:19px;height:19px;}}';
+    '#mp-music-toggle{font-size:20px;line-height:1;}' +
+    '@media (max-width:420px){#mp-music-toggle{top:16px;left:16px;width:42px;height:42px;font-size:17px;}}';
   document.head.appendChild(style);
 
   var launcher = document.createElement('div');
@@ -234,9 +234,9 @@
   var musicBtn = document.createElement('button');
   musicBtn.id = 'mp-music-toggle';
   musicBtn.setAttribute('aria-label', 'Activer/couper la musique');
-  var ICON_NOTE = '<svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M9 17V5l12-2v12M9 17a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-4a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  var ICON_MUTED = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M9 17V5l12-2v12"/><circle cx="6" cy="17" r="3"/><circle cx="18" cy="13" r="3"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
-  musicBtn.innerHTML = ICON_NOTE;
+  var ICON_NOTE = '🎵';
+  var ICON_MUTED = '🔇';
+  musicBtn.textContent = ICON_NOTE;
   document.body.appendChild(musicBtn);
 
   function savePosition() {

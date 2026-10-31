@@ -252,21 +252,48 @@
   var wantsPlaying = true;
   try { wantsPlaying = sessionStorage.getItem(PLAYING_KEY) !== 'false'; } catch (e) {}
 
-  function markPlaying(isPlaying) {
-    musicBtn.innerHTML = isPlaying ? ICON_NOTE : ICON_MUTED;
-    try { sessionStorage.setItem(PLAYING_KEY, isPlaying ? 'true' : 'false'); } catch (e) {}
+  // L'icône reflète ce que le visiteur entend réellement (ni en pause, ni muet) — distinct de
+  // PLAYING_KEY en sessionStorage, qui lui ne reflète qu'une vraie décision de l'internaute
+  // (pause/lecture via le bouton), pas l'état transitoire "muet avant le premier geste" ci-dessous.
+  function updateIcon() {
+    musicBtn.textContent = (audio.muted || audio.paused) ? ICON_MUTED : ICON_NOTE;
+  }
+
+  // Démarrage muet automatique (toujours autorisé par les navigateurs, contrairement au son) puis
+  // activation du son dès le premier geste de l'internaute — la musique tourne donc déjà en
+  // arrière-plan dès l'arrivée sur le site, le premier clic ne fait qu'enlever le silence plutôt
+  // que de (re)lancer la lecture, ce qui s'en approche le plus de ce que permettent les navigateurs.
+  function unmuteOnFirstGesture() {
+    var onFirstGesture = function () {
+      document.removeEventListener('click', onFirstGesture);
+      document.removeEventListener('touchstart', onFirstGesture);
+      document.removeEventListener('keydown', onFirstGesture);
+      if (audio.paused) { audio.play().catch(function () {}); }
+      audio.muted = false;
+      updateIcon();
+    };
+    document.addEventListener('click', onFirstGesture);
+    document.addEventListener('touchstart', onFirstGesture);
+    document.addEventListener('keydown', onFirstGesture);
   }
 
   function attemptPlay() {
+    audio.muted = true;
     var p = audio.play();
     if (p && p.catch) {
-      p.then(function () { markPlaying(true); }).catch(function () {
-        markPlaying(false);
+      p.then(function () {
+        updateIcon();
+        unmuteOnFirstGesture();
+      }).catch(function () {
+        // Même l'autoplay muet a échoué (rare) — repli : lecture + son activés ensemble au
+        // premier geste, comme avant.
+        updateIcon();
         var onFirstGesture = function () {
           document.removeEventListener('click', onFirstGesture);
           document.removeEventListener('touchstart', onFirstGesture);
           document.removeEventListener('keydown', onFirstGesture);
-          if (wantsPlaying) audio.play().then(function () { markPlaying(true); }).catch(function () {});
+          audio.muted = false;
+          audio.play().then(updateIcon).catch(function () {});
         };
         document.addEventListener('click', onFirstGesture);
         document.addEventListener('touchstart', onFirstGesture);
@@ -278,16 +305,21 @@
   if (wantsPlaying) {
     attemptPlay();
   } else {
-    markPlaying(false);
+    updateIcon();
   }
 
   musicBtn.addEventListener('click', function () {
     if (audio.paused) {
-      audio.play().then(function () { markPlaying(true); }).catch(function () {});
+      audio.muted = false;
+      audio.play().then(updateIcon).catch(function () {});
+    } else if (audio.muted) {
+      audio.muted = false;
+      updateIcon();
     } else {
       audio.pause();
-      markPlaying(false);
+      updateIcon();
     }
+    try { sessionStorage.setItem(PLAYING_KEY, audio.paused ? 'false' : 'true'); } catch (e) {}
   });
 
   var lastSaved = 0;
@@ -301,6 +333,6 @@
   });
   audio.addEventListener('ended', function () {
     try { sessionStorage.removeItem(TIME_KEY); sessionStorage.removeItem(PLAYING_KEY); } catch (e) {}
-    markPlaying(false);
+    updateIcon();
   });
 })();

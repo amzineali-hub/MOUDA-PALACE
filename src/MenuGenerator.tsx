@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat, ZoomIn, ClipboardList, PlayCircle, Video, Share2, Copy, Check, EyeOff } from 'lucide-react';
+import { Utensils, Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Sparkles, Upload, Printer, ChefHat, ZoomIn, ClipboardList, PlayCircle, Video, Share2, Copy, Check, EyeOff, Eye } from 'lucide-react';
 import { useToast } from './context/ToastContext';
 import ConfirmModal from './components/ConfirmModal';
 import Combobox from './components/Combobox';
@@ -45,6 +45,10 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   const [isImportingPdfMenu, setIsImportingPdfMenu] = useState(false);
   const [isMissingPhotosOpen, setIsMissingPhotosOpen] = useState(false);
   const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+  // Catégories masquées du menu (impression + site public /carte) — pas du tableau de bord
+  // ci-dessous, qui doit toujours tout montrer pour qu'on puisse retrouver le bouton et réafficher
+  // la catégorie. Document public en lecture (voir firestore.rules) : lu aussi par PublicMenu.tsx.
+  const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
 
   // Form states
   const [name, setName] = useState('');
@@ -66,6 +70,9 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
   // entrées du menu PDF (import Beldi/Saveurs du Monde + carte Boisson) utilisent les catégories
   // dédiées.
   const categories = MENU_CATEGORY_ORDER;
+  // Catégories réellement imprimées (tableau de bord ci-dessous = `categories`, non filtré, pour
+  // toujours retrouver le bouton Afficher/Masquer).
+  const printableCategories = categories.filter(c => !hiddenCategories.includes(c));
 
   const availableImages = [
     "/8c978763-67b7-4533-b682-dad543615044_3-hours-cultural-walk-in-fes-medina-medium.jpg",
@@ -87,6 +94,28 @@ export default function MenuGenerator({ onOpenFiche }: { onOpenFiche?: (dishName
 
   return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const unsubVisibility = onSnapshot(doc(db, 'settings', 'menuVisibility'), (snap) => {
+      setHiddenCategories(snap.exists() ? (snap.data().hiddenCategories || []) : []);
+    }, (error) => {
+      console.error("Error fetching menu visibility", error);
+    });
+    return () => unsubVisibility();
+  }, []);
+
+  const toggleCategoryVisibility = async (cat: string) => {
+    const next = hiddenCategories.includes(cat)
+      ? hiddenCategories.filter(c => c !== cat)
+      : [...hiddenCategories, cat];
+    try {
+      await setDoc(doc(db, 'settings', 'menuVisibility'), { hiddenCategories: next }, { merge: true });
+      showToast(next.includes(cat) ? `"${cat}" masquée du site et de l'impression` : `"${cat}" réaffichée`);
+    } catch (err) {
+      console.error("Error toggling category visibility", err);
+      showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
 
   // Fiches techniques + stock, pour afficher le coût matière/marge réels à titre informatif
   useEffect(() => {
@@ -526,7 +555,7 @@ if (isPrintView) {
               </div>
 
               <div className="space-y-16">
-                {categories.map((cat) => {
+                {printableCategories.map((cat) => {
                   const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                   if (itemsInCat.length === 0) return null;
 
@@ -593,7 +622,7 @@ if (isPrintView) {
 
                 <div className="relative z-10">
                   <div className="space-y-10 md:space-y-12">
-                    {categories.map((cat) => {
+                    {printableCategories.map((cat) => {
                       const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                       if (itemsInCat.length === 0) return null;
                       return (
@@ -681,7 +710,7 @@ if (isPrintView) {
                   </div>
 
                   <div className="space-y-12 md:space-y-16 max-w-3xl mx-auto">
-                    {categories.map((cat) => {
+                    {printableCategories.map((cat) => {
                       const itemsInCat = sortItemsByPrice(menuItems.filter(i => i.category === cat));
                       if (itemsInCat.length === 0) return null;
                       return (
@@ -797,13 +826,26 @@ if (isPrintView) {
       {categories.map(category => {
         const items = sortItemsByPrice(menuItems.filter(item => item.category === category));
         if (items.length === 0) return null;
+        const isHidden = hiddenCategories.includes(category);
         return (
           <div key={category} className="space-y-4">
-            <h2 className="text-2xl font-serif text-[#1A1A1A] border-b border-gray-200 pb-2 flex items-center gap-2">
-              <ChefHat size={20} className="text-[#F4C75B]" />
-              {category}
+            <h2 className="text-2xl font-serif text-[#1A1A1A] border-b border-gray-200 pb-2 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <ChefHat size={20} className="text-[#F4C75B]" />
+                {category}
+                {isHidden && <span className="text-xs font-sans font-semibold uppercase tracking-wide text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Masquée</span>}
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleCategoryVisibility(category)}
+                className={`flex items-center gap-1.5 text-sm font-sans font-medium px-3 py-1.5 rounded-lg transition-colors ${isHidden ? 'bg-gray-100 text-gray-500 hover:bg-gray-200' : 'bg-[#265C6D]/10 text-[#265C6D] hover:bg-[#265C6D]/20'}`}
+                title={isHidden ? 'Réafficher sur le site et l\'impression' : 'Masquer du site et de l\'impression'}
+              >
+                {isHidden ? <EyeOff size={15} /> : <Eye size={15} />}
+                {isHidden ? 'Afficher' : 'Masquer'}
+              </button>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${isHidden ? 'opacity-50' : ''}`}>
               {items.map(item => (
                 <motion.div 
                   key={item.id}

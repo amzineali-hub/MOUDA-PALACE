@@ -65,6 +65,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
     }
+    // Catégories du menu masquées/affichées par le gérant depuis Génération du Menu — lues par
+    // /carte (site public) pour rester synchronisées avec l'ERP, donc lecture publique comme
+    // menu_items ci-dessus. Écriture réservée aux mêmes rôles que la gestion du menu.
+    match /settings/menuVisibility {
+      allow read: if true;
+      allow write: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
+    }
     match /reservations/{id} {
       allow read: if isAuthorizedAdmin() || isEconomat() || isGuestRelations();
       allow write: if isAuthorizedAdmin() || isGuestRelations();

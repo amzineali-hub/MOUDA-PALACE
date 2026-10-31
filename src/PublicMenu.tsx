@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, ZoomIn } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { MENU_CATEGORY_ORDER, sortItemsByPrice } from './lib/menuOrder';
 
@@ -28,6 +28,9 @@ interface MenuItemData {
 export default function PublicMenu() {
   const [items, setItems] = useState<MenuItemData[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  // Catégories masquées depuis Génération du Menu (bouton Afficher/Masquer) — même document que
+  // l'ERP (settings/menuVisibility), pour rester synchronisé sans action manuelle.
+  const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
   // Plein écran au clic sur une photo — surtout utile en version PC, où les vignettes de la grille
   // restent petites comparé au mobile (une seule colonne, déjà plus grande naturellement).
   const [lightboxItem, setLightboxItem] = useState<MenuItemData | null>(null);
@@ -47,6 +50,17 @@ export default function PublicMenu() {
         if (cancelled) return;
         setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as MenuItemData)));
         setStatus('ready');
+
+        // Lecture séparée et non bloquante : si cette règle Firestore n'est pas encore déployée
+        // (ou tout autre souci), le menu doit quand même s'afficher — juste sans tenir compte du
+        // masquage de catégories, plutôt que de faire planter toute la page publique.
+        try {
+          const visibilitySnap = await getDoc(doc(db, 'settings', 'menuVisibility'));
+          if (cancelled) return;
+          setHiddenCategories(visibilitySnap.exists() ? (visibilitySnap.data().hiddenCategories || []) : []);
+        } catch (visibilityErr) {
+          console.error('Erreur de chargement de la visibilité des catégories', visibilityErr);
+        }
       } catch (err) {
         console.error('Erreur de chargement du menu public', err);
         if (!cancelled) setStatus('error');
@@ -78,7 +92,7 @@ export default function PublicMenu() {
   // plutôt que de disparaître silencieusement du menu public.
   const knownCategories = new Set(CATEGORY_ORDER);
   const extraCategories = [...new Set(items.map(i => i.category).filter(c => c && !knownCategories.has(c)))];
-  const orderedCategories = [...categoriesPresent, ...extraCategories];
+  const orderedCategories = [...categoriesPresent, ...extraCategories].filter(cat => !hiddenCategories.includes(cat));
 
   return (
     <div className="min-h-screen bg-[#FAF8F5]">

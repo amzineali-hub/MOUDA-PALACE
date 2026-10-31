@@ -55,7 +55,13 @@
     '#mp-assist-send{background:' + GOLD + ';color:#1A1A1A;border:none;border-radius:20px;' +
     'padding:0 16px;font-weight:600;cursor:pointer;font-size:14px;}' +
     '#mp-assist-send:disabled{opacity:.5;cursor:default;}' +
-    '@media (max-width:420px){#mp-assist-panel{right:16px;bottom:88px;}#mp-assist-launcher{right:16px;}}';
+    '@media (max-width:420px){#mp-assist-panel{right:16px;bottom:88px;}#mp-assist-launcher{right:16px;}}' +
+    '#mp-wa-bubble{position:fixed;bottom:20px;left:20px;width:64px;height:64px;border-radius:50%;' +
+    'background:#25D366;display:flex;align-items:center;justify-content:center;z-index:999999;' +
+    'box-shadow:0 4px 16px rgba(0,0,0,.25);transition:transform .15s ease;}' +
+    '#mp-wa-bubble:hover{transform:scale(1.06);}' +
+    '#mp-wa-bubble svg{width:34px;height:34px;}' +
+    '@media (max-width:420px){#mp-wa-bubble{left:16px;width:56px;height:56px;}#mp-wa-bubble svg{width:30px;height:30px;}}';
   document.head.appendChild(style);
 
   var launcher = document.createElement('div');
@@ -86,8 +92,17 @@
     '<form id="mp-assist-form"><input id="mp-assist-input" type="text" placeholder="Écrivez votre message…" autocomplete="off" />' +
     '<button id="mp-assist-send" type="submit">Envoyer</button></form>';
 
+  var waBubble = document.createElement('a');
+  waBubble.id = 'mp-wa-bubble';
+  waBubble.href = 'https://wa.me/212661357191';
+  waBubble.target = '_blank';
+  waBubble.rel = 'noopener noreferrer';
+  waBubble.setAttribute('aria-label', 'Contacter Mouda Palace sur WhatsApp');
+  waBubble.innerHTML = '<svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.868-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2C6.486 2 2.01 6.476 2.01 11.994c0 2.114.654 4.075 1.769 5.689L2 22l4.432-1.74a9.96 9.96 0 0 0 5.572 1.724h.005c5.517 0 9.993-4.476 9.993-9.994C21.997 6.476 17.521 2 12.004 2zm0 18.18h-.004a8.18 8.18 0 0 1-4.168-1.14l-.299-.177-3.097 1.213.84-3.1-.195-.318a8.164 8.164 0 0 1-1.254-4.364c0-4.512 3.672-8.18 8.182-8.18 2.187 0 4.242.852 5.788 2.4a8.13 8.13 0 0 1 2.396 5.787c0 4.512-3.672 8.18-8.19 8.18z"/></svg>';
+
   document.body.appendChild(launcher);
   document.body.appendChild(panel);
+  document.body.appendChild(waBubble);
 
   var msgsEl = panel.querySelector('#mp-assist-msgs');
   var formEl = panel.querySelector('#mp-assist-form');
